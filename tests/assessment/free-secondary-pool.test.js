@@ -91,3 +91,18 @@ describe('spares and swapLeaks (G7 a6: Q2 "Carbon dioxide" still gave Q5 away af
     expect(stems(exam)[1]).toBe(q2.question);
   });
 });
+
+// bd-e5n2jf — the pool is the extra Unseen MCQs only: the book's own (Seen) MCQs are never culled by it.
+describe('select leaves Seen MCQs alone', () => {
+  it('a Seen-only paper keeps every Seen MCQ when the Unseen MCQ count is 0', () => {
+    const exam = { seen: { objective: { 'Multiple Choice Questions': [mcq('S1'), mcq('S2'), mcq('S3')] } } };
+    expect(P.select(exam, 0, issuesOf).dropped).toBe(0);
+    expect(exam.seen.objective['Multiple Choice Questions']).toHaveLength(3);
+  });
+  it('a Both paper cuts only the Unseen MCQs back to the plan', () => {
+    const exam = { seen: { objective: { MCQs: [mcq('S1'), mcq('S2')] } }, ...paper([mcq('U1'), mcq('U2'), mcq('U3')]) };
+    P.select(exam, 2, issuesOf);
+    expect(exam.seen.objective.MCQs).toHaveLength(2);
+    expect(stems(exam)).toHaveLength(2);
+  });
+});

@@ -43,8 +43,11 @@ const DEVANAGARI_GLOBAL_RE = /[ऀ-ॿ꣠-ꣿ᳐-᳿]/g;
 /** Two-character sequences first — a nukta or an aspirate must win over its base letter. */
 const DIGRAPHS = [
   ['क़', 'ق'], ['ख़', 'خ'], ['ग़', 'غ'], ['ज़', 'ز'], ['ड़', 'ڑ'], ['ढ़', 'ڑھ'], ['फ़', 'ف'], ['य़', 'ی'],
-  // The same letters when they arrive pre-composed rather than as base + U+093C.
-  ['क़', 'ق'], ['ख़', 'خ'], ['ग़', 'غ'], ['ज़', 'ز'], ['ड़', 'ڑ'], ['ढ़', 'ڑھ'], ['फ़', 'ف'],
+  // The same letters when they arrive PRECOMPOSED (U+0958-U+095F) rather than as base + U+093C. Written as escapes:
+  // these are Unicode composition exclusions, so an editor that normalises the file turns a literal one into base +
+  // nukta, which is how this line once became a silent duplicate of the one above.
+  ['\u0958', 'ق'], ['\u0959', 'خ'], ['\u095A', 'غ'], ['\u095B', 'ز'],
+  ['\u095C', 'ڑ'], ['\u095D', 'ڑھ'], ['\u095E', 'ف'], ['\u095F', 'ی'],
   // इए is the polite-imperative ending all over these debriefs — बताइए, कीजिए,
   // दीजिए. Character-by-character it yields a double hamza (ئئے); Urdu writes ئیے.
   ['इए', 'ئیے'],
@@ -78,6 +81,16 @@ const CHARS = {
   // Urdu commonly uses Latin digits.
   '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
   '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+  // The rarer letters and signs, by their nearest Urdu reading (escapes, for the same reason as the
+  // precomposed nukta letters above). Anything still left in the Devanagari blocks is dropped at the end.
+  '\u0900': 'ں',                                   // inverted candrabindu
+  '\u0904': 'ا', '\u090C': 'ل', '\u090D': 'اے',     // short a, vocalic l, candra e
+  '\u090E': 'اے', '\u0912': 'او', '\u0960': 'ر',     // short e, short o, vocalic rr
+  '\u0961': 'ل', '\u0972': 'آ',                     // vocalic ll, candra a
+  '\u0929': 'ن', '\u0931': 'ر', '\u0934': 'ل',       // nnna, rra, llla
+  '\u0944': 'ر', '\u0945': 'ے', '\u0946': 'ے',       // vowel signs: vocalic rr, candra e, short e
+  '\u094A': 'و', '\u0962': 'ل', '\u0963': 'ل',       // vowel signs: short o, vocalic l, vocalic ll
+  '\u0950': 'اوم', '\u0970': '.',                    // om, abbreviation sign
 };
 
 /** Does this text contain any Devanagari at all? */
@@ -105,6 +118,7 @@ const MEDIAL_OVERRIDES = {
   // ے is the word-FINAL shape of this vowel; medially Urdu writes ی.
   // में -> میں, not مےں.  हैं -> ہیں, not ہےں.
   'े': 'ی', 'ै': 'ی',
+  '\u0945': 'ی', '\u0946': 'ی',   // candra e and short e signs, as े
 };
 /**
  * An independent vowel inside a word takes a hamza carrier, not a bare alif.
@@ -173,8 +187,10 @@ function transliterateToUrdu(text) {
     }
     result += Object.prototype.hasOwnProperty.call(CHARS, ch) ? CHARS[ch] : ch;
   }
+  // The guarantee is "never Devanagari". A code point the map does not know (a Vedic tone mark, a
+  // letter only other languages use) is dropped rather than shown as a box.
   // A virama or dropped short vowel can leave a doubled space; normalise.
-  return result.replace(/[ \t]{2,}/g, ' ');
+  return result.replace(DEVANAGARI_GLOBAL_RE, '').replace(/[ \t]{2,}/g, ' ');
 }
 
 /**
@@ -198,10 +214,73 @@ function ensureNoDevanagari(text, opts = {}) {
   return transliterateToUrdu(text);
 }
 
+/**
+ * The same guard over a MODEL REPLY, not just a transcript.
+ *
+ * The transcript layers hold, but the model still writes the odd Hindi-script word into its own Urdu: evidence, the
+ * report narrative, the focus area, the reflective corpus (prod, 1-19 Nov 2026: 81 teacher DC sessions and 20 coach
+ * observations, across about 45 different JSON paths). So every string in a JSON-shaped value goes through
+ * transliterateToUrdu — this file's one converter — wherever it sits. Keys, numbers, booleans and null are left as
+ * they are; a string with no Devanagari is returned as it was, so English and Urdu are untouched.
+ *
+ * The input is never mutated. Only the branches that held Devanagari are copied; everything else keeps its
+ * reference, and a value that needed nothing comes back as the very same reference.
+ *
+ * @param {*} value - what a model reply parses to (object, array, string, scalar)
+ * @param {object} [opts]
+ * @param {function} [opts.onDetected] - called once, only when something was converted, as
+ *   ({ count, strings, paths, sample }): Devanagari code points, strings converted, up to 20 JSON paths
+ *   ('domains.x.indicators[0].evidence'), and up to 12 of the Devanagari characters. Never the sentence itself.
+ * @returns {*}
+ */
+const DEEP_MAX_DEPTH = 64;
+const DEEP_MAX_PATHS = 20;
+
+function ensureNoDevanagariDeep(value, opts = {}) {
+  const found = { count: 0, strings: 0, paths: [], sample: '' };
+  const out = deepConvert(value, '', found, 0);
+  if (found.strings && typeof opts.onDetected === 'function') {
+    try { opts.onDetected(found); } catch (_) { /* logging must never cost the caller its text */ }
+  }
+  return out;
+}
+
+function deepConvert(v, path, found, depth) {
+  if (typeof v === 'string') {
+    if (!hasDevanagari(v)) return v;
+    found.strings += 1;
+    found.count += countDevanagari(v);
+    if (found.paths.length < DEEP_MAX_PATHS) found.paths.push(path || '$');
+    if (found.sample.length < 12) {
+      found.sample += (v.match(DEVANAGARI_GLOBAL_RE) || []).join('').slice(0, 12 - found.sample.length);
+    }
+    return transliterateToUrdu(v);
+  }
+  if (!v || typeof v !== 'object' || depth >= DEEP_MAX_DEPTH) return v;
+  if (Array.isArray(v)) {
+    let copy = null;
+    for (let i = 0; i < v.length; i++) {
+      const next = deepConvert(v[i], `${path}[${i}]`, found, depth + 1);
+      if (next !== v[i]) { if (!copy) copy = v.slice(); copy[i] = next; }
+    }
+    return copy || v;
+  }
+  // Plain objects only: a Date, a Buffer or a class instance is not model text.
+  const proto = Object.getPrototypeOf(v);
+  if (proto !== Object.prototype && proto !== null) return v;
+  let copy = null;
+  for (const k of Object.keys(v)) {
+    const next = deepConvert(v[k], path ? `${path}.${k}` : k, found, depth + 1);
+    if (next !== v[k]) { if (!copy) copy = { ...v }; copy[k] = next; }
+  }
+  return copy || v;
+}
+
 module.exports = {
   hasDevanagari,
   countDevanagari,
   transliterateToUrdu,
   ensureNoDevanagari,
+  ensureNoDevanagariDeep,
   DEVANAGARI_RE,
 };

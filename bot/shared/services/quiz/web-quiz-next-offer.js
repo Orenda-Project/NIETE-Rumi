@@ -4,6 +4,7 @@
  * (app_settings `web_quiz_next_offer`, default OFF: no `next` key anywhere, today's lantern untouched).
  *
  * The order, server-side (the page never decides):
+ *   0.  tonight's class round (web-quiz-evening-round; rule evening_round), not yet finished   rank_src 'pinned'
  *   1.  a teacher quiz sent in the last 7 days that this child has not finished       rank_src 'pinned'
  *   2.  in the first 2 home opens of a PKT month, a Trail stop not played this month   rank_src 'rule'
  *       (never one the server would answer "on its way")
@@ -69,7 +70,9 @@ const offerable = (c) => c && KINDS.includes(c.kind) && c.id && reachable(c.href
 // `teacher`, play again is `last`, a library video `library`/`recommended`).
 const VARIANT_ALIAS = Object.freeze({ new: ['new', 'teacher'], again: ['again', 'last'], teacher: ['teacher', 'new'], recommended: ['recommended', 'library'], library: ['library', 'recommended'], chapter: ['chapter', 'recommended', 'library'],
   // the quiz after a watched video (the door's quiz-after) is a new quiz, never "play again"
-  after_video: ['after_video', 'new'] });
+  after_video: ['after_video', 'new'],
+  // tonight's class round is the class teacher's lesson quiz
+  evening_round: ['evening_round', 'new', 'teacher'] });
 
 /** The scores row for a candidate: kind + variant (or its alias), else the kind's variant-less row, else its first. */
 function rowFor(rows, c) {
@@ -154,10 +157,14 @@ function rank(ctx, candidates, state = {}, weights = FILE_WEIGHTS) {
   const stop = (Number(state.monthOpens) || 0) <= MONTH_OPENS ? eligible.find((c) => c.rule === 'month_stop') : null;
   const resume = state.resumeToday ? null : eligible.find((c) => c.rule === 'resume');
 
+  // Tonight's class round (only ever built with web_quiz_evening_round on) is pinned ahead of everything.
+  const round = eligible.find((c) => c.rule === 'evening_round');
+
   let primary = null;
   let rule = 'none';
   let src = null;
-  if (pinned.length) { primary = pinned[0]; rule = 'teacher_quiz'; src = 'pinned'; }
+  if (round) { primary = round; rule = 'evening_round'; src = 'pinned'; }
+  else if (pinned.length) { primary = pinned[0]; rule = 'teacher_quiz'; src = 'pinned'; }
   else if (stop) { primary = stop; rule = 'month_stop'; src = 'rule'; }
   else if (resume) { primary = resume; rule = 'resume'; src = 'rule'; }
 

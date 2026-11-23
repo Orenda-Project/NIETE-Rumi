@@ -33,6 +33,9 @@ const DIAGRAM_TYPES = new Set([
   "graph", "plot", "function_plot",
   "geometry", "construction",
   "flow", "process", "chain",
+  // VENDOR DIVERGENCE (bd-zrdvmi.51) — SYNC.md §3.43: the closed-process ring the brief already
+  // showed the model (`dg-water-cycle`) and the engine never drew.
+  "cycle", "ring", "cyclic_process", "life_cycle",
   "mindmap", "concept_map",
   "timeline", "chronology",
   "panels", "comparison", "compare",
@@ -85,6 +88,7 @@ const CANON = {
   plot: "graph", function_plot: "graph",
   construction: "geometry",
   process: "flow", chain: "flow",
+  ring: "cycle", cyclic_process: "cycle", life_cycle: "cycle",
   concept_map: "mindmap",
   chronology: "timeline",
   comparison: "panels", compare: "panels",
@@ -165,7 +169,8 @@ const SUBJECT_RULES = {
     family: "biology",
     one_of: [
       ["cell", "dna_helix", "graph", "heart_loop", "labelled_figure", "leaf_cross_section", "punnett"],
-      ["flow", "mindmap"],
+      // `cycle` (bd-zrdvmi.51): the Krebs, water, carbon and cell cycles are processes that close.
+      ["flow", "mindmap", "cycle"],
     ],
     structure_or_process: true,
   },
@@ -186,7 +191,8 @@ const SUBJECT_RULES = {
     one_of: [
       ["atom", "cell", "chem_equation", "circuit", "dna_helix", "free_body", "graph",
         "heart_loop", "labelled_figure", "leaf_cross_section", "molecule", "punnett", "ray_diagram"],
-      ["flow", "mindmap"],
+      // `cycle` (bd-zrdvmi.51): the Krebs, water, carbon and cell cycles are processes that close.
+      ["flow", "mindmap", "cycle"],
     ],
     structure_or_process: true,
   },

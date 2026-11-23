@@ -7,51 +7,55 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__mocks__/` | → (no door; 24 files: 0 test + 24 support) |
-| `app-funnel/` | → (no door; 9 tests) |
-| `app-redirect/` | → (no door; 22 tests) |
+| `app-funnel/` | → (no door; 12 tests) |
+| `app-redirect/` | → (no door; 28 tests) |
 | `assessment/` | Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers → `assessment/CLAUDE.md` |
 | `attendance/` | WhatsApp attendance: router, marking Flow, voice roll call, registers and portal service → `attendance/CLAUDE.md` |
+| `books/` | (no description yet) → `books/CLAUDE.md` |
 | `broadcast/` | → (no door; 6 tests) |
 | `cache/` | → (no door; 4 tests) |
 | `child-test/` | EGRA/EGMA child test a coach runs over WhatsApp; one folder per build lane → `child-test/CLAUDE.md` |
-| `classes/` | → (no door; 20 tests) |
+| `classes/` | → (no door; 22 tests) |
 | `coaching/` | Root jest suite for the AI coaching pipeline: analysis, reports, reflection, LP linking → `coaching/CLAUDE.md` |
 | `coachip-media/` | → (no door; 2 tests) |
 | `coachip-rm/` | → (no door; 1 tests) |
 | `coachip/` | COACHIP coach/RM insight routes tested over HTTP against a throwaway Postgres → `coachip/CLAUDE.md` |
-| `config/` | → (no door; 12 tests) |
+| `config/` | → (no door; 14 tests) |
 | `conversation-state/` | → (no door; 12 tests) |
 | `dashboard/` | Dashboard portal proxy routes to the bot: assessment, classes, board pattern → `dashboard/CLAUDE.md` |
-| `database/` | → (no door; 15 tests) |
+| `database/` | → (no door; 28 tests) |
 | `deploy/` | → (no door; 1 tests) |
-| `e2e-mock/` | → (no door; 27 tests) |
+| `e2e-mock/` | (no description yet) → `e2e-mock/CLAUDE.md` |
 | `exam-checker/` | → (no door; 3 tests) |
 | `features/` | Gherkin specs for the NIETE bot (WhatsApp) and portal (web) E2E lanes → `features/CLAUDE.md` |
+| `feedback/` | → (no door; 11 tests) |
 | `fflp/` | → (no door; 21 files: 6 test + 15 support) |
-| `fixtures/` | → (no door; 13 files: 0 test + 13 support) |
+| `fixtures/` | → (no door; 18 files: 0 test + 18 support) |
 | `flow-response/` | → (no door; 2 tests) |
-| `handlers/` | → (no door; 18 tests) |
+| `handlers/` | → (no door; 20 tests) |
 | `hcp/` | HCP/Priority Dashboard portal routes under /api/portal/hcp/* → `hcp/CLAUDE.md` |
 | `homework/` | → (no door; 1 tests) |
-| `language/` | → (no door; 5 tests) |
+| `identity/` | (no description yet) → `identity/CLAUDE.md` |
+| `language/` | → (no door; 6 tests) |
 | `lesson-plan-lifecycle/` | lesson_plan_requests lifecycle rows per LP path, plus the hourly health check → `lesson-plan-lifecycle/CLAUDE.md` |
-| `llm/` | → (no door; 26 tests) |
-| `lp-v8/` | → (no door; 33 tests) |
+| `llm/` | → (no door; 29 tests) |
+| `lp-v8/` | → (no door; 40 tests) |
+| `lp-whatsapp-off/` | → (no door; 5 tests) |
 | `lp612/` | Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate → `lp612/CLAUDE.md` |
 | `menu-match/` | → (no door; 4 tests) |
 | `menu/` | → (no door; 6 tests) |
 | `meta-bill-cut/` | → (no door; 6 tests) |
 | `migrations/` | → (no door; 1 tests) |
 | `observability/` | → (no door; 2 tests) |
-| `observe/` | → (no door; 26 tests) |
+| `observe/` | (no description yet) → `observe/CLAUDE.md` |
 | `observe2/` | Tests /observe2, the live field-form coaching visit: form, moments, check, brief → `observe2/CLAUDE.md` |
 | `portal/` | Root jest tests pinning the portal's dashboard routes, services and Android shell → `portal/CLAUDE.md` |
 | `pregen/` | → (no door; 1 tests) |
 | `queue/` | → (no door; 9 tests) |
 | `quiz/` | Tests for the quiz stack: authoring, validator, offers, class reports, web quiz → `quiz/CLAUDE.md` |
 | `reading/` | → (no door; 4 tests) |
-| `region/` | → (no door; 3 tests) |
-| `registration/` | → (no door; 20 tests) |
+| `region/` | → (no door; 7 tests) |
+| `registration/` | → (no door; 24 tests) |
 | `remark/` | → (no door; 1 tests) |
 | `reports/` | → (no door; 5 tests) |
 | `roster/` | → (no door; 23 tests) |
@@ -62,6 +66,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `setup/` | Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts → `setup/CLAUDE.md` |
 | `status/` | → (no door; 9 tests) |
 | `student-videos/` | → (no door; 2 tests) |
+| `teacher-activity/` | → (no door; 3 tests) |
 | `textbook-lp-v2/` | → (no door; 5 tests) |
 | `training/` | Tests teacher training: levels, quizzes, exams, certificates, I-SAPS and portal routes → `training/CLAUDE.md` |
 | `tts/` | → (no door; 7 tests) |
@@ -86,4 +91,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `qa-testing`?
-- docs: `AGENTS.md`? · `CLAUDE.md`? · `README.md`? · `bot/database/migrations/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `dashboard/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `docs/features/role-based-menu.md`? · `infrastructure/scripts/CLAUDE.md`? · `portal/scripts/urdu-fit/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/assessment/CLAUDE.md`? · `tests/training/CLAUDE.md`? · `todo.md`?
+- docs: `AGENTS.md`? · `CLAUDE.md`? · `README.md`? · `bot/database/migrations/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `dashboard/CLAUDE.md`? · `docs/features/role-based-menu.md`? · `infrastructure/scripts/CLAUDE.md`? · `portal/scripts/urdu-fit/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/assessment/CLAUDE.md`? · `tests/training/CLAUDE.md`? · `todo.md`?

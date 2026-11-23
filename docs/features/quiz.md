@@ -40,5 +40,5 @@ attendance setup), since that's who the quiz is delivered to.
 
 ## Related
 
-- [A/B testing](../../.claude/skills/ab-testing/SKILL.md) — quiz copy/variants can be optimised with the bandit.
+- [A/B testing](../../.claude/skills/ab-bandit/SKILL.md) — quiz copy/variants can be optimised with the bandit.
 - [feature-tracer](../../.claude/skills/feature-tracer/SKILL.md) — trace a quiz from send to per-student answers to the teacher's report.

@@ -9,6 +9,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g5_ch12_English_seg1.v9.html` | Hosted v9 lesson page G5 English ch12 seg1 (en): Reading: Memory Lane (predicting with evidence) |
 | `g5_ch12_English_seg2.v9.html` | Hosted v9 lesson page G5 English ch12 seg2 (en): Reading: 'Quaid's Quest' (point of view) |
 | `g5_ch12_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch12 seg3 (en): Diving Deeper: Summarise the Story + Textual Detective |
+| `g5_ch12_English_seg3_partA.v9.html` | (unmapped) |
+| `g5_ch12_English_seg3_partB.v9.html` | (unmapped) |
 | `g5_ch12_English_seg4.v9.html` | Hosted v9 lesson page G5 English ch12 seg4 (en): Share and Sparkle: Reflections on the Past + Advice Exchange (oral) |
 | `g5_ch12_English_seg5.v9.html` | Hosted v9 lesson page G5 English ch12 seg5 (en): Grammar Playground: Connector Matching + Story of Help Sequence |
 | `g5_ch12_English_seg6.v9.html` | Hosted v9 lesson page G5 English ch12 seg6 (en): Imagination Canvas: Time Travel Helper (transitional words) |

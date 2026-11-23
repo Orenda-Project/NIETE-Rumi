@@ -40,6 +40,7 @@ const {
 } = require('./quiz-sources');
 const { digestFailureDetail } = require('./digest-failure-detail');
 const { HELD_REASON } = require('./lp-religious-hold');
+const ClosedWindow = require('./closed-window-offer');
 
 const OFFER_YES = 'tq_yes_';
 const OFFER_NO = 'tq_no_';
@@ -141,6 +142,25 @@ async function scheduleOffer({ coachingSessionId, userId, phone, language, trans
   return true;
 }
 
+/**
+ * The report template's "Make a quiz" button for this session, or null. Asked by coaching/report-window-send.js
+ * only when the window is closed. The same gates the offer job applies before its window check (the flag,
+ * self-coaching, transcript length, once-per-teacher) plus the switch's report_template.
+ * @returns {Promise<{template: string, payload: string, session: object, dryRun: boolean}|null>}
+ */
+async function reportQuizButtonFor({ coachingSessionId, userId }) {
+  if (!enabled() || !coachingSessionId || !userId) return null;
+  const closed = await ClosedWindow.settings();
+  if (!closed.reportTemplate) return null;
+  const { data: session, error } = await supabase.from('coaching_sessions')
+    .select('id, user_id, observation_type, transcript_text, analysis_data')
+    .eq('id', coachingSessionId).maybeSingle();
+  if (error || !session || session.user_id !== userId || session.observation_type) return null;
+  if (String(session.transcript_text || '').length < MIN_TRANSCRIPT_CHARS) return null;
+  if (offerMode() === 'once' && await alreadyOffered(userId)) return null;
+  return { template: closed.reportTemplate, payload: ClosedWindow.tapPayload(coachingSessionId), session, dryRun: closed.dryRun };
+}
+
 /** The survey answer brings the offer forward. Idempotent with the delayed job. */
 async function triggerEarly(coachingSessionId) {
   if (!enabled() || !coachingSessionId) return false;
@@ -205,23 +225,53 @@ async function processOffer(coachingSessionId, payload = {}) {
     return { skipped: 'transcript_too_short' };
   }
   const user = session.users || {};
-  if (!payload.force && offerMode() === 'once' && await alreadyOffered(session.user_id)) {
+  // `accepted`: the teacher tapped "Make a quiz" on the report template (handleReportQuizTap). That tap is the
+  // yes, and it is the teacher writing to us, so neither the once-per-teacher rule nor the window applies.
+  const accepted = payload.accepted === true;
+  if (!accepted && !payload.force && offerMode() === 'once' && await alreadyOffered(session.user_id)) {
     return { skipped: 'already_offered_once' };
   }
   // Her 24 h window closed (the report went as a template): Meta refuses free-form buttons with 131047
   // (bd-v0toag.126). Skip before the claim, so she stays eligible on a later report and /quiz.
   const QuizDelivery = require('./quiz-delivery.service');
-  if (!(await QuizDelivery._hasOpenMessageWindow(payload.phone || user.phone_number))) {
-    logEvent('transcript_quiz.skipped', { coachingSessionId, reason: 'window_closed' });
-    return { skipped: 'window_closed' };
+  if (!accepted && !(await QuizDelivery._hasOpenMessageWindow(payload.phone || user.phone_number))) {
+    // With quiz_offer_closed_window on, the skip leaves the session's row (skipped, window_closed): the funnel
+    // can count it, and a "Make a quiz" tap or a later in-window job revives it. Off = exactly as before.
+    const closed = await ClosedWindow.settings();
+    if (!closed.trace) {
+      logEvent('transcript_quiz.skipped', { coachingSessionId, reason: 'window_closed' });
+      return { skipped: 'window_closed' };
+    }
+    await ClosedWindow.recordHeld({ session, heldPath: ClosedWindow.HELD_PATHS.NONE });
+    const heldPath = (await ClosedWindow.heldPathOf(coachingSessionId)) || ClosedWindow.HELD_PATHS.NONE;
+    logEvent('transcript_quiz.skipped', { coachingSessionId, reason: 'window_closed', held_path: heldPath });
+    return { skipped: 'window_closed', heldPath };
   }
 
-  const claim = await claimRow({ session, source: payload.source || 'offer' });
-  if (!claim.claimed) {
+  const source = payload.source || 'offer';
+  let quizId = null;
+  const claim = await claimRow({ session, source });
+  if (claim.claimed) quizId = claim.quizId;
+  else {
+    // The row may be one a closed window held: take it back rather than refuse the offer.
+    const revived = await ClosedWindow.reviveHeld({ coachingSessionId, source });
+    if (revived) {
+      quizId = revived.quizId;
+      logEvent('transcript_quiz.held_revived', { coachingSessionId, quizId, held_path: revived.heldPath, accepted });
+    }
+  }
+  if (!quizId) {
     logEvent('transcript_quiz.offer_skipped', { coachingSessionId, reason: 'already_claimed' });
+    if (accepted) return module.exports.answerTapOnExisting({ coachingSessionId, phone: payload.phone || user.phone_number });
     return { skipped: 'already_claimed' };
   }
-  const quizId = claim.quizId;
+  // A tapped teacher is never left in silence: each skip below tells them why, in the words /quiz uses.
+  const tellSkip = async (reason) => {
+    if (!accepted) return;
+    const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
+    await WhatsAppService.sendMessage(payload.phone || user.phone_number,
+      resolveUx(failureCopyKey(reason, 'transcript'), { language: lang }));
+  };
 
   let result;
   try {
@@ -236,6 +286,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message, ...digestFailureDetail(err) }, 'error');
     await markSkipped(quizId, reason, { error: err.message });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
+    await tellSkip(reason);
     return { skipped: reason, quizId };
   }
   const { digest, grade, gradeSource, lpHint, model, costUsd } = result;
@@ -245,11 +296,13 @@ async function processOffer(coachingSessionId, payload = {}) {
       : digest.slos.length < MIN_SLOS ? 'too_few_slos' : 'language_unknown';
     await markSkipped(quizId, reason, { digest, model, cost_usd: costUsd });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, confidence: digest.confidence, slos: digest.slos.length });
+    await tellSkip(reason);
     return { skipped: reason, quizId };
   }
   if (!subjectAllowed(digest.subject)) {
     await markSkipped(quizId, 'subject_not_allowed', { digest, subject: digest.subject });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason: 'subject_not_allowed', subject: digest.subject });
+    await tellSkip('subject_not_allowed');
     return { skipped: 'subject_not_allowed', quizId };
   }
 
@@ -265,15 +318,31 @@ async function processOffer(coachingSessionId, payload = {}) {
     grade: grade || null,
     meta: {
       step: 'offered', source: payload.source || 'offer',
+      ...(accepted ? { via: 'report_button' } : {}),
       digest, grade, grade_source: gradeSource, lp_hint: lpHint,
       digest_model: model, cost_usd: costUsd || 0,
       teacher_language: teacherLang, offered_at: new Date().toISOString(),
     },
   }).eq('id', quizId);
 
+  const phone = payload.phone || user.phone_number;
+  // Tapped on the report: no second ask. The offer is made and answered yes in one step, through the same yes
+  // the buttons take (language ask, or straight to generating).
+  if (accepted) {
+    Funnel.emit('offer_made', {
+      quiz_id: quizId, teacher_id: session.user_id, source: 'transcript',
+      channel: Funnel.channelOf(payload.source || 'offer'), delivered: true,
+    });
+    logEvent('transcript_quiz.offered', {
+      coachingSessionId, quizId, subject: digest.subject, language, teacherLang,
+      withVideo: false, sent: true, via: 'report_button',
+    });
+    await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, {});
+    return { ok: true, quizId, accepted: true };
+  }
+
   // The offer itself. Video header while the teacher's showing count is under
   // TRANSCRIPT_QUIZ_INTRO_VIDEO_SHOWS (default 2), plain buttons after.
-  const phone = payload.phone || user.phone_number;
   const params = {
     lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }),
     date: formatLessonDate(session.created_at, teacherLang),
@@ -408,6 +477,49 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
   }
 
   return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language: ruleLanguage, source: 'offer' });
+}
+
+/**
+ * "Make a quiz" on the coaching report template (closed-window-offer.js): payload `tqr_<coachingSessionId>`.
+ * The tap is the yes. Only the teacher the session belongs to is answered; any other number is logged and left.
+ * @returns {Promise<boolean>} true when the payload was ours (handled, whatever the outcome)
+ */
+async function handleReportQuizTap(payload, phone) {
+  const coachingSessionId = ClosedWindow.matchReportQuizTap({ payload });
+  if (!coachingSessionId) return false;
+  const { data: session } = await supabase.from('coaching_sessions')
+    .select('id, user_id, users!inner(phone_number)').eq('id', coachingSessionId).maybeSingle();
+  const owner = session && session.users && String(session.users.phone_number || '').replace(/\D/g, '');
+  if (!owner || owner !== String(phone || '').replace(/\D/g, '')) {
+    logEvent('transcript_quiz.report_tap', { coachingSessionId, outcome: 'not_owner' });
+    return true;
+  }
+  logEvent('transcript_quiz.report_tap', { coachingSessionId, outcome: 'accepted' });
+  const out = await module.exports.processOffer(coachingSessionId, { phone, accepted: true, source: 'offer' });
+  if (out && out.skipped && !out.quizId && !out.answered) {
+    // Refused before any row (not finished, too short): the teacher still hears something true.
+    await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await module.exports.languageByPhone(phone) }));
+  }
+  return true;
+}
+
+/** A tap for a session whose quiz row already exists and is not held: answer for the row's real state. */
+async function answerTapOnExisting({ coachingSessionId, phone }) {
+  const { data: quiz } = await supabase.from('quizzes')
+    .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
+    .eq('coaching_session_id', coachingSessionId).eq('quiz_source', 'transcript').maybeSingle();
+  if (quiz && quiz.status === 'offered') {
+    await module.exports.handleOfferButton(`${OFFER_YES}${quiz.id}`, phone, {});
+    return { answered: 'offered', quizId: quiz.id };
+  }
+  if (quiz && ['generating', 'ready', 'sent', 'report_sent'].includes(quiz.status)) {
+    const lang = teacherLanguageFor({ preferredLanguage: (await teacherFor(quiz)).preferred_language });
+    await module.exports.tellAlready(phone, quiz, lang);
+    return { answered: quiz.status, quizId: quiz.id };
+  }
+  // declined / skipped for another reason / failed: /quiz can make it from this lesson; say so in its words.
+  await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await module.exports.languageByPhone(phone) }));
+  return { answered: (quiz && quiz.status) || 'none', quizId: quiz ? quiz.id : null };
 }
 
 /** Tapped twice, or already sent. Never a second generation. */
@@ -626,6 +738,7 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
+  handleReportQuizTap, answerTapOnExisting, reportQuizButtonFor,
   sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz, remakeLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };

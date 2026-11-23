@@ -81,3 +81,16 @@ export function fullDate(d: Date = new Date()): string {
   const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10] || "th";
   return `${get("weekday")}, ${day}${suffix} ${get("month")}`;
 }
+
+const PK_CLOCK = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/**
+ * bd-o15qnr.26 — "now" as a visit slot: this half hour in Pakistan ("10:47" → "10:30"), whatever the phone's zone. Start an
+ * observation books the visit for now (the server accepts any half hour, dashboard/lib/visit-time.js).
+ */
+export function karachiSlotNow(now: Date = new Date()): string {
+  const parts = PK_CLOCK.formatToParts(now);
+  const h = parts.find((p) => p.type === "hour")?.value || "00";
+  const m = Number(parts.find((p) => p.type === "minute")?.value || 0);
+  return `${h.padStart(2, "0")}:${m >= 30 ? "30" : "00"}`;
+}

@@ -53,6 +53,7 @@ function normalise(text) {
     .toLowerCase()
     .normalize('NFC')
     .replace(/\p{M}/gu, '')
+    .replace(/n['’]t\b/gu, 'nt') // bd-snkn32.70: "can't" → "cant", one word, so a negation stays inside its window
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -101,7 +102,7 @@ const ROTE_PATTERNS = [
 ];
 // A hit followed by "is not needed" and the like is a refusal of rote, not a request for it.
 const NEGATED_AFTER = /^(?: \S+){0,4} (?:is |are )?(?:not needed|not required|unnecessary|not allowed|zaroori nahi|zaroori nahin)\b/u;
-const NEGATION = new Set(['no', 'not', 'never', 'dont', 'don', 'doesn', 'without', 'avoid', 'instead', 'na', 'nahi', 'nahin', 'mat', 'نہ', 'نہیں', 'مت', 'بغیر']);
+const NEGATION = new Set(['no', 'not', 'never', 'dont', 'don', 'doesn', 'doesnt', 'cant', 'cannot', 'wont', 'shouldnt', 'mustnt', 'without', 'avoid', 'instead', 'na', 'nahi', 'nahin', 'mat', 'نہ', 'نہیں', 'مت', 'بغیر']);
 
 /** True when a pattern matches somewhere not just after a negation (the 3 words before it). */
 function asksFor(norm, patterns) {
@@ -122,6 +123,11 @@ function ruleBreak(text) {
   if (asksFor(norm, GRR_PATTERNS)) return 'grr';
   if (asksFor(norm, ROTE_PATTERNS)) return 'rote';
   return null;
+}
+
+/** bd-snkn32.70 — true when a line of a PLAN asks for rote drill (same patterns, same negations as her request). */
+function isRote(text) {
+  return asksFor(normalise(text), ROTE_PATTERNS);
 }
 
 /** Start of the current Pakistan day (Asia/Karachi midnight) as an ISO string. */
@@ -169,7 +175,9 @@ function checkChange({ band, part, text, chain, todayCount, limit }) {
 }
 
 /** 'k5' for a grades 1–5 day (lesson_id), 'g612' for a 6-12 segment. */
-const bandOf = (row) => (row && row.lesson_id ? 'k5' : 'g612');
+// bd-snkn32.59.4 — a goal-unit day (no book day, answers.unit.start 'goals') is a grades 1–5 plan too.
+const goalUnitRow = (row) => !!(row && !row.lesson_id && !row.segment_id && row.answers && row.answers.unit && row.answers.unit.start === 'goals');
+const bandOf = (row) => (row && (row.lesson_id || goalUnitRow(row)) ? 'k5' : 'g612');
 
 /** The plan a change starts from: the latest READY plan in the chain (the root is round 0), or null. */
 function editBase(chain) {
@@ -193,5 +201,5 @@ function statusFields(row) {
 
 module.exports = {
   PARTS, TEXT_MIN, TEXT_MAX, MAX_ROUNDS, DAILY_LIMIT, dailyLimit,
-  normalise, isTinyEdit, ruleBreak, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
+  normalise, isTinyEdit, ruleBreak, isRote, karachiDayStart, changesLeft, checkChange, bandOf, editBase, baseJsonKey, statusFields,
 };

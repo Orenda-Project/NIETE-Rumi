@@ -1,7 +1,7 @@
 # types — One file per diagram kind (atom, graph, circuit, clock, panels, ...)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=d2810bbae0e9 gen=e8c0fa22feaa overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=f9a5357b0f5c gen=6a7cf2470004 overflow=22 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `panels.js` — 2-3 side-by-side bordered comparison panels
@@ -24,8 +24,8 @@ Full index: `CLAUDE.index.md`
 | … | 22 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `chem_equation.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2411:4c61e84a` · `bot/vendor/lp-v9/diagrams/types/molecule.js:35:368db106`
-- `graph.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2491:8b9d3d98`
+- `chem_equation.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2438:4c61e84a` · `bot/vendor/lp-v9/diagrams/types/molecule.js:35:368db106`
+- `graph.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2518:8b9d3d98`
 - `word_blank.js` ← imported by `bot/shared/services/quiz/transcript-quiz-word-blank.js:32:ceb1c386`
 
 ## Never (human)

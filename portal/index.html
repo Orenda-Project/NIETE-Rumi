@@ -168,6 +168,15 @@
         .as-sk { background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, .55) 50%, rgba(255, 255, 255, 0) 100%); background-size: 200% 100%; background-repeat: no-repeat; animation: as-shimmer 1.4s ease-in-out infinite; }
         @keyframes as-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
       }
+      /* Queue #183 — on a slow line the app's main script can take minutes to arrive. After 8 s of this outline, say so
+         (both languages: hers is not known yet), so she waits instead of closing the app, which starts the download over.
+         React's first render replaces #root and the note goes with it. */
+      .as-slow { position: fixed; left: 16px; right: 16px; bottom: 96px; z-index: 10; max-width: 460px; margin: 0 auto; box-sizing: border-box;
+        background: #fff; color: #333748; border: 1px solid #e5e7eb; border-left: 4px solid #47BA7D; border-radius: 16px; padding: 14px 16px;
+        box-shadow: 0 6px 16px rgba(20, 24, 38, .12); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .as-slow[hidden] { display: none; }
+      .as-slow p { margin: 0; }
+      .as-slow [lang="ur"] { margin-top: 8px; font-family: "Noto Nastaliq Urdu", "Noto Naskh Arabic", system-ui, sans-serif; line-height: 2.1; }
     </style>
   </head>
 
@@ -228,7 +237,21 @@
           <div class="as-sk as-lbtn" data-skeleton></div>
         </div></div>
       </div>
+      <div class="as-slow" data-slow-boot hidden>
+        <p lang="en" dir="ltr">Slow internet. The app is still loading, please keep it open.</p>
+        <p lang="ur" dir="rtl">انٹرنیٹ آہستہ ہے۔ ایپ کھل رہی ہے، براہ کرم اسے بند نہ کریں۔</p>
+      </div>
     </div></div>
+    <script id="slow-boot-note">
+      (function () {
+        setTimeout(function () {
+          try {
+            var n = document.querySelector('[data-app-shell] [data-slow-boot]');
+            if (n) n.removeAttribute('hidden');
+          } catch (e) { /* the outline as before */ }
+        }, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

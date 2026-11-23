@@ -78,7 +78,7 @@ const heroRenderer = makeHeroRenderer();
  */
 // bd-ra8xu.39: a FICO17 v6 visit is NIETE's too. bd-pni007: so is an FDE (obs612) visit, every tool.
 const OBS612 = require('../frameworks/obs612');
-const HERO_BRANDS = { fico: 'niete', fico17_v6: 'niete', ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, 'niete'])) };
+const HERO_BRANDS = { fico: 'niete', fico17_v6: 'niete', ...Object.fromEntries(OBS612.KNOWN_IDS.map((id) => [id, 'niete'])) };
 
 function heroBrandFor(frameworkKey) {
   return HERO_BRANDS[String(frameworkKey || '').toLowerCase()];
@@ -134,7 +134,8 @@ const renderers = {
   fico17_v6: ficoNieteHeroRenderer,
   mewaka: heroRenderer,
   // bd-pni007: the three FDE tools (this version's ids; an unknown version falls to the default like any unknown key).
-  ...Object.fromEntries(Object.values(OBS612.IDS).map((id) => [id, obs612Renderer])),
+  // Queue #218: every FICO-S version (KNOWN_IDS), so a v1.1 visit keeps its renderer after v1.2.
+  ...Object.fromEntries(OBS612.KNOWN_IDS.map((id) => [id, obs612Renderer])),
 };
 
 const DEFAULT_RENDERER = pdfkitRenderer;

@@ -39,6 +39,8 @@ export const flnApi = {
     return getJson<FlnCatalogue>(`/catalogue?${p.toString()}`);
   },
   plan: (id: number | string) => getJson<FlnPlanResponse>(`/plan/${encodeURIComponent(String(id))}`),
+  /** bd-s0ccn5.2.4 — a short-lived download link for the plan's PDF; null when none was rendered. */
+  pdf: (id: number | string) => getJson<{ url?: string }>(`/plan/${encodeURIComponent(String(id))}/pdf`),
   /** Fire-and-forget telemetry (≤50 per batch); never throws, never blocks a tap. */
   events: (batch: Array<{ kind: string; plan: number | string; clip?: string; ms?: number; result?: string }>) => {
     if (!batch.length) return;

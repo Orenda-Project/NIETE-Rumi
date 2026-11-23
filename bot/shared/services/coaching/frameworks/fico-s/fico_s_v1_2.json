@@ -1,0 +1,96 @@
+{
+  "rubric": "fico_s_v1_2",
+  "version": "1.2",
+  "base": "fico_s_v1_1",
+  "label": "FICO 6-12 v1.2",
+  "code_name": "FICO-S v1.2",
+  "status": "approved",
+  "status_note": "FICO-S v1.2 (queue #218): the operator approved #216's lists on 21 Nov ('Approve both, notes included') and said 'Go ahead' for the build. The 23 indicators, their names, what to look for, the level text, the sections, the checklist and the scoring are v1.1's word for word (fico_s_v1_1.rubric.json, from the sheet; v1.1 is frozen). What v1.2 adds lives here until the sheet carries it: (1) N/A only on C2 and C3, each with its own words (C2's generic 'N/A · did not happen' becomes 'N/A · No answer was wrong'; C3 is new, as FICO17 v6 C3, and arrives chosen when the observer sets C1 to level 1); (2) a 'Couldn't tell' (IE) line per indicator for the Digital Coach (IE stays the Digital Coach's only: an observer never chooses it); (3) two scoring notes (C5, A3) for lessons where part of the indicator does not happen. A form started on v1.1 finishes on v1.1; scores and reports leave N/A and IE out of every total.",
+  "ur_status": "draft",
+  "ur_status_note": "The Urdu is our DRAFT, for the NIETE rubric reviewer (Rifat) to check; English is the fallback for any missing key.",
+  "na": {
+    "C2": {
+      "dc_level": true,
+      "dc_rule": "every student answer in the transcript can be heard and none is wrong or incomplete.",
+      "coach": {
+        "en": {
+          "title": "N/A · No answer was wrong",
+          "sentence": "No answer was wrong in this lesson.",
+          "description": "No answer was wrong in this lesson, so there was nothing to respond to."
+        },
+        "ur": {
+          "title": "لاگو نہیں · کوئی جواب غلط نہیں",
+          "sentence": "اس سبق میں کوئی جواب غلط نہیں تھا۔",
+          "description": "اس سبق میں کوئی جواب غلط نہیں تھا، اس لیے ردعمل کا موقع نہیں آیا۔"
+        }
+      },
+      "dc": {
+        "en": "No answer was wrong in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں کوئی جواب غلط نہیں تھا۔"
+      }
+    },
+    "C3": {
+      "dc_level": true,
+      "dc_rule": "the teacher puts no question to the students anywhere in the transcript.",
+      "follows": {
+        "code": "C1",
+        "level": 1
+      },
+      "coach": {
+        "en": {
+          "title": "N/A · No question asked",
+          "sentence": "The teacher asked the students no question to answer.",
+          "description": "The teacher asked the students no question to answer, so no student was chosen."
+        },
+        "ur": {
+          "title": "لاگو نہیں · کوئی سوال نہیں",
+          "sentence": "استاد نے طلبہ سے جواب کے لیے کوئی سوال نہیں پوچھا۔",
+          "description": "استاد نے طلبہ سے جواب کے لیے کوئی سوال نہیں پوچھا، اس لیے کسی طالب علم کو چنا نہیں گیا۔"
+        }
+      },
+      "dc": {
+        "en": "No question to the students in this transcript.",
+        "ur": "اس ٹرانسکرپٹ میں طلبہ سے کوئی سوال نہیں پوچھا گیا۔"
+      },
+      "follow_note": {
+        "en": "You set C1 to Below standard, so N/A is chosen here. Keep it only if the teacher put no question to the students; if a student was asked, choose the level you saw.",
+        "ur": "آپ نے C1 کو \"معیار سے کم\" رکھا، اس لیے یہاں \"لاگو نہیں\" چنا گیا ہے۔ اسے صرف تب رکھیں جب استاد نے طلبہ سے کوئی سوال نہ پوچھا ہو؛ اگر کسی طالب علم سے پوچھا گیا تھا تو جو لیول آپ نے دیکھا وہ چنیں۔"
+      }
+    }
+  },
+  "notes": {
+    "A3": {
+      "en": "If the homework schedule sets no homework for this subject today, score the closure only.",
+      "ur": "اگر ہوم ورک شیڈول کے مطابق آج اس مضمون کا ہوم ورک نہیں تو صرف اختتام کی بنیاد پر لیول دیں۔"
+    },
+    "C5": {
+      "en": "If the class never changes activity, score the start and the time lost only.",
+      "ur": "اگر کلاس سرگرمی نہیں بدلتی تو صرف آغاز اور ضائع ہونے والے وقت کی بنیاد پر لیول دیں۔"
+    }
+  },
+  "dc_ie": {
+    "A1": "the recording misses the start of the lesson and no lesson plan is attached.",
+    "A2": "the recording starts after the lesson began.",
+    "A3": "the recording ends before the lesson does.",
+    "B1": "the teacher's speech is garbled, or the only possible errors may be transcription mistakes.",
+    "B2": "the teacher's speech is garbled.",
+    "B3": "the teacher's speech is garbled.",
+    "B4": "the teacher's speech is garbled.",
+    "B5": "resources are seen, not heard: there is no photo of them and none is named aloud.",
+    "C1": "the teacher's speech is garbled.",
+    "C2": "student answers are too garbled to tell whether any was wrong.",
+    "C3": "who answers is chosen by pointing or nods the recording cannot hear, or the teacher's speech before the answers is garbled.",
+    "C4": "the teacher's instructions are garbled.",
+    "C5": "the recording has gaps around the start or the changes of activity, or the changes are silent.",
+    "C6": "the teacher's replies are garbled (tone and faces are not heard).",
+    "C7": "the set-up is garbled, or the pair or group talk is too quiet to hear.",
+    "C8": "one-to-one help is too quiet for the recording.",
+    "D1": "student lines are garbled.",
+    "D2": "the transcript cannot tell how many different students spoke.",
+    "D3": "pair and group talk is out of the microphone's range.",
+    "D4": "student lines are garbled.",
+    "E1": "the checks are made by looking at work while walking round, which the recording cannot hear.",
+    "E2": "the 5-student check is not on the recording."
+  },
+  "dc_ie_note": "The Digital Coach's 'Couldn't tell' (IE) line per indicator, from #216's review. E3 is starred: never sent to the Digital Coach."
+}

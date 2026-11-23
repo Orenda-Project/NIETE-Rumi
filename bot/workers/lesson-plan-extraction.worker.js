@@ -174,6 +174,23 @@ class LessonPlanExtractionWorker {
       // no lesson-plan signal, tell the teacher quickly and don't attach it —
       // the classroom-audio analysis still proceeds without an LP.
       if (isLikelyLessonPlan(structuredData) === false) {
+        // bd-r2uzg1.18.6 — this file was read for seconds to minutes; a plan picked from the list may have been
+        // confirmed meanwhile (prod 28 Oct: the "not a lesson plan" write landed 2 s after the link and wiped it).
+        // A confirmed pick is THE plan: record what this file was, clear nothing, tell no one it failed.
+        const pick = await LessonPlanExtractionWorker.confirmedPickState(coachingSessionId);
+        if (pick !== 'none') {
+          await this.saveSession(coachingSessionId, {
+            lesson_plan_excerpt: excerpt,
+            lesson_plan_word_count: wordCount,
+            lesson_plan_extraction_status: 'not_lesson_plan',
+            lesson_plan_extraction_error: null,
+            lesson_plan_format: normalizedFormat
+          }, 'not_lesson_plan_kept_pick');
+          logToFile('🚫 Uploaded document is not a lesson plan — plan fields left as they are (a list pick is confirmed, or could not be read)', {
+            coachingSessionId, pick
+          });
+          return;
+        }
         await this.saveSession(coachingSessionId, {
           lesson_plan_excerpt: excerpt,
           lesson_plan_structured: null,
@@ -342,6 +359,29 @@ class LessonPlanExtractionWorker {
   }
 
   /** bd-0wws3e — the worker's one coaching_sessions writer: strips NUL bytes and logs a failed save. */
+  /**
+   * bd-r2uzg1.18.6 — does this session hold a plan confirmed from the list RIGHT NOW? Read fresh (the row loaded at
+   * job start predates the pick in the race this guards). 'confirmed' | 'none' | 'unknown' (the read failed:
+   * the caller then clears nothing — losing a confirmed plan is the failure being fixed). Never throws.
+   */
+  static async confirmedPickState(coachingSessionId) {
+    try {
+      const { data, error } = await supabase
+        .from('coaching_sessions')
+        .select('lesson_plan_link_method')
+        .eq('id', coachingSessionId)
+        .maybeSingle();
+      if (error) throw error;
+      const { hasConfirmedListPick } = require('../shared/services/coaching/lp-coaching/lp-coaching-linker.service');
+      return hasConfirmedListPick(data) ? 'confirmed' : 'none';
+    } catch (err) {
+      logError('⚠️ Could not read the lesson-plan pick before a not-a-plan verdict — clearing nothing', {
+        coachingSessionId, error: (err && err.message) || String(err)
+      });
+      return 'unknown';
+    }
+  }
+
   static async saveSession(coachingSessionId, payload, step) {
     const { error } = await supabase
       .from('coaching_sessions')

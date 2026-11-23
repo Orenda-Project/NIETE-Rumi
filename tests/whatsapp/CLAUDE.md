@@ -1,7 +1,7 @@
 # whatsapp — Tests WhatsApp senders, send pacing, inbound typing and webhook signature checks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/whatsapp kg=02725bad63bf gen=9acafe792ed7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/whatsapp kg=0dd94ac36db1 gen=99d354c8b98c overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `webhook-signature.test.js` — X-Hub-Signature-256 HMAC enforcement on webhook and Flows
@@ -16,8 +16,7 @@ Full index: `CLAUDE.index.md`
 | `send*` | 12 files; most used `send-sync-budget.test.js`: Pins that a send an HTTP response waits on (Flow data_exchange) never waits out the pacing schedule (ifLate) |
 | `webhook-signature.test.js` | Pins POST /webhook and Flow endpoint X-Hub-Signature-256 HMAC checks: signed processed, unsigned 401, tampered refused |
 | `password-reset-sync-budget.test.js` | Pins that POST /api/internal/send-password-reset answers the portal inside its 10 s timeout despite send pacing |
-| `inbound-typing-scope.test.js` | bd-0wrn4: inbound typing scope through the real WhatsApp service: replies to others, same-person replies and reactions |
-| `inbound-typing.test.js` | bd-0wrn4: typing is not left on screen after a reaction-only or empty reply, sticker, or silent receipt |
+| `inbound*` | 3 files; most used `inbound-typing.test.js`: bd-0wrn4: typing is not left on screen after a reaction-only or empty reply, sticker, or silent receipt |
 | `webhook-calls-forward.test.js` | bd-1hae7.20: a WhatsApp call webhook is forwarded, authenticated, to the calls service, never to message handling |
 | `extract-key-leading-slash.test.js` | bd-8s0dp: r2 extractKeyFromUrl strips leading slashes on bare keys so feature intro videos are sent |
 

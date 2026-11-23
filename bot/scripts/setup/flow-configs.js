@@ -244,6 +244,16 @@ const FLOW_CONFIGS = [
     categories: ['OTHER'],
   },
   {
+    // The data analyst's question (services/data-analyst/entry.js): one text box and four quick picks, opened by
+    // "data" for someone on the data_analyst_whatsapp switch. STATIC — no endpoint: the answer comes back on our own
+    // `dataq:` token. Leaving DATA_ANALYST_FLOW_ID unset sends the four picks as a list instead (the rollback lever).
+    name: 'Data Question',
+    jsonPath: path.join(FLOWS_DIR, 'data-question.json'),
+    type: 'navigate',
+    envVar: 'DATA_ANALYST_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
     // The name-and-class screen a child opens from a quiz link, before
     // question 1. STATIC — no endpoint: every word on it (title, heading, both
     // labels and helper lines, the button) is navigate-mode screen data the bot
@@ -290,6 +300,18 @@ const FLOW_CONFIGS = [
     type: 'endpoint',
     endpointPath: '/api/flows/observe2-check',
     envVar: 'OBSERVE2_CHECK_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // bd-31ziu8 — FICO-S v1.1 ("FICO for Secondary"), ICT HITL grades 6-12 from 18 Nov: one indicator a screen, every
+    // word endpoint data in the observer's language (en | ur). Same endpoint as FDE's form (the token's ':fs' tells
+    // them apart). Regenerate the JSON with bot/scripts/generate-fico-s-flow-json.js.
+    // Shown name 'FICO 6-12' (operator 18 Nov ~17:00); code name FICO-S v1.1.
+    name: 'FICO 6-12 Form',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/fico-s-flow.json'),
+    type: 'endpoint',
+    endpointPath: '/api/flows/obs612',
+    envVar: 'FICO_S_FLOW_ID',
     categories: ['OTHER'],
   },
   {
@@ -347,6 +369,16 @@ const FLOW_CONFIGS = [
     jsonPath: path.join(FLOWS_DIR, 'child-test-review.json'),
     type: 'navigate',
     envVar: 'CHILD_TEST_REVIEW_FLOW_ID',
+    categories: ['OTHER'],
+  },
+  {
+    // bd-ra8xu.60 — Observation Notes on a v6 /observe visit: one static screen, every word navigate-mode screen data in
+    // the coach's language (observation-notes.js offerNotes); Save completes, and the reply arrives as an nfm_reply on
+    // the obsnotes:<session id> token (handleFlowReply). Sent only while app_settings.observation_notes is on.
+    name: 'Observe Notes',
+    jsonPath: path.resolve(__dirname, '../../docs/flows/observe-notes.json'),
+    type: 'navigate',
+    envVar: 'OBSERVE_NOTES_FLOW_ID',
     categories: ['OTHER'],
   },
 ];

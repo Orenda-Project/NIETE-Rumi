@@ -99,8 +99,9 @@ const ObserveState = require('../services/observe/observe-state.service');
 const { observeStrings, observeLang } = require('../services/observe/observe-strings');
 const { buildBriefViewModel } = require('../services/observe/observe-brief-card');
 const { getObserveArm } = require('../services/observe/observe-gate');
-const { canSelfCoach, canObserve, observesOwnSchoolAtOnce } = require('../config/role-features');
+const { canSelfCoach, canObserve, observesOwnSchool, observesAtOnce } = require('../config/role-features');
 const { logToFile } = require('../utils/logger');
+const { pickerLabelOf } = require('../services/observe/patch-resolver.service');
 
 // bd-2443: read per-call — the flag flips alongside the Flow republish and
 // must not require a process restart to be testable.
@@ -145,9 +146,18 @@ function fmtDayDate(ymd) {
   return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
-/** The teaching band/grade, as the picker prints it. '' when genuinely unknown. */
+/**
+ * Who this person is, as the picker prints it. '' when genuinely unknown.
+ *
+ * bd-r2uzg1.18.5: the same label Manage teachers prints (patch-resolver pickerLabelOf) — 'Principal' for a
+ * principal, else every band ('Primary + Middle + High'). This printed `level`, one band and never the role,
+ * so a principal read as PRIMARY here and as Principal on Manage teachers.
+ */
 function teacherLevel(t) {
-  const lvl = t && (t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null));
+  if (!t) return '';
+  const label = pickerLabelOf(t);
+  if (label) return label;
+  const lvl = t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null);
   return lvl ? String(lvl) : '';
 }
 
@@ -383,12 +393,12 @@ async function _leaderMe(userId, user) {
 }
 
 /**
- * Does this leader observe at once (a principal: config/role-features observesOwnSchoolAtOnce)? Operator,
- * 15 Nov: "principals never schedule; they observe whenever they want. Coaches unchanged." False for anyone else and on
- * a failed read, which keeps today's booking path: a coach is never sent past the date picker on a guess.
+ * Does this leader observe at once (config/role-features observesAtOnce)? Nobody since 18 Nov (bd-31ziu8, operator
+ * ~16:40: a principal schedules "the same as coach"), so every leader books a visit, as coaches always have. False on a
+ * failed read too: a leader is never sent past the date picker on a guess.
  */
 async function _observesAtOnce(userId, user) {
-  return observesOwnSchoolAtOnce(await _leaderMe(userId, user));
+  return observesAtOnce(await _leaderMe(userId, user));
 }
 
 /**
@@ -431,12 +441,34 @@ async function selfLessonStep(userId, user) {
   return { screen: 'SUCCESS', data: _success('', '', { action: 'self_dc', params }) };
 }
 
+/**
+ * bd-slknzt (queue #203) — the /observe menu's roster admin, a coach's alone. The operator, 20 Nov: "on WhatsApp for the
+ * principal, the /observe is showing some buttons that dont make sense for principal e.g. Add or Remove school. Only
+ * coaches can do that. The principal can just conduct observations." A principal's menu keeps the observation rows
+ * (work waiting, My schedule, Schedule new observation, My own lesson) and loses these.
+ */
+const COACH_ONLY_MENU_ROWS = Object.freeze(new Set(['manage', 'manage_teachers']));
+
+/**
+ * The steps behind those two rows: Add or remove a school (search, add, remove) and Manage teachers (add, move, remove,
+ * edit). A principal who sends one (a Flow left open on yesterday's menu) is answered with the menu, never a roster write.
+ */
+const COACH_ONLY_STEPS = Object.freeze(new Set([
+  'add_search_open', 'add_search', 'add_school', 'manage_search', 'manage', 'remove_school',
+  'teacher_school_open', 'teacher_action_open', 'teacher_action_pick',
+  'teacher_add_open', 'teacher_add_lookup', 'teacher_add_named', 'teacher_add_commit',
+  'teacher_remove_open', 'teacher_remove_check', 'teacher_remove_commit',
+  'teacher_edit_open', 'teacher_edit_field', 'teacher_edit_route', 'teacher_edit_name_commit',
+  'teacher_edit_level_commit', 'teacher_edit_role_commit', 'teacher_edit_phone_check', 'teacher_edit_phone_commit',
+]));
+
 async function menuScreen(userId, opts = {}) {
   let pending = 0;
   let upcoming = 0;
-  // Who is asking, read once for the whole menu. A principal observes at once, in their own school.
+  // Who is asking, read once for the whole menu. A principal observes in their own school; since 18 Nov (bd-31ziu8) a
+  // principal schedules exactly as a coach does, so the menu is the coach's.
   const me = await _leaderMe(userId, opts.user);
-  const atOnce = observesOwnSchoolAtOnce(me);
+  const ownSchool = observesOwnSchool(me);
   // bd-0cxz6: how many schools she actually has. Zero is a real state now that
   // /observe opens for any coach, and the menu must not offer her a scheduling
   // path that can only dead-end on an empty school list.
@@ -450,7 +482,7 @@ async function menuScreen(userId, opts = {}) {
     } catch (_) { schoolCount = 1; }   // unknown -> behave as today
   }
   // A principal's own school (users.school_id) is one of theirs; the picker lists it (leader-source).
-  if (atOnce && !schoolCount && me && me.school_id) schoolCount = 1;
+  if (ownSchool && !schoolCount && me && me.school_id) schoolCount = 1;
   let nForm = 0; let nDebrief = 0; let nSend = 0;
   try {
     const Debrief = _debriefService();
@@ -521,21 +553,20 @@ async function menuScreen(userId, opts = {}) {
       'on-click-action': { name: 'data_exchange', payload: { step: 'teacher_school_open' } },
     },
   ];
-  if (atOnce) {
-    // A principal observes at once, so the row says so, and an empty "My schedule" is not offered (visits
-    // a principal booked before this change stay reachable there). Manage teachers lists leader_schools holdings
-    // only, so a principal whose one school is their own would open an empty list: it is left out for them.
-    items = items
-      .filter((i) => !(i.id === 'schedule' && upcoming === 0))
-      .filter((i) => !(i.id === 'manage_teachers' && holdings === 0))
-      .map((i) => (i.id === 'new'
-        ? { ...i, 'main-content': { title: 'Observe a teacher', metadata: 'Pick a teacher and start now' } }
-        : i));
+  if (ownSchool) {
+    // bd-slknzt: a principal conducts observations only: no roster admin (COACH_ONLY_MENU_ROWS). Scheduling rows stay
+    // the coach's (bd-31ziu8: "It has to be the same as coach").
+    items = items.filter((i) => !COACH_ONLY_MENU_ROWS.has(i.id));
   }
   // bd-9bppaz: a principal's own lesson, after the observe rows and before the roster admin. It needs no school.
   // The profile is read once, above: a failed read (me null) shows no row and is never retried here.
   const self = me ? await _selfLessonRow(userId, me) : null;
-  if (!schoolCount) {
+  if (!schoolCount && ownSchool && self) {
+    // bd-slknzt: a principal with no school is not offered "add your first school" (a coach's action): nothing to
+    // schedule or observe yet, so her own lesson only. (No self row either: the observation rows, never an empty list.)
+    return { screen: 'MENU', data: { items: [self] } };
+  }
+  if (!schoolCount && !ownSchool) {
     // Nothing to debrief, schedule or observe until she has a school. Show the
     // one action that gets her unstuck, and say why the rest is missing.
     const only = items.filter((i) => i.id === 'manage');   // teacher admin needs a school first
@@ -543,7 +574,12 @@ async function menuScreen(userId, opts = {}) {
     if (self) only.push(self);
     return { screen: 'MENU', data: { items: only } };
   }
-  if (self) items.splice(items.findIndex((i) => i.id === 'manage'), 0, self);
+  if (self) {
+    // Before the roster admin; a principal has none (bd-slknzt), so it goes last (findIndex -1 would splice it in
+    // before the LAST row).
+    const at = items.findIndex((i) => i.id === 'manage');
+    items.splice(at === -1 ? items.length : at, 0, self);
+  }
   return { screen: 'MENU', data: { items } };
 }
 
@@ -944,6 +980,14 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
   const _flowLang = observeLang(user || {});
 
   if (action === 'data_exchange') {
+    // bd-slknzt: roster admin is a coach's. A principal's menu never offers it; a step from an old screen gets the menu.
+    if (COACH_ONLY_STEPS.has(step) && observesOwnSchool(await _leaderMe(userId, user))) {
+      // The principal's keyed reference (tk), never her raw id, on the log line (tests/setup/log-raw-ids).
+      let tkRef = null;
+      try { tkRef = require('../services/quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+      logToFile('🚫 observe-visit: roster admin refused — a principal conducts observations only', { tk: tkRef, step }, 'warn');
+      return menuScreen(userId, { user });
+    }
     // v2-only steps (the v1 Flow never sends them, so they are inert dark)
     if (step === 'add_search_open') return { screen: 'ADD_SEARCH', data: {} };
     if (step === 'self_dc') return selfLessonStep(userId, user);
@@ -1106,7 +1150,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const all = await LeaderSource.listTeachers(userId, schoolExtId).catch(() => []);
       const hits = all.filter((t) => A.matchTeacher(t, screenData && screenData.term)).slice(0, A.RESULT_CAP);
       const options = hits.length
-        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, t.level || '', t.phone_e164 || ''))
+        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, teacherLevel(t), t.phone_e164 || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return { screen: 'TEACHER_RESULTS', data: { options, school_ext_id: String(schoolExtId || '') } };
     }
@@ -1543,7 +1587,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // way. The scheduling list has always rendered the label; these did
         // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          // bd-r2uzg1.18.5: 'Principal', else every band — the label the Observe list prints too.
+          p.userId, p.displayName || p.name, pickerLabelOf(p), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
@@ -1574,7 +1619,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // way. The scheduling list has always rendered the label; these did
         // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          // bd-r2uzg1.18.5: 'Principal', else every band — the label the Observe list prints too.
+          p.userId, p.displayName || p.name, pickerLabelOf(p), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_EDIT_PICK',

@@ -21,6 +21,7 @@ vi.mock("../components/coaching/coach/CoachRecorder", async (orig) => ({
 import { leader, portal } from "../services/api";
 import { canRecordHere } from "../lib/recordingSupport";
 import LeaderObserveTalk from "./LeaderObserveTalk";
+import { isHeld } from "../lib/pickedRead";
 
 const L = leader as any;
 const P = portal as any;
@@ -87,6 +88,27 @@ describe("LeaderObserveTalk", () => {
     expect(await screen.findByText("observation page")).toBeInTheDocument();
     expect(L.presignObserveUpload).toHaveBeenCalledWith({ filename: "talk.m4a", sizeBytes: 1, kind: "audio" });
     expect(L.startTalk).toHaveBeenCalledWith("cs-1", "classroom_audio/c/2026-10/portal_t.m4a");
+  });
+
+  it("bd-tymy1n: an uploaded talk is read when she picks it; what goes up is that copy, never the picked file", async () => {
+    renderPage();
+    await screen.findByText("💪 What went well");
+    const f = new File([new Uint8Array([1, 2, 3])], "talk.m4a", { type: "audio/mp4" });
+    fireEvent.change(screen.getByTestId("talk-input"), { target: { files: [f] } });
+    expect(await screen.findByText("observation page")).toBeInTheDocument();
+    const body = P.uploadToR2.mock.calls[0][1];
+    expect(body).not.toBe(f);
+    expect(isHeld(body)).toBe(true);
+  });
+
+  it("bd-tymy1n: a talk file the phone will not open is refused where she is", async () => {
+    renderPage();
+    await screen.findByText("💪 What went well");
+    const f = new File(["x"], "talk.m4a", { type: "audio/mp4" });
+    Object.defineProperty(f, "arrayBuffer", { value: () => Promise.reject(Object.assign(new Error("x"), { name: "NotReadableError" })) });
+    fireEvent.change(screen.getByTestId("talk-input"), { target: { files: [f] } });
+    expect(await screen.findByText("File will not open", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(P.uploadToR2).not.toHaveBeenCalled();
   });
 
   it("Record your talk: the recorder's Finish sheet gets its words from this page (bd-fmf24g.41: none written into it)", async () => {

@@ -753,10 +753,11 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given. */
+    /** Rounds 28 (letter picker, MCQ): what the page measured about an answer, copied onto it when given (first_choice:
+     *  the story question's first card tapped; the value scored is the last). */
     function answerMeta(a, meta) {
       if (!meta || typeof meta !== 'object') return a;
-      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
+      ['replays', 'tap_ms', 'tap_before_sound', 'tap_ms_src', 'pre_taps', 'chosen_at_option', 'changes', 'since_fold_ms', 'first_choice'].forEach(function (k) { if (has(meta, k) && meta[k] !== undefined) a[k] = meta[k]; });
       return a;
     }
 
@@ -820,12 +821,16 @@
         ev('warmup_result', { value: warm });
         enterTask(false);
       },
-      /** The game's mic check: ok (heard back, level above the floor) and the level measured. */
-      micChecked: function (ok, rms) {
+      /** The mic check: ok (heard back, level above the floor) and the level measured. how (round 28, the coach's mic
+       *  card): 'auto' measured, 'unmeasured' a phone with no analyser, 'denied' the microphone would not open; kept on
+       *  the event only when given. */
+      micChecked: function (ok, rms, how) {
         if (st.phase !== 'mic_check') return;
         gates.mic_check = true;
         gates.mic_ok = !!ok;
-        ev('mic_check', { value: { ok: !!ok, rms: typeof rms === 'number' ? rms : null } });
+        var mv = { ok: !!ok, rms: typeof rms === 'number' ? rms : null };
+        if (how === 'auto' || how === 'unmeasured' || how === 'denied') mv.how = how;
+        ev('mic_check', { value: mv });
         if (ok) preGates(); else { st.started = now(); finish(STOP.MIC); }
       },
       /** The practice spoken question ("I heard you"): heard = the meter moved. */

@@ -2502,12 +2502,15 @@ const clipsLeft = (now = Date.now()) => Math.max(0, MAX_CLIP_RECORDINGS - clipsR
 // Live reading v3: a story page's speech keys spend the same daily read budget (read from the cached switches: with
 // real-time or v3 off nothing is counted and nothing more is read)
 // (web_quiz_games_together, the hub's switch cache: the two switches read together)
+// A teacher's preview keys (web_quiz_practice_your_turn, bd-21q0kr) spend it too, at the same weight: counted in Redis by
+// web-quiz-live-read-preview.js (0 with that switch off, and then nothing more is read).
+const storyKeysSince = async (sinceIso) => (await LiveReadV3().keysSince(sinceIso)) + (await require('./web-quiz-live-read-preview').keysSince(sinceIso));
 Budget.countAlso(async (sinceIso) => {
   if (require('./web-quiz-hub-flags').nowOf('gamesTogether')) {
     const [live, v3] = await Promise.all([liveOn(), settingOn(LiveReadV3().FLAG_KEY)]);
-    return live && v3 ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0;
+    return live && v3 ? LiveReadV3().STORY_KEY_WEIGHT * (await storyKeysSince(sinceIso)) : 0;
   }
-  return (await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await LiveReadV3().keysSince(sinceIso)) : 0;
+  return (await liveOn()) && (await settingOn(LiveReadV3().FLAG_KEY)) ? LiveReadV3().STORY_KEY_WEIGHT * (await storyKeysSince(sinceIso)) : 0;
 });
 
 module.exports = {

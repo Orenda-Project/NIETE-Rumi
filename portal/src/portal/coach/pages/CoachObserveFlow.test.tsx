@@ -272,7 +272,8 @@ describe("Upload recording (Blueprint: Coach_Upload)", () => {
     await screen.findByRole("dialog", { name: "Upload recording" });
     await act(async () => { fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [new File(["abc"], "lesson-0610.m4a", { type: "audio/mp4" })] } }); });
     expect(await screen.findByText("lesson-0610.m4a")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    // bd-tymy1n: the file is read when she picks it; the bar is full once it has been
+    await waitFor(() => expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100"));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("button", { name: /Redo/ });
     expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
@@ -333,10 +334,11 @@ describe("Check and send (Blueprint: Coach_Check)", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
     await screen.findByText("Ayesha Bibi’s observation");
     const input = screen.getByTestId("photos-input");
-    const jpg = (n: string) => new File(["p"], n, { type: "image/jpeg" });
+    // bd-tymy1n: each photo is read when she picks it (a JPEG inside, as a phone's photo is), so it joins a moment later
+    const jpg = (n: string) => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2])], n, { type: "image/jpeg" });
     fireEvent.change(input, { target: { files: [jpg("a.jpg"), jpg("b.jpg"), jpg("c.jpg")] } });
     const removers = () => screen.queryAllByRole("button", { name: /^Remove photo/ });
-    expect(removers()).toHaveLength(3);
+    await waitFor(() => expect(removers()).toHaveLength(3));
     expect(screen.queryByRole("button", { name: /Add photo/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Remove photo 2" }));
     expect(removers()).toHaveLength(2);

@@ -142,6 +142,28 @@ describe('POST /api/internal/assessment/create — how many of each type', () =>
     ]);
   });
 
+  // AG row 12 (Amena 21 Nov): a group under one heading counts as one toward the 50; up to 100 items print.
+  test('20 MCQs + 10 blanks + 25 written (55 items) is accepted: it counts 27', async () => {
+    const types = [{ id: 'MCQs', count: 20 }, { id: 'Fill in the Blanks', count: 10 }, { id: 'Brief Answers', count: 25 }];
+    const { statusCode } = await invoke('/assessment/create', { ...BASE, contentSource: 'unseen', questionCount: 55, questionTypes: types });
+    expect(statusCode).toBe(202);
+    expect(created.questionTypes.map((t) => t.count)).toEqual([20, 10, 25]);
+  });
+
+  test('51 written questions are refused, and so is more than 100 items', async () => {
+    const written = await invoke('/assessment/create', {
+      ...BASE, contentSource: 'unseen', questionCount: 51, questionTypes: [{ id: 'Brief Answers', count: 51 }],
+    });
+    expect(written.statusCode).toBe(400);
+    expect(written.payload.error).toMatch(/50/);
+    const items = await invoke('/assessment/create', {
+      ...BASE, contentSource: 'unseen', questionCount: 101,
+      questionTypes: [{ id: 'MCQs', count: 50 }, { id: 'True/False', count: 50 }, { id: 'Brief Answers', count: 1 }],
+    });
+    expect(items.statusCode).toBe(400);
+    expect(created).toBeNull();
+  });
+
   test('on Mix the counts add up to the Unseen part', async () => {
     const { statusCode } = await invoke('/assessment/create', {
       ...BASE,

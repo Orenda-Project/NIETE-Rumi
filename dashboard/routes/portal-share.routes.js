@@ -5,6 +5,7 @@
  *
  *   POST /api/portal/share/whatsapp  { kind: 'lesson'|'paper'|'dc'|'observation', id }
  *     → { success, status: 'sent', at } | { status: 'unavailable', reason } | { status: 'failed', reason }
+ *     A lesson to a teacher whose programme is on lp_whatsapp_pdf_off → unavailable / whatsapp_off, the bot not asked.
  *
  * The user is ALWAYS the session's. Dark unless portal_teacher_v2 is on for her (404, nothing asked of the bot). The bot
  * decides everything (template configured? hers? Meta's answer): a template only, and the REAL result. A bot that cannot
@@ -15,6 +16,8 @@ const supabase = require('../config/supabase');
 const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
 // bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
 const { teacherAppOnFor } = require('../lib/teacher-app');
+// lp_whatsapp_pdf_off: a lesson plan is not sent on WhatsApp to a teacher whose programme is listed.
+const LpAppSwitches = require('../lib/lp-app-switches');
 
 const router = express.Router();
 const KINDS = ['lesson', 'paper', 'dc', 'observation'];
@@ -57,6 +60,10 @@ router.post('/share/whatsapp', requirePortalAuth, requireTeacherV2, async (req, 
   const b = req.body || {};
   if (!KINDS.includes(b.kind) || typeof b.id !== 'string' || !b.id.trim() || b.id.length > 200) {
     return res.status(400).json({ success: false, error: 'kind and id are required' });
+  }
+  // The app hides the button (GET /config features.lpWhatsappSend); this is the server's own check. Never throws.
+  if (b.kind === 'lesson' && await LpAppSwitches.isLpWhatsappPdfOffFor(supabase, req.session.portalUserId)) {
+    return res.json({ success: true, status: 'unavailable', reason: 'whatsapp_off' });
   }
   try {
     const r = await callBot({ userId: req.session.portalUserId, kind: b.kind, id: b.id.trim() });

@@ -5,14 +5,15 @@ import { cn } from '@/lib/utils';
 import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, CHEVRON, FOCUS, LIST_CARD, ROW_DIVIDER } from '../ui/styles';
-import { getClasses, getDay, getRoster, postMark, useRead, type MarkResult } from './api';
-import { ATTENDANCE, type AttendanceCopy } from './copy';
-import { useCopy, useLang } from '../i18n';
+import { getDay, getRoster, postMark, useRead, type MarkResult } from './api';
+import { type AttendanceCopy } from './copy';
+import { useLang } from '../i18n';
+import { TEACHER_BASE } from '../paths';
 import {
-  addDays, dateWindow, dayLabel, filterStudents, markPayload, marksFrom, rollCounts, setStatus, type Marks, type Status,
+  addDays, dateWindow, dayLabel, filterStudents, markPayload, marksFrom, onlyStaff, rollCounts, setStatus, type Marks, type Status,
 } from './model';
 import { ATTENDANCE_V2_BASE, downloadPath, markPath, viewPath } from './paths';
-import { ClassCard, LoadState, SearchBox } from './ui';
+import { ClassCard, LoadState, SearchBox, useClassesRead, useListWords, ViewDownloadPair } from './ui';
 
 /**
  * bd-fmf24g.7 — the roll call (v28 canvas AttendanceMark.dc.html). Everyone starts PRESENT and "All
@@ -22,6 +23,10 @@ import { ClassCard, LoadState, SearchBox } from './ui';
  * The window (today back 90 days) is WhatsApp's; the server checks it again.
  * A name wraps to two lines and P/A/L are 44px wide: one cut line beside 52px buttons left a phone ~108px,
  * about a first name, and many children share one (bd-qvnzh5).
+ *
+ * bd-33wxxi.10 — her teachers' roll call (listId "staff") is this page with the teachers' words. When they are
+ * her ONLY register this page stands in for the hub: Back is Home, the hub's View · Download pair sits on top
+ * (mockup option B), and Saved's button is Done → Home. With classes too, it is a register among others.
  */
 
 const SEG: { s: Status; short: keyof AttendanceCopy; label: keyof AttendanceCopy; on: string }[] = [
@@ -32,11 +37,11 @@ const SEG: { s: Status; short: keyof AttendanceCopy; label: keyof AttendanceCopy
 
 export function MarkPage() {
   const lang = useLang();
-  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
+  const C = useListWords(listId);
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const classes = useRead('classes', () => getClasses());
+  const classes = useClassesRead();
   const roster = useRead(`roster:${listId}`, () => getRoster(listId));
   const today = classes.data?.date || null;
   const date = params.get('date') || today;
@@ -81,6 +86,7 @@ export function MarkPage() {
     }
   };
 
+  const solo = onlyStaff(classes.data?.classes, listId);
   const nextClass = classes.data?.classes.find((c) => !c.marked && c.listId !== listId) || null;
   const loading = (classes.loading && !classes.data) || (roster.loading && !roster.data) || (day.loading && !day.data);
   const error = classes.error || roster.error || day.error;
@@ -101,7 +107,7 @@ export function MarkPage() {
 
   if (saved) {
     return (
-      <TeacherPage title={C.saved} crumb={C.markTitle} backTo={ATTENDANCE_V2_BASE} feature="attendance" testId="attendance-saved">
+      <TeacherPage title={C.saved} crumb={C.markTitle} backTo={solo ? TEACHER_BASE : ATTENDANCE_V2_BASE} feature="attendance" testId="attendance-saved">
         <section className={cn(CARD, 'flex flex-col items-center gap-3.5 px-4 py-7 text-center')} aria-live="polite">
           <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#eaf6ef] text-[#2f7a52]">
             <Check className="h-12 w-12" aria-hidden="true" />
@@ -130,8 +136,8 @@ export function MarkPage() {
           <button type="button" onClick={() => setSaved(null)} className={cn('flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-[16px] font-semibold', FOCUS)}>
             <Pencil className="h-[18px] w-[18px]" aria-hidden="true" />{C.edit}
           </button>
-          <button type="button" onClick={() => navigate(nextClass ? markPath(nextClass.listId) : ATTENDANCE_V2_BASE, { replace: true })} className={cn('flex min-h-[56px] flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}>
-            {C.nextClass}
+          <button type="button" onClick={() => navigate(solo ? TEACHER_BASE : nextClass ? markPath(nextClass.listId) : ATTENDANCE_V2_BASE, { replace: true })} className={cn('flex min-h-[56px] flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}>
+            {solo ? C.done : C.nextClass}
           </button>
         </div>
       </TeacherPage>
@@ -141,8 +147,8 @@ export function MarkPage() {
   return (
     <TeacherPage
       title={C.markTitle}
-      crumb={C.title}
-      backTo={ATTENDANCE_V2_BASE}
+      crumb={solo ? C.home : C.title}
+      backTo={solo ? TEACHER_BASE : ATTENDANCE_V2_BASE}
       feature="attendance"
       testId="attendance-mark"
       dock={students.length ? (
@@ -161,7 +167,7 @@ export function MarkPage() {
       ) : undefined}
     >
       <LoadState loading={loading} failed={error} onRetry={retry} />
-      {cls && <ClassCard cls={cls} to={ATTENDANCE_V2_BASE} />}
+      {solo ? <ViewDownloadPair listId={listId} /> : cls && <ClassCard cls={cls} to={ATTENDANCE_V2_BASE} />}
       {today && (
         <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={C.date}>
           {chip(date === today && !picking, C.today, () => { setPicking(false); pickDate(today); })}

@@ -1,7 +1,7 @@
 # coaching — Root jest suite for the AI coaching pipeline: analysis, reports, reflection, LP linking
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=baa0e0396e21 gen=53f981e4a072 overflow=194 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=7a9e473c5a29 gen=3a5aa7707b0c overflow=241 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `bd-s192t-roles-threading.test.js` — model of a test that runs the real chain, not a helper plus a grep
@@ -12,14 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `fidelity/` | → (no door; 27 tests) |
+| `fidelity/` | → (no door; 28 tests) |
 | `live-moves/` | → (no door; 9 files: 8 test + 1 support) |
-| `report-transformers/` | → (no door; 3 tests) |
+| `report-transformers/` | → (no door; 5 tests) |
 | `video-reco/` | Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B → `video-reco/CLAUDE.md` |
+| `fico*` | 8 files; most used `fico-s-routing.test.js`: (unmapped) |
 | `coaching*` | 7 files; most used `coaching-flow-integration.test.js`: bd-622/bd-618 wiring: LP selection list vs buttons in the coaching flow and the coaching card in the report flow |
 | `bd-9h2mm-section-b-not-assessed.test.js` | bd-9h2mm: Section B leaves the FICO total when no fidelity was measured and every surface says so |
-| `bd-v0toag.38.9-agree-ping-service.test.js` | bd-v0toag.38.9: Do you agree coach ping via template coach_visit_request_v2 (six params), reasons and card link |
-| … | 257 more → `CLAUDE.index.md` |
+| `bd-r2uzg1.12-mismatch-soft-line.test.js` | (unmapped) |
+| `fico17-v6-hitl-report-evidence.test.js` | (unmapped) |
+| `bd-hk2jm3-fde-ict-only.test.js` | (unmapped) |
+| … | 314 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -33,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? (+6)
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? (+8)

@@ -6,35 +6,73 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `record-sa-voice-v4-english-ops.test.js` | (unmapped) |
 | `record-sa-voice-v4-equals.test.js` | (unmapped) |
+| `record-sa-voice-v4-held-words.test.js` | (unmapped) |
+| `record-sa-voice-v4-letter-names.test.js` | (unmapped) |
+| `record-sa-voice-v4-line-fixes.test.js` | (unmapped) |
 | `record-sa-voice-v4-praise.test.js` | (unmapped) |
+| `record-sa-voice-v4-relevel.test.js` | (unmapped) |
+| `record-sa-voice-v4-sounds-alone.test.js` | (unmapped) |
 | `record-sa-voice-v4-sounds.test.js` | (unmapped) |
+| `record-sa-voice-v4-word-vowels.test.js` | (unmapped) |
 | `record-sa-voice-v4.test.js` | Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
 | `sa-add-child.test.js` | Pins the sa_add_child switch: seating an off-roster child via draw.addChild, refusals, and no name in logs |
 | `sa-all-grade-forms.test.js` | Pins coach forms for Grades 1-5 resolving coach.G<grade>.A with items shared from existing forms |
 | `sa-all-grades.test.js` | Pins the sa_all_grades switch: a named grade yields that grade's list on a :g<N> day key, OFF ignores the grade |
 | `sa-any-school.test.js` | Pins the sa_any_school switch: school list scope, list opening and seating at any live school, fail-closed reads |
+| `sa-bank-wording.test.js` | (unmapped) |
 | `sa-bank.test.js` | Pins the generated SA battery bank: official sourcing, response modes, stop rules, en+ur copy and gender-neutral lines |
 | `sa-block-history.test.js` | Pins sa_block_by_history: block picked by rotation excluding blocks the visit holds and the child already took |
+| `sa-device-bundle.test.js` | (unmapped) |
 | `sa-device-events.test.js` | Pins round 8 device readiness events (device_ready, voice_not_ready, voice_retry) being kept; offline/online dropped |
+| `sa-device-viewport.test.js` | (unmapped) |
 | `sa-extra.test.js` | Pins the extra SA subtasks built from item-bank.sa-extra.v1.json: official items, placement, engine runs them |
 | `sa-grade-with-visit.test.js` | Pins sa_all_grades at a school with today's observe visit: the named grade is honoured, never the visit's list |
 | `sa-last-word-hint.test.js` | Pins lastWordIndex alignment, saLastWordHint and its internal route for the sa_coach_last_word suggestion |
+| `sa-mic-check-kept.test.js` | (unmapped) |
+| `sa-per-visit.test.js` | (unmapped) |
+| `sa-practice-answer-kept.test.js` | (unmapped) |
+| `sa-practice-first.test.js` | (unmapped) |
+| `sa-practice-lookup-size.test.js` | (unmapped) |
 | `sa-practice-only.test.js` | Pins child_test_practice_only: practice coaches get only is_probable_test schools, isPracticeCoach, pilot unchanged |
+| `sa-r10-lines.test.js` | (unmapped) |
+| `sa-r20-level.test.js` | (unmapped) |
+| `sa-r28-bank.test.js` | (unmapped) |
+| `sa-r28-base-served.test.js` | (unmapped) |
+| `sa-r28-ceiling-no-response.test.js` | (unmapped) |
+| `sa-r28-ceiling-words-prompt.test.js` | (unmapped) |
+| `sa-r28-ceiling.test.js` | (unmapped) |
+| `sa-r28-child-only-answer.test.js` | (unmapped) |
+| `sa-r28-letter-gate.test.js` | (unmapped) |
+| `sa-r28-mcq-gate.test.js` | (unmapped) |
+| `sa-r28-mcq-of-all.test.js` | (unmapped) |
+| `sa-r28-mcq-readers.test.js` | (unmapped) |
+| `sa-r28-no-echo-ur.test.js` | (unmapped) |
+| `sa-r28-presented-sync.test.js` | (unmapped) |
+| `sa-r28-raw-verdicts.test.js` | (unmapped) |
+| `sa-r28-results-detail.test.js` | (unmapped) |
+| `sa-r28-story-minute.test.js` | (unmapped) |
+| `sa-r28-words-prompt.test.js` | (unmapped) |
 | `sa-r8-counts-score.test.js` | Pins round 8 sa_r8_counts scoring against the counts form the phone ran, never dropping extra items |
 | `sa-r8-slice2-lines.test.js` | (unmapped) |
+| `sa-rdf-mode.test.js` | (unmapped) |
 | `sa-rdf-w3-server.test.js` | Pins RDF auto/manual server behaviour under sa_rdf_w3_forms: accepted blocks when on, refused or not_ready when off |
 | `sa-rdf-w3.test.js` | Pins the RDF auto/manual W3 form shape: task list, official items with src, one-at-a-time display, coach_text |
 | `sa-rdf.test.js` | Pins the RDF short form under sa_rdf_form: block 'rdf' accepted when on, unknown when off, not_ready without rdf[] |
+| `sa-reach-kept.test.js` | (unmapped) |
 | `sa-reading-2.test.js` | Pins SA second passages/listening stories on game islands, English phoneme segmentation and test-word-free game lines |
 | `sa-reading-3.test.js` | Pins SA English dictation as typed spelling, Urdu picture vocabulary and orientation to print on Grade 1-3 forms |
 | `sa-reading.test.js` | Pins SA reading tap-option rules (one right tile per prompt, no length giveaways) and the reading extras (DESIGN 2b) |
+| `sa-record-stop-kept.test.js` | (unmapped) |
 | `sa-restart.test.js` | Pins sa_end_test_restart: restartAttempt sets aside the ended attempt's rows, moves events, refuses when off |
 | `sa-results.test.js` | Pins saResults per-task output (attempted, correct, chance-corrected score, stop reason) with no names or ids |
 | `sa-resume-repick.test.js` | Pins sa_resume_repick: a re-sent present with repick moves an unfinished session to the coach's block |
 | `sa-review-store.test.js` | Pins the review store (V1.7.4 child_test_sa_item_reviews): session rows read and reviewer mark upsert |
 | `sa-review.test.js` | Pins saReview read and saReviewMark write: recording links, agent marks, suspect flag, reviewer ear, admin access |
 | `sa-reviewed-lines.test.js` | Pins applyReviewed: reviewer wording laid over every form, new clip keys for changed text, committed bank carries it |
+| `sa-reviewer-answers.test.js` | (unmapped) |
+| `sa-reviewer-drafts.test.js` | (unmapped) |
 | `sa-rulings.test.js` | Pins SA design rules in the bank: 18 v3 tasks, tap first-row stops at chance, spelling task, engine lines in both... |
 | `sa-runtime.test.js` | Pins runtime batteries sa.<form>.<lang>.json validating in the engine (sa-core) with blocks, islands and stop rules |
 | `sa-same-day-reuse.test.js` | Pins sa_all_grades reuse of today's un-graded day list when the named grade matches, else a :g<N> list |
@@ -48,15 +86,24 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-score-sweep-claims.test.js` | Pins per-sweep claim tokens, timed-out sweeps giving up only their own claims, and the MAX_INFLIGHT cap |
 | `sa-score-timeouts.test.js` | Pins bounded outbound calls and the 90s sweep deadline so the SA scorer cannot be pinned by a hung call |
 | `sa-score-variant-wait.test.js` | Pins sa_r8_variant_wait: passages wait for the questions row naming the shown variant instead of a hash guess |
+| `sa-score-voice-help.test.js` | (unmapped) |
+| `sa-score-voice-strict.test.js` | (unmapped) |
 | `sa-score.test.js` | Pins the SA scorer (CHILD_TEST_SA_SCORER): claim, score against the shown passage, write marks, W3 forms, saRegister... |
+| `sa-served-stamp-kept.test.js` | (unmapped) |
 | `sa-sessions-dash-filters.test.js` | Pins saSessions under sa_dash_filters: mode, block, coach, start, stops and stopSessions fields |
 | `sa-sessions-dash-origin.test.js` | Pins saSessions origin (added vs drawn) and incomplete_move_on stop under sa_dash_filters |
 | `sa-sessions-practice-r8.test.js` | Pins round 8 saSessions practice-school flag and coach-name guard switches |
 | `sa-sessions.test.js` | Pins saSessions: every SA session per coach or admin in Results shape with school and sub-region, no child identifiers |
+| `sa-skip-instructions-kept.test.js` | (unmapped) |
+| `sa-start-check-kept.test.js` | (unmapped) |
 | `sa-stop-rules-gates.test.js` | Pins RWP comprehension and multiplication gates and RDF no-stop flags under sa_stop_rules (panel RULING G-12) |
 | `sa-stop-rules-ready.test.js` | Pins the sa_stop_rules deadlock fix: passage map holds only passages and no row waits on itself |
 | `sa-stop-rules.test.js` | Pins EGRA first-row rule for W3 grids and skipping comprehension after a stopped passage (sa_stop_rules) |
+| `sa-stt-plain.test.js` | (unmapped) |
 | `sa-tester-fixes.test.js` | Pins external tester fixes A08/A11/A13/A14: no language mixing, maths practice, picture patterns, RDF short form |
+| `sa-ur-instruction-spelling.test.js` | (unmapped) |
+| `sa-v4-clip-tails.test.js` | (unmapped) |
+| `sa-voice-late-none-kept.test.js` | (unmapped) |
 | `sa-voice-sustained-sounds.test.js` | Pins letter-sound clips saying each sound once (continuants held) using ffmpeg silencedetect on served clips |
 | `sa-voice-tashdeed.test.js` | Pins sa_voice_tashdeed: voice gets shadda-marked Urdu lines while screen text and clip keys stay as written |
 | `sa-voice.test.js` | Pins the SA voice manifest naming each clip once and record-sa-voice voicing only missing clips under a spend cap |

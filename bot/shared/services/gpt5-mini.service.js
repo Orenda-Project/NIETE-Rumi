@@ -68,114 +68,7 @@ class GPT5MiniService {
    * @returns {string}
    */
   static _formatLessonPlanNarrative(lessonPlanStructured) {
-    if (!lessonPlanStructured) return '';
-
-    const lines = [];
-    const joinList = (items = [], delimiter = '; ') =>
-      items.filter(Boolean).join(delimiter);
-
-    if (lessonPlanStructured.subject || lessonPlanStructured.topic) {
-      lines.push(
-        `Subject & Topic: ${[
-          lessonPlanStructured.subject,
-          lessonPlanStructured.topic
-        ]
-          .filter(Boolean)
-          .join(' — ')}`
-      );
-    }
-
-    if (lessonPlanStructured.objectives?.length) {
-      lines.push(`Objectives: ${joinList(lessonPlanStructured.objectives)}`);
-    }
-
-    if (lessonPlanStructured.prior_knowledge?.length) {
-      lines.push(
-        `Prior knowledge the teacher expects: ${joinList(
-          lessonPlanStructured.prior_knowledge
-        )}`
-      );
-    }
-
-    if (lessonPlanStructured.activities?.length) {
-      const activities = lessonPlanStructured.activities
-        .map((activity, idx) => {
-          const title = activity.title || `Activity ${idx + 1}`;
-          const time = activity.time ? ` (${activity.time})` : '';
-          return `${title}${time}: ${activity.description || 'No description provided.'}`;
-        })
-        .join(' | ');
-      lines.push(`Planned activities: ${activities}`);
-    }
-
-    if (lessonPlanStructured.materials?.length) {
-      lines.push(`Materials/resources: ${joinList(lessonPlanStructured.materials)}`);
-    }
-
-    if (lessonPlanStructured.resources_detail?.length) {
-      const details = lessonPlanStructured.resources_detail
-        .map((item) => {
-          const reference = item.reference ? ` (Reference: ${item.reference})` : '';
-          return `${item.name || 'Resource'}: ${item.description || 'No description'}${reference}`;
-        })
-        .join(' | ');
-      lines.push(`Resource notes: ${details}`);
-    }
-
-    if (lessonPlanStructured.textbook_references?.length) {
-      const books = lessonPlanStructured.textbook_references
-        .map((ref) => `${ref.title || 'Book'} p.${ref.page || 'N/A'} - ${ref.usage || 'Usage not specified'}`)
-        .join(' | ');
-      lines.push(`Textbook/page references: ${books}`);
-    }
-
-    if (lessonPlanStructured.assessment_methods?.length) {
-      lines.push(
-        `Formative assessment methods: ${joinList(
-          lessonPlanStructured.assessment_methods
-        )}`
-      );
-    }
-
-    if (lessonPlanStructured.assessment_sequences?.length) {
-      const sequences = lessonPlanStructured.assessment_sequences
-        .map((sequence) => {
-          const title = sequence.title || 'Assessment';
-          const steps = sequence.steps?.length ? ` Steps: ${sequence.steps.join(' › ')}` : '';
-          const expected = sequence.expected_responses
-            ? ` Expected responses: ${sequence.expected_responses}`
-            : '';
-          const reference = sequence.reference ? ` (Reference: ${sequence.reference})` : '';
-          return `${title}:${steps}${expected}${reference}`;
-        })
-        .join(' | ');
-      lines.push(`Detailed formative tasks: ${sequences}`);
-    }
-
-    if (lessonPlanStructured.planned_questions?.length) {
-      const questions = lessonPlanStructured.planned_questions
-        .map((question) => {
-          const q = question.question || 'Question not provided';
-          const intent = question.intent ? ` (Purpose: ${question.intent})` : '';
-          const expected = question.expected_answer ? ` Expected answer: ${question.expected_answer}` : '';
-          return `${q}${intent}${expected}`;
-        })
-        .join(' | ');
-      lines.push(`Planned questions: ${questions}`);
-    }
-
-    if (lessonPlanStructured.annexures?.length) {
-      const annexures = lessonPlanStructured.annexures
-        .map((annex) => `${annex.title || 'Annexure'}: ${annex.purpose || annex.description || 'No description'}`)
-        .join(' | ');
-      lines.push(`Annexures/printables: ${annexures}`);
-    }
-
-    if (!lines.length) {
-      lines.push('Lesson plan metadata exists but no structured elements were extracted.');
-    }
-
-    return lines.map((line) => `- ${line}`).join('\n');
+    return require('./coaching/lesson-plan-narrative').formatLessonPlanNarrative(lessonPlanStructured);
   }
 
   /**
@@ -802,7 +695,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    * @returns {Promise<{result: object, usage: object, finishReason: string|null}>}
    */
   static async completeJson(prompt, options = {}) {
-    const { maxTokens = 4000, label = 'completeJson', reasoningEffort } = options;
+    // `keepScript` — a caller with its own script gate (video-reco rejects a pick written in another
+    // script) gets the reply as the model wrote it; every other caller gets it in Urdu script (urdu-script-only.js).
+    const { maxTokens = 4000, label = 'completeJson', reasoningEffort, keepScript = false } = options;
     try {
       const response = await this.openai.chat.completions.create({
         // The job a caller names decides the model as well as the label: the coach's debrief guide
@@ -823,7 +718,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       if (choice && choice.finish_reason === 'length') {
         logToFile(`⚠️ ${label}: response truncated at max_completion_tokens`, { maxTokens });
       }
-      const result = this._safeJsonParse(choice.message.content);
+      const parsed = this._safeJsonParse(choice.message.content);
+      const result = keepScript ? parsed : require('./coaching/urdu-script-only').urduScriptOnly(parsed, `completeJson:${label}`);
       // bd-08qvls.1: the finish reason is the truncation signal ('length'; the direct lane maps Anthropic's
       // 'max_tokens' to it). A token count is not: a moved job is given more room than maxTokens.
       return { result, usage: response.usage || {}, finishReason: (choice && choice.finish_reason) || null };
@@ -973,7 +869,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
       }
     }
     logToFile('[refl-q] v12 question generated', { questionNumber, model_used, language: profile.language });
-    return question;
+    // The question is sent to the teacher on WhatsApp; a Hindi-script word in it goes out in Urdu script.
+    return require('./coaching/urdu-script-only').urduScriptOnly(question, 'reflective_question');
   }
 
   /**
@@ -1742,7 +1639,8 @@ Return ONLY the topic text, nothing else.`;
         temperature: 0.3
       });
 
-      const topic = response.choices[0].message.content.trim();
+      // Stored as analysis_data.topic and printed on the report — Urdu script only.
+      const topic = require('./coaching/urdu-script-only').urduScriptOnly(response.choices[0].message.content.trim(), 'lesson_topic');
 
       logToFile('✅ Lesson topic inferred', {
         topic,
@@ -1792,7 +1690,7 @@ Return ONLY the subject name, nothing else.`;
         temperature: 0.3
       });
 
-      const subject = response.choices[0].message.content.trim();
+      const subject = require('./coaching/urdu-script-only').urduScriptOnly(response.choices[0].message.content.trim(), 'lesson_subject');
 
       logToFile('✅ Lesson subject inferred', {
         subject,
@@ -1897,9 +1795,46 @@ Recommendations: ${JSON.stringify(recommendations)}
 `;
   }
 
-  static async summarizeForVoiceDebrief(observationData, language = 'ur') {
+  /**
+   * EXAMPLES (bd-r2uzg1.18.10, ICT DC sheet row 69): the voice summary praised a classroom activity that is not
+   * in the teacher's recording. Asked for "one major strength with specific example" out of a dump of the whole
+   * analysis, the model supplied an example of its own. The only examples now offered are the analysis's own
+   * quotes that the transcript confirms (coaching/voice-grounding.js groundedMoments); with none, no specific
+   * example is asked for. The script is then checked against the recording before it is spoken.
+   */
+  static voiceExamplesRule(moments) {
+    const never = 'NEVER describe an activity, material, grouping or student action (group work, pair work, cards, '
+      + 'pictures, charts, worksheets, games, songs, stories, role play, videos, objects) as something that happened '
+      + 'in this lesson unless it is in these moments. The teacher knows exactly what happened in the lesson; one '
+      + 'invented example makes the whole voice note untrustworthy.';
+    if (!moments || !moments.length) {
+      return `EXAMPLES — no moment from this recording could be checked word for word against the transcript, so give NO specific classroom example: describe the strength and the growth area in general terms. ${never.replace(' unless it is in these moments', '')} In the growth part you may suggest something to try next time, said clearly as a suggestion.
+
+`;
+    }
+    const list = moments.map((m, i) => `${i + 1}. "${m.quote}"${m.about ? ` — ${m.about}` : ''}`).join('\n');
+    return `EXAMPLES — moments from the teacher's own recording; each quote was checked against the transcript:
+${list}
+- The strength's specific example MUST be one of these moments: say its words exactly as written above, in quotation marks, and what it showed.
+- ${never}
+- In the growth part you may suggest something NEW to try next time — say it clearly as a suggestion, never as something that happened.
+
+`;
+  }
+
+  /**
+   * @param {object} observationData - analysis (projected for the voice) + conversation + fidelity fields
+   * @param {string} language - 'en' or 'ur'
+   * @param {object} [grounding] - { transcript }: the lesson transcript the script's examples must come from
+   * @returns {Promise<string>} the script TTS speaks (and analysis_data.voice_debrief_script keeps)
+   */
+  static async summarizeForVoiceDebrief(observationData, language = 'ur', grounding = {}) {
     try {
       logToFile('Generating voice debrief summary', { language });
+      const VG = require('./coaching/voice-grounding');
+      const transcript = (grounding && grounding.transcript) || '';
+      const analysis = (observationData && observationData.analysis) || {};
+      const moments = VG.groundedMoments(analysis, transcript);
 
       const prompt = `Create a 90-second voice message script summarizing this classroom observation.
 
@@ -1910,12 +1845,13 @@ TARGET LANGUAGE: ${language === 'en' ? 'English' : 'Urdu'}
 
 STRUCTURE (90 seconds total):
 1. Greeting (10 seconds)
-2. One major strength with specific example (30 seconds)
+2. One major strength, its example ONLY as EXAMPLES below allows (30 seconds)
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
 ${GPT5MiniService.voiceScoreRule(observationData)}${voiceFidelityRule(observationData)}
 
+${GPT5MiniService.voiceExamplesRule(moments)}
 TONE:
 - Warm, respectful, mentor-like
 - Conversational (as you would speak naturally)
@@ -1947,22 +1883,57 @@ AVOID:
 - Being overly critical or negative
 - Rushed or incomplete thoughts
 
-Generate ONLY the script text (no stage directions, just what will be spoken).`;
+OUTPUT — reply with ONE JSON object and nothing else: {"greeting": "...", "strength": "...", "growth": "...", "closing": "..."} — the four parts of the STRUCTURE above, each holding exactly the words to be spoken (no stage directions, no labels, no markdown). They are spoken one after another as one voice note.`;
 
-      const response = await this.openai.chat.completions.create({
-        model: modelFor('coaching.voiceDebrief'),
-        job: 'coaching.voiceDebrief',
-        messages: [{ role: 'user', content: prompt }],
-        max_completion_tokens: 1500,
-        temperature: 0.7
-      });
+      const draft = async (text) => {
+        const response = await this.openai.chat.completions.create({
+          model: modelFor('coaching.voiceDebrief'),
+          job: 'coaching.voiceDebrief',
+          messages: [{ role: 'user', content: text }],
+          response_format: { type: 'json_object' },
+          max_completion_tokens: 1500,
+          temperature: 0.7
+        });
+        // Spoken by TTS and kept as analysis_data.voice_debrief_script — Urdu script only.
+        const sections = require('./coaching/urdu-script-only').urduScriptOnly(
+          VG.parseSections(response.choices[0].message.content), 'voice_debrief_script');
+        return { sections, tokens: response.usage && response.usage.completion_tokens };
+      };
 
-      const script = response.choices[0].message.content.trim();
+      // bd-r2uzg1.18.10: the praise may only name an activity or material the recording (or her photos, or
+      // her own reflection) has. A draft that names one it does not is written again once, with the reason;
+      // if the second still does, the sentences that name it are dropped before anything is spoken.
+      const ctx = { transcript, analysis };
+      let { sections, tokens } = await draft(prompt);
+      const first = VG.checkVoiceScript(sections, ctx);
+      let outcome = first.ok ? 'grounded' : 'rewritten';
+      if (!first.ok) {
+        const named = [...new Set(first.problems.map((p) => p.what.replace(/_/g, ' ')))].join(', ');
+        ({ sections, tokens } = await draft(`${prompt}
+
+YOUR LAST DRAFT WAS REJECTED: it described ${named} as part of this lesson, and none of that is in the teacher's recording. Write the whole script again without ${named}; take the strength's example only from the moments under EXAMPLES.`));
+        const second = VG.checkVoiceScript(sections, ctx);
+        if (!second.ok) {
+          sections = VG.stripUngrounded(sections, second.problems);
+          outcome = 'stripped';
+        }
+        // Concept ids and parts only — never her words.
+        logToFile('Voice debrief named an activity not in the recording', {
+          language,
+          firstDraft: first.problems.map((p) => `${p.section}:${p.what}`),
+          secondDraft: second.problems.map((p) => `${p.section}:${p.what}`),
+          outcome,
+        }, 'warn');
+      }
+
+      const script = VG.joinSections(sections);
 
       logToFile('Voice debrief script generated', {
         language,
         scriptLength: script.length,
-        tokens: response.usage.completion_tokens
+        tokens,
+        groundedMoments: moments.length,
+        grounding: outcome,
       });
 
       return script;

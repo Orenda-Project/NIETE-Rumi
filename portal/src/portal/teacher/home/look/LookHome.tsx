@@ -11,6 +11,7 @@ import { cleanSchool, fullName, todayLabel } from '../../format';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
 import { RemindCard } from '../../notices/RemindCard';
+import { ClassLinkCard } from '../../notices/ClassLinkCard';
 import { TopicPaperCard } from '../../notices/TopicPaperCard';
 import { FULL_KINDS } from '../NextCard';
 import { SLIM_KINDS } from '../SlimCard';
@@ -22,6 +23,7 @@ import type { AnyFeature } from '../../icons';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
 import { FeatureTiles } from './FeatureTiles';
+import { HomeActivity } from '../activity/HomeActivity';
 import { SkeletonLookTile } from '../../../components/Skeleton';
 import './reveal.css';
 
@@ -52,7 +54,7 @@ type Slot = { card: number; total: number };
 const slotKey = (userKey: string) => `teacher-home-slot:v1:${userKey}`;
 /** TeacherPage's gap between blocks: the slot keeps one before the rows, so it is left out of the remembered height. */
 const BLOCK_GAP = 10;
-const CLIMBERS = ['home-look-card', 'home-scores'];
+const CLIMBERS = ['home-look-card', 'home-activity', 'home-scores'];
 
 const px = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n) : 0);
 
@@ -192,6 +194,10 @@ export function LookHome({ tiles, data, order, onGo, role, school }: LookHomePro
       {drawn ? (
         <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={REVEAL} />
       ) : null}
+      {/* The "Last 30 days" block (GET /me/home `activity`, portal_teacher_home_activity) and the My journey row:
+          after the card, before the progress strip. Nothing when neither is on. It fades in with the rest but never climbs
+          into the band (its heading is words on the page grey, like Ready for you's). */}
+      {data ? <HomeActivity activity={data.activity} quizHome={data.quizHome} onGo={onGo} className="home-reveal" /> : null}
       {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={REVEAL} /> : null}
       {holding ? null : (
         <>
@@ -202,6 +208,7 @@ export function LookHome({ tiles, data, order, onGo, role, school }: LookHomePro
           {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
           <TopicPaperCard />
           <RemindCard />
+          <ClassLinkCard />
         </>
       )}
     </TeacherPage>

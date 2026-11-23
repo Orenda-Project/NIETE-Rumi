@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Check, Compass, MessageCircle, Sparkles } from "lucide-react";
@@ -8,6 +8,7 @@ import type { TalkGuide, TalkGuideSection } from "../../services/api";
 import { cn } from "@/lib/utils";
 import CoachRecorder from "../../components/coaching/coach/CoachRecorder";
 import { acceptFor, checkFile } from "../../lib/coachingUpload";
+import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { SendError } from "../../lib/coachingSend";
 import { sendTalk } from "../../lib/coachObserve";
 import type { FinishedRecording } from "../../lib/lessonRecorder";
@@ -26,6 +27,9 @@ import { REPORTS } from "./copy";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 
 /**
  * bd-4404s7.5 — Debrief, step 3 of 5 (Blueprint Coach_Debrief): the guide for her talk with the teacher — the one the
@@ -36,6 +40,9 @@ import { useBack } from "../../lib/useBack";
  *
  * Real routes: POST talk/guide (the first open can take a minute; 409 = the form is not saved yet), observe-upload/presign,
  * POST talk, POST talk/retry. Read back later (the step is past the talk) it shows the guide the observation kept.
+ *
+ * bd-tymy1n (queue #179) — an uploaded talk is read when she picks it, and what goes up (and what Try again sends again)
+ * is those bytes, never the picked file the Android app may no longer open. A file that will not open is refused here.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
  * English and Urdu; its other on-screen words are still English only (see the gap list).
@@ -124,29 +131,37 @@ export default function Debrief() {
 
   useEffect(() => { canRecordHere().then(setCanRecord).catch(() => { /* the recorder says if it cannot */ }); }, []);
 
+  // The guide's ask, and its own asks again after a 5xx or no answer (GUIDE_RETRY_MS) before it says it did not load.
+  const askGuide = useCallback((attempt: number) => {
+    leader.getTalkGuide(id)
+      .then((r) => { if (mounted.current) { setGuide(r.guide || null); setGuideState("ready"); } })
+      .catch((err) => {
+        if (!mounted.current) return;
+        const code = (err as { response?: { status?: number } })?.response?.status;
+        if (code === 409) { setGuideState("not_ready"); return; }
+        // A 5xx or no answer: the guide may still be being written; ask again before saying it did not load.
+        if ((code === undefined || code >= 500) && attempt < GUIDE_RETRY_MS.length) {
+          retryTimer.current = setTimeout(() => askGuide(attempt + 1), GUIDE_RETRY_MS[attempt]);
+          return;
+        }
+        setGuideState("failed");
+      });
+  }, [id]);
+
   // The guide: kept on the observation once written; otherwise asked for (the first ask can take a minute).
   useEffect(() => {
     if (!view || asked.current) return;
     if (view.talk.guide) { asked.current = true; setGuide(view.talk.guide); setGuideState("ready"); return; }
     if (!hers) { asked.current = true; setGuideState("ready"); return; }
     asked.current = true;
-    const ask = (attempt: number) => {
-      leader.getTalkGuide(id)
-        .then((r) => { if (mounted.current) { setGuide(r.guide || null); setGuideState("ready"); } })
-        .catch((err) => {
-          if (!mounted.current) return;
-          const code = (err as { response?: { status?: number } })?.response?.status;
-          if (code === 409) { setGuideState("not_ready"); return; }
-          // A 5xx or no answer: the guide may still be being written; ask again before saying it did not load.
-          if ((code === undefined || code >= 500) && attempt < GUIDE_RETRY_MS.length) {
-            retryTimer.current = setTimeout(() => ask(attempt + 1), GUIDE_RETRY_MS[attempt]);
-            return;
-          }
-          setGuideState("failed");
-        });
-    };
-    ask(0);
-  }, [view, hers, id]);
+    askGuide(0);
+  }, [view, hers, askGuide]);
+
+  // bd-tfya0m (queue #205) — "Guide did not load" is never the end: Try again asks once more (with its own asks again).
+  const guideAgain = () => { setGuideState("loading"); askGuide(0); };
+  // bd-o15qnr.28 (v7, board m9-errors card 3): no guide is the red-edged card — record anyway, Try again, or record now.
+  const v7 = useFlowV6() === true;
+  const E = useCopy(FLOW_V7_ERRORS);
 
   const send = async (audio: Pending) => {
     setPending(audio);
@@ -164,12 +179,14 @@ export default function Debrief() {
   };
 
   const onRecorded = (out: FinishedRecording) => { void send({ blob: out.blob, filename: `Talk${out.type.ext}`, recordingId: out.id }); };
-  const onFile = (file: File | undefined) => {
+  const onFile = async (picked: File | undefined) => {
     setFileError(null);
-    if (!file) return;
-    const problem = checkFile(file, "audio");
+    if (!picked) return;
+    const problem = checkFile(picked, "audio");
     if (problem) { setFileError(problem === "too_large" ? C.tooLarge : C.notAudio); return; }
-    void send({ blob: file, filename: file.name, recordingId: null });
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick("audio", picked, out.errName); setFileError(C.fileWontOpen); return; }
+    void send({ blob: out.file, filename: picked.name, recordingId: null });
   };
 
   if (view && ["analysing"].includes(view.step)) return <Navigate to={home} replace />;
@@ -195,7 +212,19 @@ export default function Debrief() {
               <p className="text-[15px] text-[#6b7280]" dir="auto">{N.leave}</p>
             </div>
           )}
-          {guideState === "failed" && <Note tone="amber">{C.guideFailed}</Note>}
+          {guideState === "failed" && v7 && (
+            <ErrorCard testId="guide-failed" title={E.noGuide} line={E.noGuideLine}>
+              <ErrorAction onClick={guideAgain}>{C.retry}</ErrorAction>
+              {hers && <ErrorAction quiet onClick={() => setStage(canRecord ? "recording" : "micBlocked")}>{E.recordWithoutGuide}</ErrorAction>}
+            </ErrorCard>
+          )}
+          {guideState === "failed" && !v7 && (
+            <div data-testid="guide-failed" role="alert" className="flex items-center gap-3 rounded-2xl bg-[#fef3c7] p-4 text-[#b45309]">
+              <span className="flex-1 text-[16px] font-semibold">{C.guideFailed}</span>
+              <button type="button" onClick={guideAgain}
+                className={cn("min-h-[48px] rounded-xl bg-white px-4 text-[15px] font-semibold text-[#33374a]", FOCUS)}>{C.retry}</button>
+            </div>
+          )}
           {guideState === "not_ready" && <Note tone="amber">{C.saveFormFirst}</Note>}
           {guideState === "ready" && guide && <GuideBlock guide={guide} />}
           {step === "listening" && <Note>{C.listeningTalk}</Note>}
@@ -215,7 +244,7 @@ export default function Debrief() {
             <>
               <RecordUploadPair onRecord={() => setStage(canRecord ? "recording" : "micBlocked")} onUpload={() => input.current?.click()} />
               <input ref={input} data-testid="talk-input" type="file" accept={`${acceptFor("audio")},audio/*`} className="hidden"
-                onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+                onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
               {fileError && <Note tone="amber">{fileError}</Note>}
             </>
           )}

@@ -57,12 +57,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the feedback survey arrives and I tap 👍
     Then the bot asks whether I got to use it in class
     And it offers exactly three replies — "Taught it today", "Planning to", "Not yet"
-    And tapping one of them is acknowledged by a 👍 reaction on my tap, with no further message
+    And tapping one of them is acknowledged by the bot's own 🙏 reaction on my tap, with no further message
     # bd-b708h. Before this, 👍 ended the survey on a bare thank-you, so lp_feedback.used_in_class
     # was NULL on every 6-12 row — and it is the only signal this lane has that a PDF became a
     # lesson (a render row is a cache miss, not a delivery).
     # Meta bill cut NL1 (bd-w2daa.9): the "Thank you — that helps." text after the answer is gone —
     # the webhook's 👍 reaction on every inbound message is the receipt, and a reaction is not billed.
+    # Since FX1 (bd-w2daa.22) the receipt on a usage answer is the bot's OWN 🙏 on her tap
+    # (lp612-feedback.shared.js _thank), not the webhook's 👍 (bd-kbo9h0.7: the step said 👍).
 
   @e2e @P1
   Scenario: A survey answer that needs no follow-up is receipted by a reaction, not a message
@@ -125,6 +127,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same open also books the coaching ask a WhatsApp-delivered Grades 1–5 plan books (coaching.feature
     # @COA80/@COA81; tests/lp-v8/lp-coaching-ask-app-open.test.js).
 
+  @e2e @config-gated @no-mock-driver @slow @P1
+  Scenario: My own Grades 1–5 plan read in the teacher app gets the Grades 1–5 survey, and my answer is kept
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I messaged the bot within the last 24 hours
+    And I made my own version of a Grades 1–5 lesson plan in the teacher app
+    When I open that plan in the teacher app
+    Then about 30 seconds later the chat receives the Grades 1–5 "Was it useful?" survey with "👍 Yes, useful" and "👎 Not really"
+    And tapping 👍 stores my answer against that lesson plan, not lost
+    # bd-h7nsmx: the app's 6-12 routes also serve own and shelf Grades 1–5 plans and record those opens as 'g612'
+    # with a Grades 1–5 lesson id. The 6-12 survey's tap then broke a database link and the answer was lost
+    # (~17 a day on live, 18 Nov 2026). The lesson id now decides which survey is asked.
+    # Unit: tests/lp-v8/app-open-survey-k5-as-g612.test.js.
+
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
   @e2e @i18n @P2
@@ -186,7 +201,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # into the repo as data (bot/vendor/lp-v9/g5c_cleared_names.json). A name the review did not
     # decide is still withheld, which is the scenario below.
 
-  @e2e @content-driven @P1
+  @e2e @L25 @no-mock-driver @content-driven @P1
   Scenario: A history plan naming Zahiruddin Muhammad Babur is delivered in Urdu, not swapped for English
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -700,6 +715,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lesson_id, version_stamp, content_hash). A script for an OLDER version of the same lesson does not
     # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
     # that has a script and one that does not is still offered, for the lesson that has one.
+
+  # ADDED 2026-11-22 (bd-pdwwk4.2). @no-mock-driver: the mock lane cannot age the teacher's last message past
+  # 24 hours. Executed through the real sweeper in tests/qfix-offers/held-path.test.js.
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P2 @L60
+  Scenario: An afternoon quiz offer held back because my window closed says on its row whether anything reached me
+    Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
+    And the teacher's last message to the bot was more than 24 hours before the send hour
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the teacher gets no free-form quiz offer
+    And with app_settings "quiz_offer_closed_window" set to trace, the offer row's context has held_path "template" when the reminder template reached the teacher, and "none" otherwise
+    And with the switch missing, the row is skipped exactly as before, with no held_path
+    # lp-quiz-offer send(): window_closed / window_closed_template carry {held_path} on the row context and on the
+    # lp_quiz.offer_skipped event; a dry-run reminder template reached nobody, so it is "none". No message, string
+    # or button changes.
 
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: An Islamiyat lesson plan, or an Urdu Hamd or Naat chapter, is never made into a quiz until its religious review
@@ -1247,7 +1276,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.30 (G3 English tester: "cannot be covered in one class … large number of students").
     # Unit: tests/lp612/own-period.test.js, tests/lp612/own-fits-one-period.test.js.
 
-  @e2e @config-gated @P1
+  @e2e @L26 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 6-12 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 6-12 lesson
     When I make my own plan for my class
@@ -1258,7 +1287,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.48 (shelf reviewer 5D: success criteria + self-prediction). Unit: tests/lp612/own-close.test.js,
     # tests/lp612/own-worker-close.test.js.
 
-  @e2e @slow @P1
+  @e2e @L27 @no-mock-driver @slow @P1
   Scenario: A ready-made Grades 6-12 plan ends with the same "Before they write" step
     Given a Grades 6-12 lesson that has not been made yet for this version
     When I ask for its ready-made plan and it arrives
@@ -1268,7 +1297,29 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the plan stays within its page limit whenever it fitted without the step
     # bd-snkn32.50 (shelf reviewer 5D on ready-made anchors). Unit: tests/lp612/author-worker-close.test.js.
 
-  @e2e @config-gated @P1
+  @e2e @L30 @no-mock-driver @slow @P1
+  Scenario: A ready-made Grades 6-12 reading plan gives the reading its own minutes before any questions
+    Given a Grades 6-12 reading lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then before the first question step the plan has a reading step that says how many minutes the reading takes
+    And that step says who reads, which pages, and one thing pupils look for while reading
+    And in Urdu the same step gives the minutes in Urdu, for example "پڑھائی (۸ منٹ)"
+    # ICT sheet row 528 (bd-zrdvmi.17, bd-zrdvmi.39): grade_6_urdu.c10.p051-054.tafheem had no reading time.
+    # A plan without the minutes is sent back for a revision round (READING_TIME defect). Unit:
+    # tests/lp612/reading-step-gate.test.js, tests/lp612/author-brief-reading-step.test.js.
+
+  @e2e @L31 @no-mock-driver @slow @P1
+  Scenario: A ready-made Grades 6-12 poem plan paraphrases the poem in class, stanza by stanza
+    Given a Grades 6-12 poem reading lesson that has not been made yet for this version
+    When I ask for its ready-made plan and it arrives
+    Then in the teaching step the teacher gives the poet's words and then the same idea in plain everyday words
+    And in the class practice pupils paraphrase one stanza in their own words
+    And a paraphrase only in homework, the support notes or the answer key does not count
+    # ICT sheet row 728 (bd-zrdvmi.44.1): grade_9_english.c09.p116-118.reading_comprehension ('Travel') had
+    # "No paraphrasing there". A poem plan without one is sent back for a revision round (POEM_PARAPHRASE
+    # defect). Unit: tests/lp612/poem-paraphrase-gate.test.js.
+
+  @e2e @L28 @no-mock-driver @config-gated @P1
   Scenario: My own Grades 1-5 plan ends with a "Before they write" step
     Given "portal_lp_make_own" is on for me and I pick a Grades 1-5 day
     When I make my own plan for my class
@@ -1279,7 +1330,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-snkn32.52, queue #134 B (shelf reviewer 5D: 146 of 276 grades 1-5 own plans scored 1-2). Unit:
     # tests/lp612/own-k5-close.test.js.
 
-  @e2e @config-gated @P2
+  @e2e @L29 @no-mock-driver @config-gated @P2
   Scenario: My own Grades 6-12 Science plan names each key word in Urdu too
     Given "portal_lp_make_own" is on for me and I pick a Grades 9 Physics lesson
     When I make my own plan for my class
@@ -1306,7 +1357,65 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the teaching part has no homework section, only one line pointing to "Homework, in full" in the support pages
     And every homework question is printed in "Homework, in full" with its answer and its textbook source, under the homework notes
     And a lesson that fits within its teaching pages still prints its homework questions in the teaching part, unchanged
+    And when a move only trades a teaching page for a support page, the move is kept and the teaching part is a page shorter
     # bd-xkkw9.2 (queue #114, from bd-xkkw9.1): third paint in render_lp.js renderDoc, kept only when it
     # lowers the overage; a lesson whose homework is not fully answered in Reference is never moved.
+    # bd-xkkw9.4 (queue #147): a tie on the overage goes to the layout with fewer TEACH pages
+    # (render_lp.js `better`; SYNC.md §3.40). Unit: tests/lp612/over-cap-flow-groups.test.js too.
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
+
+  # ADDED 2026-11-22 (bd-zrdvmi.51): the cycle picture type.
+  @e2e @content-driven @no-mock-driver @P2
+  Scenario: A Grades 6-12 lesson on a cycle draws the cycle as a closed ring, not a line
+    Given the NIETE bot chat is open
+    And I take a Grade 9 Biology lesson on the Krebs cycle
+    When the lesson-plan PDF is delivered to the chat
+    Then the cycle is drawn as a ring of stages joined by curved arrows, the last stage leading back to the first
+    And what goes in or comes out at each step is written beside its arrow
+    And no label in the picture overlaps another label, a box or an arrow
+    And an Urdu plan draws the same ring running right to left, with its labels in Urdu
+    # Sheet "Lesson Plans (6 - 12)" row 7: the Krebs board was a mind map and lines because the picture engine
+    # had no cycle type, though the brief already showed the model one. Krebs, water, carbon, nitrogen and cell
+    # cycles all use it; it counts as the Biology / General Science process picture (visual_check V6).
+    # @no-mock-driver: a fresh plan needs a live model call; the mock lane replays no author run.
+    # Unit: tests/lp612/diagram-cycle.test.js.
+
+  # ADDED 2026-11-19 (bd-96f69c.8): per-programme WhatsApp switches. lp_whatsapp_pdf_off / lp_whatsapp_survey_off hold
+  # a list of programmes ("ict", "gb"); a teacher's programme is "gb" when she is a GB teacher, else "ict". No row = today.
+  # Unit: tests/lp-whatsapp-off/, tests/app-redirect/lp-pdf-off-door.test.js, tests/feedback/lp-whatsapp-off.test.js.
+  @e2e @config-gated @P1 @L13
+  Scenario: With lesson-plan PDFs off on WhatsApp for my programme, asking for a lesson plan sends me one app link
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the ICT programme
+    When I send "/lp"
+    Then I get one message with an "open in the app" button carrying my own sign-in link
+    And no lesson-plan menu opens and no PDF arrives
+
+  @e2e @config-gated @negative @P1 @L14
+  Scenario: With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the GB programme only
+    When I send "/lp"
+    Then the Lesson Plans card opens as before
+    And no app link is sent
+
+  @e2e @config-gated @no-mock-driver @P2 @L15
+  Scenario: With the WhatsApp survey off for my programme, a delivered lesson plan is not followed by "Was this useful?"
+    Given the NIETE bot chat is open
+    And the lesson-plan survey on WhatsApp is switched off for the ICT programme
+    When a lesson plan is delivered to me
+    Then no "Was this useful?" buttons follow it
+    # @no-mock-driver: the survey is scheduled 30 s after a full PDF render; the mock lane does not render plans.
+    # Unit: tests/feedback/lp-whatsapp-off.test.js (both sendFeedbackPrompt guards, ICT and GB).
+
+  # ADDED 2026-11-19 (bd-96f69c.9, sceptic pass): one answer per plan across the app and WhatsApp.
+  @e2e @config-gated @no-mock-driver @P1 @L16
+  Scenario: A lesson I already rated in the app is not rated a second time from WhatsApp
+    Given the NIETE bot chat is open
+    And I answered "Useful" for a grades 1-5 lesson in the teacher app
+    When I tap "Not useful" on the WhatsApp survey that came with the same lesson's PDF
+    Then the bot only thanks me
+    And my answer stays the one I gave in the app, with no second answer saved
+    # @no-mock-driver: the app answer needs the portal session and the survey's 30 s timer; the mock lane drives neither.
+    # Unit: tests/feedback/lp-in-app-feedback.test.js ("an app answer counts for a later WhatsApp tap").

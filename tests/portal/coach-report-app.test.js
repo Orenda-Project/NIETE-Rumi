@@ -79,18 +79,19 @@ describe('the shaper says what the judge said, once, in the rubric order', () =>
     ]);
   });
 
-  test('every miss: what happened in THIS debrief, why it matters in both languages, and its module', () => {
+  // Queue #186 (the operator, 19 Nov 2026): no Coach Training module after a debrief; the Weekly Report has the one training.
+  test('every miss: what happened in THIS debrief, why it matters in both languages; no module', () => {
     const own = r.missed.find((m) => m.key === 'elicited_if_then');
     expect(own.line).toBe('You gave the step yourself.');
     expect(own.why.en).toMatch(/own words/);
     expect(own.why.ur).toMatch(/اپنے الفاظ/);
-    expect(own.module).toBe(6);
-    expect(r.missed.map((m) => m.module)).toEqual([3, 4, 6, 7, 8]);
+    expect(r.missed.map((m) => m.key)).toEqual(['asked_and_waited', 'one_improvement_only', 'elicited_if_then', 'righting_reflex_held', 'rehearsed_the_step']);
+    for (const m of r.missed) expect(m).not.toHaveProperty('module');
   });
 
-  test('one focus with why this one, its module, and the ready Try line for its behaviour', () => {
+  test('one focus with why this one and the ready Try line for its behaviour; no module', () => {
     expect(r.focus).toEqual({
-      key: 'elicited_if_then', move: FEEDBACK.try.move, why: FEEDBACK.focus_why, module: 6,
+      key: 'elicited_if_then', move: FEEDBACK.try.move, why: FEEDBACK.focus_why,
       tryLine: TRY_LINES.elicited_if_then,
     });
     expect(TRY_LINES.elicited_if_then.en).toBe('“Next time, what will you do differently? Tell me in your own words.”');
@@ -216,10 +217,15 @@ function findRoute(router, method, path) {
 
 async function call(method, path, { params = {}, userId = ME } = {}) {
   const stack = findRoute(loadRoutes(), method, path);
-  const gateAt = stack.findIndex((h) => h.name === 'requireCoachV2');
-  if (gateAt < 0) throw new Error(`${path} has no requireCoachV2`);
+  // bd-o15qnr.28 (v7): the debrief report's read and stamps take the observer gate (a coach on the coach app, or a
+  // principal on the principal app) and coach_reports_app OR the v6/v7 switch; the week and the Home card keep the coach
+  // app's gates. Either pair is a real gate: the walk starts at it.
+  const COACH_GATES = ['requireCoachV2', 'requireCoachV2OrPrincipalApp'];
+  const REPORT_GATES = ['requireCoachReports', 'requireCoachReportsOrFlow'];
+  const gateAt = stack.findIndex((h) => COACH_GATES.includes(h.name));
+  if (gateAt < 0) throw new Error(`${path} has no coach-app gate`);
   const names = stack.map((h) => h.name);
-  if (!names.includes('requireCoachReports')) throw new Error(`${path} has no requireCoachReports`);
+  if (!names.some((n) => REPORT_GATES.includes(n))) throw new Error(`${path} has no reports gate`);
   let statusCode = 200;
   let payload = null;
   const res = { status(c) { statusCode = c; return this; }, json(b) { payload = b; return this; }, set() { return this; } };

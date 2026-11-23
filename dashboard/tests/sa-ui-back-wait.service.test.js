@@ -45,10 +45,11 @@ maybe('sa-ui back wait on a DOM', () => {
     view.backWait();
     view.backWait();
     await flush();
-    expect(el.querySelector('.sae-backwait').textContent).toBe('Your island is saved on this phone. It will go when the internet is back.');
+    const COPY = require('../sa/sa-ui').COPY;
+    expect(el.querySelector('.sae-backwait').textContent).toBe(COPY.en.back_wait);
     const line = said.slice(before).filter((t) => t && t.en && /saved on this phone/.test(t.en));
     expect(line).toHaveLength(1);
-    expect(line[0].ur).toBe('آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔');
+    expect(line[0].ur).toBe(COPY.ur.back_wait);
   });
 
   test('UR: the line in Urdu', async () => {
@@ -56,6 +57,6 @@ maybe('sa-ui back wait on a DOM', () => {
     await flush();
     view.backWait();
     await flush();
-    expect(el.querySelector('.sae-backwait').textContent).toBe('آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔');
+    expect(el.querySelector('.sae-backwait').textContent).toBe(require('../sa/sa-ui').COPY.ur.back_wait);
   });
 });

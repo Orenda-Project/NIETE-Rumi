@@ -213,7 +213,9 @@ async function askedLessonOrSentFde(user, from, form, { afterLesson = false } = 
     const visit = { teacherUserId: form.teacher_user_id || null, schoolExtId: vc.school_ext_id || null };
     if (Obs612.lessonNamed(form) || !(await Obs612.asksClass(user, visit))) return false;
     const teacherName = (form.visit_context && form.visit_context.teacher_name) || null;
-    return Boolean(await Obs612.askClass(user, from, { kind: 'f', ref: form.id, teacherName }));
+    // bd-31ziu8: FICO-S on for this visit → the question names FICO-S for grades 6-12.
+    const ficoS = await require('../../coaching/fico-s-switch').forVisit(user, visit);
+    return Boolean(await Obs612.askClass(user, from, { kind: 'f', ref: form.id, teacherName, ficoS }));
   } catch (err) {
     logToFile('❌ /observe2: the FDE lesson step failed — FICO form instead', { userId: user && user.id, formId: form && form.id, error: err.message }, 'error');
     return false;

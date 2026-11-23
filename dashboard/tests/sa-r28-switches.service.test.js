@@ -21,6 +21,8 @@ const R28 = {
   r28Mcq: ['sa_r28_mcq', 'r28_mcq'],
   r28Ceiling: ['sa_r28_ceiling', 'r28_ceiling'],
   r28StoryClock: ['sa_r28_story_clock', 'r28_story_clock'],
+  // the coach's hold menu's Urdu End this task (sa-r28-end-task-copy.service.test.js proves the menu)
+  r28EndTaskCopy: ['sa_r28_end_task_copy', 'r28_end_task_copy'],
 };
 // The r28 tasks are W3 tasks (the RDF forms), so the fixtures run with sa_rdf_w3_forms ON, as sandbox and prod do.
 const OFF = { rdfW3Forms: true, ...Object.fromEntries(Object.keys(R28).map((k) => [k, false])) };

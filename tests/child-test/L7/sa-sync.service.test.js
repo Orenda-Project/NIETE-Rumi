@@ -137,7 +137,10 @@ describe('saBatch', () => {
     expect(deps.saStore.putResults).toHaveBeenCalledWith(SESSION, results, 'ur');
     expect(deps.store.recordTiming.mock.calls.map((c) => c[1])).toEqual(['sa.session_start', 'sa.ur.letters.task_start']);
     expect(deps.store.recordTiming.mock.calls[0][2]).toEqual(new Date('2026-10-02T09:00:00Z'));
-    expect(deps.saStore.markSynced).toHaveBeenCalledWith(SESSION, { lastSeq: 2, device: { ua: 'x', skew_ms: 5 }, clientStartedAt: '2026-10-02T09:00:00.000Z', clientFinishedAt: null });
+    // the session's start is kept on the session (the earliest per attempt); the task_start and the tap are not
+    expect(deps.saStore.markSynced).toHaveBeenCalledWith(SESSION, { lastSeq: 2, device: { ua: 'x', skew_ms: 5 }, clientStartedAt: '2026-10-02T09:00:00.000Z', clientFinishedAt: null,
+      events: [{ seq: 0, type: 'session_start', task_id: null, item_id: 'i1', at: '2026-10-02T09:00:00Z', data: { x: 1 } }] });
+    expect(deps.saStore.markSynced.mock.calls[0][1].events.map((e) => e.type)).toEqual(['session_start']);
     expect(deps.store.setSessionStatus).not.toHaveBeenCalled();
   });
 
@@ -150,7 +153,7 @@ describe('saBatch', () => {
     expect(res).toEqual({ status: 'ok', ackedTo: 11 });
     const kept = deps.saStore.markSynced.mock.calls[0][1].events;
     expect(kept.map((e) => e.type)).toEqual(['visibility_lost', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'resumed', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result']);
-    expect(kept[0]).toEqual({ seq: 1, type: 'visibility_lost', task_id: 'ur.letters', at: '2026-10-02T09:00:00Z', data: { ms: 900 } });
+    expect(kept[0]).toEqual({ seq: 1, type: 'visibility_lost', task_id: 'ur.letters', item_id: 'i1', at: '2026-10-02T09:00:00Z', data: { ms: 900 } });
     expect(kept[4].data).toBe('clips');
     expect(kept[5].data).toBeNull();
   });

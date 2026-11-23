@@ -5,12 +5,11 @@ import { cn } from '@/lib/utils';
 import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, FOCUS, GRID, LIST_CARD, ROW_DIVIDER } from '../ui/styles';
-import { getClasses, getDay, getMonth, getRoster, useRead } from './api';
-import { ATTENDANCE } from './copy';
-import { useCopy, useLang } from '../i18n';
-import { calendar, dayLabel, monthLabel, monthOf, shiftMonth, type CalendarCell } from './model';
+import { getDay, getMonth, getRoster, useRead } from './api';
+import { useLang } from '../i18n';
+import { calendar, dayLabel, monthLabel, monthOf, onlyStaff, shiftMonth, type CalendarCell } from './model';
 import { ATTENDANCE_V2_BASE, markPath, viewPath } from './paths';
-import { ClassCard, ClassTray, LoadState } from './ui';
+import { ClassCard, ClassTray, LoadState, useClassesRead, useListWords } from './ui';
 
 /**
  * bd-fmf24g.7 — one class's month (v28 canvas AttendanceView.dc.html). The class at the top is a card;
@@ -19,6 +18,9 @@ import { ClassCard, ClassTray, LoadState } from './ui';
  * plain (the API does not say which days were school days). Tapping a day shows who was away; its
  * Edit / Mark now opens the roll call for that day. Then every child's present ÷ days marked, lowest
  * first (GET …/month). Every number is the API's.
+ *
+ * bd-33wxxi.10 — her teachers' month (listId "staff") has the teachers' words; the server's numbers are the
+ * staff register's (leave excused). When they are her only register, Back and the card go to their roll call.
  */
 
 const TONE: Record<CalendarCell['tone'], string> = {
@@ -33,10 +35,10 @@ const SHOWN = 5;
 
 export function ViewPage() {
   const lang = useLang();
-  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
+  const C = useListWords(listId);
   const [params, setParams] = useSearchParams();
-  const classes = useRead('classes', () => getClasses());
+  const classes = useClassesRead();
   const today = classes.data?.date || null;
   const month = params.get('month') || (today ? monthOf(today) : null);
   const monthRead = useRead(month ? `month:${listId}:${month}` : null, () => getMonth(listId, month as string));
@@ -75,11 +77,12 @@ export function ViewPage() {
   const loading = (classes.loading && !classes.data) || (monthRead.loading && !monthRead.data);
   const error = classes.error || monthRead.error;
   const retry = () => { classes.reload(); monthRead.reload(); roster.reload(); };
+  const solo = onlyStaff(classes.data?.classes, listId);
 
   return (
-    <TeacherPage title={C.viewTitle} crumb={C.title} backTo={ATTENDANCE_V2_BASE} feature="attendance" testId="attendance-view">
+    <TeacherPage title={C.viewTitle} crumb={solo ? C.markTitle : C.title} backTo={solo ? markPath(listId) : ATTENDANCE_V2_BASE} feature="attendance" testId="attendance-view">
       <LoadState loading={loading} failed={error} onRetry={retry} />
-      {cls && <ClassCard cls={cls} onPress={() => setTray(true)} />}
+      {cls && (solo ? <ClassCard cls={cls} to={markPath(listId)} /> : <ClassCard cls={cls} onPress={() => setTray(true)} />)}
       {month && monthRead.data && (
         <>
           <section className={CARD} aria-label={monthLabel(month, lang)}>

@@ -181,7 +181,7 @@ describe('generate — an Urdu lp_v8 quiz is labelled with the lesson\'s own nam
 
     // The message the teacher forwards to the children.
     const forwardable = WhatsAppService.sendMessage.mock.calls[0][1];
-    expect(forwardable).toContain(`*${CLEAN}* پر quiz`);
+    expect(forwardable).toContain(`*${CLEAN}* پر کوئز`);
     expect(forwardable).not.toContain('فرق کو');
   });
 });

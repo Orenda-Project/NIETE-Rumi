@@ -6,6 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `activity/` | (no description yet) → `activity/CLAUDE.md` |
 | `look/` | Teacher Home 'look' (portal_teacher_home_look): navy band, one card, rows, progress strip → `look/CLAUDE.md` |
 | `LessonQuizButton.test.tsx` | Pins 'Quiz this lesson': shown only with the Home card switch and a signed quiz home, logs lp_quiz or coach_quiz |
 | `LessonQuizButton.tsx` | 'Quiz this lesson' button on an open lesson plan and a ready DC report; opens the signed quiz home and logs the tap |
@@ -17,6 +18,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ScoresRow.tsx` | Row of at most two pale score chips under the Home card: latest AI-coach and observation score, each to its report |
 | `SlimCard.test.tsx` | Pins the slim Home card for class and lesson rungs and the lesson cool-down (3 draws per plan per device) |
 | `SlimCard.tsx` | Shape B slim Home card for the two quiz rungs: one line, a navy pill and a text link, spanning the tile grid |
+| `api.activity.test.ts` | (unmapped) |
 | `api.test.ts` | Tests readHome for GET /me/home and POST /me/home/tap: server shape read as is, failures return null, bad order dropped |
 | `api.ts` | Home card API: GET /api/portal/me/home and POST /me/home/tap; server picks card rung, tile order, scores, quiz home |
 | `chips.ts` | Score-chip rule shared by ScoresRow and the look's strip: pickChips from latest scores, skipping the card's own rung |
@@ -27,27 +29,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `useHomeData.ts` | Hooks for Home: reads switches (card, order, look) from /config fail-closed and loads GET /me/home with a reorder budget |
 
 ## Who reads this (all, generated)
-- `LessonQuizButton.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:27:18b028fe` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:20:18b028fe`
-- `NextCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:15:f37f5d85` · `portal/src/portal/teacher/home/look/LookHome.tsx:13:6cf38df8`
-- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:20:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureTiles.tsx:8:e549d3a4`
-- `ScoresRow.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:17:34259cf6`
-- `SlimCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:16:d625f5f2` · `portal/src/portal/teacher/home/look/LookHome.tsx:14:1c8bea70`
-- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` · `portal/src/portal/teacher/home/QuizTile.tsx:6:4de7cdaf` · `portal/src/portal/teacher/home/ScoresRow.tsx:7:9663c29b` (+9: `python3 kg/kg.py who-reads api.ts`)
-- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:16:4190547a` · `portal/src/portal/teacher/home/look/LookScores.tsx:6:f0104c46`
+- `LessonQuizButton.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:28:18b028fe` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:23:18b028fe`
+- `NextCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:16:f37f5d85` · `portal/src/portal/teacher/home/look/LookHome.tsx:15:6cf38df8`
+- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:21:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureTiles.tsx:8:e549d3a4`
+- `ScoresRow.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:18:34259cf6`
+- `SlimCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:17:d625f5f2` · `portal/src/portal/teacher/home/look/LookHome.tsx:16:1c8bea70`
+- `api.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` · `portal/src/portal/teacher/home/QuizTile.tsx:6:4de7cdaf` · `portal/src/portal/teacher/home/ScoresRow.tsx:7:9663c29b` (+10: `python3 kg/kg.py who-reads api.ts`)
+- `chips.ts` ← imported by `portal/src/portal/teacher/home/ScoresRow.tsx:6:ab21523c` · `portal/src/portal/teacher/home/look/LookHome.tsx:18:4190547a` · `portal/src/portal/teacher/home/look/LookScores.tsx:6:f0104c46`
 - `coolDown.ts` ← imported by `portal/src/portal/teacher/home/SlimCard.tsx:7:c984ca6b` · `portal/src/portal/teacher/home/look/LookCard.tsx:8:b4937ac5`
 - `copy.ts` ← imported by `portal/src/portal/teacher/home/LessonQuizButton.tsx:6:b95df8e3` · `portal/src/portal/teacher/home/NextCard.tsx:7:b95df8e3` · `portal/src/portal/teacher/home/QuizTile.tsx:5:3834b44c` · `portal/src/portal/teacher/home/ScoresRow.tsx:5:b95df8e3` (+6: `python3 kg/kg.py who-reads copy.ts`)
-- `useHomeData.ts` ← imported by `portal/src/portal/teacher/TeacherNavigation.tsx:10:4f102628` · `portal/src/portal/teacher/pages/Home.tsx:18:5e28519f` · `portal/src/portal/teacher/home/LessonQuizButton.tsx:8:b9500ee2`
+- `useHomeData.ts` ← imported by `portal/src/portal/teacher/TeacherNavigation.tsx:10:4f102628` · `portal/src/portal/teacher/pages/Home.tsx:19:5e28519f` · `portal/src/portal/teacher/home/LessonQuizButton.tsx:8:b9500ee2`
 
 ## Tests (all, generated)
 - `LessonQuizButton.tsx` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx`
 - `NextCard.tsx` ← `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/look/LookCard.test.tsx`
-- `QuizTile.tsx` ← `portal/src/portal/teacher/home/QuizTile.test.tsx`?
+- `QuizTile.tsx` ← `portal/src/portal/teacher/home/QuizTile.test.tsx`
 - `ScoresRow.tsx` ← `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/look/LookScores.test.tsx`
 - `SlimCard.tsx` ← `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/look/LookCard.test.tsx`
-- `api.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/api.test.ts` (+8: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/api.ts`)
+- `api.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/activity/HomeActivity.test.tsx` (+15: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/api.ts`)
 - `coolDown.ts` ← `portal/src/portal/teacher/home/look/LookCard.test.tsx`
-- `copy.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/copy.test.ts` · `portal/src/portal/teacher/home/look/LookCard.test.tsx` · `portal/src/portal/teacher/home/look/cardWords.test.ts`
-- `useHomeData.ts` ← `portal/src/portal/teacher/TeacherNavigation.test.tsx` · `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` · `portal/src/portal/teacher/home/useHomeData.test.ts` · `portal/src/portal/teacher/pages/Home.on.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/useHomeData.ts`)
+- `copy.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/copy.test.ts` · `portal/src/portal/teacher/home/look/LookCard.test.tsx` · `portal/src/portal/teacher/home/look/cardWords.test.ts` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/copy.ts`)
+- `useHomeData.ts` ← `portal/src/portal/teacher/TeacherNavigation.test.tsx` · `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.activity.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.steady.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` (+5: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/useHomeData.ts`)
 
 ## Related (all, generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?

@@ -37,6 +37,8 @@ const {
   levelExamSlotHidden,
 } = require('../services/training/isaps-module-exam.rules');
 const LevelLabels = require('../services/training/level-label.rules');
+// bd-r2uzg1.18.1 — I-SAPS (Grades 9-12) only for a teacher who teaches HIGH (or already has I-SAPS work).
+const { gateTeacherScopes } = require('../services/training/vendor-band-gate.service');
 const supabase = require('../config/supabase');
 const {
   applyBandSelection,
@@ -1220,11 +1222,16 @@ async function loadVisibleLevelsWithProgress(userId) {
   const programIds = assignments.map(a => a.program_id);
 
   // 2. Scopes referenced by those programs
-  const { data: scopes, error: sErr } = await supabase
+  const { data: allScopes, error: sErr } = await supabase
     .from('training_program_scopes')
     .select('program_id, vendor_id, level_ids')
     .in('program_id', programIds);
-  if (sErr || !scopes || scopes.length === 0) return [];
+  if (sErr || !allScopes || allScopes.length === 0) return [];
+  // bd-r2uzg1.18.1 — minus a band-only provider her band does not cover (I-SAPS, Grades 9-12, needs HIGH), unless
+  // she already has work there. Everything downstream (Flow catalogue, level and exam gates, the portal's level
+  // states) reads this catalogue, so the rule holds on every surface that asks it.
+  const scopes = await gateTeacherScopes(supabase, userId, allScopes);
+  if (scopes.length === 0) return [];
 
   // 3. Levels — filter by vendor + (optional) level_ids per scope. We also
   // read each vendor's unlock_logic so open-access vendors (Oxbridge) can

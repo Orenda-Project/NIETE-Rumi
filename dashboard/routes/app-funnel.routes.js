@@ -14,8 +14,8 @@
  *
  * WHO SAYS WHO. The user, the journey and the session come from the portal SESSION — never from the request body. A
  * browser can say "I am on /portal/teacher/lessons" and nothing else about itself, so it cannot attribute events to
- * another teacher or another journey. The journey (set by /go from the link's token) counts for 24 hours, the life of
- * the link; after that the same session logs journeyId null.
+ * another teacher or another journey. The journey (set by /go from the link's token) counts for 24 hours from the tap
+ * (the link itself lives 7 days: bd-zrdvmi.28); after that the same session logs journeyId null.
  *
  * WHAT IS NEVER LOGGED. Names, phones, free text, ids, query strings. Routes are normalised to their shape
  * ('/portal/coach/visit/:id/record'); `appSessionId` is a hash of the session id, never the id itself.
@@ -421,8 +421,90 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * bd-9652yj (queue #166) — the coach app's way back to WhatsApp (portal coach/observe/ContinueOnWhatsApp.tsx): where
+   * the app broke and where she left it. A tap on "Continue on WhatsApp" → app_funnel.trouble_tap { screen, kind } (kind
+   * 'strip' for the slim strip, else the failure that turned it into a button); a screen that failed to load, upload or
+   * send → app_funnel.page_error { screen, kind }. Coach and journey from the SESSION; only known values.
+   */
+  router.post(
+    '/funnel/coach-trouble',
+    requireSession,
+    express.text({ type: 'text/*', limit: '1kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.prototype.hasOwnProperty.call(COACH_TROUBLE_EVENTS, body.t)) {
+        return res.status(400).end();
+      }
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const { journeyId, ...base } = who(req, now);
+      emit(COACH_TROUBLE_EVENTS[body.t], {
+        ...base,
+        journeyId,
+        feature: 'observe',
+        browser: browserClass(req, body.b),
+        screen: pick(body.screen, COACH_TROUBLE_SCREENS),
+        kind: pick(body.kind, COACH_TROUBLE_KINDS),
+        online: typeof body.online === 'boolean' ? body.online : null,
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
+  /**
+   * bd-o15qnr.26 (queue #177) — the coach visit flow v2 (portal coach/flow/track.ts): what she does on the one Schedule
+   * list, New visit's level chips and the Home's Today card → app_funnel.coach_flow { action, level }. Coach and journey
+   * from the SESSION; only the actions below (anything else is a 400 and nothing is logged), level only from its list.
+   */
+  router.post(
+    '/funnel/coach-flow',
+    requireSession,
+    express.text({ type: 'text/*', limit: '1kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !COACH_FLOW_ACTIONS.includes(body.a)) {
+        return res.status(400).end();
+      }
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const { journeyId, ...base } = who(req, now);
+      emit('app_funnel.coach_flow', {
+        ...base,
+        journeyId,
+        feature: 'schedule',
+        browser: browserClass(req, body.b),
+        action: body.a,
+        level: body.a === 'new_visit.level' ? (COACH_FLOW_LEVELS.includes(body.level) ? body.level : 'unknown') : null,
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
 }
+
+// bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
+// bd-o15qnr.27 (v6): observe.schedule = Observe's "Schedule an observation"; schedule.now_record / schedule.now_upload =
+// "Schedule for Now"'s Start recording / Upload recording; schedule.later = "Schedule for Later"'s Schedule; home.focus =
+// the Home Focus card's button; observe.booked_open = All booked opened on Observe.
+const COACH_FLOW_ACTIONS = [
+  'schedule.cancel_tap', 'schedule.cancel_confirm', 'schedule.start', 'new_visit.level', 'home.today_start', 'observe.start',
+  'observe.schedule', 'schedule.now_record', 'schedule.now_upload', 'schedule.later', 'home.focus', 'observe.booked_open',
+  // bd-o15qnr.38 (queue #219): the v7 Feedback Form's save — no answer for a few seconds, a lost try sent once more,
+  // both tries lost (portal coach/reports/saveTry.ts).
+  'form.save_slow', 'form.save_retry', 'form.save_lost',
+];
+const COACH_FLOW_LEVELS = ['all', 'primary', 'middle', 'high'];
+
+const COACH_TROUBLE_EVENTS = { tap: 'app_funnel.trouble_tap', error: 'app_funnel.page_error' };
+const COACH_TROUBLE_SCREENS = require('../../bot/shared/services/coach-handoff-code').HANDOFF_SCREENS;
+const COACH_TROUBLE_KINDS = ['strip', 'load', 'upload', 'send', 'mic'];
 
 const SA_OFFLINE_KINDS = {
   prep: 'sa_prep.result', prep_waiting: 'sa_prep.still_waiting', list_failed: 'sa_list.failed', list_slow: 'sa_list.slow', list_late: 'sa_list.late',
@@ -543,6 +625,8 @@ const ACTIONS = [
   ['POST', /^\/leader\/observe\/[^/]+\/report\/send$/, 'observe.report_sent', 'coach', {}],
   // The "ready for you" strip.
   ['POST', /^\/me\/notices\/[^/]+\/opened$/, 'notice.opened', 'notice', {}],
+  // The survey bar at the end of a lesson plan in the app: an answer saved (the route's body is never logged).
+  ['POST', /^\/lp\/feedback$/, 'lp_feedback', 'lesson_plan', {}],
 ];
 
 function matchAction(req) {

@@ -30,7 +30,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `ambience.js` ← imported by `bot/calls-server.js:33:009fa362` · `bot/shared/calls/rtc-peer.js:28:aed2d4c9`
 - `budget-governor.js` ← imported by `bot/calls-server.js:41:b45119b4` · `bot/shared/calls/call-log.service.js:20:1ab2d1b1`
-- `call-context.repo.js` ← imported by `bot/calls-server.js:36:00ae89cc` · `bot/scripts/diagnose-calls-context.js:29:2daa9ad5` · `bot/shared/calls/call-tools.repo.js:26:e7896614`
+- `call-context.repo.js` ← imported by `bot/calls-server.js:36:00ae89cc` · `bot/scripts/diagnose-calls-context.js:29:2daa9ad5` · `bot/shared/calls/call-tools.repo.js:31:e7896614`
 - `call-context.service.js` ← imported by `bot/calls-server.js:35:1116b65e` · `bot/scripts/diagnose-calls-context.js:30:58a8cf4b`
 - `call-engine.js` ← imported by `bot/calls-server.js:27:02e5c2e5`
 - `call-forwarder.js` ← imported by `bot/whatsapp-bot.js:71:63e86c28` · `bot/calls-server.js:26:d5347e1a`
@@ -47,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `realtime-client.js` ← imported by `bot/calls-server.js:30:0d55b8e3`
 - `rtc-peer.js` ← imported by `bot/calls-server.js:29:e66f9229`
 - `uplift-tts.js` ← imported by `bot/calls-server.js:31:1845fa96` · `bot/shared/calls/call-session.js:25:2c9cd465`
+- table `calls` (written by `call-log.service.js`) ← read by `scripts/sandbox-pii-purge.py:314:a562a1b2`?
 - env `CALLS_AMBIENCE_ENABLED` read at `bot/shared/calls/ambience.js:41:1c751ffb`
 - env `CALLS_AMBIENCE_KEYBOARD_VOLUME` read at `bot/shared/calls/ambience.js:68:c4bd9175`
 - env `CALLS_AMBIENCE_OFFICE_VOLUME` read at `bot/shared/calls/ambience.js:64:40112f01`

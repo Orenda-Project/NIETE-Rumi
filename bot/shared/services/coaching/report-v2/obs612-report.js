@@ -24,7 +24,8 @@
  */
 
 const O = require('../frameworks/obs612');
-const { obs612View, num, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, readableNote } = require('../../observe/obs612/view');
+const FicoS = require('../frameworks/fico-s');
+const { obs612View, num, FDE_FOOTNOTE, FDE_FOOTNOTE_UR, FICO_S_FOOTNOTE, FICO_S_FOOTNOTE_UR, readableNote } = require('../../observe/obs612/view');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { fontFaces, esc } = require('./hero-report.template');
 const { PALETTES } = require('./hero-report.style');
@@ -56,6 +57,7 @@ const CAPTION = {
   ur: { head: '📋 آپ کی مشاہداتی رپورٹ · ایف ڈی ای کا ٹول', grade: (g) => `جماعت ${String(g).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)))}` },
 };
 
+
 const ASSET = (p) => {
   try { return require('fs').readFileSync(require('path').join(__dirname, '..', '..', '..', p)).toString('base64'); } catch { return ''; }
 };
@@ -84,13 +86,14 @@ function buildObs612ReportVm(session, analysis, opts = {}) {
     tool,
     toolName: tool ? O.SHORT.tools[tool] : 'FDE',
     toolTitle: view ? view.toolTitle : (tool ? O.SHORT.tools[tool] : 'FDE'),
-    label: O.LABEL,
+    label: O.labelOf(id) || O.LABEL,
     view,
   };
 }
 
 function caption(vm) {
-  const C = CAPTION[vm.language] || CAPTION.en;
+  const C0 = CAPTION[vm.language] || CAPTION.en;
+  const C = vm.tool === 'ficos' ? { ...C0, head: (HERO_FICO_S[vm.language] || HERO_FICO_S.en).caption } : C0;
   const v = vm.view;
   const subject = v ? subjectIn(v, clampLanguage(vm.language, ['en', 'ur'])) : null;
   const parts = [C.head, v && v.grade ? C.grade(v.grade) : null, subject, vm.date].filter(Boolean);
@@ -250,6 +253,39 @@ function buildObs612ReportHtml(vm) {
 // FICO hero template (hero-report.template.js); only its view model is FDE's.
 
 // Our own lines on the page, in the teacher's language (Urdu: DRAFT for native review; Urdu digits).
+// bd-31ziu8 — a FICO-S v1.1 visit's lines, named 'FICO 6-12' for people (Urdu: DRAFT for native review).
+const HERO_FICO_S = {
+  en: {
+    affirm: (band) => (band ? `Your lesson, as your observer scored it on FICO 6-12: ${band}` : 'Your lesson, as your observer scored it on FICO 6-12'),
+    identity: (r) => `FICO 6-12: ${r.total} of ${r.max} (${num(r.pct)}%)${r.band ? ` · ${r.band}` : ''}.`,
+    by: (t) => `By: ${t}`,
+    level: (n) => `Level ${n} · ${FicoS.levelName(n)}`,
+    footnote: FICO_S_FOOTNOTE,
+    caption: '📋 Your observation report · FICO 6-12',
+    // Queue #184 (operator 19 Nov ~11:40): the reasoning, indicator by indicator.
+    evidence: 'Indicator by indicator: what your observer saw',
+    na: 'N/A',
+    atom: (x) => x,
+    band: (label) => label,
+  },
+  ur: {
+    affirm: (band) => (band ? `آپ کا سبق، مشاہدہ کار نے \u2066FICO 6-12\u2069 پر جانچا: ${band}` : 'آپ کا سبق، مشاہدہ کار نے \u2066FICO 6-12\u2069 پر جانچا'),
+    identity: (r) => `\u2066FICO 6-12\u2069: ${urDigitsOf(r.max)} میں سے ${urDigitsOf(r.total)} (${urDigitsOf(num(r.pct))}٪)${r.band ? ` · ${r.band}` : ''}۔`,
+    by: (t) => `کب تک: ${t}`,
+    level: (n) => `لیول ${urDigitsOf(n)} · ${FicoS.levelName(n, 'ur')}`,
+    footnote: FICO_S_FOOTNOTE_UR,
+    caption: '📋 آپ کی مشاہداتی رپورٹ · \u2066FICO 6-12\u2069',
+    evidence: 'ہر اشاریہ: آپ کے مشاہدہ کار نے کیا دیکھا',
+    na: 'لاگو نہیں',
+    atom: (x) => `\u2066${x}\u2069`,
+    // A band shares its name with the level of the same rank (Exemplary = 4 … Below standard = 1).
+    band: (label) => {
+      const hit = Object.entries(FicoS.LEVEL_LABELS).find(([, x]) => x === label);
+      return hit ? FicoS.levelName(Number(hit[0]), 'ur') : label;
+    },
+  },
+};
+
 const HERO = {
   en: {
     affirm: (band) => (band ? `Your lesson, as your coach scored it on FDE's tool: ${band}` : "Your lesson, as your coach scored it on FDE's tool"),
@@ -319,6 +355,7 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
     breakLongWords: true,
   };
   if (!v) return vm;
+  if (v.tool === 'ficos') return ficosHeroVm(vm, v, lang, opts);
   const top = (v.strongest || [])[0] || null;
   const low = (v.lowest || [])[0] || null;
   const fb = v.feedback || {};
@@ -368,6 +405,47 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
 }
 
 /**
+ * bd-31ziu8 — the FICO hero page for a FICO-S v1.1 visit: the overall % and band, one scorecard row per section (its
+ * total of its max), the strongest indicator with the observer's strengths, the ONE indicator to work on (the
+ * observer's focus, else the lowest) with what they saw, and the action with its date. Every word is the observer's
+ * or the rubric's; no model writes any of it.
+ */
+function ficosHeroVm(vm, v, lang, opts = {}) {
+  const H = HERO_FICO_S[lang] || HERO_FICO_S.en;
+  const f = v.ficos;
+  const bandName = (label) => (label ? H.band(label) : label);
+  const indName = (i) => `${H.atom(i.code)}. ${FicoS.indicatorText(i.code, lang).name}`;
+  const top = (v.strongest || [])[0] || null;
+  const plan = (v.plan || [])[0] || null;
+  const focus = plan ? f.indicators.find((i) => i.code === plan.code) : (v.lowest || [])[0] || null;
+  vm.partialNote = H.footnote;
+  vm.score = { overall: f.pct === null ? null : Math.round(f.pct), marks: f.total, max: f.max };
+  // Queue #184 (operator 19 Nov ~17:10): ONE line under each section's score, the live v6 way: the narrative model's
+  // domain_whys (narrative.service generateFicoSDomainWhys, v6's rule), keyed by the section. None: the bar alone.
+  const whys = (opts && opts.domainWhys) || {};
+  vm.groups = f.sections.filter((s) => s.scored > 0).map((s) => ({
+    name: `${H.atom(s.key)}. ${FicoS.sectionName(s.key, lang)}`,
+    domainKey: s.key,
+    score: s.total,
+    max: s.max,
+    pct: Math.round(s.pct),
+    ...(typeof whys[s.key] === 'string' && whys[s.key].trim() ? { why: whys[s.key].trim() } : {}),
+  }));
+  vm.narrative = {
+    affirmation: H.affirm(bandName(f.band)),
+    identity: f.pct === null ? '' : H.identity({ ...f, band: bandName(f.band) }),
+    strength_name: top ? `${indName(top)} (${H.level(top.level)})` : '',
+    strength_note: readableNote((v.feedback || {}).strengths || (top && top.evidence) || ''),
+    horizon_title: focus ? `${indName(focus)}${focus.level ? ` (${H.level(focus.level)})` : ''}` : '',
+    horizon_note: readableNote(focus ? focus.evidence || '' : ''),
+  };
+  vm.tryNext = readableNote(joinNote(plan ? plan.action : '', (v.feedback || {}).by_when ? H.by(v.feedback.by_when) : ''));
+  // The indicator-by-indicator list (19 Nov ~11:40) is gone (operator 19 Nov ~17:10: "now all the indicators are
+  // being shown. We want just a one liner under each section's score"): the line under each bar carries the reasoning.
+  return vm;
+}
+
+/**
  * Render the FDE report: { png, caption, narrative: null, partialNote } — the shape generateHeroReport returns.
  * The page is the FICO teacher report's (bd-ra8xu.51); the caption stays FDE's own, in the teacher's language.
  * @param {object} session
@@ -377,9 +455,19 @@ function buildObs612HeroVm(session, analysis, opts = {}) {
 async function generateObs612Report(session, analysis, opts = {}) {
   const { htmlToImage } = require('../../../utils/html-to-pdf');
   const { buildHeroReportHtml } = require('./hero-report.template');
-  const vm = buildObs612HeroVm(session, analysis, opts);
+  const base = buildObs612ReportVm(session, analysis, opts);
+  // Queue #184: a FICO 6-12 page asks the narrative model for its one line per section (as v6); FDE's pages never do.
+  let domainWhys = null;
+  if (base.view && base.view.tool === 'ficos') {
+    domainWhys = await require('./narrative.service').generateFicoSDomainWhys(base.view.ficos, {
+      transcript: opts.transcript || (session && session.transcript_text) || '',
+      language: clampLanguage(base.language, ['en', 'ur']),
+      teacherName: opts.teacherName || base.teacherName || 'the teacher',
+    });
+  }
+  const vm = buildObs612HeroVm(session, analysis, { ...opts, domainWhys });
   const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
-  return { png, caption: caption(buildObs612ReportVm(session, analysis, opts)), narrative: null, partialNote: vm.partialNote };
+  return { png, caption: caption(base), narrative: domainWhys ? { domain_whys: domainWhys } : null, partialNote: vm.partialNote };
 }
 
 module.exports = { generateObs612Report, buildObs612ReportVm, buildObs612HeroVm, buildObs612ReportHtml, caption, CHROME, HERO };

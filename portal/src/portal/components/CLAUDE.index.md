@@ -49,8 +49,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ExamAttempts.tsx` | bd-2exhl: lists each submitted module-exam sitting with plain-language status and the teacher's written answers |
 | `LegacyAttendanceRedirect.tsx` | Redirects old Attendance URLs to the Analytics Attendance tab, keeping teacherId/from/to query |
 | `LessonPlanCard.tsx` | Card for one lesson plan (title, date, link) in the old-UI lesson list |
+| `LessonPlanPage.retry.test.tsx` | (unmapped) |
 | `LessonPlanPage.test.tsx` | bd-v0toag.60: PdfPage draws on canvas, reports its ratio, fails upward and carries the step outline |
 | `LessonPlanPage.tsx` | One lesson-plan page drawn by pdf.js on a canvas only when near the screen, with step outline overlay (bd-v0toag.60) |
+| `LessonPlanViewer.ready.test.tsx` | (unmapped) |
+| `LessonPlanViewer.report.test.tsx` | (unmapped) |
 | `LessonPlanViewer.step.test.tsx` | bd-v0toag.8: viewer outlines the heading of the highlighted step and jumps to it on highlight.jump |
 | `LessonPlanViewer.tsx` | bd-5rz1v.10: in-portal lesson-plan PDF reader (pdf.js pages, step highlight, open-outside fallback) |
 | `LevelCertificateRow.exams.test.tsx` | I-SAPS certificate card: module exams are the only gate, no chaining (supersedes bd-60163 composite) |
@@ -98,10 +101,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `QuestionPager.tsx` | bd-60168: one-question-per-page pager with next/previous, used only when paginating helps (shouldPaginate) |
 | `RecentLessonPlans.tsx` | bd-k23p38: teacher's last 10 lesson plans (any grade 1-12), bottom of the old-UI Lesson Plans page |
 | `RecordingBar.tsx` | bd-5rz1v.10: bar that follows the teacher through the portal while a lesson records, plus "Recording continues" chip |
+| `RecordingBar.v6.test.tsx` | (unmapped) |
 | `RemarksSection.tsx` | Principal Remarks (last S of STEPS) on Analytics: only submitted forms, received remarks section |
 | `ScoreBreakdown.tsx` | Coaching score breakdown by the framework (FICO) actually assessed, in bands, replacing six OECD goal bars |
 | `ScoreIndicator.bands.test.tsx` | Pins ScoreIndicator and ScoreBreakdown showing a performance band instead of a percentage number |
 | `ScoreIndicator.tsx` | Shared score badge: renders a band for a percentage, used on dashboard, session list/report and Analytics |
+| `Skeleton.look.test.tsx` | (unmapped) |
 | `Skeleton.tsx` | bd-fxk3t8: shimmer placeholder blocks (line/chip/tile) matching index.html app-shell, shown instead of spinners |
 | `StatCard.tsx` | Shared stat tile: title, value, icon and optional trend, used on old-UI dashboards |
 | `UrduAware.tsx` | Renders text per field as RTL Urdu when it contains Urdu script (isUrdu), else normal; coaching transcripts |
@@ -130,7 +135,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ExamAttempts.tsx` ← imported by `portal/src/portal/components/ModuleExamPanel.tsx:44:7b8634ac`
 - `LegacyAttendanceRedirect.tsx` ← imported by `portal/src/App.tsx:18:d1f8bde0`
 - `LessonPlanCard.tsx` ← imported by `portal/src/portal/pages/PortalLessonPlans.tsx:5:b9f7ce02`
-- `LessonPlanPage.tsx` ← imported by `portal/src/portal/components/LessonPlanViewer.tsx:7:8a3e9d33`
+- `LessonPlanPage.tsx` ← imported by `portal/src/portal/components/LessonPlanViewer.tsx:8:8a3e9d33`
 - `LessonPlanViewer.tsx` ← imported by `portal/src/portal/newui/lessons/LessonPlanPages.tsx:7:c476811a` · `portal/src/portal/pages/PortalCurriculum.tsx:45:2ac3c53d` · `portal/src/portal/teacher/assessment/RequestPage.tsx:5:c476811a` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:6:c476811a`
 - `LevelCertificateRow.tsx` ← imported by `portal/src/portal/pages/PortalTrainingV2.tsx:65:57468839`
 - `LevelExamCard.tsx` ← imported by `portal/src/portal/pages/PortalTraining.tsx:36:3595ebbf` · `portal/src/portal/pages/PortalTrainingV2.tsx:64:3595ebbf`
@@ -139,19 +144,19 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ModuleQuizPanel.tsx` ← imported by `portal/src/portal/pages/PortalTraining.tsx:33:e531d422` · `portal/src/portal/pages/PortalTrainingV2.tsx:62:e531d422`
 - `ModuleReadings.tsx` ← imported by `portal/src/portal/pages/PortalTrainingV2.tsx:72:99940d7a`
 - `ObservationsSection.tsx` ← imported by `portal/src/portal/pages/PortalCoachingAnalytics.tsx:4:fb833e32` · `portal/src/portal/pages/SchoolAnalytics.tsx:5:fb833e32`
-- `PortalLayout.tsx` ← imported by `portal/src/portal/coach/insights/components/Frame.tsx:2:ff188793` · `portal/src/portal/coach/ui.tsx:4:ac211a43` · `portal/src/portal/newui/assessment/AssessmentHome.tsx:4:a3b8b877` · `portal/src/portal/newui/assessment/AssessmentRequest.tsx:4:a3b8b877` (+44: `python3 kg/kg.py who-reads PortalLayout.tsx`)
+- `PortalLayout.tsx` ← imported by `portal/src/portal/coach/insights/components/Frame.tsx:2:ff188793` · `portal/src/portal/coach/ui.tsx:5:ac211a43` · `portal/src/portal/newui/assessment/AssessmentHome.tsx:4:a3b8b877` · `portal/src/portal/newui/assessment/AssessmentRequest.tsx:4:a3b8b877` (+44: `python3 kg/kg.py who-reads PortalLayout.tsx`)
 - `PortalNavigation.tsx` ← imported by `portal/src/portal/components/PortalLayout.tsx:11:6bdd7e4c`
 - `QuestionCard.tsx` ← imported by `portal/src/portal/components/QuestionPager.tsx:29:0768c026`
 - `QuestionPager.tsx` ← imported by `portal/src/portal/components/ModuleExamPanel.tsx:41:1bb655dd`
 - `RecentLessonPlans.tsx` ← imported by `portal/src/portal/pages/PortalCurriculum.tsx:44:2b1c36dc`
-- `RecordingBar.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:12:17cdc0a5` · `portal/src/portal/components/LessonPlanViewer.tsx:5:8b9e81eb` · `portal/src/portal/components/PortalLayout.tsx:12:d51f6eb7`
+- `RecordingBar.tsx` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:12:17cdc0a5` · `portal/src/portal/components/LessonPlanViewer.tsx:6:8b9e81eb` · `portal/src/portal/components/PortalLayout.tsx:12:d51f6eb7`
 - `RemarksSection.tsx` ← imported by `portal/src/portal/pages/PortalCoachingAnalytics.tsx:7:db857156` · `portal/src/portal/pages/SchoolAnalytics.tsx:10:87ca9ab4`
 - `ScoreBreakdown.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:6:0a83fdf7`
 - `ScoreIndicator.tsx` ← imported by `portal/src/portal/pages/LeaderObservations.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:9:1255d77f` · `portal/src/portal/pages/LeaderTeachers.tsx:10:1255d77f` · `portal/src/portal/pages/PortalCoaching.tsx:2:6bc5406c` (+6: `python3 kg/kg.py who-reads ScoreIndicator.tsx`)
-- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:5:c2987858` (+26: `python3 kg/kg.py who-reads Skeleton.tsx`)
+- `Skeleton.tsx` ← imported by `portal/src/App.tsx:30:2648ae31` · `portal/src/portal/auth/AnalyticsLogin.tsx:8:e21a4d15` · `portal/src/portal/coach/card/CoachLanding.tsx:1:c2987858` · `portal/src/portal/coach/card/frame.tsx:5:c2987858` (+27: `python3 kg/kg.py who-reads Skeleton.tsx`)
 - `StatCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:7:273f3985` · `portal/src/portal/pages/LeaderTeacherDetail.tsx:6:273f3985` · `portal/src/portal/pages/PortalDashboard.tsx:16:a854d5cb`
 - `UrduAware.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:7:023eb6ee` · `portal/src/portal/components/ScoreBreakdown.tsx:20:8be957ab`
-- `stepMark.tsx` ← imported by `portal/src/portal/components/LessonPlanPage.tsx:2:37cb3e3d` · `portal/src/portal/components/LessonPlanViewer.tsx:6:bcbb0e1b`
+- `stepMark.tsx` ← imported by `portal/src/portal/components/LessonPlanPage.tsx:2:37cb3e3d` · `portal/src/portal/components/LessonPlanViewer.tsx:7:bcbb0e1b`
 
 ## Tests (all, generated)
 - `AppFunnelTracker.tsx` ← `portal/src/portal/components/AppFunnelTracker.test.tsx`
@@ -164,8 +169,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `CapstoneResultCard.tsx` ← `portal/src/portal/components/CapstoneResultCard.test.tsx`
 - `CertificatesPanel.tsx` ← `portal/src/portal/components/CertificatesPanel.reload.test.tsx` · `portal/src/portal/components/CertificatesPanel.test.tsx` · `portal/src/portal/components/CertificatesShelf.test.tsx`
 - `LegacyAttendanceRedirect.tsx` ← `portal/src/portal/pages/steps-removed.test.tsx`
-- `LessonPlanPage.tsx` ← `portal/src/portal/components/LessonPlanPage.test.tsx`
-- `LessonPlanViewer.tsx` ← `portal/src/portal/components/LessonPlanViewer.step.test.tsx`
+- `LessonPlanPage.tsx` ← `portal/src/portal/components/LessonPlanPage.retry.test.tsx` · `portal/src/portal/components/LessonPlanPage.test.tsx`
+- `LessonPlanViewer.tsx` ← `portal/src/portal/components/LessonPlanViewer.ready.test.tsx` · `portal/src/portal/components/LessonPlanViewer.report.test.tsx` · `portal/src/portal/components/LessonPlanViewer.step.test.tsx`
 - `LevelCertificateRow.tsx` ← `portal/src/portal/components/LevelCertificateRow.exams.test.tsx` · `portal/src/portal/components/LevelCertificateRow.scores.test.tsx`
 - `LevelExamCard.tsx` ← `portal/src/portal/components/LevelExamCard.test.tsx`
 - `LoadingState.tsx` ← `portal/src/portal/components/loadingStates.test.tsx`
@@ -177,10 +182,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalNavigation.tsx` ← `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/components/PortalNavigation.account.test.tsx` · `portal/src/portal/components/PortalNavigation.childTest.test.tsx` · `portal/src/portal/components/PortalNavigation.coachLibrary.test.tsx` · `portal/src/portal/components/PortalNavigation.coachV2.flagOff.test.tsx` · `portal/src/portal/components/PortalNavigation.coachV2.test.tsx` (+14: `python3 kg/kg.py who-reads portal/src/portal/components/PortalNavigation.tsx`)
 - `QuestionCard.tsx` ← `portal/src/portal/components/QuestionCard.test.tsx`
 - `QuestionPager.tsx` ← `portal/src/portal/components/QuestionPager.test.tsx`
-- `RecordingBar.tsx` ← `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx` · `portal/src/portal/pages/PortalCoaching.flagOff.test.tsx`
+- `RecordingBar.tsx` ← `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/components/RecordingBar.v6.test.tsx` · `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx` · `portal/src/portal/pages/PortalCoaching.flagOff.test.tsx`
 - `ScoreBreakdown.tsx` ← `portal/src/portal/components/ScoreIndicator.bands.test.tsx`
 - `ScoreIndicator.tsx` ← `portal/src/portal/components/ScoreIndicator.bands.test.tsx`
-- `Skeleton.tsx` ← `portal/src/portal/auth/auth.skeleton.test.tsx` · `portal/src/portal/components/loadingStates.test.tsx`
+- `Skeleton.tsx` ← `portal/src/portal/auth/auth.skeleton.test.tsx` · `portal/src/portal/components/Skeleton.look.test.tsx` · `portal/src/portal/components/loadingStates.test.tsx`
 - `stepMark.tsx` ← `portal/src/portal/components/stepMark.test.tsx`
 
 ## Related (all, generated)

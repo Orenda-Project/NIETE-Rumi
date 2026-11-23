@@ -55,7 +55,7 @@ describe("every stop reason has words on Results (How it ended)", () => {
     for (const code of ["complete", "time_up", "coach_end", "end_section", "skipped_end_section", "skipped_incomplete", "early_stop_silence"]) {
       expect(ALL).toContain(code);
     }
-    expect(serverStops().sort()).toEqual(["comprehension_not_asked", "comprehension_voided", "multiplication_not_asked", "stopped_by_rule", "stopped_by_rule_egma"]);
+    expect(serverStops().sort()).toEqual(["comprehension_not_asked", "comprehension_not_counted", "comprehension_voided", "multiplication_not_asked", "stopped_by_rule", "stopped_by_rule_egma"]);
   });
 
   for (const lang of ["en", "ur"] as const) {

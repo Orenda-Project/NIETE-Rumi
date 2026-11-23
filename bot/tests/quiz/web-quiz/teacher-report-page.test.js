@@ -475,7 +475,7 @@ describe('message pages', () => {
     expect(ur).toMatch(/dir="rtl"/);
     expect(text(ur)).toMatch(/\/quiz/);
     // the command is ONE ltr atom, slash included
-    expect(ur).toMatch(/<span class="ltr">\/(<span class="ltr">)?quiz/);
+    expect(ur).toMatch(/<span class="ltr(?: nb)?">\/(<span class="ltr">)?quiz/);
     expect(ur).not.toMatch(/<script/i);
   });
   test('incomplete: a cut-off or tampered link says so, not "expired"', () => {

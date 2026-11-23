@@ -1,7 +1,7 @@
 # draw — Which children a coach tests: seeded per-class draw, cycles, term sets, visit keys
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0d09c536374a gen=a11fb296b338 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=abd6b4c85e34 gen=851d4b6c5e01 overflow=13 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — todaysList, markOutcome, addChild, frame snapshot
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | `term-set.js` | Picks the card set (A/B) for a cycle, alternating by quarter, and the CHILD_TEST_FORM_POLICY switch |
 
 ## Who reads this (generated)
-- `visit-key.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:51:02a8f71f` · `bot/shared/services/child-test/conversation/machine.js:51:4db8f781` (+3)
+- `visit-key.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:53:02a8f71f` · `bot/shared/services/child-test/conversation/machine.js:51:4db8f781` (+3)
 - `cycle.js` ← imported by `bot/shared/services/sa-game/store-adapter.js:30:a6c5b7c9` · `scripts/child-test/seed-sandbox.js:152:9fd5cd5b` (+1)
 - `class-label.js` ← imported by `bot/shared/services/child-test/check-flow/check-store.js:20:a8c1bf9b` · `bot/shared/services/child-test/draw/index.js:44:4677f11c`
 - `index.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:109:7ce125b7` · `scripts/child-test/smoke-sandbox.js:28:ea229281`
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/child-test/L3/cycle-shuffle.test.js` (cycle.js, index.js, shuffle.js)
 - `tests/child-test/L3/draw.test.js` (index.js, shuffle.js)
-- … 10 more → `CLAUDE.index.md`
+- … 11 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/child-test/CLAUDE.md`?

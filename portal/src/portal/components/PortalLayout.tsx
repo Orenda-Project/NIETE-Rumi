@@ -152,7 +152,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
           </Suspense>
         )}
       </main>
-      {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} />}
+      {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} v2Menu={v2Frame} />}
     </div>
     </AuthContext.Provider>
   );

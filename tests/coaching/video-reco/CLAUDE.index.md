@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fixtures/` | → (no door; 2 files: 0 test + 2 support) |
+| `fixtures/` | → (no door; 7 files: 0 test + 7 support) |
 | `arm.test.js` | bd-gzfdu9: video-reco A/B arm assigned at recommendation time by a pre-registered salt constant; off means video arm |
 | `build-catalog.test.js` | bd-gzfdu9: build-catalog turns the catalog contract into the bot data file; validator refuses untrustworthy files |
 | `card-image.test.js` | bd-gzfdu9: 480x270 watch-this-clip card image HTML (thumbnail, play circle, m:ss pill, title), fonts embedded |
@@ -24,6 +24,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `observe-send.video-reco-send.test.js` | bd-gzfdu9 hook B2: on /observe the clip goes to the teacher once after their report image, never the coach preview |
 | `observe-send.video-reco.test.js` | bd-gzfdu9 hook A2: recommendation started in observe-send deliver/teacher_tap and never blocks the coach send |
 | `prompt.test.js` | bd-gzfdu9: prompt.build (vr-11) and the diarized transcript moments it may quote, with names redacted |
+| `q186-hitl-no-clip.test.js` | (unmapped) |
 | `r7b-catalog.test.js` | bd-8hhqhf R7b: shipped catalogue shortlist rules for C1 and B6 shapes (panel scale review rows, anonymised) |
 | `r7b-copy.test.js` | bd-8hhqhf R7b: message copy as the teacher reads it; name lexicon, gendered-Urdu and unsupported-claim validators |
 | `r7b-silence.test.js` | bd-8hhqhf R7b: the engine stays silent when there is no move to find, one test per panel row shape |
@@ -63,6 +64,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r7t-card-label.test.js` | bd-8hhqhf R7t: card indicator stored as Name (ID) label picks and stores the bare id, never the label |
 | `r7v-cpu.test.js` | bd-8hhqhf R7v: card-mode pick builds BM25 index and redactor vocab once, not per call or per transcript line |
 | `r7v-pick-time.test.js` | bd-8hhqhf R7v: card-mode pick p90 under 600 ms at peak RTT, read waves and report-path safety on a virtual clock |
+| `r8-clip-template-wiring.test.js` | (unmapped) |
+| `r8-clip-template.test.js` | (unmapped) |
+| `r9-aligned.test.js` | (unmapped) |
 | `redact-names.test.js` | VIDREC H8: redactNames masks teacher, coach, school and roster child names, using invented names and held-out shapes |
 | `report-generator.video-reco-send.test.js` | bd-gzfdu9 hook B: clip sent as one message after the report only while the 24 h window is open; strip handed to hero |
 | `report-generator.video-reco.test.js` | bd-gzfdu9 hook A: flag off leaves report-generator calls byte-identical; flag on starts the engine once |
@@ -70,6 +74,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `retrieval-v13.test.js` | bd-gzfdu9 SPEC v1.3 retrieval rules R1-R3: level is a preference not a filter, tag route up to 12, step-text route |
 | `review-v13.test.js` | bd-gzfdu9: #3313 review deviations and validator rulings folded into v1.3; one test per item |
 | `select.test.js` | bd-gzfdu9: select.pick makes one completeJson call for job coaching.videoReco; truncation marked |
+| `send.real-claim.test.js` | (unmapped) |
 | `send.test.js` | bd-gzfdu9 VIDREC: the watch-this-clip message after the report: cta_url with card header, else no picture, else text |
 | `shortlist.test.js` | bd-gzfdu9: shortlist.build deterministic candidate chapters (language, level, vetoes) with no LLM and no I/O |
 | `skip-iab-observe.test.js` | bd-9dbhh0.1: on /observe the clip's /v link ends the teacher's report image caption; no separate clip message |

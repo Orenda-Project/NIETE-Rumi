@@ -112,6 +112,13 @@ html[lang=ur] .wq-btn{font-weight:700;font-size:var(--btn-fs-ur);line-height:1.9
 /* «واٹس ایپ» held on one line (wq-tel.js WQT.nowrap), on every page that draws it */
 .wqb-nowrap{white-space:nowrap}
 .wq-kids-small .wq-kid-big{min-height:56px;font-size:18px}
+/* "Quiz ready" on a class-link "Whose turn?" chip (class-link.js): the name and the badge stacked beside the animal, inside the
+   button, so the whole chip stays the tap target and keeps its own min-height; the name still ellipsizes, the badge wraps inside the chip */
+.wq-cl-nm{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.wq-cl-nm bdi{max-width:100%}
+.wq-cl-ready{flex:0 1 auto;max-width:100%;white-space:normal;background:var(--gold);color:var(--brand-ink);line-height:1.2}
+/* Urdu: Nastaliq at the regular weight (bold breaks its joins) and its own tall line box */
+html[lang=ur] .wq-cl-ready{font-weight:400;font-size:15px;line-height:1.9;padding:0 10px}
 .wq-undo{position:fixed;left:16px;right:16px;bottom:16px;width:auto;z-index:50;background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .wq-input{width:100%;min-height:58px;border-radius:16px;border:2px solid var(--line);background:#fff;padding:8px 14px;font-size:22px;font-weight:800;color:var(--navy)}
 .wq-input:focus{outline:3px solid var(--green);outline-offset:1px}
@@ -137,7 +144,7 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-h{margin:14px 0 6px;font-size:17px;color:var(--navy)}
 .wq-who-sum h2{margin:0}
 .wq-who-np{padding:6px 0}
-.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
+.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:var(--tap);font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 /* the challenge line on the fold door (web_quiz_challenge_fold): wrapped balanced, never one word left alone */
 .wq-chline{text-wrap:balance}
@@ -351,6 +358,11 @@ html[lang=ur] .wq-ml,html[lang=ur] .wq-mr,html[lang=ur] .wq-place{font-weight:70
 .wq-mr .wq-glyph{width:56px;height:56px;font-size:32px}
 /* A letter tile clears the shape badge in its corner. */
 html[lang=ur] .wq-ptile .wq-glyph{margin-top:24px}
+/* A Qaida letter card (a glyph the server marks lang 'ar'): the Naskh letter forms the Qaida page teaches, never the
+   Urdu Nastaliq. Noto Naskh Arabic cut to the Arabic letters and harakat (scripts/naskh-letters/build.py); block, not
+   swap, so the card never flashes a Nastaliq letter first. The polished look's twin is in the ur2 block. */
+@font-face{font-family:"WQ Naskh";src:url(fonts/wq-naskh-2.woff2) format("woff2");font-weight:400;font-display:block;unicode-range:U+0621-063A,U+0641-064A,U+064B-0652,U+0670-0671,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C1,U+06CC,U+06D2}
+.wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;font-weight:400;line-height:1.6}
 @keyframes wqpulse{0%,100%{opacity:.35}50%{opacity:.7}}
 img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation:wqpulse 1.2s ease-in-out infinite}
 .wq-labelfig .wq-figbox{margin-bottom:30px}
@@ -374,7 +386,17 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 .wq-artprev{display:block;width:100%;aspect-ratio:1200/630;object-fit:cover;border-radius:14px;margin:8px 0;background:var(--tint)}
 
 /* No recorded clip and no phone voice for this language (Android's in-app browser has none): the words are the voice, so show them big. */
-.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:24px;line-height:1.55;color:var(--ink,inherit)}
+.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:30px;line-height:1.4;color:var(--ink,inherit)}
+.wq-novoice .wq-opt{font-size:26px}
+/* A long Urdu "listen" question with no voice (its words under the big speaker): 26 px keeps the first answer on a
+   360 x 740 screen; at 30 px a 106-character stem pushed it to 684 px. The polished look's twin is in the ur2 block. */
+/* The plain Urdu look (without the polish class): its own sizes (html[lang=ur] .wq-qtext 21 px, .wq-opt 20 px) outrank the big words
+   above, so without this the no-silence fallback would depend on the polish switch staying on. */
+html[lang=ur] .wq-novoice .wq-qtext{font-size:30px}
+html[lang=ur] .wq-novoice .wq-opt{font-size:26px}
+html[lang=ur] .wq-novoice .wq-qtext.wq-qsmall{font-size:26px}
+/* A long Urdu question with no voice (wq.js qlong: 90+ code points): 26 px keeps the first answer on a 360 x 740 screen. */
+html[lang=ur] .wq-novoice .wq-qtext.wq-qlong{font-size:26px}
 /* M16 all schools this week: my school is pinned to the top or bottom edge when scrolled away. */
 .wq-slist{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .wq-srow{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800}
@@ -478,7 +500,7 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wql-dlhelp{font-size:14px;color:var(--muted);text-align:center;margin:0}
 .wql-dlhelp a{color:var(--green-d);font-weight:800}
 /* An option's own recorded voice: tap to hear just that option (never an answer). */
-.wq-opt .wq-ohear{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--green-l);color:var(--green-d);font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(0,0,0,.04)}
+.wq-opt .wq-ohear{flex:0 0 auto;width:var(--tap);height:var(--tap);border-radius:50%;display:grid;place-items:center;background:var(--green-l);color:var(--green-d);font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(0,0,0,.04)}
 .wq-opt .wq-ohear:active{transform:scale(.92)}
 .wq-opt .wq-ohear:focus-visible{outline:3px solid var(--green-d)}
 .wq-locked .wq-ohear{opacity:.45}
@@ -813,13 +835,16 @@ html.wq-ur2[lang=ur] #wq-hintbox .wq-say{font-size:17px}
 html.wq-ur2[lang=ur] .wq-btn{font-size:var(--btn-fs-ur);line-height:var(--ulh1);padding:10px 18px 6px;min-height:60px}
 html.wq-ur2[lang=ur] .wq-soft{font-size:17px}
 html.wq-ur2[lang=ur] .wq-ghost{font-size:16px;text-decoration-thickness:2px;text-underline-offset:.3em;text-decoration-skip-ink:all}
-html.wq-ur2[lang=ur] .wq-linkbtn{min-height:44px;font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
+html.wq-ur2[lang=ur] .wq-linkbtn{min-height:var(--tap);font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
 html.wq-ur2[lang=ur] .wq-key-go{font-family:var(--fu);font-size:20px;line-height:var(--ulh1);padding-top:.3em}
 /* the question card and its options */
 html.wq-ur2[lang=ur] .wq-qcard{padding:16px 14px 10px;gap:10px}
 html.wq-ur2[lang=ur] .wq-qtext{font-size:22px;line-height:var(--ulh);padding-inline-start:var(--upad-s)}
 html.wq-ur2[lang=ur] .wq-qtext.wq-qsmall{font-size:17px}
-html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:23px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:30px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-novoice .wq-opt{font-size:26px}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext.wq-qsmall{font-size:26px}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext.wq-qlong{font-size:26px}
 html.wq-ur2[lang=ur] .wq-opts{gap:12px}
 html.wq-ur2[lang=ur] .wq-opt{font-size:20px;line-height:var(--ulh1);padding:8px 12px 6px;padding-inline-start:12px;min-height:66px}
 html.wq-ur2[lang=ur] .wq-opt .wq-lab{padding-top:.25em;padding-inline-start:var(--upad-s)}
@@ -841,6 +866,7 @@ html.wq-ur2[lang=ur] .wq-mto{font-size:14px;line-height:var(--ulh1)}
 html.wq-ur2[lang=ur] .wq-glyph{line-height:2.4;min-height:140px;padding:6px 0 14px}
 html.wq-ur2[lang=ur] .wq-mr .wq-glyph{height:auto;min-height:56px;line-height:2.2;padding:2px 0}
 html.wq-ur2[lang=ur] .wq-ptile .wq-glyph{margin-top:22px}
+html.wq-ur2[lang=ur] .wq-glyph[lang=ar]{font-family:"WQ Naskh","Noto Naskh Arabic","Geeza Pro",serif;line-height:1.6}
 /* identity: who is playing, name cards, the pad */
 html.wq-ur2[lang=ur] .wq-kid{font-size:18px;line-height:var(--ulh1);padding:8px 14px 6px 8px}
 html.wq-ur2[lang=ur] .wq-kid-big{font-size:20px;min-height:76px;padding:10px 12px 8px 8px}

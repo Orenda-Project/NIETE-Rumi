@@ -23,6 +23,7 @@ import { loadGradeSubjects } from '../lib/gradeSubjects';
 import { useFln } from './FlnContext';
 import { FlnPlayerProvider, SoundGrid, gridClips, useFlnPlayer } from './player';
 import { Details } from './plan/Details';
+import { DownloadPdf } from './plan/DownloadPdf';
 import { Header } from './plan/Header';
 import { Section } from './plan/Section';
 import { TimeBar } from './plan/TimeBar';
@@ -258,6 +259,7 @@ export function PlanScreen({ me, lang }: { me: FlnMe; lang: FlnLang }) {
         {topBar(s.subject[p.subject])}
         <Header plan={p} placement={first} uiLang={lang} />
         <Details plan={p} uiLang={lang} />
+        <DownloadPdf planId={p.id} lang={lang} />
         <TimeBar plan={p} uiLang={lang} />
         {hasGrid ? (
           <div className="fln-grid-box">

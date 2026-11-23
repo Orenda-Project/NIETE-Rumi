@@ -1582,7 +1582,17 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       pickedTypes: null,
       questionTypes: null,
       seenCount: null,
+      seenCounted: null,
+      // bd-e5n2jf: the current QUESTIONS Footer posts a static `seen_types: true`.
+      // With it, Seen gets the same type + count boxes as Unseen (Mubashar Zia,
+      // 20 Nov); a device still on the published Flow never sends it and keeps
+      // the single SEEN_COUNT box, a screen its Flow has.
+      seenTypesFlow: !legacyCounts && (data.seen_types === true || data.seen_types === 'true'),
+      phase: null,
+      seenPicked: null,
+      seenTypes: null,
     });
+    if (state.seenTypesFlow && contentSource !== 'unseen') state.phase = 'seen';
     await writeSession(flowToken, state);
 
     // The CATEGORY decides whether she picks types, not an opt-in she has to find.
@@ -1598,7 +1608,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
     //   Both   → how many Seen FIRST, on its own screen, then the Unseen types
     //            and their counts. Kept apart on purpose — "I would rather it be
     //            clear" — so the two numbers are never mistaken for each other.
-    if (contentSource === 'unseen') return typesScreen(state);
+    if (contentSource === 'unseen' || inSeen(state)) return typesScreen(state);
     return seenCountScreen(state);
   }
 
@@ -1618,13 +1628,23 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       return seenCountScreen(state, message);
     }
     if (both) {
-      Object.assign(state, { seenCount: parsed.count });
+      Object.assign(state, { seenCount: parsed.count, seenCounted: null });
       await writeSession(flowToken, state);
       return typesScreen(state);
     }
-    Object.assign(state, { questionCount: parsed.count, questionTypes: null, seenCount: null });
+    Object.assign(state, { questionCount: parsed.count, questionTypes: null, seenCount: null, seenCounted: null });
     await writeSession(flowToken, state);
     return confirmScreen(state);
+  }
+
+  // bd-e5n2jf: Seen has its own screens, because Meta's routing model must be
+  // acyclic and Both cannot loop COUNTS → TYPES. They run the TYPES/COUNTS
+  // handlers in the Seen phase; the plain screens on Both are the Unseen pass.
+  if (screenId === 'SEEN_TYPES' || screenId === 'SEEN_COUNTS') {
+    if (state.seenTypesFlow) state.phase = 'seen';
+    screenId = screenId.slice('SEEN_'.length);
+  } else if ((screenId === 'TYPES' || screenId === 'COUNTS') && inSeen(state) && state.contentSource === 'both') {
+    state.phase = 'unseen';
   }
 
   // ── TYPES → COUNTS ───────────────────────────────────────────────────────
@@ -1632,7 +1652,9 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   // of each next, which is the whole point of picking them separately: a total
   // divided evenly over her picks was our arithmetic, not her paper.
   if (screenId === 'TYPES') {
-    const offered = QuestionTypes.forSubject(state.subject, state.grade).map((t) => t.id);
+    const seenPhase = inSeen(state);
+    const kind = seenPhase ? 'Seen' : 'Unseen';
+    const offered = typesOffered(state).map((t) => t.id);
     // Order is HERS — the COUNTS boxes are labelled in the order she ticked, so
     // the list she reads there matches the list she just left. Ids are filtered
     // against what this subject actually offers: a stale or hand-made payload
@@ -1642,18 +1664,25 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);
 
     if (picked.length === 0) {
-      const message = 'Please choose at least one type of Unseen question.';
+      const message = `Please choose at least one type of ${kind} question.`;
       refused('TYPES', state, message, { picked: 0 });
       return typesScreen(state, message);
     }
     // The count boxes are a fixed bank, so more picks than boxes would silently
     // drop the tail of her selection. Say so instead.
     if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {
-      const message = `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} types of Unseen question.`;
+      const message = `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} types of ${kind} question.`;
       refused('TYPES', state, message, { picked: picked.length });
       return typesScreen(state, message);
     }
 
+    if (seenPhase) {
+      // The Seen boxes follow the list's order: she reads them against the book's
+      // own exercise headings, which the list mirrors.
+      state.seenPicked = offered.filter((id) => picked.includes(id));
+      await writeSession(flowToken, state);
+      return countsScreen(state);
+    }
     state.pickedTypes = picked;
     await writeSession(flowToken, state);
     // An old published Flow has no COUNTS screen: routing there kills it on the
@@ -1668,11 +1697,14 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
   // `questionCount` stops being something she types and becomes something we
   // derive — which is what makes the counts below survive planCounts().
   if (screenId === 'COUNTS') {
+    if (inSeen(state)) return seenCountsDone(state, data, flowToken);
     const picked = Array.isArray(state.pickedTypes) ? state.pickedTypes : [];
     if (picked.length === 0) return typesScreen(state);
 
     const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
-    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seen);
+    // AG row 12: Seen picked by type counts each group as one, like Unseen; a single Seen number counts one each.
+    const seenLimit = seen && state.seenCounted != null ? { counted: Number(state.seenCounted) || 0, items: seen } : seen;
+    const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, seenLimit);
     if (!parsed.ok) {
       refused('COUNTS', state, parsed.message, { slot: parsed.slot || null, seen });
       return countsScreen(state, parsed.message, parsed.slot);
@@ -1851,12 +1883,55 @@ function questionsScreen(state, error = '') {
 function typesScreen(state, error = '') {
   // The limit rides the caption, so she reads it before she ticks, not after a
   // bounce. English and Urdu offer 18 types for 8 count boxes (bd-5jmnfj.4.18).
-  return screen('TYPES', {
+  const kind = inSeen(state) ? 'Seen' : 'Unseen';
+  return screen(inSeen(state) ? 'SEEN_TYPES' : 'TYPES', {
+    heading: `${kind} questions: which types?`,
+    types_label: `${kind} question types`,
     summary: `${summaryOf(state)} · Pick up to ${QuestionTypes.MAX_TYPE_SLOTS}`,
-    types: QuestionTypes.forSubject(state.subject, state.grade)
-      .map((t) => ({ id: t.id, title: t.id })),
+    types: typesOffered(state).map((t) => ({ id: t.id, title: t.id })),
     error,
   });
+}
+
+/** bd-e5n2jf: on the new Flow, Seen and Both ask the Seen types first. */
+function inSeen(state) {
+  return Boolean(state.seenTypesFlow) && state.phase === 'seen';
+}
+
+/** The type list. Seen leaves out board-paper sections: those are not book exercises. */
+function typesOffered(state) {
+  const all = QuestionTypes.forSubject(state.subject, state.grade);
+  return inSeen(state) ? all.filter((t) => t.category !== 'board') : all;
+}
+
+/**
+ * COUNTS on the Seen pass. Seen only: her Seen counts ARE the paper. Both: they
+ * become the Seen number, and the Unseen types come next.
+ */
+async function seenCountsDone(state, data, flowToken) {
+  const picked = Array.isArray(state.seenPicked) ? state.seenPicked : [];
+  if (picked.length === 0) return typesScreen(state);
+  const parsed = QuestionTypes.parsePerTypeCounts(picked, data, state.subject, state.grade, 0);
+  if (!parsed.ok) {
+    refused('COUNTS', state, parsed.message, { slot: parsed.slot || null, phase: 'seen' });
+    return countsScreen(state, parsed.message, parsed.slot);
+  }
+  const seenTypes = parsed.types.map((t) => ({ id: t.id, count: t.count, category: t.category }));
+  if (state.contentSource === 'both') {
+    if (parsed.counted >= QuestionTypes.MAX_QUESTIONS) {
+      const message = `Leave room for Unseen questions — Seen can be up to ${QuestionTypes.MAX_QUESTIONS - 1}.`;
+      refused('COUNTS', state, message, { phase: 'seen', total: parsed.total });
+      return countsScreen(state, message);
+    }
+    Object.assign(state, {
+      seenTypes, seenCount: parsed.total, seenCounted: parsed.counted, phase: 'unseen', pickedTypes: null, questionTypes: null,
+    });
+    await writeSession(flowToken, state);
+    return typesScreen(state);
+  }
+  Object.assign(state, { seenTypes, questionCount: parsed.total, seenCount: null, seenCounted: null, questionTypes: null });
+  await writeSession(flowToken, state);
+  return confirmScreen(state);
 }
 
 /**
@@ -1868,9 +1943,11 @@ function typesScreen(state, error = '') {
  * from an earlier pass will show it the moment she goes back and picks more.
  */
 function countsScreen(state, error = '', errorSlot = null) {
-  const picked = (state.pickedTypes || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
-  const seen = state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
+  const seenPhase = inSeen(state);
+  const picked = ((seenPhase ? state.seenPicked : state.pickedTypes) || []).slice(0, QuestionTypes.MAX_TYPE_SLOTS);
+  const seen = !seenPhase && state.contentSource === 'both' ? (Number(state.seenCount) || 0) : 0;
   const data = {
+    heading: `${seenPhase ? 'Seen' : 'Unseen'} questions: how many of each?`,
     summary: summaryOf(state),
     hint: seen
       ? `You asked for ${seen} Seen. Seen + Unseen can be up to ${QuestionTypes.MAX_QUESTIONS}.`
@@ -1893,7 +1970,7 @@ function countsScreen(state, error = '', errorSlot = null) {
   // the line above Continue. (A TextInput-level `error-message` is rejected by
   // Meta in this Flow version.)
   data.error_messages = (errorSlot && picked[errorSlot - 1]) ? { [`count_${errorSlot}`]: error } : {};
-  return screen('COUNTS', data);
+  return screen(seenPhase ? 'SEEN_COUNTS' : 'COUNTS', data);
 }
 
 /** The Seen number: one box. On Both it comes first, before the Unseen types. */
@@ -1951,9 +2028,12 @@ async function confirmScreen(state) {
   // book decides the types — so it stays the single total it has always been.
   const breakdown = (state.questionTypes || []).map((t) => `${t.count} ${t.id}`).join(', ');
   const seen = Number(state.seenCount) || 0;
+  const seenDesc = (state.seenTypes || []).map((t) => `${t.count} ${t.id}`).join(', ');
   let size;
   if (state.contentSource === 'both' && seen && breakdown) {
-    size = `Seen: ${seen} · Unseen: ${breakdown} · ${state.questionCount} in total`;
+    size = `Seen: ${seenDesc || seen} · Unseen: ${breakdown} · ${state.questionCount} in total`;
+  } else if (state.contentSource === 'seen' && seenDesc) {
+    size = `${seenDesc} · ${state.questionCount} in total`;
   } else if (breakdown) {
     size = `${breakdown} · ${state.questionCount} in total`;
   } else {
@@ -2088,6 +2168,8 @@ async function submit(state) {
     seenCount: state.contentSource === 'both' ? (Number(state.seenCount) || null) : null,
     totalMarks: state.totalMarks ?? null,
     questionTypes: types,
+    // Her per-type Seen counts (bd-e5n2jf); absent on the old single-box path.
+    ...(state.seenTypes && state.seenTypes.length ? { seenTypes: state.seenTypes } : {}),
     // Always: the answer key stopped being her choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: state.answerLines !== false,
@@ -2106,7 +2188,22 @@ async function handleBack(userId, screenId, flowToken) {
   // no longer QUESTIONS: COUNTS sits between TYPES and CONFIRM now. Sending her
   // two screens back would quietly discard the picks and counts she just made.
   if (screenId === 'COUNTS') return typesScreen(state);
-  if (screenId === 'SEEN_COUNT') return questionsScreen(state);
+  if (screenId === 'SEEN_COUNT' || screenId === 'SEEN_TYPES') return questionsScreen(state);
+  if (screenId === 'SEEN_COUNTS') {
+    state.phase = 'seen';
+    await writeSession(flowToken, state);
+    return typesScreen(state);
+  }
+  if (state.seenTypesFlow && !state.legacyCounts && state.contentSource !== 'unseen') {
+    // bd-e5n2jf: Seen types → Seen counts → (Both: Unseen types → Unseen counts) → CONFIRM.
+    if (screenId === 'CONFIRM') return countsScreen(state);
+    if (screenId === 'TYPES') {
+      if (inSeen(state)) return questionsScreen(state);
+      state.phase = 'seen';
+      await writeSession(flowToken, state);
+      return countsScreen(state);
+    }
+  }
   if (screenId === 'CONFIRM') {
     // An old client has neither SEEN_COUNT nor COUNTS.
     if (state.legacyCounts) {

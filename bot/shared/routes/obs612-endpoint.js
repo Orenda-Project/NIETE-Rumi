@@ -34,11 +34,14 @@ const O = require('../services/coaching/frameworks/obs612');
 const { logToFile } = require('../utils/logger');
 
 const MARKER = 'obs612';
+const FicoSDoor = require('./fico-s-endpoint');
+const isFicoSToken = (flowToken) => { const t = parseToken(flowToken); return Boolean(t && t.flow === 'ficos'); };
 
 function parseToken(flowToken) {
-  const [userId, marker, formId] = String(flowToken || '').split(':');
+  const [userId, marker, formId, flow] = String(flowToken || '').split(':');
   if (!userId || marker !== MARKER || !formId) return null;
-  return { userId, formId };
+  // bd-31ziu8: '<coach>:obs612:<formId>:fs' is the FICO-S Flow (obs612/fico-s-flow.js).
+  return { userId, formId, flow: flow === 'fs' ? 'ficos' : 'obs612' };
 }
 
 // ── what the coach reads ──────────────────────────────────────────────────────
@@ -97,6 +100,8 @@ async function load(flowToken) {
   if (!form) return { refusal: 'not_found', formId: t.formId };
   if (form.observer_user_id !== t.userId) return { refusal: 'not_yours', formId: t.formId };
   if (!O.toolById(form.rubric_version)) return { refusal: 'not_obs612', formId: t.formId };
+  // bd-31ziu8: each Flow serves its own forms only (the FDE Flow never opens a FICO-S form, nor the reverse).
+  if ((O.toolOf(form.rubric_version) === 'ficos') !== (t.flow === 'ficos')) return { refusal: 'not_obs612', formId: t.formId };
   if (form.sealed_at) return { refusal: 'sealed', formId: t.formId };
   const lesson = Record.lessonOf(form);
   // record.js reads a sheet it does not know as English (frameworks/obs612 enurSections); so does the Flow.
@@ -237,6 +242,7 @@ async function submitForm(ctx, step, draft) {
 // ── handlers ──────────────────────────────────────────────────────────────────
 
 async function handleObs612Init(flowToken) {
+  if (isFicoSToken(flowToken)) return FicoSDoor.handleInit(flowToken, { load, Store, Record, sendSummaryLater });
   const ctx = await load(flowToken);
   if (ctx.refusal) {
     logToFile('[obs612] form refused at open', { formId: ctx.formId || null, refusal: ctx.refusal }, 'warn');
@@ -250,6 +256,9 @@ async function handleObs612Init(flowToken) {
 }
 
 async function handleObs612DataExchange(flowToken, screen, payload = {}) {
+  if (isFicoSToken(flowToken)) {
+    return FicoSDoor.handleDataExchange(flowToken, screen, payload, { load, Store, Record, sendSummaryLater });
+  }
   const posted = payload || {};
   const step = String(posted.screen || screen || '');
   const ctx = await load(flowToken);

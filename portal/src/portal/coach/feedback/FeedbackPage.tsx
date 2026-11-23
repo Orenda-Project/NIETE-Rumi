@@ -13,6 +13,7 @@ import { useVoiceAnswer } from "../../lib/voiceAnswer";
 import { BottomButton } from "../ui";
 import { FEEDBACK, type FeedbackCopy } from "./copy";
 import { checkScreenshot, failureText, MAX_SCREENSHOTS, SCREENSHOT_TYPES, sendFeedback, TOPICS, type Topic } from "./send";
+import { holdFile, isFileRefused } from "../../lib/pickedRead";
 
 /**
  * bd-x1tl95 — Send feedback, from the coach's More (/portal/coach/feedback). Coaches asked to give feedback by voice, so
@@ -198,7 +199,7 @@ function TellUs({ C, voice, text, setText }: {
 }
 
 /** Step 3: up to three screenshots, each with Remove; optional. */
-function Screenshots({ C, shots, setShots }: { C: FeedbackCopy; shots: File[]; setShots: (f: File[]) => void }) {
+function Screenshots({ C, shots, setShots }: { C: FeedbackCopy; shots: File[]; setShots: (f: File[] | ((cur: File[]) => File[])) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
@@ -208,13 +209,19 @@ function Screenshots({ C, shots, setShots }: { C: FeedbackCopy; shots: File[]; s
     return () => made.forEach((u) => URL.revokeObjectURL(u));
   }, [shots]);
 
-  const add = (files: FileList | null) => {
+  // bd-tymy1n (queue #179): each screenshot is read when she picks it and the form keeps those bytes; in the Android app
+  // a picked file could no longer be opened by Send. One that will not open is refused here.
+  const add = async (files: FileList | null) => {
     setProblem(null);
     const picked = Array.from(files || []);
     const bad = picked.map(checkScreenshot).find(Boolean);
     if (bad) setProblem(bad === "too_large" ? C.tooLarge : C.notPicture);
-    const good = picked.filter((f) => !checkScreenshot(f));
-    if (good.length) setShots([...shots, ...good].slice(0, MAX_SCREENSHOTS));
+    const good: File[] = [];
+    for (const f of picked.filter((p) => !checkScreenshot(p))) {
+      const out = await holdFile(f);
+      if (isFileRefused(out)) setProblem(C.wontOpen); else good.push(out.file);
+    }
+    if (good.length) setShots((cur) => [...cur, ...good].slice(0, MAX_SCREENSHOTS));
   };
 
   return (
@@ -246,7 +253,7 @@ function Screenshots({ C, shots, setShots }: { C: FeedbackCopy; shots: File[]; s
         </button>
       )}
       <input ref={input} data-testid="feedback-shot-input" type="file" multiple accept={SCREENSHOT_TYPES.join(",")} className="hidden"
-        onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
+        onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
       {problem && <p role="alert" className="mx-1 text-[15px] font-semibold text-[#c8331f]">{problem}</p>}
     </section>
   );

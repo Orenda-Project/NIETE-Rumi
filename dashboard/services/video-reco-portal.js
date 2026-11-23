@@ -35,10 +35,12 @@ function enabled() {
 
 async function cardFor(supabase, sessionId, userId, language) {
   const { data: row, error } = await supabase.from('video_recommendations')
-    .select('id, module_id, seg_id, start_s, end_s, reason_en, reason_ur')
+    .select('id, module_id, seg_id, start_s, end_s, reason_en, reason_ur, observation_type')
     .eq('coaching_session_id', sessionId).eq('user_id', userId).eq('status', 'shown')
     .maybeSingle();
   if (error || !row) return null;
+  // Queue #186: a HITL visit's report shows no training clip, including one picked before the engine stopped picking them.
+  if (row.observation_type === 'leader_observation') return null;
   const links = optional('link-token');
   const token = links ? links.signVideoLink({ recommendationId: row.id, userId, surface: 'portal' }) : null;
   if (!token) return null;

@@ -149,7 +149,11 @@ function domainScreen(key, idx) {
   const initValues = {};
   // v6 (13 Nov): Section B of the one-indicator-per-screen Flow says which Flow it is, so a coach still on the old
   // 5-screen Flow (opened before the republish, or the window between deploy and republish) keeps its old screens.
-  const payload = { _screen: screenId(key), ...(IS_V6 ? { v6f: require('../shared/services/observe/observe-fico17-v6').FORM_VERSION } : {}) };
+  // bd-ra8xu.60: it also says its section intros declare the Observation Notes fields (v6n), so the endpoint serves them.
+  const payload = {
+    _screen: screenId(key),
+    ...(IS_V6 ? { v6f: require('../shared/services/observe/observe-fico17-v6').FORM_VERSION, v6n: require('../shared/services/observe/observe-fico17-v6').NOTES_FORM } : {}),
+  };
   const data = {
     ...(idx === 0 ? { scored_with: { type: 'string', __example__: 'FICO V3' } } : {}),
     scale: {
@@ -297,11 +301,17 @@ function v6IntroScreen(letter) {
       list: V6_STR('C1  Quality of Questions Asked by the Teacher\nC3  Who got to answer  (room)'),
       note: V6_STR('Rumi has set the level for 5 of them from the recording: check each one.'),
       next_label: V6_STR('Start Section C'),
+      // bd-ra8xu.60: the coach's Observation Notes, word for word; hidden when she typed none.
+      notes_v: { type: 'boolean', __example__: true },
+      notes_heading: V6_STR('📝 Your Observation Notes'),
+      notes: V6_STR('12:40  Board work: 5 children solved sums with steps\nBack two rows silent all lesson'),
     },
     layout: {
       type: 'SingleColumnLayout',
       children: [
         { type: 'TextHeading', text: '${data.heading}' },
+        { type: 'TextSubheading', text: '${data.notes_heading}', visible: '${data.notes_v}' },
+        { type: 'TextBody', text: '${data.notes}', visible: '${data.notes_v}' },
         { type: 'TextBody', text: '${data.count_line}' },
         { type: 'TextBody', text: '${data.list}' },
         { type: 'TextBody', text: '${data.note}' },

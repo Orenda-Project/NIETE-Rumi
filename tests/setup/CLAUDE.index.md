@@ -11,6 +11,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `added-lines-hygiene.allowlist.json` | Shrink-only allowlist by file of existing lines holding private work-tracking names, tokens stored ROT13 |
 | `added-lines-hygiene.test.js` | Gate: no private work-tracking names in added lines under bot, dashboard, scripts, tests, docs; legacy files allowlisted |
 | `asset-references.test.js` | Guard that code path-joining into bot/marketing/<file> guards the read, since the repo ships no binary assets |
+| `baseline-gate-private-names.test.js` | (unmapped) |
 | `baseline-gate.test.js` | Tests tests/baseline-gate.js: catches a new failure hidden inside an already-red suite against baseline.snapshot.json |
 | `bootstrap-db.test.js` | Tests infrastructure/scripts/bootstrap-db: applies schema, rls, seed SQL in order via injected executor; stops on error |
 | `bot-migrations-lib.js` | Helper reading bot/database/migrations and the 00_complete-schema.sql mirror for the migration order and mirror gates |
@@ -19,6 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bot-migrations-order.allowlist.json` | Shrink-only allowlist of migrations that use another's table without a -- requires: header |
 | `bot-migrations-order.test.js` | Gate: -- requires: headers name real forward migrations, have no cycle, and cover tables a migration uses |
 | `challenge-data-gates-lib.js` | Pure helpers for Challenge data gates: counted-reader detection, BEGIN/COMMIT in migrations, seed and passage titles |
+| `ci-no-token-deploy.test.js` | (unmapped) |
 | `ci-workflow-jobs-always-runnable.test.js` | Gate: no workflow has a single job gated by a job-level secrets.* if, which silently skips on template repos |
 | `ci-workflow-no-silent-masks.test.js` | Gate: CI workflow steps must not end in || true, which silences failures, unless allowed |
 | `circular-deps.allowlist.json` | Allowlist of known require cycles with a reason each, read by circular-deps.test.js |
@@ -27,6 +29,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `column-completeness.test.js` | Guard: every column the bot code writes or reads exists in the schema, else allowlisted (Phase 5) |
 | `config-overrides.test.js` | Tests env overrides of constants: NIETE logo key default (bd-2374), ElevenLabs voice IDs (bd-332), rate limit (bd-338) |
 | `content-changes-trace.test.js` | Gate: an edited content file's changes trace is whole and its text_hash_before points at a text that is gone |
+| `contributor-handoff-docs.test.js` | (unmapped) |
 | `copy-deck-en-only.allowlist.json` | Allowlist of copy-deck keys allowed to exist in English only, read by copy-deck-lift.test.js |
 | `copy-deck-lift.allowlist.json` | Allowlist of copy-deck lift drifts tolerated by copy-deck-lift.test.js |
 | `copy-deck-lift.modules.json` | Map of surface modules whose strings must lift copy.v2.json keys, read by copy-deck-lift.test.js |
@@ -81,7 +84,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `migration-check-lists.test.js` | Gate: a migration re-making a named CHECK IN list never narrows what a later migration widened it to |
 | `migration-transaction-control.allowlist.json` | Allowlist of migrations carrying top-level BEGIN/COMMIT, read by migration-transaction-control.test.js |
 | `migration-transaction-control.test.js` | Gate: new bot migrations carry no top-level BEGIN/COMMIT; listed legacy files may |
+| `migration-versions-unique.test.js` | (unmapped) |
 | `migrations-no-transaction-control.test.js` | Guard: migrations from V1.8.0 onward have no top-level transaction control, since exec_sql rejects it |
+| `mock-lane-baseline-migrations.test.js` | (unmapped) |
+| `mock-lane-region-registry.test.js` | (unmapped) |
+| `needs-upstream.test.js` | (unmapped) |
 | `no-config-as-code-under-bot.test.js` | Guard: no bot/railway.json or railway.toml, since Railway services are configured in service settings |
 | `no-eager-sdk-construction.test.js` | Guard: no SDK client is constructed at module load in bot/shared, bot/workers or dashboard |
 | `no-hardcoded-bot-name.test.js` | Guard (bd-2365): teacher-facing text uses branding.botName from BOT_NAME, never a literal self-name |
@@ -100,6 +107,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `phone-shaped-fixtures.allowlist.json` | Shrink-only allowlist of test files still holding phone-shaped literals, read by the ratchet |
 | `phone-shaped-fixtures.test.js` | Ratchet: no test file may carry +92 or 03-shaped digit strings; use the letters form fixtures |
 | `procfile-targets-resolve.test.js` | Ratchet (bd-1874): every Procfile process command points at a file that exists |
+| `promotion-invariant.test.js` | (unmapped) |
 | `ratchet-verdict-lib.js` | Shared verdict for shrink-only allowlist gates: fail above the list, warn below, returns failures and warnings |
 | `raw-sql-schools-columns.test.js` | Guard: every column raw pool.query SQL reads from schools is declared in 00_complete-schema.sql |
 | `register-all-flows.test.js` | Tests bot/scripts/setup/register-all-flows: all 24 FLOW_CONFIGS and their registration against a mocked MetaAPI |

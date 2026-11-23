@@ -115,9 +115,11 @@ that is too, with no padding between (RequestPage's ready card is the row itself
 inset 14px from the start edge (initials, a school glyph, or `leadText`). It is deliberately not the 64px flush column: that
 column belongs to grade·subject only, and a time, count, score or person must never borrow its look. A grade·subject row
 (`lead` left out) is drawn exactly as before, with or without a `time`. `HistoryList` draws no day heading for a group whose
-`day` is `""` (a page's own heading above it).
+`day` is `""` (a page's own heading above it). `lead="glyph"` puts a neutral lucide icon (`glyph={BookOpen}`) in the
+same round avatar: My journey's steps (an opened plan, a DC observation, a quiz), decorative, the title names the step.
 
 ```tsx
+<HistoryRow lead="glyph" glyph={BookOpen} title="Opened a lesson plan" extra="G3 Math · Today" to="/portal/teacher/lessons/open?plan=k5:L1" />
 <HistoryRow lead="person" title="Ayesha Bibi" extra="IMSG I-10/1" time="08:30" state="next" to="/portal/coach/visit/12" />
 <HistoryRow lead="person" leadText="87%" leadLabel="Score 87%" title="Ayesha Bibi" extra="12 Oct" to="/portal/coach/observation/9" />
 <HistoryRow lead="school" title="IMSG I-10/1" extra="12 teachers" chip={{ text: "41 days ago", tone: "waiting" }} to="/portal/coach/school/123" />
@@ -347,9 +349,10 @@ nor `onPress` it is a plain `role="status"` note. Never stack it with the ready 
 Home's tile, now the kit's (teacher Home uses it). 176px, 80px art, 18px/600 label. `compact` (operator, 30 Oct 2026, mockup v6
 option B) is the Home look's size, three per row in `[display:grid] grid-cols-3 gap-2.5`, so all nine fit a phone's first screen.
 `tileShell()`, `tileArtSize()` and `tileWords()` are the shell, art size and words, shared with the Quizzes tile
-(`home/QuizTile.tsx`, a button with the `quiz` FeatureArt), so the two never drift. Lay tiles out in `[display:grid] grid-cols-2 gap-3`
-inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one random 30–60 s gap; nothing under
-reduced motion. Chips use status tones only.
+(`home/QuizTile.tsx`, a button with the `quiz` FeatureArt), so the two never drift. Lay tiles out in `tileGrid()`
+(`[display:grid] grid-cols-2 gap-3`; `tileGrid(true)` is the compact `grid-cols-3 gap-2.5`, drawn by the teacher Home and,
+since bd-39qx8x, the coach Home) inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one
+random 30–60 s gap; nothing under reduced motion. Chips use status tones only.
 
 ### The frame: role-aware menu and the header action
 - `TeacherNavigation` takes `role?: 'teacher' | 'coach'` (default `teacher`). `coach` shows **Home · Schedule · Observe · Schools ·
@@ -405,6 +408,14 @@ name, spoken only ("1, Developing"); `value`, `dcValue` and `onChange` then carr
 bd-ra8xu.40: an option may also carry `text` (drawn instead of the id, e.g. "N/A" for `NA`) and `description`; `stacked` draws one full-width
 56px row per rung with its text, label and description (a rubric whose levels are described in words: FICO17 v6, as the WhatsApp form lists
 them). Picked indigo, the Digital Coach's ringed green, the same radiogroup and keys as the squares.
+An option may carry `icon` (a neutral lucide icon drawn before its words, hidden from a screen reader), and `disabled` makes every choice but
+the picked one untappable while an answer saves. The lesson-plan survey bar uses both (Useful / Not useful in a row; In class stacked).
+bd-o15qnr.28 (v7, #188's canvas m9-ff-v6): `look="radio"` draws one full-width 56px row per rung: a radio dot at the start, the rung's
+name (`label`, else `text`) and its `description`; the picked row tinted `#f4f5f8` with a filled indigo dot; the Digital Coach's row edged
+purple (`#6e52e0`, soft halo) with `dcTag` drawn at its end ("Rumi", hidden from a screen reader). Options marked `aside` (N/A, Couldn't
+tell) follow as pills, each in a 56px target, in the same radiogroup (arrow keys run on into them). Spoken: the name, then
+`copy.digitalCoach` on the Digital Coach's ("Proficient, Rumi's level"). The Feedback Form (FICO17 v6, older FICO, FICO-S, FDE) uses it
+behind the v6/v7 switch; without `look` nothing changes.
 
 ### `SlotGroup`
 | Prop | Type | Default |
@@ -493,6 +504,11 @@ reason and Try again). It is never polled, never kept across a reload and never 
 ### `NumberField`
 `value` (string; "" = empty), `onChange(digits)`, `label` (big: a visible label over a 64px box), `ariaLabel` (when no label), `error`, `describedBy` (the id of the page's message), `size` (`big` · `row`: 72×56 in front of a name), `maxLength` (4), `dim` (row at its pre-written 0).
 An open number box (bd-fmf24g.34): `inputMode="numeric"`, digits only (Urdu and Arabic-Indic digits become Western), all selected on focus so the first key replaces a 0, `dir="ltr"`. No − / + stepper. The limit and its message belong to the page, shown right under the box and tied by `describedBy`. Canvas: AssessCoverage (Pages), AssessTypes (per-type counts).
+
+### `TextLine`
+`value`, `onChange(text)`, `label` (a visible label over the box), `maxLength`, `describedBy?` (the id of the page's message), `testId?`.
+A one-line text box for her own words (56px, 16px text, `dir="auto"` so Urdu and English each run their own way), the label above it, tied
+to it. Its limit is `maxLength`; the words around it come from the screen. First used by the lesson-plan survey bar's "What was wrong".
 
 ### `ButtonWithReason`
 `label`, `reason` (words, or null when it works), `to` | `onPress`, `icon`, `testId`.

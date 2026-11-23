@@ -1519,6 +1519,96 @@ duplicate.
 
 **LOCAL-ONLY divergence**: `VENDOR DIVERGENCE` comments mark the template (flow loop) and renderer sites.
 
+### 3.40 Still over after §3.39: a tie goes to the shorter TEACH part — `render_lp.js` `renderDoc` (2026-11-18, bd-xkkw9.4)
+
+Builds on §3.37 and §3.39 (NIETE-only). Both move paints were kept only when over the caps by
+FEWER pages in total. A new `better(alt, cur)` keeps a move layout also when it is over by the
+SAME number of pages with fewer TEACH pages: TEACH sheds a page, Reference gains one (and may go
+one page over its own cap). Nothing is dropped; the teacher's teaching part is shorter.
+
+- Only ever asked about a lesson already over TEACH, so a lesson that fits never takes it.
+- Why: queue #147. After §3.39, 11 of the 183 stored English lessons (11-17 Nov) were still over
+  the TEACH cap; the moves were used up, but 5 fitted TEACH if Reference grew. Measured on this
+  change, real Chrome, all 183: 132 fitting lessons byte-identical; of the 51 over a cap, 7
+  change: 5 reach TEACH 4 (Reference 4; one PDF 7 -> 8 pages, the other four same length), 2 go
+  TEACH 6 -> 5 (same length). TEACH over its cap: 11 -> 6.
+- Tests: `tests/lp612/over-cap-homework-reference.test.js`, `tests/lp612/over-cap-flow-groups.test.js`.
+
+**LOCAL-ONLY divergence**: a `VENDOR DIVERGENCE` comment marks `better` in `renderDoc`.
+
+### 3.41 `brief_author_v3.md` + all three flash briefs — rule 13: a reading lesson times the reading before the questions (2026-11-19, bd-zrdvmi.17)
+
+ICT feedback sheet, Lesson Plan row 528: the G6 Urdu plan for chapter 10's reading lesson (pp.51-54)
+said "we will read the text" and went straight to the comprehension questions, with no time or steps
+for the reading ("اس میں ریڈنگ کا وقت شامل نہیں ہے"). No brief told the author to give the reading a
+step of its own. Rule 13 under "what teachers rejected" now does: a timed reading step before the
+questions, saying who reads, which pages, and what pupils look for. `tests/lp612/author-brief-reading-step.test.js`
+drives the real `authorLessonPlan()` and asserts the rule reaches the system prompt for the standard
+brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.28 and §3.38. Cached renders keep the old plan until re-authored.
+
+### 3.42 `brief_author_v3.md` + all three flash briefs — rule 14: a Science lesson carries a short hands-on activity, safe classroom materials only (2026-11-21, bd-ipoxhx.6)
+
+ICT feedback sheet, Lesson Plans (6 - 12) row 8: the G7 General Science plan for chapter 3, Immunity
+(pp.35-36), had no practical activity, and the reviewer asked for short hands-on activities in topics
+like it. No 6-12 Science plan checked carried one; materials were the board and the textbook. Amena
+ruled 21 Nov 2026 (queue #177): *"Yes, safe classroom materials only"*. Rule 14 under "what teachers
+rejected" now says: every General Science, Biology, Chemistry or Physics lesson carries one 5-8 minute
+hands-on activity inside the Activity step's existing minutes, rooted in the book's own activity or
+figure, with no-cost classroom materials listed in `materials`, and never a flame, heat, chemicals,
+blades/glass, blood or body fluids, mains electricity, tasting or lab kit. (The reviewer's own example,
+a blood-stained cloth under a microscope, is exactly what the rule rules out.)
+`tests/lp612/author-brief-science-hands-on.test.js` drives the real `authorLessonPlan()` and asserts the
+rule reaches the system prompt for the standard brief and each flash sibling (red 4/4 before, green after).
+
+**LOCAL-ONLY divergence**, as §3.38 and §3.41. Cached renders keep the old plan until re-authored.
+
+### 3.43 A `cycle` diagram type — `diagrams/types/cycle.js` (new), `types_manifest.json`, `visual_check.js`, `lib/template.js`, all four briefs (2026-11-22, bd-zrdvmi.51)
+
+ICT feedback sheet, Lesson Plans (6 - 12) row 7: the G9 Biology Krebs-cycle lesson drew its cycle on the
+end-of-lesson board as a mind map and lines, never as a cycle. It was fixed by hand for that one lesson
+(queue #177, a ring image placed as a `labelled_figure`); the cause was in the engine. The brief has long
+shown the model `{"type": "cycle"}` as its copy-this shape (`dg-water-cycle`, "EXACT BLOCK SHAPES") and the
+flash science brief lists `cycle` among the spec types, but no module drew it: `renderDiagram` threw
+"unknown diagram type", so a Krebs / water / carbon / cell cycle was either a placeholder or a straight
+`flow` that never closes.
+
+- `cycle.js`: stages on one ring, stage 1 at 12 o'clock, clockwise (`lang:"ur"` anticlockwise), curved
+  arrows box-edge to box-edge, the last back to the first; optional `centre` title and `arrowLabels[i]`
+  (stage i → i+1) pushed outward until they clear every box. Arcs are emitted as short `L` runs, not an
+  SVG `A`, because `measure.js` `flattenPath` reads only M/L/H/V/C/Q/Z. Aliases `ring`, `cyclic_process`,
+  `life_cycle`. Stage items take `label` (or flow's `title`) and up to two `lines`.
+- Manifest entry (count 32 → 33); V5 legality and `CANON` rows; `cycle` joins `flow`/`mindmap` in the
+  Biology and General Science process group (V6); badge labels "Cycle"/چکر, "Life cycle"/دورِ حیات.
+- Briefs: §4b.5 regenerated with `build_field_appendix.py` from the manifest MINUS the twelve grade 1-5
+  types (the vendored briefs' scoping; the hand-annotated `ray_diagram.f` cell kept); a copyable `cycle`
+  shape in §4b.4; the Biology and General Science rows name `cycle`; "one of the 20" → 21.
+
+`tests/lp612/diagram-cycle.test.js`: 14 red on origin/sandbox 2dd1190587, 14 green after. Roster suites
+(`diagram-roster`, `brief-field-coverage`, `visual-contract`, `vendor-integrity`) green.
+
+**LOCAL-ONLY divergence** until upstream (`lp_html/diagrams/`, `lp_author/visual_check.py`) carries the type;
+push the module up on the next re-sync. Cached renders keep their old boards until re-authored.
+
+### 3.44 Light print — `lib/template.js` `css()` (2026-11-23, bd-ain69z)
+
+ICT feedback sheet, Lesson Plan row 960, and Amena's 22 Nov break sweep: plans printed almost black on a
+school printer (title, section bars, "open with this question", check, coach and board-label boxes were solid
+navy / band fills, ~20% of every page near-black). Decision (queue #203): lighter, ICT and GB, English + Urdu.
+
+- One block at the end of the sheet (after every base rule, before the RTL-only block): those boxes and
+  `.s-o`/`.s-h` end `background:#fff` with dark ink; the colour survives as an INSET box-shadow edge (8px on
+  the reading-start side of a section bar). Never a border: a section bar one pixel taller can push a plan
+  onto another page (the §3 note on `.s-*` bands). Bar badges become a white chip with an ink ring.
+- Check (fixture `GK_g1_seg2.ur`, phone format): pages 2/2 EN and UR before and after, `pdftotext` length
+  identical, near-black share 19.5-22.7% → 2.7-3.5% per page. Script and pictures:
+  `06_Logs & Misc/Investigations/workspace/pk-ict/general/ict-feedback-sheet-sweep/runs/q203-light-print/`.
+- `tests/lp-v8/bd-ain69z-light-print.test.js`: 4 red before, green after.
+
+**LOCAL-ONLY divergence** until upstream `lp_html/lib/template.js` carries the block (the grades 1-5 v9
+PDFs are rendered there). Stored PDFs keep the dark look until re-rendered.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

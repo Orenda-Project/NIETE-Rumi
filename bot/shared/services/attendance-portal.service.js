@@ -15,13 +15,33 @@
  * { code: 'NOT_FOUND' } before a single row about the class is read or written. Errors the caller
  * can act on come back as { code }; anything else throws.
  *
+ * bd-33wxxi.10 — THE STAFF REGISTER (listId "staff"): a principal's teachers, as one more register.
+ * Only when the caller says it is allowed ({ staff: true } — the portal sends it for a principal the
+ * principal app is on for) AND her users row is role principal with a school, as WhatsApp's router
+ * asks. Every rule is WhatsApp's principal path, so the two channels agree about a day:
+ *
+ *   - WHO: attendance-write's loadStaffRoster (the school's live teachers, never herself);
+ *   - the WRITE: attendance-write's markTeachers (one row per teacher per day in
+ *     teacher_attendance_records, marked_by = her; leave type left to its default, casual);
+ *   - the MONTH: the register's staff rule, present ÷ (present + absent) — leave is excused —
+ *     computed with the register's own buildMatrix/monthlyStats, so the app's % is the Excel's;
+ *   - the REGISTER: the same builder and delivery, subject 'teacher', for her school.
+ *
+ * Without both, "staff" is NOT_FOUND and nothing is read or written; it is never sent to the class
+ * reads (student_lists.id is a uuid).
+ *
  * Every function takes its I/O as `deps` (defaultDeps() in production), so the rules are tested
  * without a database.
  */
 
 const { rosterLabel } = require('./classes/roster-label');
+// Pure (people and records in, numbers out): the staff month uses the register's own rule.
+const Register = require('./attendance-register.service');
 
 const SESSION_TYPE = 'full_day';
+
+/** bd-33wxxi.10 — the listId the principal's teacher register goes by. Never a uuid, so never a class. */
+const STAFF = 'staff';
 
 /** A YYYY-MM-DD that names a real calendar day, or null. */
 function realDate(value) {
@@ -49,13 +69,67 @@ function inWindow(date, deps) {
 
 const ids = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === 'string') : []);
 
-/** Her classes, each with its roster size and the status of one day (today by default). */
-async function listClasses({ userId, date } = {}, deps = defaultDeps()) {
+/**
+ * bd-33wxxi.10 — her school, when the staff register is hers to open: the caller allowed it AND her
+ * users row is a principal's with a school (WhatsApp's router asks the same). Else null.
+ */
+async function staffSchool({ userId, staff }, deps) {
+  if (staff !== true || !userId) return null;
+  const me = await deps.principalSchool(userId);
+  return me && me.schoolId ? me : null;
+}
+
+/** Present / absent / leave over teacher_attendance_records rows. */
+function staffTally(records) {
+  const tally = { present: 0, absent: 0, leave: 0 };
+  for (const r of records || []) if (tally[r.status] !== undefined) tally[r.status] += 1;
+  return tally;
+}
+
+/** The staff register as the selector shows it: her school's teachers and one day's status. */
+async function staffEntry(userId, school, day, deps) {
+  const [people, label, records] = await Promise.all([
+    deps.staffRoster(school.schoolId, userId),
+    deps.schoolName(school.schoolId),
+    deps.staffDay(school.schoolId, day),
+  ]);
+  const marked = (records || []).length > 0;
+  const t = staffTally(records);
+  return {
+    listId: STAFF,
+    label,
+    gradeCode: null,
+    section: null,
+    subjectCodes: [],
+    students: (people || []).length,
+    marked,
+    present: marked ? t.present : null,
+    absent: marked ? t.absent : null,
+    leave: marked ? t.leave : null,
+  };
+}
+
+/**
+ * Her classes, each with its roster size and the status of one day (today by default). A principal
+ * whose staff register is allowed gets it FIRST (bd-33wxxi.10), then her classes as a teacher's.
+ */
+async function listClasses({ userId, date, staff } = {}, deps = defaultDeps()) {
   const day = date == null ? deps.regionToday() : realDate(date);
   if (!day || !inWindow(day, deps)) return { code: 'BAD_DATE' };
 
-  const lists = (await deps.lists(userId)) || [];
-  if (!lists.length) return { date: day, classes: [] };
+  const school = await staffSchool({ userId, staff }, deps);
+  const [lists, staffRow] = await Promise.all([
+    deps.lists(userId),
+    school ? staffEntry(userId, school, day, deps) : Promise.resolve(null),
+  ]);
+  const head = staffRow ? [staffRow] : [];
+  const classRows = await classEntries(userId, lists || [], day, deps);
+  return { date: day, classes: [...head, ...classRows] };
+}
+
+/** Her classes' rows for the selector, for one day. */
+async function classEntries(userId, lists, day, deps) {
+  if (!lists.length) return [];
 
   const classIds = lists.filter((l) => l.class_id).map((l) => l.class_id);
   const [counts, meta, sessions] = await Promise.all([
@@ -65,29 +139,36 @@ async function listClasses({ userId, date } = {}, deps = defaultDeps()) {
   ]);
   const byList = new Map((sessions || []).map((s) => [s.list_id, s]));
 
-  return {
-    date: day,
-    classes: lists.map((l) => {
-      const m = (l.class_id && meta.get(l.class_id)) || {};
-      const s = byList.get(l.id);
-      return {
-        listId: l.id,
-        label: rosterLabel(l),
-        gradeCode: m.gradeCode || null,
-        section: m.section || l.section || null,
-        subjectCodes: m.subjectCodes || [],
-        students: counts.get(l.id) || 0,
-        marked: !!s,
-        present: s ? s.present_count || 0 : null,
-        absent: s ? s.absent_count || 0 : null,
-        leave: s ? s.leave_count || 0 : null,
-      };
-    }),
-  };
+  return lists.map((l) => {
+    const m = (l.class_id && meta.get(l.class_id)) || {};
+    const s = byList.get(l.id);
+    return {
+      listId: l.id,
+      label: rosterLabel(l),
+      gradeCode: m.gradeCode || null,
+      section: m.section || l.section || null,
+      subjectCodes: m.subjectCodes || [],
+      students: counts.get(l.id) || 0,
+      marked: !!s,
+      present: s ? s.present_count || 0 : null,
+      absent: s ? s.absent_count || 0 : null,
+      leave: s ? s.leave_count || 0 : null,
+    };
+  });
 }
 
-/** The children of her class, in roll order. */
-async function roster({ userId, listId } = {}, deps = defaultDeps()) {
+/** The children of her class, in roll order. The staff register: her school's teachers, as WhatsApp names them. */
+async function roster({ userId, listId, staff } = {}, deps = defaultDeps()) {
+  if (listId === STAFF) {
+    const school = await staffSchool({ userId, staff }, deps);
+    if (!school) return { code: 'NOT_FOUND' };
+    const [people, label] = await Promise.all([deps.staffRoster(school.schoolId, userId), deps.schoolName(school.schoolId)]);
+    return {
+      listId: STAFF,
+      label,
+      students: (people || []).map((p) => ({ id: p.id, name: deps.personName(p), roll: null })),
+    };
+  }
   const list = await deps.ownList(userId, listId);
   if (!list) return { code: 'NOT_FOUND' };
   const people = (await deps.loadStudentRoster(listId, list)) || [];
@@ -99,7 +180,8 @@ async function roster({ userId, listId } = {}, deps = defaultDeps()) {
 }
 
 /** Mark her class for one day — by exception, through the one write path. */
-async function mark({ userId, listId, date, absentIds, leaveIds } = {}, deps = defaultDeps()) {
+async function mark({ userId, listId, date, absentIds, leaveIds, staff } = {}, deps = defaultDeps()) {
+  if (listId === STAFF) return markStaff({ userId, date, absentIds, leaveIds, staff }, deps);
   const day = realDate(date);
   if (!day || !inWindow(day, deps)) return { code: 'BAD_DATE' };
   const list = await deps.ownList(userId, listId);
@@ -122,8 +204,46 @@ async function mark({ userId, listId, date, absentIds, leaveIds } = {}, deps = d
   return { date: day, present: s.present || 0, absent: s.absent || 0, leave: s.leave || 0, replaced: !!result.replaced };
 }
 
+/**
+ * bd-33wxxi.10 — mark her teachers for one day through WhatsApp's principal write (markTeachers):
+ * one row per teacher, her as the marker, at her school. Only teachers on her staff roster can be
+ * named; the leave type is left to the write's default (casual), as WhatsApp's Flow does.
+ */
+async function markStaff({ userId, date, absentIds, leaveIds, staff }, deps) {
+  const school = await staffSchool({ userId, staff }, deps);
+  if (!school) return { code: 'NOT_FOUND' };
+  const day = realDate(date);
+  if (!day || !inWindow(day, deps)) return { code: 'BAD_DATE' };
+
+  const people = (await deps.staffRoster(school.schoolId, userId)) || [];
+  if (!people.length) return { code: 'EMPTY_ROSTER' };
+
+  const onRoster = new Set(people.map((p) => p.id));
+  const result = await deps.markTeachers({
+    principalUserId: userId,
+    schoolId: school.schoolId,
+    date: day,
+    staff: people,
+    absentIds: ids(absentIds).filter((id) => onRoster.has(id)),
+    leaveIds: ids(leaveIds).filter((id) => onRoster.has(id)),
+  });
+  const s = result.summary || {};
+  return { date: day, present: s.present || 0, absent: s.absent || 0, leave: s.leave || 0, replaced: !!result.replaced };
+}
+
 /** One day of her class: whether it was marked, the counts, and each child's status. */
-async function day({ userId, listId, date } = {}, deps = defaultDeps()) {
+async function day({ userId, listId, date, staff } = {}, deps = defaultDeps()) {
+  if (listId === STAFF) {
+    const school = await staffSchool({ userId, staff }, deps);
+    if (!school) return { code: 'NOT_FOUND' };
+    const d0 = realDate(date);
+    if (!d0) return { code: 'BAD_DATE' };
+    const records = (await deps.staffDay(school.schoolId, d0)) || [];
+    if (!records.length) return { date: d0, marked: false, present: null, absent: null, leave: null, statuses: {} };
+    const statuses = {};
+    for (const r of records) statuses[r.teacher_id] = r.status;
+    return { date: d0, marked: true, ...staffTally(records), statuses };
+  }
   const d = realDate(date);
   if (!d) return { code: 'BAD_DATE' };
   const list = await deps.ownList(userId, listId);
@@ -149,7 +269,8 @@ async function day({ userId, listId, date } = {}, deps = defaultDeps()) {
  * marked, lowest first. Leave is not present — the register's student rule (a child on leave was
  * not in the room). A child never marked this month has no percentage.
  */
-async function month({ userId, listId, month: m } = {}, deps = defaultDeps()) {
+async function month({ userId, listId, month: m, staff } = {}, deps = defaultDeps()) {
+  if (listId === STAFF) return staffMonth({ userId, month: m, staff }, deps);
   const bounds = monthOf(m);
   if (!bounds) return { code: 'BAD_MONTH' };
   const list = await deps.ownList(userId, listId);
@@ -200,8 +321,72 @@ async function month({ userId, listId, month: m } = {}, deps = defaultDeps()) {
   return { month: m, days, students };
 }
 
+/**
+ * bd-33wxxi.10 — a month of her teachers under the REGISTER'S STAFF RULE: present ÷ (present + absent),
+ * leave excused. Computed with the register's own buildMatrix + monthlyStats, so each teacher's % here is
+ * the % on the Excel sheet. A day's `total` is that day's denominator (present + absent), which is what
+ * the month calendar tints by. A teacher with no present or absent day this month has no percentage.
+ */
+async function staffMonth({ userId, month: m, staff }, deps) {
+  const school = await staffSchool({ userId, staff }, deps);
+  if (!school) return { code: 'NOT_FOUND' };
+  const bounds = monthOf(m);
+  if (!bounds) return { code: 'BAD_MONTH' };
+
+  const [people, records] = await Promise.all([
+    deps.staffRoster(school.schoolId, userId),
+    deps.staffMonth(school.schoolId, bounds.start, bounds.end),
+  ]);
+
+  const byDate = new Map();
+  for (const r of records || []) {
+    if (!byDate.has(r.date)) byDate.set(r.date, []);
+    byDate.get(r.date).push(r);
+  }
+  const days = [...byDate.entries()]
+    .map(([date, rows]) => {
+      const t = staffTally(rows);
+      return { date, ...t, total: t.present + t.absent };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const matrix = Register.buildMatrix(people || [], records || []);
+  const students = (people || [])
+    .map((p, order) => {
+      const st = Register.monthlyStats((matrix[p.id] || {}).days, { subject: 'teacher' });
+      const counted = st.present + st.absent;
+      return {
+        id: p.id,
+        name: deps.personName(p),
+        roll: null,
+        present: st.present,
+        marked: counted,
+        pct: counted ? st.percentage : null,
+        order,
+      };
+    })
+    .sort((a, b) => {
+      if (a.pct === null && b.pct !== null) return 1;
+      if (b.pct === null && a.pct !== null) return -1;
+      if (a.pct !== b.pct) return a.pct - b.pct;
+      return a.order - b.order;
+    })
+    .map(({ order, ...s }) => s); // eslint-disable-line no-unused-vars
+
+  return { month: m, days, students };
+}
+
 /** The month's Excel register — the same builder WhatsApp sends. */
-async function registerFile({ userId, listId, month: m } = {}, deps = defaultDeps()) {
+async function registerFile({ userId, listId, month: m, staff } = {}, deps = defaultDeps()) {
+  if (listId === STAFF) {
+    const school = await staffSchool({ userId, staff }, deps);
+    if (!school) return { code: 'NOT_FOUND' };
+    const b = monthOf(m);
+    if (!b) return { code: 'BAD_MONTH' };
+    const { people, label, records } = await deps.staffRegisterParts(school.schoolId, userId, b);
+    const buf = await deps.buildRegister({ title: label, subject: 'teacher' }, b.month, b.year, people, records);
+    return { fileName: deps.registerFileName(label, b.month, b.year, 'teacher'), base64: Buffer.from(buf).toString('base64') };
+  }
   const bounds = monthOf(m);
   if (!bounds) return { code: 'BAD_MONTH' };
   const list = await deps.ownList(userId, listId);
@@ -209,19 +394,29 @@ async function registerFile({ userId, listId, month: m } = {}, deps = defaultDep
 
   const { people, label, records } = await deps.registerParts(listId, userId, bounds);
   const buffer = await deps.buildRegister({ title: label, subject: 'student' }, bounds.month, bounds.year, people, records);
-  return { fileName: deps.registerFileName(label, bounds.month, bounds.year), base64: Buffer.from(buffer).toString('base64') };
+  return { fileName: deps.registerFileName(label, bounds.month, bounds.year, 'student'), base64: Buffer.from(buffer).toString('base64') };
 }
 
 /** Send the month's register to her WhatsApp — the existing delivery. This month runs up to today. */
-async function sendRegister({ userId, listId, month: m } = {}, deps = defaultDeps()) {
+async function sendRegister({ userId, listId, month: m, staff } = {}, deps = defaultDeps()) {
+  let subject = 'student';
+  let targetId = listId;
+  if (listId === STAFF) {
+    const school = await staffSchool({ userId, staff }, deps);
+    if (!school) return { code: 'NOT_FOUND' };
+    subject = 'teacher';
+    targetId = school.schoolId;
+  }
   const bounds = monthOf(m);
   if (!bounds) return { code: 'BAD_MONTH' };
-  const list = await deps.ownList(userId, listId);
-  if (!list) return { code: 'NOT_FOUND' };
+  if (subject === 'student') {
+    const list = await deps.ownList(userId, listId);
+    if (!list) return { code: 'NOT_FOUND' };
+  }
 
   const today = deps.regionToday();
   const date = today.slice(0, 7) === m ? today : bounds.end;
-  const out = await deps.deliverRegister({ userId, subject: 'student', targetId: listId, date });
+  const out = await deps.deliverRegister({ userId, subject, targetId, date });
   return out && out.delivered ? { delivered: true } : { delivered: false, error: (out && out.error) || 'not_delivered' };
 }
 
@@ -229,9 +424,8 @@ async function sendRegister({ userId, listId, month: m } = {}, deps = defaultDep
 function defaultDeps() {
   const supabase = require('../config/supabase');
   const Marking = require('../routes/attendance-marking-endpoint');
-  const { markStudents } = require('./attendance-write.service');
+  const { markStudents, markTeachers, loadStaffRoster, personName } = require('./attendance-write.service');
   const Delivery = require('./attendance-register-delivery.service');
-  const Register = require('./attendance-register.service');
 
   return {
     regionToday: () => Marking.regionToday(),
@@ -343,12 +537,60 @@ function defaultDeps() {
       return { people, label, records };
     },
     buildRegister: (...args) => Register.createMonthlyRegisterBuffer(...args),
-    registerFileName: (label, m, y) => Register.formatMonthlyFileName(label, m, y, 'student'),
+    registerFileName: (label, m, y, subject = 'student') => Register.formatMonthlyFileName(label, m, y, subject),
     deliverRegister: (args) => Delivery.deliverRegister(args),
+
+    /* bd-33wxxi.10 — the staff register: WhatsApp's principal path, read and written as it does. */
+
+    /** Her school when her users row is a principal's (WhatsApp's router: role === 'principal' + school_id). */
+    async principalSchool(userId) {
+      const { data, error } = await supabase.from('users').select('id, role, school_id').eq('id', userId).maybeSingle();
+      if (error) throw new Error(`users read failed: ${error.message}`);
+      return data && data.role === 'principal' && data.school_id ? { schoolId: data.school_id } : null;
+    },
+    /** What the register calls her school (attendance-register-delivery loadSchool's read and fallback). */
+    async schoolName(schoolId) {
+      const { data } = await supabase.from('schools').select('name').eq('id', schoolId).maybeSingle();
+      return (data && data.name) || 'Your school';
+    },
+    staffRoster: (schoolId, userId) => loadStaffRoster(schoolId, userId),
+    personName,
+    markTeachers,
+
+    /** One day of the school's teachers — the rows WhatsApp's "already marked" check reads. */
+    async staffDay(schoolId, date) {
+      const { data, error } = await supabase
+        .from('teacher_attendance_records')
+        .select('teacher_id, status, date')
+        .eq('school_id', schoolId)
+        .eq('date', date);
+      if (error) throw new Error(`teacher_attendance_records read failed: ${error.message}`);
+      return data || [];
+    },
+
+    /** A month of the school's teachers — the register's read (Delivery.loadMonthRecords), but a failure throws. */
+    async staffMonth(schoolId, start, end) {
+      const { data, error } = await supabase
+        .from('teacher_attendance_records')
+        .select('teacher_id, date, status')
+        .eq('school_id', schoolId)
+        .gte('date', start)
+        .lte('date', end);
+      if (error) throw new Error(`teacher_attendance_records read failed: ${error.message}`);
+      return data || [];
+    },
+
+    async staffRegisterParts(schoolId, userId, bounds) {
+      const [{ people, label }, records] = await Promise.all([
+        Delivery.loadRoster('teacher', schoolId, userId),
+        Delivery.loadMonthRecords('teacher', schoolId, bounds),
+      ]);
+      return { people, label, records };
+    },
   };
 }
 
 module.exports = {
   listClasses, roster, mark, day, month, registerFile, sendRegister,
-  realDate, monthOf, defaultDeps,
+  realDate, monthOf, defaultDeps, STAFF,
 };

@@ -14,8 +14,9 @@ const ROW = `flex min-h-[56px] w-full items-center gap-3 border-t border-[#f1f2f
 function Words({ o }: { o: Option }) {
   return (
     <span className="flex min-w-0 flex-1 flex-col">
-      <span className="text-[16px] font-semibold text-[#111827]">{o.label}</span>
-      {o.subtitle ? <span className="text-[13px] text-[#6b7280]">{o.subtitle}</span> : null}
+      {/* bd-snkn32.57 — dir auto: an English outcome on an Urdu page (or the reverse) reads in its own direction. */}
+      <span dir="auto" className="text-[16px] font-semibold text-[#111827]">{o.label}</span>
+      {o.subtitle ? <span dir="auto" className="text-[13px] text-[#6b7280]">{o.subtitle}</span> : null}
     </span>
   );
 }

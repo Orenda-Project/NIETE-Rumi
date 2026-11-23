@@ -1,6 +1,6 @@
 # fflp — Free-form lesson-plan engine seam, default OFF behind app_settings.freeform_lp
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=31fa25d28d3c gen=a8b7e07544ab overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=9b8eace3b854 gen=fe6340cea0fd overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — lazy single entry for every cross-module call
@@ -15,7 +15,7 @@
 | `switch.js` | Reads app_settings.freeform_lp, the default-OFF switch of the free-form lesson-plan engine |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/shared/handlers/text-message.handler.js:3023:89db85cc` · `bot/workers/lesson-plan-generation.worker.js:196:075a3ddf`
+- `index.js` ← imported by `bot/shared/handlers/text-message.handler.js:3085:89db85cc` · `bot/workers/lesson-plan-generation.worker.js:201:075a3ddf`
 - `catalogue-match.js` ← imported by `bot/shared/services/fflp/index.js:71:85c8e0de`
 - `switch.js` ← imported by `bot/shared/services/fflp/index.js:70:ed433811`
 

@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { failureLabel } from '../assessment/failure';
 import { ASSESSMENT } from '../assessment/copy';
 import { OBSERVE } from '../../coach/observe/copy';
-import { failureWords, observationLine } from '../../coach/observe/format';
+import { failureWords, observationLine, unreadablePart } from '../../coach/observe/format';
 import { useCopy, useLang } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { teacherPath } from '../routes';
@@ -177,6 +177,14 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false, local = fa
   const finish = (ids: readonly string[], how: 'closed' | 'expired') => noticeTracker.announced(ids, how);
 
   const retry = async (id: string) => {
+    // bd-tymy1n: a coach's observation stopped on a file this phone could not read. The same files would only fail
+    // again: her Sending page (the item's own page) says which, with Send without it.
+    const item = items.find((i) => i.id === id);
+    if (item && item.kind === 'observation' && unreadablePart(item.errorCode) && item.waitHref) {
+      noticeTracker.settle(id);
+      navigate(item.waitHref);
+      return;
+    }
     const res = await noticeTracker.retry(id);
     if ('error' in res) {
       const observation = id.startsWith('observation:');

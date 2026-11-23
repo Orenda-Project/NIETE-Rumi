@@ -2,7 +2,7 @@
  * Portal Command Handler — /portal opens the portal, already signed in (bd-x7aprz.3).
  *
  * A registered adult gets ONE message: a short line and a button whose link is her signed /go link
- * (services/app-login-link.js — her user id, encrypted, 24 h, re-tappable). The portal turns it into a
+ * (services/app-login-link.js — her user id, encrypted, 7 days, re-tappable). The portal turns it into a
  * session and lands her on her home (dashboard/routes/app-login.routes.js). No password, no set-up step.
  *
  * What this replaced: a 7-day set-up link (portal-invite.service) for anyone without a password, and
@@ -24,13 +24,13 @@ const { portalUrl: getPortalUrl } = require('../config/branding');
 // NIETE stays Latin inside the Urdu line, isolated (LRI … PDI) so it cannot reorder the sentence.
 const COPY = Object.freeze({
   en: {
-    body: 'Open your NIETE portal. This link works for 24 hours.',
+    body: 'Open your NIETE portal. This link works for 7 days.',
     button: 'Open portal',
     unavailable: 'Sorry, the portal link is not available right now. Please try again in a few minutes.',
     registerFirst: 'Please register first. Type /register to get started.',
   },
   ur: {
-    body: 'اپنا ⁦NIETE⁩ پورٹل کھولیں۔ یہ لنک ۲۴ گھنٹے چلتا ہے۔',
+    body: 'اپنا ⁦NIETE⁩ پورٹل کھولیں۔ یہ لنک ۷ دن چلتا ہے۔',
     button: 'پورٹل کھولیں',
     unavailable: 'معذرت، پورٹل کا لنک ابھی دستیاب نہیں۔ براہ کرم کچھ منٹ بعد دوبارہ کوشش کریں۔',
     registerFirst: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ ⁦/register⁩ ٹائپ کریں۔',

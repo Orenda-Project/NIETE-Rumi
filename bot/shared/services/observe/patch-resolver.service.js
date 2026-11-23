@@ -71,6 +71,39 @@ function bandsOf(user = {}) {
   return teacherLevelOf(user);
 }
 
+// ── the picker label ───────────────────────────────────────────────────
+
+/** Manage teachers' word for a principal; every picker prints this same word. */
+const PRINCIPAL_LABEL = 'Principal';
+/** The words the level screen already offers (TEACHER_EDIT_LEVEL: Primary / Middle / High). Latin: picker chrome. */
+const BAND_WORD = Object.freeze({ PRIMARY: 'Primary', MIDDLE: 'Middle', HIGH: 'High' });
+
+/**
+ * bd-r2uzg1.18.5 — EVERY band, for a coach to read: 'Primary + Middle + High'. '' when none is on record.
+ *
+ * The pickers printed bandOf() — the lowest band only — so a teacher of all three read as "primary"
+ * while her profile listed three, and coaches re-edited a record that was right (prod, 19 Nov: 2,160
+ * rostered teachers and principals hold more than one level). Longest value is 23 characters, inside
+ * every field it lands in (row description 30, row metadata 80).
+ */
+function levelsLabelOf(bands = []) {
+  return (Array.isArray(bands) ? bands : []).map((b) => BAND_WORD[b]).filter(Boolean).join(' + ');
+}
+
+/**
+ * bd-r2uzg1.18.5 — the one label a picker prints for a person: 'Principal' for a principal, else every band.
+ *
+ * Manage teachers printed roleLabel, the Observe list printed the band, so after a coach changed a role
+ * to Principal one screen said Principal and the other said PRIMARY. One function, every picker.
+ * Accepts a shaped patch person (isPrincipal, levelsLabel), a leader-source row (is_principal,
+ * levels_label) or a raw users row (role, teacher_level).
+ */
+function pickerLabelOf(p = {}) {
+  if (!p) return '';
+  if (p.isPrincipal || p.is_principal || p.role === 'principal') return PRINCIPAL_LABEL;
+  return p.levelsLabel || p.levels_label || levelsLabelOf(bandsOf(p));
+}
+
 // ── shaping ────────────────────────────────────────────────────────────
 
 const _norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
@@ -160,11 +193,14 @@ function shapePatchRow(r = {}) {
     phone: r.phone_number || null,
     role: r.role || null,
     isPrincipal,
-    roleLabel: isPrincipal ? 'Principal' : '',
+    roleLabel: isPrincipal ? PRINCIPAL_LABEL : '',
     schoolId: r.school_id || null,
     schoolName: r.school_name || null,
     emis: r.emis == null ? null : String(r.emis),
+    // ONE band, for code that needs one value (toLeaderSourceRow.level, the voice-call roster).
     band: bandOf(r),
+    // Every band, for a coach to read. Pickers print pickerLabelOf(), never `band`.
+    levelsLabel: levelsLabelOf(bandsOf(r)),
   };
 }
 
@@ -311,7 +347,7 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
  * Operator, 15 Nov: "a principal linked to a school (users.school_id or any leader_schools row) sees ALL teachers of
  * that school". On prod that day 477 of 522 principals held no leader_schools row (287 of them with a users.school_id
  * that has teachers), so their /observe picker was empty. Only a principal (config/role-features
- * observesOwnSchoolAtOnce): a coach's own users.school_id is never added. Null when they already hold that school,
+ * observesOwnSchool): a coach's own users.school_id is never added. Null when they already hold that school,
  * when it has no schools row, and on any failed read: never a guess.
  *
  * Keyed the way a holding of that school would be: 'niete:' + EMIS, else the school's name, so the
@@ -320,9 +356,9 @@ async function ownSchoolPatch(supabase, principalId, schoolId) {
 async function ownSchoolHolding(supabase, leaderUserId, held = []) {
   if (!leaderUserId) return null;
   try {
-    const { observesOwnSchoolAtOnce } = require('../../config/role-features');
+    const { observesOwnSchool } = require('../../config/role-features');
     const { data: me, error } = await supabase.from('users').select('role, school_id').eq('id', leaderUserId).maybeSingle();
-    if (error || !me || !me.school_id || !observesOwnSchoolAtOnce(me)) return null;
+    if (error || !me || !me.school_id || !observesOwnSchool(me)) return null;
     if ((held || []).some((h) => h && h.school_id === me.school_id)) return null;
     const { data: school, error: sErr } = await supabase.from('schools').select('id, name, emis').eq('id', me.school_id).maybeSingle();
     if (sErr || !school) return null;
@@ -423,6 +459,8 @@ function toLeaderSourceRow(p = {}) {
     // "0 teachers" for GB Hoto and Deosai while tapping the school listed them.
     school_ext_id: schoolKeyOf(p),
     level: p.band ? String(p.band).toUpperCase() : null,
+    // bd-r2uzg1.18.5: every band, for display ('Primary + Middle + High'); `level` above stays one value.
+    levels_label: p.levelsLabel || '',
     is_principal: !!p.isPrincipal,
   };
 }
@@ -438,6 +476,9 @@ module.exports = {
   bandOf,
   schoolIdsForHoldings,
   bandsOf,
+  levelsLabelOf,
+  pickerLabelOf,
+  PRINCIPAL_LABEL,
   shapePatchRow,
   fullNameOf,
   displayNameOf,

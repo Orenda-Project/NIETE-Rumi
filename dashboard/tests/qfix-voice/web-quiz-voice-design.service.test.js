@@ -1,0 +1,337 @@
+/**
+ * Web quiz page voice, the screen a lost clip leaves behind (public/wq/wq.js + wq.css, web_quiz_voice_v2).
+ *
+ * The walk on sandbox (Nov 2026) found three things the voice fix still got wrong on a 360 px phone:
+ * - "big words" were 24 px against the normal 23 px, and the answer words did not change at all;
+ * - every answer's speaker was 44 px, under the 48 px a child's thumb needs;
+ * - an iPhone that cannot play Ogg Opus still downloaded every Ogg clip the lookahead warmed, then the mp3 too.
+ *
+ * The lookahead test runs the page's OWN voice block and lookahead block, cut from the shipped file, in a vm with
+ * fetch and timers faked, so it executes the real warmClips().
+ */
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const WQ = path.join(__dirname, '..', '..', 'public', 'wq');
+const SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
+const CSS = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''); // comments are not selectors
+const VOICE = SRC.slice(SRC.indexOf('  var player = null;'), SRC.indexOf('  /* ---------------- tiny DOM helpers'));
+const WARM = SRC.slice(SRC.indexOf('  var warmed = {};'), SRC.indexOf('  /* Late clips:'));
+
+const KEY = 'quiz-audio/production/0b8f0c39-5d3c-4a7e-9a55-2d1f9e0a1b2c/en/7d1e2c3b-4a5f-4e6d-8c7b-9a8b7c6d5e4f';
+const ogg = (name) => `https://acct0123.r2.cloudflarestorage.com/digital-coach-audio/${KEY}/${name}.ogg?X-Amz-Signature=abc`;
+const QS = [0, 1, 2].map((i) => ({ qid: `q${i}aaaaaaaa`, audio: { q: ogg(`q${i}`), opts: [ogg(`o${i}a`), ogg(`o${i}b`)] } }));
+
+function lookahead({ v2, safari }) {
+  const fetched = [];
+  const timers = [];
+  const canPlay = (t) => (safari && /ogg/.test(t) ? '' : 'probably');
+  const ctx = {
+    LANG: 'en', VLANG: 'en', SOUND: true, ONE_VOICE: true, GAP_PHONE: true, GAP_SLOW: true, QS,
+    B: { voice_v2: v2 },
+    ROOT: { classList: { add() {}, remove() {} } },
+    speakable: () => true,
+    ev() {},
+    jv: (p) => p, JUG_DIR: '/wq/',
+    WQI: { imageUrls: () => [] },
+    Image: function Image() {},
+    document: { visibilityState: 'visible', createElement: () => ({ canPlayType: canPlay }), addEventListener() {}, removeEventListener() {} },
+    location: { origin: 'https://quiz.example.test' },
+    navigator: { connection: { effectiveType: '4g', saveData: false } },
+    Date, URL,
+    Audio: function Audio() {},
+    speechSynthesis: { speak() {}, cancel() {}, getVoices: () => [] },
+    fetch: (u) => { fetched.push(u); return Promise.resolve(); },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(`${VOICE}\n${WARM}\nthis.ahead = ahead;`, ctx);
+  ctx.ahead(0);
+  timers.filter((t) => t.ms === 1500).forEach((t) => t.fn());
+  return fetched.slice().sort(); // the next two questions first, then the rest on 4G: the order is not the point
+}
+const STORED = QS.flatMap((q) => [q.audio.q, ...q.audio.opts]).sort();
+
+describe('web_quiz_voice_v2 on: the lookahead warms the clip the phone will actually play', () => {
+  test('a phone that cannot play Ogg Opus warms the mp3 twins from our origin, and no Ogg at all', () => {
+    const fetched = lookahead({ v2: true, safari: true });
+    expect(fetched.length).toBe(9);
+    expect(fetched.filter((u) => /\.ogg(\?|$)/.test(u))).toEqual([]);
+    expect(fetched).toContain(`/wq/clip/${KEY}/q1.mp3`);
+  });
+
+  test('a phone that plays Ogg Opus warms the stored clips, untouched', () => {
+    expect(lookahead({ v2: true, safari: false })).toEqual(STORED);
+  });
+
+  test('off: today\'s lookahead (the stored clips, whatever the phone)', () => {
+    expect(lookahead({ v2: false, safari: true })).toEqual(STORED);
+  });
+});
+
+// The declarations of the last rule in wq.css whose selector list contains exactly `sel` (later rules win at equal
+// specificity, and every selector checked here is the most specific one for its element).
+function rule(sel) {
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m;
+  let out = null;
+  while ((m = re.exec(CSS))) {
+    if (m[1].split(',').map((s) => s.trim()).includes(sel)) out = m[2];
+  }
+  return out;
+}
+const px = (decl, prop) => {
+  const m = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*(?:var\\(--tap\\)|(\\d+)px)`).exec(decl || '');
+  if (!m) return null;
+  return m[1] ? Number(m[1]) : 48; // --tap is 48px (wq.css :root)
+};
+
+describe('a clip the child did not hear leaves words big enough to read alone (wq-novoice)', () => {
+  test('the --tap token is still 48px', () => {
+    expect(/--tap:48px/.test(CSS)).toBe(true);
+  });
+
+  test('English: the question is at least 30 px and each answer at least 26 px (normal: 23 and 21)', () => {
+    expect(px(rule('.wq-novoice .wq-qtext'), 'font-size')).toBeGreaterThanOrEqual(30);
+    expect(px(rule('.wq-novoice .wq-opt'), 'font-size')).toBeGreaterThanOrEqual(26);
+  });
+
+  test('Urdu (the polished look outranks the plain rule): question at least 30 px, answers at least 26 px', () => {
+    expect(px(rule('html.wq-ur2[lang=ur] .wq-novoice .wq-qtext'), 'font-size')).toBeGreaterThanOrEqual(30);
+    expect(px(rule('html.wq-ur2[lang=ur] .wq-novoice .wq-opt'), 'font-size')).toBeGreaterThanOrEqual(26);
+  });
+});
+
+describe('every answer\'s own speaker is a full 48 px tap target', () => {
+  test('.wq-opt .wq-ohear is 48 × 48', () => {
+    const d = rule('.wq-opt .wq-ohear');
+    expect(px(d, 'width')).toBeGreaterThanOrEqual(48);
+    expect(px(d, 'height')).toBeGreaterThanOrEqual(48);
+  });
+});
+
+describe('a small text button (.wq-linkbtn) is still a 48 px tap target', () => {
+  test('English rule: min-height 48', () => {
+    expect(px(rule('.wq-linkbtn'), 'min-height')).toBeGreaterThanOrEqual(48);
+  });
+
+  test('Urdu rule (outranks the plain one): min-height 48', () => {
+    expect(px(rule('html.wq-ur2[lang=ur] .wq-linkbtn'), 'min-height')).toBeGreaterThanOrEqual(48);
+  });
+});
+
+// The cascade itself, not one rule (tests/qfix-voice/cascade.js): every matching rule ranked by !important,
+// specificity, then source order; @media rules count when they hold on a 360 × 740 phone.
+const { CSS_ROOT, computed, node, root } = require('./cascade');
+// html > body > #wq (the page ROOT, which carries wq-novoice: wq.js `ROOT.classList.add('wq-novoice')`) > card > the words
+function stemPath({ lang, ur2, novoice, listen }) {
+  return [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang }),
+    node('body'),
+    node('div', novoice ? ['wq-novoice'] : [], {}, 'wq'),
+    node('div', listen ? ['wq-qcard', 'wq-listen'] : ['wq-qcard']),
+    node('p', listen ? ['wq-qtext', 'wq-qsmall'] : ['wq-qtext']),
+  ];
+}
+const fontPx = (opts) => {
+  const r = computed(stemPath(opts), 'font-size');
+  return r && /^\d+px$/.test(r.value) ? Number.parseInt(r.value, 10) : r && r.value;
+};
+
+describe('a wrong pick on a picture tile draws no underline through it (the juice kit, web_quiz_juice)', () => {
+  // qa-design walk, sandbox Nov 2026: the kit marks a picked answer with an orange border AND an underline 4 px under its
+  // text. On a picture tile the underline runs through the picture: it cut the tails of ع and ج on a Qaida letter card
+  // and ran into the dots under ب and پ, the marks that tell the letters apart. A tile keeps the border, not the line.
+  const JUICE = root('wq-juice.css');
+  const picked = (button) => [node('html', ['wq-juice'], { lang: 'ur' }), node('body'), node('div', [], {}, 'wq'), ...button];
+  const tile = [node('div', ['wq-pgrid']), node('button', ['wq-opt', 'wq-ptile', 'wq-s1', 'wq-picked'])];
+  const row = [node('div', ['wq-opts']), node('button', ['wq-opt', 'wq-s1', 'wq-picked'])];
+
+  test('a picked picture tile (a letter card among them) has no text decoration', () => {
+    expect(computed(picked(tile), 'text-decoration', [CSS_ROOT, JUICE]).value).toBe('none');
+  });
+
+  test("a picked word answer keeps the kit's underline, and every picked answer keeps its orange border", () => {
+    expect(computed(picked(row), 'text-decoration', [CSS_ROOT, JUICE]).value).toMatch(/^underline/);
+    expect(computed(picked(tile), 'border-color', [CSS_ROOT, JUICE]).value).toMatch(/^#E65100/i);
+    expect(computed(picked(row), 'border-color', [CSS_ROOT, JUICE]).value).toMatch(/^#E65100/i);
+  });
+});
+
+describe('a long Urdu "listen" question with no voice still leaves its answers on a 360 × 740 screen', () => {
+  // qa-design walk, sandbox Nov 2026: at 30 px a 106-character Urdu listen stem took 462 px and the first answer started
+  // at 684 px of 740, so the child saw only its top edge. Urdu Nastaliq needs ~2.15× line height; 26 px brings it back.
+  test.each([
+    ['the polished Urdu look (wq-ur2)', true],
+    ['the plain Urdu look', false],
+  ])('%s: the listen question\'s words are 26 px when the voice is lost', (_, ur2) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: true, listen: true })).toBe(26);
+  });
+
+  // The plain look must hold too: the big words are the no-silence fallback, and they must not depend on another
+  // team's switch (web_quiz_ur_polish, on in production since 10 Oct) staying on. In the plain look the Urdu rules
+  // (html[lang=ur] .wq-qtext 21 px, .wq-opt 20 px) outranked the big words until the plain-look rule.
+  test.each([
+    ['polished', true],
+    ['plain', false],
+  ])('Urdu (%s): an ordinary question with no voice is 30 px and each answer 26 px', (_, ur2) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: true, listen: false })).toBe(30);
+    const opt = computed([node('html', ur2 ? ['wq-ur2'] : [], { lang: 'ur' }), node('body'), node('div', ['wq-novoice'], {}, 'wq'),
+      node('div', ['wq-opts']), node('button', ['wq-opt', 'wq-s1'])], 'font-size');
+    expect(opt && opt.value).toBe('26px');
+  });
+
+  test('English: the listen question with no voice keeps its 30 px (longest English stem in the bank is 39 characters)', () => {
+    expect(fontPx({ lang: 'en', ur2: false, novoice: true, listen: true })).toBe(30);
+  });
+
+  test.each([
+    ['polished', true, 17],
+    ['plain', false, 21],
+  ])('Urdu (%s): with the voice working, the listen question keeps today\'s size', (_, ur2, size) => {
+    expect(fontPx({ lang: 'ur', ur2, novoice: false, listen: true })).toBe(size);
+  });
+});
+
+describe('a Qaida letter card is set in Naskh, the letter forms the Qaida page teaches', () => {
+  // A Noorani Qaida teaches Arabic letters in Naskh. The page set every letter card (.wq-glyph) in its Urdu Nastaliq,
+  // so د ث ذ خ on a grade 1 Islamiyat item were not the glyphs on the child's Qaida page. A card the server marks
+  // lang:'ar' is now drawn in a Naskh face; every other card is drawn exactly as before.
+  const ESC = /  function esc\(s\) \{[^\n]*\n/.exec(SRC)[0];
+  const PIC = SRC.slice(SRC.indexOf('  function picHtml(o, nm) {'), SRC.indexOf('  // Options arrive in the order the child sees'));
+  function picHtml(o) {
+    const ctx = { LOADING: '', cleanSvg: (x) => x };
+    vm.createContext(ctx);
+    vm.runInContext(`${ESC}\n${PIC}\nthis.picHtml = picHtml;`, ctx);
+    return ctx.picHtml(o, '');
+  }
+  const DAL = { kind: 'glyph', glyph: 'د', text: 'د', name: 'دال', alt: 'دال', dir: 'rtl' };
+
+  test('the page draws a card marked Arabic as an Arabic, right-to-left letter', () => {
+    const html = picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ar' } });
+    expect(html).toMatch(/^<span class="wq-glyph" dir="rtl" lang="ar">د<\/span>$/);
+  });
+
+  test('a card with no mark (every card stored today) is drawn exactly as before', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: DAL })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'خ', pic: { kind: 'glyph', text: 'خ' } })).toBe('<span class="wq-glyph" dir="auto">خ</span>');
+  });
+
+  test('only "ar" is honoured; any other value is ignored, never echoed into the markup', () => {
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: 'ur' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+    expect(picHtml({ slot: 'A', text: 'د', pic: { ...DAL, lang: '"><b>' } })).toBe('<span class="wq-glyph" dir="auto">د</span>');
+  });
+
+  // html > body > #wq > the picture grid > an option tile > the letter card
+  const cardPath = ({ lang, ur2, ar }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang }),
+    node('body'),
+    node('div', [], {}, 'wq'),
+    node('div', ['wq-pgrid']),
+    node('button', ['wq-opt', 'wq-ptile', 'wq-s1']),
+    node('span', ['wq-glyph'], ar ? { dir: 'rtl', lang: 'ar' } : { dir: 'auto' }),
+  ];
+  const firstFamily = (opts) => {
+    const r = computed(cardPath(opts), 'font-family');
+    return r && r.value.split(',')[0].trim().replace(/^["']|["']$/g, '');
+  };
+
+  test.each([
+    ['an Urdu page, polished', 'ur', true],
+    ['an Urdu page, plain', 'ur', false],
+    ['an English page', 'en', false],
+  ])('%s: a card marked Arabic resolves to the Naskh face first', (_, lang, ur2) => {
+    expect(firstFamily({ lang, ur2, ar: true })).toBe('WQ Naskh');
+    expect(computed(cardPath({ lang, ur2, ar: true }), 'font-family').value).toMatch(/"WQ Naskh",\s*"Noto Naskh Arabic"/);
+  });
+
+  test('an unmarked card keeps the page face (var(--fu)), as before', () => {
+    expect(computed(cardPath({ lang: 'ur', ur2: true, ar: false }), 'font-family').value).toBe('var(--fu)');
+  });
+
+  test('the Naskh face is shipped: its @font-face names a woff2 that exists, and its range holds every Arabic letter and mark', () => {
+    let face = null;
+    CSS_ROOT.walkAtRules('font-face', (at) => {
+      const fam = at.nodes.find((d) => d.prop === 'font-family');
+      if (fam && /"WQ Naskh"/.test(fam.value)) face = at;
+    });
+    expect(face).not.toBeNull();
+    const src = face.nodes.find((d) => d.prop === 'src').value;
+    const file = /url\(([^)]+)\)/.exec(src)[1].replace(/["']/g, '');
+    const bytes = fs.readFileSync(path.join(WQ, file));
+    expect(bytes.subarray(0, 4).toString('latin1')).toBe('wOF2');
+    expect(bytes.length).toBeLessThan(40 * 1024);
+    const ranges = face.nodes.find((d) => d.prop === 'unicode-range').value.split(',').map((r) => r.trim().replace(/^U\+/i, '').split('-').map((h) => parseInt(h, 16)));
+    const covered = (cp) => ranges.some(([a, b]) => cp >= a && cp <= (b == null ? a : b));
+    for (let cp = 0x0621; cp <= 0x064A; cp += 1) if (cp < 0x063B || cp > 0x0640) expect(covered(cp)).toBe(true);
+    for (let cp = 0x064B; cp <= 0x0652; cp += 1) expect(covered(cp)).toBe(true);
+    // The Urdu letters a Qaida item may also carry (K5 writes them): ٹ پ چ ڈ ڑ ژ ک گ ں ھ ہ ی ے. Outside the range they fell to
+    // the phone's own Naskh, a different design beside this face's letters.
+    for (const cp of [0x0679, 0x067E, 0x0686, 0x0688, 0x0691, 0x0698, 0x06A9, 0x06AF, 0x06BA, 0x06BE, 0x06C1, 0x06CC, 0x06D2]) {
+      expect([cp.toString(16), covered(cp)]).toEqual([cp.toString(16), true]);
+    }
+    expect(fs.existsSync(path.join(WQ, 'fonts', 'OFL-NotoNaskhArabic.txt'))).toBe(true);
+  });
+
+  test("the cut on disk is the one its record names, and the @font-face range is the cut's own", () => {
+    // build.py refuses to write a cut that lacks any code point of its range, and records the cut's sha256 and range.
+    const rec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'naskh-letters', 'record.json'), 'utf8'));
+    let face = null;
+    CSS_ROOT.walkAtRules('font-face', (at) => {
+      const fam = at.nodes.find((d) => d.prop === 'font-family');
+      if (fam && /"WQ Naskh"/.test(fam.value)) face = at;
+    });
+    const file = /url\(([^)]+)\)/.exec(face.nodes.find((d) => d.prop === 'src').value)[1].replace(/["']/g, '');
+    expect(rec.out).toBe(`dashboard/public/wq/${file}`);
+    const sum = require('crypto').createHash('sha256').update(fs.readFileSync(path.join(WQ, file))).digest('hex');
+    expect(sum).toBe(rec.out_sha256);
+    expect(face.nodes.find((d) => d.prop === 'unicode-range').value.replace(/\s+/g, '')).toBe(rec.unicode_range);
+  });
+});
+
+describe('a long Urdu question with no voice (90+ code points) still leaves its first answer on a 360 × 740 screen', () => {
+  // qa-design walk, sandbox Nov 2026: ALEW4D's 106-character plain Urdu question at 30 px took 462 px, and its first
+  // answer started at 684 px of 740. At 30 px a Nastaliq line holds ~15 code points at ~66 px, and the first answer
+  // starts ~222 px below the question's top; from 90 code points (7 lines) the first answer no longer fits above the fold.
+  // Production, 8-21 Nov: 12.8% of Urdu question-sittings had a question of 90+ code points (median 56, p90 94).
+  const WQI = require('../../public/wq/wq.js');
+  const T = { listen: 'سنیں' };
+  const ur = (n) => Array.from('آواز کی لہریں ہوا میں سفر کرتی ہیں اور کان تک پہنچتی ہیں۔ '.repeat(6)).slice(0, n).join('');
+  const stemClass = (q, lang) => /<p class="(wq-qtext[^"]*)"/.exec(WQI.itemHtml(q, T, lang))[1];
+  const single = (text) => ({ text, options: [{ slot: 'A', text: 'ہوا' }, { slot: 'B', text: 'پانی' }] });
+
+  test('the page marks an Urdu question of 90+ code points wq-qlong, and one of 89 not', () => {
+    expect(stemClass(single(ur(90)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(106)), 'ur').split(' ')).toContain('wq-qlong');
+    expect(stemClass(single(ur(89)), 'ur').split(' ')).not.toContain('wq-qlong');
+  });
+
+  test('only Urdu questions: an English one of any length, and a listen question (its own 26 px rule), are not marked', () => {
+    expect(stemClass(single('Why does the sound of a drum travel further than the sound of a bell in a crowded street?'), 'en')).not.toMatch(/wq-qlong/);
+    const listen = { type: 'listen', text: ur(106), audio: { q: '/c/q', opts: [] }, options: [{ slot: 'A', text: 'نُ' }, { slot: 'B', text: 'پَ' }] };
+    expect(stemClass(listen, 'ur')).not.toMatch(/wq-qlong/);
+  });
+
+  const longPath = ({ ur2, novoice }) => [
+    node('html', ur2 ? ['wq-ur2'] : [], { lang: 'ur' }),
+    node('body'),
+    node('div', novoice ? ['wq-novoice'] : [], {}, 'wq'),
+    node('div', ['wq-qcard']),
+    node('p', ['wq-qtext', 'wq-qlong']),
+  ];
+  test.each([
+    ['polished', true],
+    ['plain', false],
+  ])('Urdu (%s): a long question is 26 px when the voice is lost', (_, ur2) => {
+    expect(computed(longPath({ ur2, novoice: true }), 'font-size').value).toBe('26px');
+  });
+
+  test.each([
+    ['polished', true, '22px'],
+    ['plain', false, '21px'],
+  ])('Urdu (%s): with the voice working, a long question keeps today\'s size', (_, ur2, size) => {
+    expect(computed(longPath({ ur2, novoice: false }), 'font-size').value).toBe(size);
+  });
+});

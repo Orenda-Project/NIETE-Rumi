@@ -40,8 +40,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `word_blank.js` | Diagram type word_blank: picture of a thing plus its word with a letter missing, for phonics and spelling |
 
 ## Who reads this (all, generated)
-- `chem_equation.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2411:4c61e84a` · `bot/vendor/lp-v9/diagrams/types/molecule.js:35:368db106`
-- `graph.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2491:8b9d3d98`
+- `chem_equation.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2438:4c61e84a` · `bot/vendor/lp-v9/diagrams/types/molecule.js:35:368db106`
+- `graph.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:2518:8b9d3d98`
 - `word_blank.js` ← imported by `bot/shared/services/quiz/transcript-quiz-word-blank.js:32:ceb1c386`
 
 ## Tests (all, generated)

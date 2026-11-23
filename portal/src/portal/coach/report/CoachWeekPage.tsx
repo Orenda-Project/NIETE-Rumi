@@ -5,21 +5,30 @@ import { cn } from "@/lib/utils";
 import CoachGate from "../CoachGate";
 import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy, useLang, type Lang } from "../../teacher/i18n";
-import { FOCUS, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
+import { FOCUS, PRIMARY_WIDE } from "../../teacher/ui/styles";
 import { useBack } from "../../lib/useBack";
-import { COACH_MODULES, COACH_TRAINING_PATH, modulePath } from "../coachTraining/modules";
+import { COACH_MODULES, modulePath } from "../coachTraining/modules";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachWeek, markWeek, problemOf, type CoachWeek, type ReportProblem } from "./api";
 import { weekSpan } from "./weekSpan";
-import { LABEL, LanguagePill, ModuleRow, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
+import { LABEL, LanguagePill, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { WeekBodyV7 } from "./WeekV7";
 
 /**
  * Coach reports in the app, phase 3 — her WEEK as a page (/portal/coach/week/:monday), in the same app look as the debrief
  * report, with the ICT HITL owner's content and order: complete observations against 12 (never red) → the ONE focus,
  * counts day by day against her own last week → steady strengths → at most two misses to keep in mind → next week (where
  * she is, the four steps, the module, what comes next) → Respect → the full table of all 8, folded → "just for you".
+ * ONE training, never more (queue #186, the operator 19 Nov 2026: "we only want to recommend them ONE training"): the
+ * week's `training` module as one "Open Module" button — in Next week under the focus, or, with no focus, under the misses
+ * to keep in mind. No module on the misses, no link to the whole module list.
  * Counts only, never a percentage, never a quote. Fewer than 4 debriefs: the counts only. Every number comes from the
  * server (computed from the judge's booleans). Opening it stamps "opened" once (no WhatsApp link follows).
+ *
+ * bd-o15qnr.28.1 (queue #204, v7) — on the v6/v7 switch (useFlowV6) the page draws v7's week (WeekV7.tsx: the Key Focus
+ * Area first, then its one training; counts and a goal mark, no sentences). Off: this page exactly as before. While the
+ * switch is read, the grey outlines stay (no flash of the other layout).
  */
 const dayWord = (date: string, lang: Lang) => new Intl.DateTimeFormat(lang === "ur" ? "ur-PK" : "en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
 
@@ -31,6 +40,7 @@ export default function CoachWeekPage() {
   const [week, setWeek] = useState<CoachWeek | null>(null);
   const [problem, setProblem] = useState<ReportProblem | null>(null);
   const stamped = useRef<string | null>(null);
+  const v7 = useFlowV6();
 
   useEffect(() => {
     let live = true;
@@ -45,7 +55,7 @@ export default function CoachWeekPage() {
     <CoachGate>
       <TeacherPage feature="reports" title={C.weekTitle} crumb={week ? `${C.crumb} · ${weekSpan(week.monday, week.friday, lang)}` : C.crumb}
         onBack={back} action={<LanguagePill />} testId="coach-week">
-        {week ? <WeekBody w={week} C={C} lang={lang} />
+        {week && v7 !== null ? (v7 ? <WeekBodyV7 w={week} C={C} lang={lang} /> : <WeekBody w={week} C={C} lang={lang} />)
           : problem ? <p data-testid={`week-problem-${problem}`} className={cn(SECTION, "m-0 py-8 text-center text-[16px] font-semibold text-[#4b5563]")}>{problem === "not_ready" ? C.notReady : problem === "not_yours" ? C.notYours : C.loadFailed}</p>
             : <ReportOutline />}
       </TeacherPage>
@@ -59,7 +69,10 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
   const [day, setDay] = useState(firstPicked);
   const [open, setOpen] = useState(false);
   const delta = f && f.last ? f.week.done - f.last.done : null;
-  const mod = f?.module ? COACH_MODULES.find((m) => m.n === f.module) : null;
+  const mod = w.training ? COACH_MODULES.find((m) => m.n === w.training) ?? null : null;
+  const training = mod ? (
+    <Link to={modulePath(mod)} data-testid="week-open-module" className={cn(PRIMARY_WIDE, "mt-3 text-center leading-tight", FOCUS)}>{C.openModule(mod.n, lang === "ur" ? mod.title.ur : mod.title.en)}</Link>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-3" data-testid="week-body">
@@ -145,11 +158,11 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
                   <b className="text-[16px] font-semibold leading-[1.3]">{pick(k.name, lang)}</b>
                   <span className="text-[13px] font-semibold text-[#6b7280]">{C.doneIn(k.done, k.of)}</span>
                   {pick(k.why, lang) ? <p className="m-0 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.why}</b> {pick(k.why, lang)}</p> : null}
-                  <ModuleRow n={k.module} lang={lang} />
                 </span>
               </div>
             ))}
           </div>
+          {f ? null : training}
         </section>
       ) : null}
 
@@ -174,8 +187,7 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
             </>
           ) : null}
           {f.nextName ? <p className="m-0 mt-3 text-[15px] leading-[1.45] text-[#374151]"><b className="font-semibold text-[#1d2025]">{C.afterThat}</b> {C.thenNext(pick(f.nextName, lang))}</p> : null}
-          {mod ? <Link to={modulePath(mod)} data-testid="week-open-module" className={cn(PRIMARY_WIDE, "mt-3 text-center leading-tight", FOCUS)}>{C.openModule(mod.n, lang === "ur" ? mod.title.ur : mod.title.en)}</Link> : null}
-          <Link to={COACH_TRAINING_PATH} data-testid="week-all-modules" className={cn(OUTLINE_WIDE, "mt-2", FOCUS)}>{C.allModules(COACH_MODULES.length)}</Link>
+          {training}
         </section>
       ) : null}
 

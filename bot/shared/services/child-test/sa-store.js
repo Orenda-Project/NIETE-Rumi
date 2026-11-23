@@ -23,19 +23,52 @@ const SA_SCORER_MARKS = 'sa-marks-v1'; // sa/score.js VERSION
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 // vw / vh / dpr: the phone's viewport (CSS px, whole; pixel ratio to 2 decimals), so a screen-fit read can be cut by phone
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice', 'vw', 'vh', 'dpr'];
-// the ruling events a session keeps (device.events); past the cap the oldest are kept
+// the ruling events a session keeps (device.events); past the cap the oldest are kept (the latest attempt's first)
 const MAX_KEPT_EVENTS = 200;
 // round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
 // (round 9 item 3: skip_instructions, the coach skipped a part's instructions)
 const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on', 'skip_instructions']);
 
+// one row of each per attempt (sa-api.service.js ONCE_TYPES): the earliest session_start and the LATEST audio_check (one
+// per try, tries counting up, nothing after a pass). An event's attempt = the restart rows below its seq (restartAttempt
+// moves an ended attempt's rows below one `restart`), so every attempt keeps its own pair.
+const FIRST_ONLY = new Set(['session_start']);
+const LAST_ONLY = new Set(['audio_check']);
+// round 28: the recorder's stop, one per task and attempt (the LAST), outside the cap like AUDIT: bounded by the task
+// count, so it displaces no other row and is never dropped (sa-api.service.js LAST_PER_TASK)
+const LAST_PER_TASK = new Set(['record_stop']);
+// round 28: the microphone check's answer, one per attempt (the LAST: a retry overwrites), outside the cap the same way
+// (sa-api.service.js LAST_PER_ATTEMPT)
+const LAST_PER_ATTEMPT = new Set(['mic_check']);
+
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
   const seen = new Set(list.map((e) => e.seq));
   for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
-  const sorted = list.sort((x, y) => x.seq - y.seq);
-  const kept = new Set(sorted.filter((e) => !AUDIT.has(e.type)).slice(0, MAX_KEPT_EVENTS));
-  return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
+  list.sort((x, y) => x.seq - y.seq);
+  const pick = new Map(); // `${attempt}|${type}` → the row that stays
+  const attemptOfRow = new Map();
+  let attempt = 0;
+  for (const e of list) {
+    if (e.type === 'restart') attempt += 1;
+    attemptOfRow.set(e, attempt);
+    if (FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type)) {
+      const k = `${attempt}|${e.type}`;
+      if (LAST_ONLY.has(e.type) || !pick.has(k)) pick.set(k, e);
+    }
+    if (LAST_PER_TASK.has(e.type)) pick.set(`${attempt}|${e.type}|${e.task_id}`, e);
+    if (LAST_PER_ATTEMPT.has(e.type)) pick.set(`${attempt}|${e.type}`, e);
+  }
+  const stays = new Set(pick.values());
+  const once = (e) => FIRST_ONLY.has(e.type) || LAST_ONLY.has(e.type) || LAST_PER_TASK.has(e.type) || LAST_PER_ATTEMPT.has(e.type);
+  const sorted = list.filter((e) => !once(e) || stays.has(e));
+  const uncapped = (e) => AUDIT.has(e.type) || LAST_PER_TASK.has(e.type) || LAST_PER_ATTEMPT.has(e.type);
+  // the cap (AUDIT, LAST_PER_TASK and LAST_PER_ATTEMPT rows never count): the latest attempt's rows first, oldest first within an attempt,
+  // so an ended attempt (below a restart) gives way to the one the coach is running; the row stays in seq order
+  const ranked = sorted.filter((e) => !uncapped(e))
+    .sort((x, y) => (attemptOfRow.get(y) - attemptOfRow.get(x)) || (x.seq - y.seq));
+  const kept = new Set(ranked.slice(0, MAX_KEPT_EVENTS));
+  return sorted.filter((e) => uncapped(e) || kept.has(e));
 }
 
 function fail(where, error, extra) {
@@ -163,8 +196,17 @@ function phoneMarks(r) {
   return null;
 }
 
-/** One subtask's result from the phone: [{task_id, scored_on, answers[], ...}] */
-async function putResults(sessionId, results, lang) {
+// sa_r28_mcq: the story's questions picked from four (a tap task served only with the switch ON)
+const MCQ_RE = /\.story_mcq_w3$/;
+
+/**
+ * One subtask's result from the phone: [{task_id, scored_on, answers[], ...}]. sa_r28_mcq ON (`deps.mcq` in a test, else
+ * the setting, read only when an MCQ result is in the batch): the MCQ's count is not written as its marks here (marks
+ * are written once), the row is parked for the scorer, which applies the oral questions' reading floor (sa/score.js
+ * mcqMarks); an unrated MCQ (too few questions presented) is marked from the phone as today.
+ */
+async function putResults(sessionId, results, lang, deps = {}) {
+  let mcqFloor = null;
   for (const r of results) {
     // eslint-disable-next-line no-await-in-loop
     const got = await rowFor(sessionId, r.task_id);
@@ -174,6 +216,17 @@ async function putResults(sessionId, results, lang) {
     const responses = [{ kind: 'result', ...summary }, ...(Array.isArray(answers) ? answers : []).map((a) => ({ kind: 'answer', ...a }))];
     const patch = { responses, lang: lang || null, ...(MODES.includes(r.mode) ? { response_mode: r.mode } : {}) };
     const marks = r.scored_on === 'phone' ? phoneMarks(r) : null;
+    if (marks && r.mode === 'tap' && r.unrated !== true && MCQ_RE.test(String(r.task_id || ''))) {
+      // eslint-disable-next-line no-await-in-loop, global-require
+      if (mcqFloor === null) mcqFloor = await require('./app/mcq-switch').enabled(deps);
+      if (mcqFloor) {
+        Object.assign(patch, { ai_status: 'failed', ai_reason: PARKED });
+        // eslint-disable-next-line no-await-in-loop
+        const parked = await updateRow(got.row.id, patch, 'putResults');
+        if (!parked.ok) return parked;
+        continue; // eslint-disable-line no-continue
+      }
+    }
     if (marks) {
       Object.assign(patch, { ai_marks: marks, ai_status: 'scored', ai_model_versions: { scorer: PHONE_SCORER }, ai_scored_at: new Date().toISOString() });
     }

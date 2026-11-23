@@ -150,6 +150,89 @@ function _v6Names(s) {
   return s.replace(/\b([CDF][1-8])\b/g, (m) => (V6.indicator(m) ? V6.indicator(m).name : m));
 }
 
+// ── FICO 6-12 on the Digital Coach (queue #184) ─────────────────────────
+// Rifat, 19 Nov: "Debrief notes ... is main bhi patteren wohi rakhain jo primary waly coaches k liy humny rakha tha" (use
+// the pattern the primary (v6) coaches have). A FICO 6-12 visit the Digital Coach pre-filled gets v6's notes: the same
+// prompt, its data block rebuilt from the observer's submitted levels (by section and indicator NAME, the evidence as
+// submitted, no level, no number), and its record fixing the ONE improvement (the observer's chosen focus, with their
+// action) and the praise (the strongest level the observer set). obs612/fico-s-dc.js decides which visits.
+
+const _isFicoS = (analysis) => Boolean(analysis && analysis.obs612 && analysis.obs612.tool === 'ficos');
+
+function _ficoSRows(analysis) {
+  const F = require('../coaching/frameworks/fico-s');
+  const o = analysis.obs612 || {};
+  const answers = o.answers || {};
+  const evidence = o.evidence || {};
+  return F.CODES.map((code) => {
+    const level = F.normLevel(answers[code], code);
+    return typeof level === 'number' ? { code, level, name: F.indicator(code).name, section: code[0], evidence: String(evidence[code] || '').trim() } : null;
+  }).filter(Boolean);
+}
+
+function _ficoSGuideData(analysis) {
+  const F = require('../coaching/frameworks/fico-s');
+  const o = analysis.obs612 || {};
+  const rows = _ficoSRows(analysis);
+  const out = { lesson: { grade: o.grade || null, subject: o.subject_label || o.subject || null } };
+  for (const sec of F.SECTIONS) {
+    const shown = rows.filter((r) => r.section === sec.key).map((r) => ({ indicator: r.name, 'what was seen': r.evidence }));
+    if (shown.length) out[sec.name.toLowerCase()] = shown;
+  }
+  const fb = o.feedback || {};
+  if (fb.strengths) out['what the officer wrote went well'] = String(fb.strengths);
+  return out;
+}
+
+/** The ONE improvement: the observer's chosen focus (else the lowest level), with what they saw and their action. */
+function _ficoSTarget(analysis) {
+  const F = require('../coaching/frameworks/fico-s');
+  const rows = _ficoSRows(analysis);
+  if (!rows.length) return null;
+  const focus = (((analysis.obs612 || {}).feedback || {}).focus || [])[0] || null;
+  const row = (focus && rows.find((r) => r.code === focus.code)) || rows.slice().sort((a, b) => a.level - b.level)[0];
+  const next = row.level < 4 ? F.indicator(row.code).levels[row.level].text : '';
+  return { code: row.code, name: row.name, rationale: row.evidence, action: focus && focus.code === row.code ? String(focus.action || '') : '', next };
+}
+
+/** The praise: the highest level the observer set (first in sheet order on a tie), never the improvement. */
+function _ficoSStrength(analysis, target) {
+  const rows = _ficoSRows(analysis).filter((r) => !target || r.code !== target.code);
+  if (!rows.length) return null;
+  const top = rows.reduce((best, r) => (r.level > best.level ? r : best), rows[0]);
+  return { code: top.code, name: top.name, rationale: top.evidence };
+}
+
+function _ficoSFocusBlock(analysis) {
+  const t = _ficoSTarget(analysis);
+  const s = _ficoSStrength(analysis, t);
+  if (!t && !s) return '';
+  const lines = ["THIS VISIT'S RECORD FIXES TWO THINGS (the observer chose them; never choose others):"];
+  if (t) {
+    lines.push(`- "work_on_first" is "${t.name}".${t.rationale ? ` What the officer saw: "${_clip(t.rationale, 300)}".` : ''}${t.action ? ` The action the officer chose: "${_clip(t.action, 200)}".` : ''}${t.next ? ` The next step up on the rubric: "${t.next}".` : ''} Its "title" names this area in plain words, "seen" comes from what the officer saw, and "next_step" is one concrete move toward that next step. Conversation line 4 names this area.`);
+  }
+  if (s) lines.push(`- The first "went_well" item, and the specific praise in conversation line 1, come from "${s.name}".${s.rationale ? ` What the officer saw: "${_clip(s.rationale, 300)}".` : ''}`);
+  return `${lines.join('\n')}\n\n`;
+}
+
+function _ficoSFallback(analysis) {
+  const t = _ficoSTarget(analysis);
+  const s = _ficoSStrength(analysis, t);
+  const strengths = String((((analysis.obs612 || {}).feedback || {}).strengths) || '').trim();
+  return {
+    focus: t ? { title: t.name, rationale: t.rationale, try_this_tomorrow: t.action || t.next || '' } : {},
+    strength: strengths ? { evidence: strengths } : s ? { evidence: s.rationale ? `${s.name}: ${s.rationale}` : s.name } : {},
+    praise: s ? s.rationale : '',
+  };
+}
+
+// A FICO 6-12 code the model still wrote ("C4"), as the indicator's name. Only on a FICO 6-12 visit.
+function _ficoSNames(s) {
+  if (typeof s !== 'string') return s;
+  const F = require('../coaching/frameworks/fico-s');
+  return s.replace(/\b([A-E][1-8])\b/g, (m) => (F.indicator(m) ? F.indicator(m).name : m));
+}
+
 // ── Plain words, never codes (ur/en) ───────────────────────────────────
 // The model copies the snake_case keys it is shown: notes on sandbox labelled their strengths "clear_objective:" and
 // "story_connection:". The ur/en data block is therefore shown with plain-word keys ("student engagement", "focus
@@ -184,7 +267,8 @@ function _plainText(s) {
  */
 function plainCodeNames(guide, analysis = null) {
   if (!guide || !Array.isArray(guide.conversation)) return guide;
-  const plain = _isV6(analysis) ? (s) => _v6Names(_plainText(s)) : _plainText;
+  const plain = _isV6(analysis) ? (s) => _v6Names(_plainText(s))
+    : _isFicoS(analysis) ? (s) => _ficoSNames(_plainText(s)) : _plainText;
   const w = guide.work_on_first;
   return {
     ...guide,
@@ -212,8 +296,10 @@ function buildGuidePrompt(v2Analysis, options = {}) {
     // bd-ra8xu.40: a v6 visit's data block is rebuilt from its final levels, and its record fixes the improvement
     // and the praise. Every other visit: the block and the prompt exactly as before ('' adds nothing).
     const v6 = _isV6(v2Analysis);
-    const shown = v6 ? _v6GuideData(v2Analysis) : data;
-    const v6Block = v6 ? _v6FocusBlock(v2Analysis) : '';
+    // Queue #184: a FICO 6-12 visit the Digital Coach pre-filled: the same shape, from the observer's submitted record.
+    const ficoS = !v6 && _isFicoS(v2Analysis);
+    const shown = v6 ? _v6GuideData(v2Analysis) : ficoS ? _ficoSGuideData(v2Analysis) : data;
+    const v6Block = v6 ? _v6FocusBlock(v2Analysis) : ficoS ? _ficoSFocusBlock(v2Analysis) : '';
     // Feedback-uptake loop: the record carries which attempt this is, what the
     // lesson just observed showed, and whether this visit is the hand-over.
     const attemptLine = previousFocus && previousFocus.attempt ? ` This is attempt ${previousFocus.attempt} at the same target.` : '';
@@ -496,7 +582,7 @@ function buildFallbackGuide(v2Analysis, options = {}) {
   const recallEn = prevTry ? ` Last time the ask was: "${prevTry}"${prevAttempt ? ` (attempt ${prevAttempt}${prevStatusEn ? `, last lesson: ${prevStatusEn}` : ''})` : ''}.${previousFocus.hand_over ? ' This visit is the hand-over — open with it.' : ''}` : '';
   const recallUr = prevTry ? ` پچھلی بار کہا گیا تھا: "${prevTry}"${prevAttempt ? ` (کوشش ${prevAttempt})` : ''}۔${previousFocus.hand_over ? ' یہ دورہ hand-over ہے — اسی سے آغاز کریں۔' : ''}` : '';
   // bd-ra8xu.40: a v6 visit has no strengths or focus_area: its strongest final level and the report's target.
-  const v6 = _isV6(a) ? _v6Fallback(a) : null;
+  const v6 = _isV6(a) ? _v6Fallback(a) : _isFicoS(a) ? _ficoSFallback(a) : null;
   const strength = v6 ? v6.strength : ((Array.isArray(a.strengths) && a.strengths[0]) || {});
   const focus = v6 ? v6.focus : (a.focus_area_sw || a.focus_area || {});
 

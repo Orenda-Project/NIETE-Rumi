@@ -288,6 +288,12 @@ const UX_STRINGS = {
     en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
     ur: 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: {title}۔', // R7j: card_frame_other_ur
   },
+  // R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): an aligned clip's reason names what the report asked and what the clip
+  // shows. {ask} and {shows} are aligned.js SUB_ASKS / SUB_ASK lines (gender-neutral); {n} is the usable span in seconds.
+  videoRecoAlignedReason: {
+    en: 'Your report asked you to {ask}. This {n}-second clip shows {shows}.',
+    ur: 'آپ کی رپورٹ میں کہا گیا تھا کہ {ask}۔ اس {n} سیکنڈ کے کلپ میں دیکھیں: {shows}۔',
+  },
 
   // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the
   // chapter's own title, never from the model. {title} is the chapter title in the reader's language.
@@ -1082,6 +1088,15 @@ const UX_STRINGS = {
     ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔ اس کی رپورٹ ایپ میں ہے۔',
   },
   appLinkButtonCoachingRepeat: { en: 'Digital Coaching', ur: 'ڈیجیٹل کوچنگ' },
+  // bd-r2uzg1.18.7 (ICT sheet, DC row) — photos or a lesson plan sent on WhatsApp after she sent her lesson from the
+  // recording screen (coaching/app-recording-media.service): ONE line per burst, with appLinkButtonCoachingSaved.
+  // Plain: they cannot join that lesson; next time add them before Send. Never "app" (the operator: NIETE is WhatsApp
+  // and the screen that opens inside it). "Send" / بھیجیں is the recording screen's own button (portal coaching copy).
+  // Imperatives only, so nothing assumes her gender.
+  dcMediaAfterAppRecording: {
+    en: "These can't be added to the lesson you already sent. Next time, add your lesson plan and photos on the recording screen before you press Send.",
+    ur: 'یہ تصاویر اور لیسن پلان پہلے سے بھیجے گئے سبق میں شامل نہیں ہو سکتے۔ اگلی بار ریکارڈنگ والی اسکرین پر ہی لیسن پلان اور تصاویر شامل کریں، پھر "بھیجیں" دبائیں۔',
+  },
   appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
   appLinkButtonTraining: { en: 'Training', ur: 'ٹریننگ' },
   appLinkBodyAttendance: { en: 'Take attendance in the app.', ur: 'ایپ میں حاضری لگائیں۔' },
@@ -1104,6 +1119,27 @@ const UX_STRINGS = {
   appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
   appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
   appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
+  // bd-9652yj (queue #166, option B, the operator 18 Nov: "B works") — the coach app NUDGE (app-redirect 2f): one
+  // message, a link button and a way back that she types. The words are the mockups' ("Coach app fallback"), signed off
+  // with option B. The "1" is the reply she types, so it stays the digit on her keyboard (a code, not prose; the bot also
+  // takes ۱). Urdu in the bot's own first person (feminine, as every NIETE observe line); WhatsApp's two Urdu words and the
+  // final verb are joined with U+00A0 (the copy deck's no-break rules). Button 15 en / 14 ur code points.
+  coachNudgeBodyObserve: {
+    en: "Take your observation in the app.\nIf the app gives trouble, reply *1* and I'll carry on here on WhatsApp.",
+    ur: 'اپنا مشاہدہ ایپ میں لیں۔\nاگر ایپ میں مسئلہ ہو تو *1* لکھ کر بھیجیں، میں یہیں واٹس\u00A0ایپ پر جاری رکھوں\u00A0گی۔',
+  },
+  coachNudgeBodyHome: {
+    en: "Open the NIETE app.\nIf the app gives trouble, reply *1* and I'll carry on here on WhatsApp.",
+    ur: '\u200FNIETE ایپ کھولیں۔\nاگر ایپ میں مسئلہ ہو تو *1* لکھ کر بھیجیں، میں یہیں واٹس\u00A0ایپ پر جاری رکھوں\u00A0گی۔',
+  },
+  coachNudgeButton: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
+  // bd-eqkr0n (queue #203 follow-up) — a principal on the principal app asking to observe (app-redirect 2g): the coach
+  // nudge's first line on its own, with its button's words. No "reply 1" sentence: the operator, 20 Nov, "we
+  // can even ignore the WhatsApp one for Principals". Same words as the coach's, already reviewed, under keys of their own
+  // (so the principal link needs none of the nudge's code). Imperative, so nothing assumes a gender. Body 33 en / 24 ur,
+  // button 15 en / 14 ur code points.
+  principalAppBodyObserve: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
+  principalAppButtonObserve: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
@@ -1786,8 +1822,8 @@ const UX_STRINGS = {
   lpOwnRowMeta: { en: 'Your plan, made for your class', ur: 'آپ کی کلاس کے لیے آپ کا اپنا پلان' },
   lpOwnFlowAck: { en: 'Done. Tap the button in the chat to start.', ur: 'ہو گیا۔ شروع کرنے کے لیے چیٹ میں بٹن دبائیں۔' },
   lpOwnLinkBody: {
-    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 24 hours.',
-    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۲۴ گھنٹے چلے گا۔',
+    en: 'Make your own plan for this chapter. 5 quick taps, about a minute. Link works for 7 days.',
+    ur: 'اس باب کا اپنا پلان بنائیں۔ ۵ آسان سوال، تقریباً ایک منٹ۔ لنک ۷ دن چلے گا۔',
   },
   lpOwnLinkButton: { en: 'Make my own', ur: 'اپنا پلان بنائیں' },
   lpOwnUnavailable: { en: 'Make my own is not available right now.', ur: 'اپنا پلان بنانا ابھی دستیاب نہیں۔' },
@@ -2734,16 +2770,18 @@ const UX_STRINGS = {
   },
   // Read by CHILDREN, in the quiz language. Names the teacher, the topic and
   // the date of the lesson, and carries the link. Never a phone number.
+  // Urdu: a child surface says «کوئز» and «دبائیں», no Latin word; the link is
+  // the one Latin atom.
   tqStudentMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name and class first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '\u200F📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // The same message when the link opens the WEB quiz page, which asks only the
   // child's name (the WhatsApp quiz asks name and class). Chosen where the link
   // is chosen (transcript-quiz-handoff). Urdu: پوچھا جائے گا is passive, no gendered stem.
   tqStudentMessageWeb: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}* — what we studied on {date}.\n\nTap here to start:\n{link}\n\nIt takes about 5 minutes. You will be asked your name first.',
-    ur: '\u200F📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 5 منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
+    ur: '\u200F📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے — جو ہم نے {date} کو پڑھا۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۵ منٹ لگیں گے۔ پہلے آپ کا نام پوچھا جائے گا۔',
   },
   // WHEN the class report comes, as video-quiz-report schedules it: 12 hours
   // after the first child joins, moved to 07:00 PKT when that lands at night.
@@ -3234,6 +3272,10 @@ const UX_STRINGS = {
   wqSayTimes: { en: 'times', ur: 'ضرب' },
   wqSayDividedBy: { en: 'divided by', ur: 'تقسیم' },
   wqSayEqualsBlank: { en: 'what?', ur: 'کتنے؟' },
+  // Web quiz read-aloud, said after the child answers in place of "option C" (never shown; web-quiz-publish spoken()).
+  wqSayRightAnswer: { en: 'the right answer', ur: 'صحیح جواب' },
+  wqSayYourAnswer: { en: 'your answer', ur: 'آپ کا جواب' },
+  wqSayOtherAnswer: { en: 'another answer', ur: 'دوسرا جواب' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
@@ -3504,9 +3546,10 @@ const UX_STRINGS = {
     en: 'Here is your class message — forward THIS one to your class group:',
     ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',
   },
+  // Urdu: a child surface says «کوئز» and «دبائیں» with Urdu digits, no Latin word; the link is the one Latin atom.
   vqClassMessage: {
     en: '📚 *Quiz time!*\n\n{teacher} has sent you a quiz on *{topic}*.\n\nTap here to start:\n{link}\n\nIt takes about 10 minutes. You\'ll need to type your name and class first.',
-    ur: '‏📚 *Quiz کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں tap کریں:\n{link}\n\nتقریباً 10 منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
+    ur: '‏📚 *کوئز کا وقت!*\n\n{teacher} نے آپ کو *{topic}* پر کوئز بھیجا ہے۔\n\nشروع کرنے کے لیے یہاں دبائیں:\n{link}\n\nتقریباً ۱۰ منٹ لگیں گے۔ پہلے آپ کا نام اور جماعت پوچھی جائے گی۔',
   },
   // A storybook the teacher sends to the class (story-teacher.service.js, web_quiz_stories_teacher): the link
   // opens the book on its first page, so the message names the story and the one tap, nothing else.
@@ -3777,8 +3820,8 @@ const UX_STRINGS = {
     ur: '{title}\nورژن {version} (ورژن {parent} سے) · {count} سوال · {marks} نمبر\n\nدوبارہ بدلنے کے لیے بٹن دبائیں۔ ہر ورژن ویسا ہی محفوظ رہتا ہے۔',
   },
   assessmentKeyCaption: {
-    en: 'Answer key · {title}',
-    ur: 'جوابی کلید · {title}',
+    en: 'Answer key · {title}\nPlease check the answers before you use them. Some may be wrong.',
+    ur: 'جوابی کلید · {title}\nاستعمال سے پہلے جوابات ایک بار ضرور چیک کر لیں، کوئی جواب غلط بھی ہو سکتا ہے۔',
   },
   assessmentVersionMaking: {
     en: '📝 Making your new version — a few seconds.',
@@ -4664,6 +4707,118 @@ const UX_STRINGS = {
     en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
     ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
   },
+
+  // ── qfix forward: one tap to the class group (first-touch/quiz-forward.js, app_settings quiz_forward_button) ──
+  // A line on messages the teacher already gets (the hand-out caption, the library share line, the six-hour message),
+  // never on the class's own message. {link} opens WhatsApp's chat picker with the class message typed in. Urdu:
+  // بھیجیں is the polite imperative (no gendered stem); Urdu script throughout, as the cta_url button says کلاس گروپ.
+  qfix_forward_line: {
+    en: '📲 Send it to your class group in one tap:\n{link}',
+    ur: '\u200F📲 ایک ٹیپ میں کلاس گروپ کو بھیجیں:\n{link}',
+  },
+  // the six-hour message about several quiet quizzes: one line per quiz, under one head
+  qfix_forward_many: {
+    en: '📲 Send each to your class group in one tap:',
+    ur: '\u200F📲 ہر ایک کو ایک ٹیپ میں کلاس گروپ کو بھیجیں:',
+  },
+  qfix_forward_item: {
+    en: '{topic}: {link}',
+    ur: '\u200F{topic}: {link}',
+  },
+  // The teacher home's send sheet: its second way out, the browser's own share sheet (quiz_forward_button).
+  qfix_forward_more: {
+    en: 'More ways to share',
+    ur: 'شیئر کرنے کے اور طریقے',
+  },
+
+  // ── qfix report: a "most missed" question whose answer key is under review (video-quiz-report hardestQuestions,
+  // app_settings video_quiz_report_key_review) ──
+  // Printed instead of "most chose X, the right answer is Y" in the class report's PDF and its text fallback, in the
+  // quiz's language. Urdu: ہم (we) is the subject, so no verb addresses the teacher; plain words, no "quiz".
+  qfix_report_key_review: {
+    en: 'Answer key under review: we are checking which answer is right.',
+    ur: 'جواب کی جانچ جاری ہے: ہم دیکھ رہے ہیں کہ اس سوال کا کون سا جواب درست ہے۔',
+  },
+
+  // ─── qfix_class_link (append-only): the class evening round's tile on the child's hub ───────────────────
+  // copy.v2.json qfix_class_link.round_title; a 5-minute round written from the class's lesson of the day.
+  qfix_class_link_round_title: {
+    en: "Tonight's quiz",
+    ur: 'آج شام کا کوئز',
+  },
+
+  // ── qfix report: children who finish after the 12 h report, on the teacher's own pages (bd-5j1zaf, app_settings
+  // quiz_teacher_home_reports). The teacher home's "Quiz reports" section (its digits are the home's own: Urdu digits
+  // on the Urdu page) and the live report page's quiz tab (Western digits, as the class report's other numbers). No
+  // verb addresses the teacher; «بچوں» and «نے کھیلا» are the generic plural, as the home's own th.played.n. ──
+  qfix_report_home_head: {
+    en: 'Quiz reports',
+    ur: 'کوئز رپورٹس',
+  },
+  // {played} children on the class list who finished, {of} the class list's size
+  qfix_report_home_of: {
+    en: '{played} of {of} played',
+    ur: '{of} میں سے {played} نے کھیلا',
+  },
+  // no class list known: everyone who finished
+  qfix_report_home_n: {
+    en: '{played} played',
+    ur: '{played} نے کھیلا',
+  },
+  // the chip on a row: children who finished after the quiz's report was sent ({late} ≥ 1)
+  qfix_report_home_late: {
+    en: '+{late} after the report',
+    ur: 'رپورٹ کے بعد +{late}',
+  },
+  // the quiz's 12 h report has not gone yet: no chip
+  qfix_report_home_pending: {
+    en: 'Report not sent yet',
+    ur: 'رپورٹ ابھی نہیں بھیجی گئی',
+  },
+  // the section's foot: the class tab's evening rounds (only while a class has a live round)
+  qfix_report_home_rounds: {
+    en: 'Evening rounds',
+    ur: 'شام کے کوئز',
+  },
+  // the live report's quiz tab, under the title ({late} ≥ 1)
+  qfix_report_page_line: {
+    en: '{n} played · {late} after the report was sent',
+    ur: '{n} نے کھیلا · {late} رپورٹ بھیجنے کے بعد',
+  },
+  // the tag on each child's score row who finished after the report
+  qfix_report_page_tag: {
+    en: 'after the report',
+    ur: 'رپورٹ کے بعد',
+  },
+  // The teacher report's "Evening rounds" rows name their day: the week's days Sunday first, '|' between them
+  // (web-quiz-evening-round.js dayWords, with the month names of coaching/weekly-report/message.js).
+  qfix_class_link_weekdays: {
+    en: 'Sun|Mon|Tue|Wed|Thu|Fri|Sat',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // The same week as whole words, Sunday first, '|' between them: the child's hub names the previous school day's
+  // round by its day ("Friday's quiz"); Urdu's day names have no short form, so its list is the one above.
+  qfix_class_link_weekdays_long: {
+    en: 'Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // copy.v2.json qfix_class_link.past_title: the row under the hub's Next tile for the previous school day's round;
+  // {day} is a word of qfix_class_link_weekdays_long in the same language.
+  qfix_class_link_past_title: {
+    en: "{day}'s quiz",
+    ur: '{day} کا کوئز',
+  },
+  // copy.v2.json qfix_class_link.rounds_played_one / rounds_played: the teacher report's "Evening rounds" row, how many
+  // children finished the round. Urdu inflects the noun for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا»), so
+  // one child is its own line; {n} is in the language's own digits (digitsFor).
+  qfix_class_link_rounds_played_one: {
+    en: '{n} child played',
+    ur: '{n} بچے نے کھیلا',
+  },
+  qfix_class_link_rounds_played: {
+    en: '{n} children played',
+    ur: '{n} بچوں نے کھیلا',
+  },
 };
 
 /**
@@ -4863,9 +5018,16 @@ const CLASS_FLOW_STRINGS = {
     en: 'Add students to {class}',
     ur: '{class} میں طلبہ شامل کریں',
   },
+  // bd-r2uzg1.18.11 — the grey line under the /class Flow's Add students box. A Flow
+  // TextArea has no placeholder, so this helper-text is where the worked example goes
+  // (served as `add_hint`; no Flow republish). Cap 80 code points, kept under 75.
+  // The example comes LAST, after a colon, with no full stop after it, so what she
+  // copies is exactly a line the parser reads as child + father; Urdu names in Urdu
+  // script with ولد, as a register writes them. tests/classes/add-students-example
+  // feeds each example through the real parser.
   classAddStudentsHint: {
-    en: 'One name per line. Father\'s name after a comma or "s/o" if you have it. Numbering is fine.',
-    ur: 'ہر سطر پر ایک نام۔ والد کا نام کوما یا "s/o" کے بعد لکھیں۔ نمبر لگانا ٹھیک ہے۔',
+    en: 'One name per line. With the father\'s name, write: Ali Raza s/o Imran Raza',
+    ur: 'ہر سطر پر ایک نام۔ والد کے نام کے ساتھ یوں لکھیں: علی رضا ولد عمران رضا',
   },
   classStudentsField: {
     en: 'Student names',
@@ -5010,18 +5172,18 @@ const STUDENT_TUTOR_STRINGS = {
   },
   studentTeacherOnly: {
     en: 'That one isn’t for students. You can send /video for videos, /quiz for your quizzes, or just ask me a school question.',
-    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے quiz کے لیے ⁦/quiz⁩ بھیجیں، یا سکول کا کوئی سوال پوچھیں۔',
+    ur: 'یہ طلبہ کے لیے نہیں ہے۔ ویڈیوز کے لیے ⁦/video⁩، اپنے کوئز کے لیے ⁦/quiz⁩ بھیجیں، یا اسکول کا کوئی سوال پوچھیں۔',
   },
   studentQuizHint: {
     en: 'Your quizzes come from the link your class shares. Ask a school question here, or send /video for videos.',
-    ur: 'آپ کے quiz کلاس کے link سے آتے ہیں۔ یہاں سکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
+    ur: 'آپ کے کوئز کلاس کے لنک سے آتے ہیں۔ یہاں اسکول کا کوئی سوال پوچھیں، یا ویڈیوز کے لیے ⁦/video⁩ بھیجیں۔',
   },
   studentMenuBody: {
     en: 'What would you like to do?',
     ur: 'کیا کرنا ہے؟',
   },
   studentMenuVideos: { en: '🎬 Videos', ur: '🎬 ویڈیوز' },
-  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 Quiz' },
+  studentMenuQuizzes: { en: '📝 Quizzes', ur: '📝 کوئز' },
   studentVideosUnavailable: {
     en: 'Videos aren’t available right now — try /video again in a bit.',
     ur: 'ابھی ویڈیوز دستیاب نہیں — تھوڑی دیر بعد ⁦/video⁩ دوبارہ بھیجیں۔',
@@ -5032,7 +5194,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqFlowHeader: { en: '📝 Your quizzes', ur: '📝 آپ کے quiz' },
   sqFlowBody: {
     en: 'Pick a quiz to try it again or see your class card.',
-    ur: 'کوئی quiz چنیں — دوبارہ کریں یا اپنا class card دیکھیں۔',
+    ur: 'کوئی کوئز چنیں — دوبارہ کریں یا اپنا کلاس کارڈ دیکھیں۔',
   },
   sqFlowButton: { en: 'Open', ur: 'کھولیں' },
   sqScreenQuizzes: { en: 'Your quizzes', ur: 'آپ کے quiz' },
@@ -5044,7 +5206,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqActionsLabel: { en: 'What would you like to do?', ur: 'کیا کرنا ہے؟' },
   sqActionRetry: { en: 'Try again', ur: 'دوبارہ کریں' },
   sqActionRetryDesc: { en: 'Take this quiz once more', ur: 'یہ quiz ایک بار پھر کریں' },
-  sqActionCard: { en: 'See my class card', ur: 'میرا class card' },
+  sqActionCard: { en: 'See my class card', ur: 'میرا کلاس کارڈ' },
   sqActionCardDesc: { en: 'Where you stand in the class', ur: 'کلاس میں آپ کہاں ہیں' },
   sqCta: { en: 'Continue', ur: 'آگے بڑھیں' },
   sqClose: { en: 'Close', ur: 'بند کریں' },
@@ -5064,7 +5226,7 @@ const STUDENT_TUTOR_STRINGS = {
   },
   sqFallbackBody: {
     en: 'Your last quiz: *{topic}* — {score}.\nTry it again, or see your class card?',
-    ur: '\u200Fآپ کا آخری quiz: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا class card دیکھیں؟',
+    ur: '\u200Fآپ کا آخری کوئز: *{topic}* — {score}۔\nدوبارہ کریں، یا اپنا کلاس کارڈ دیکھیں؟',
   },
   sqCodeExpired: {
     en: 'That quiz link has closed — ask your class for a new one.',
@@ -5074,7 +5236,7 @@ const STUDENT_TUTOR_STRINGS = {
   sqRetryStarting: { en: 'Here it comes again — good luck!', ur: 'لیجیے، دوبارہ شروع — best of luck!' },
   sqNoCardYet: {
     en: 'No class card for that quiz yet — finish it first, and the card comes with the class results.',
-    ur: 'اس quiz کا class card ابھی نہیں — پہلے اسے مکمل کریں، card کلاس کے نتائج کے ساتھ آئے گا۔',
+    ur: 'اس کوئز کا کلاس کارڈ ابھی نہیں — پہلے اسے مکمل کریں، کارڈ کلاس کے نتائج کے ساتھ آئے گا۔',
   },
   // ─── the kid hub (web-quiz-hub.js; app_settings web_quiz_hub): ONE cta_url message ──
   // Read by CHILDREN. Imperatives only; the button ≤ 20 code points.
@@ -5151,7 +5313,7 @@ const STUDENT_TUTOR_STRINGS = {
   // ── end class round invitation ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
-    ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
+    ur: 'آئیں اسکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',
   },
 };
 
@@ -5370,7 +5532,21 @@ function languageLabelFor(code) {
   return row ? row.languageDescription : 'English';
 }
 
+// A language's own digits (language is data): one row per script that does not write 0-9.
+const DIGITS = Object.freeze({ ur: '۰۱۲۳۴۵۶۷۸۹' });
+
+/**
+ * A number for Urdu prose (language-protocol §9.4): ۰–۹ in an Urdu string, the value as it is otherwise. For a param,
+ * never a template: `digitsFor(n, lang)`. null/undefined → ''.
+ */
+function digitsFor(value, language) {
+  if (value === null || value === undefined) return '';
+  const set = DIGITS[clampLanguage(language)];
+  return set ? String(value).replace(/[0-9]/g, (d) => set[Number(d)]) : String(value);
+}
+
 module.exports = {
+  digitsFor,
   UX_STRINGS,
   LP612_ETA,
   resolveUx,

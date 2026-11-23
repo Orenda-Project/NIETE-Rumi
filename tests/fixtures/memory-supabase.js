@@ -21,6 +21,8 @@
  *     collide, the way `ux_taa_one_active_per_module` counts open attempts only.
  *   - `.single()` on no rows is PostgREST's PGRST116 error, not a quiet null.
  *
+ * `.eq()` also reads a JSON path (`content->v8->>lesson_id`), as PostgREST does.
+ *
  * NOT modelled: `.or()` is recorded and ignored (every row passes). A test whose
  * outcome turns on an `.or()` filter must not rely on this fake for it.
  *
@@ -39,6 +41,16 @@ function comparable(v) {
     if (!Number.isNaN(t)) return t;
   }
   return v;
+}
+
+/**
+ * A column, or a PostgREST JSON path on one (`content->v8->>lesson_id`): each `->` / `->>` steps into the object.
+ * A plain column reads exactly as before.
+ */
+function at(row, col) {
+  if (!col.includes('->')) return row[col];
+  const [head, ...path] = col.split(/->>?/);
+  return path.reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), row[head]);
 }
 
 const PLAIN_COLUMNS = /^\s*[a-z_][a-z0-9_]*(\s*,\s*[a-z_][a-z0-9_]*)*\s*$/i;
@@ -153,7 +165,7 @@ function createMemorySupabase(seed = {}, { unique = {}, projectSelect = false } 
       },
       update: (p) => { op = 'update'; payload = p; return c; },
       delete: () => { op = 'delete'; return c; },
-      eq: (col, v) => { filters.push((r) => r[col] === v); return c; },
+      eq: (col, v) => { filters.push((r) => at(r, col) === v); return c; },
       neq: (col, v) => { filters.push((r) => r[col] !== v); return c; },
       in: (col, vs) => { filters.push((r) => vs.includes(r[col])); return c; },
       is: (col, v) => {

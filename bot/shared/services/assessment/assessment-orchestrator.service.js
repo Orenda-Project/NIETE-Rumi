@@ -58,6 +58,7 @@ const { STEM_CHECK_SUBJECTS } = require('./fde-stem-check');
 const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
 const RepeatGuard = require('./repeat-guard');
+const PaperReuse = require('./paper-reuse');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -282,25 +283,42 @@ async function _buildPatternPaper({ job, user, paperId }) {
     // delivery would skip it and ack its only message.
     onSection: () => _touchOwnPaper(paperId),
   });
-  // A paper that came back short is made once more, from nothing, in the same row: a fresh run
-  // draws different questions and usually fills the slot. Only a short slot, only once, and only
-  // while the row is still this run's; the second run's failure is the row's, as any failure is.
+  // Re-serving (bd-2oi189): every stored paper is stamped with its inputs' key; with the setting on, a
+  // paper another teacher already had on that key is used instead of writing one. The stamp rides on
+  // the stored row only, never on the paper handed on. See paper-reuse.js.
+  const reuseKey = PaperReuse.reuseKey({ grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck });
+  const donor = (await isFlagEnabled('assessment_paper_reuse'))
+    ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
   let generated;
-  try {
-    generated = await generate();
-  } catch (err) {
-    if (!['PATTERN_SHORT_SLOT', 'TOO_MANY_FLAWS'].includes(err.code) || !(await _ownsPaper(paperId))) throw err;
-    logToFile('[assessment] pattern paper retried', {
-      requestId, paperId, pattern, code: err.code,
-      ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
-      ...(err.detail ? { detail: String(err.detail) } : {}),
-    });
-    generated = await generate();
+  if (donor) {
+    generated = {
+      examJson: donor.examJson,
+      questionCount: donor.questionCount,
+      tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 },
+      pageReference: donor.pageReference,
+    };
+    logToFile('[assessment] paper reused', { requestId, paperId, donorId: donor.id, pattern });
+  } else {
+    // A paper that came back short is made once more, from nothing, in the same row: a fresh run
+    // draws different questions and usually fills the slot. Only a short slot, only once, and only
+    // while the row is still this run's; the second run's failure is the row's, as any failure is.
+    try {
+      generated = await generate();
+    } catch (err) {
+      if (!['PATTERN_SHORT_SLOT', 'TOO_MANY_FLAWS'].includes(err.code) || !(await _ownsPaper(paperId))) throw err;
+      logToFile('[assessment] pattern paper retried', {
+        requestId, paperId, pattern, code: err.code,
+        ...(Array.isArray(err.shortfall) ? { shortfall: err.shortfall } : {}),
+        ...(err.detail ? { detail: String(err.detail) } : {}),
+      });
+      generated = await generate();
+    }
   }
+  const stored = (j) => PaperReuse.stamp(j, { key: reuseKey, from: donor?.id, pageReference: generated.pageReference });
 
   const versioned = await isAssessmentVersionsEnabled();
   await _patchPaper(paperId, {
-    exam_json: generated.examJson,
+    exam_json: stored(generated.examJson),
     ...(versioned ? {} : { original_exam_json: generated.examJson }),
     question_count: generated.questionCount,
     model: generated.tokenData?.model,
@@ -384,7 +402,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
   await _patchPaper(paperId, {
     status: 'ready',
     file_r2_key: key,
-    exam_json: examJson,
+    exam_json: stored(examJson),
     total_marks: Number.isFinite(marks) ? marks : null,
     ready_at: new Date().toISOString(),
   });
@@ -580,7 +598,8 @@ async function releasePaperForTakeover(requestId) {
 async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
-    questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
+    questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null, seenTypes = null,
+    seenPicked = null, // AG row 21: the book questions she ticked; new jobs only
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
@@ -645,6 +664,8 @@ async function buildPaper(job, user = {}) {
       // Always: answers are generated for every paper, so a key can always be
       // made — now, after a revision, or from the portal later (bd-bfnsk).
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
+      ...(seenTypes ? { seenTypes } : {}), // bd-e5n2jf: per-type Seen counts, new jobs only
+      ...(seenPicked ? { seenPicked } : {}),
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
       ...(avoid.length ? { avoidQuestions: avoid } : {}),
@@ -902,7 +923,7 @@ async function process(job) {
       try {
         const keyUrl = await r2.getPresignedUrl(r2.buildR2PublicUrl(stored.keyKey), 3600);
         answerKeySent = !!(await WhatsAppService.sendDocumentByLink(
-          phone, keyUrl, stored.keyName, `Answer key · ${caption}`));
+          phone, keyUrl, stored.keyName, resolveUx('assessmentKeyCaption', { user, params: { title: caption } })));
         logToFile(answerKeySent ? '[assessment] answer key delivered' : '[assessment] answer key send returned falsy',
           { userId, requestId, paperId, key: stored.keyKey });
       } catch (err) {

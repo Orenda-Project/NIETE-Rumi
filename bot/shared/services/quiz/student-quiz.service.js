@@ -59,7 +59,8 @@ async function quizzesForHandset(phone) {
 const SESSION_COLS = 'id, quiz_id, share_code_id, student_id, status, correct_answers, total_questions_answered, '
   + 'mastery_percentage, completed_at, created_at, student_class';
 const CODE_COLS = 'id, code, active, expires_at, topic, language, parent_share_code_id, invited_by_student_id, created_at, teacher_user_id';
-const QUIZ_COLS = 'id, topic, subject, language, grade, video_id';
+// src: the quiz's meta.source; an evening round's entry says `round: true` (the hub never offers it as Play again)
+const QUIZ_COLS = 'id, topic, subject, language, grade, video_id, src:meta->>source';
 
 // `embed` (the hub, web_quiz_hub_embed): each session read with its code and quiz rows (their foreign keys), one request
 // instead of two in a row; the same list. A failed embedded read is read again as without it.
@@ -137,6 +138,7 @@ async function quizzesForStudents(known, { embed = false } = {}) {
       teacherUserId: c.teacher_user_id || null,
       grade: q.grade || null,
       videoId: q.video_id || null,
+      ...(q.src === 'evening_round' ? { round: true } : {}),
     };
   });
 }

@@ -15,6 +15,9 @@
  *                                               its own; "role:coach" the same for coaches
  *   {"role:principal@ict": "v6"}                that role in one organization ("ict", "gb") or one region ("sihala")
  *
+ * Queue #191 (operator 19 Nov): the coach switch is no longer a gate for coaches: users.role 'coach' is always 'v6'
+ * (coachRubric). The rows below decide only for everyone else (principals and any other role).
+ *
  * Lookup order: "user:<id>"; the role keys, scoped to the user's region, then to its organization, then the bare
  * role; the user's region; its organization ('niete'/'ict', 'moawin'/'gb'); "*"; then OFF. Who you are beats where
  * you are: {"role:principal": "v6", "sihala": "current"} puts a Sihala principal on v6.
@@ -48,6 +51,11 @@ const { cachedSwitch } = require('../settings/switch-cache');
 
 const COACH_KEY = 'fico_coach_rubric';
 const DC_KEY = 'fico_dc_rubric';
+// Queue #184: 'off' | 'on', the same keys and lookup, OFF by default. On for a user: FICO17 v6's starred indicators
+// (rubric field `starred`: the six HITL-only) are never sent to the Digital Coach for that user's v6 visits (the
+// observer) or self-recordings (the teacher): frameworks/fico17-v6-framework.js starredVariant.
+const STARRED_SETTING = 'fico_v6_starred';
+const STARRED_VALUES = ['off', 'on'];
 const TTL_MS = 30 * 1000;
 
 const COACH_VALUES = ['current', 'shadow', 'v6'];
@@ -82,12 +90,12 @@ function asMap(value) {
 
 const cache = cachedSwitch({
   ttlMs: TTL_MS,
-  off: () => ({ coach: {}, dc: {} }),
+  off: () => ({ coach: {}, dc: {}, starred: {} }),
   read: async () => {
-    const { data, error } = await supabase.from('app_settings').select('key,value').in('key', [COACH_KEY, DC_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key,value').in('key', [COACH_KEY, DC_KEY, STARRED_SETTING]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const byKey = new Map((data || []).map((r) => [r.key, r.value]));
-    return { coach: asMap(byKey.get(COACH_KEY)), dc: asMap(byKey.get(DC_KEY)) };
+    return { coach: asMap(byKey.get(COACH_KEY)), dc: asMap(byKey.get(DC_KEY)), starred: asMap(byKey.get(STARRED_SETTING)) };
   },
   log: (err) => logToFile('fico rubric switch: settings lookup failed — treating as off', { error: err.message }, 'error'),
 });
@@ -164,10 +172,33 @@ async function pickFor(map, who, allowed, off) {
  *   (users.role; read when a role key needs it and it is omitted) and region (users.region)
  * @returns {Promise<'current'|'shadow'|'v6'>}  never throws; OFF on any failure
  */
+// Queue #191 (operator, 19 Nov ~17:40: "since we want to have it live for all the coaches, lets just remove the feature
+// flag. it should be live for all of them no matter if we added their thingy or not"): for a coach (users.role 'coach')
+// fico_coach_rubric and obs612_coach are no longer a gate. Everyone else (principals, teachers) reads them as before.
+const COACH_ROLE = 'coach';
+const isCoachRole = (role) => typeof role === 'string' && norm(role) === COACH_ROLE;
+
+/**
+ * Queue #191: the users.role of `who`: the role the caller passed, else read once. Undefined when it cannot be known
+ * (no id, or a failed read), so the rows then decide exactly as before (pickFor reads it again only for a role key).
+ */
+async function knownRole(who = {}) {
+  const w = who || {};
+  if (w.role !== undefined) return w.role;
+  if (!w.userId) return undefined;
+  const r = await roleOfUser(w.userId);
+  return r === ROLE_UNKNOWN ? undefined : r;
+}
+
 async function coachRubric(who = {}, now = Date.now()) {
   try {
     const { coach } = await cache.get(now);
-    return await pickFor(coach, who, COACH_VALUES, COACH_OFF);
+    const w = { ...(who || {}) };
+    // A row that already says v6 for this account decides with no role read.
+    if (w.userId && coach[`user:${norm(String(w.userId))}`] === 'v6') return 'v6';
+    w.role = await knownRole(w);
+    if (isCoachRole(w.role)) return 'v6';
+    return await pickFor(coach, w, COACH_VALUES, COACH_OFF);
   } catch (_) {
     return COACH_OFF;
   }
@@ -180,6 +211,20 @@ async function dcRubric(who = {}, now = Date.now()) {
     return await pickFor(dc, who, DC_VALUES, DC_OFF);
   } catch (_) {
     return DC_OFF;
+  }
+}
+
+/**
+ * Queue #184: FICO17 v6 in starred mode for this user (fico_v6_starred)? Never throws: false on any failure, and no
+ * region lookup while the switch has no value anywhere.
+ */
+async function v6Starred(who = {}, now = Date.now()) {
+  try {
+    const { starred } = await cache.get(now);
+    if (!starred || !Object.keys(starred).length) return false;
+    return (await pickFor(starred, who, STARRED_VALUES, 'off')) === 'on';
+  } catch (_) {
+    return false;
   }
 }
 
@@ -229,6 +274,7 @@ async function roleOfUser(userId) {
 function _resetCache() { cache.reset(); }
 
 module.exports = {
-  COACH_KEY, DC_KEY, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
-  asMap, resolve, pickFor, coachRubric, dcRubric, isAnySet, regionOfUser, roleOfUser, _resetCache,
+  COACH_KEY, DC_KEY, STARRED_SETTING, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
+  asMap, resolve, pickFor, coachRubric, dcRubric, v6Starred, isAnySet, regionOfUser, roleOfUser, _resetCache,
+  COACH_ROLE, isCoachRole, knownRole,
 };

@@ -81,14 +81,14 @@ describe('Make my own, grades 1–5: the book pages (bd-snkn32.17)', () => {
     expect(to.value).toBe('6');
     fireEvent.click(await okButton());
     await waitFor(() => expect(where()).toContain('pg=3-6'));
-    expect(where()).toContain('step=size');
+    expect(where()).toContain('step=purpose'); // bd-snkn32.63
   });
 
   it('the day\'s own pages, unchanged, add nothing to the address', async () => {
     at(DAY2);
     await screen.findByTestId('own-pg-from');
     fireEvent.click(await okButton());
-    await waitFor(() => expect(where()).toContain('step=size'));
+    await waitFor(() => expect(where()).toContain('step=purpose'));
     expect(where()).not.toContain('pg=');
   });
 
@@ -107,12 +107,12 @@ describe('Make my own, grades 1–5: the book pages (bd-snkn32.17)', () => {
 
   it('Make my plan sends her pages, and the check screen names them', async () => {
     http.post.mockResolvedValue({ data: { success: true, state: 'authoring', renderId: 'own-k5' } });
-    at(`${DAY2}&step=check&size=over70&level=behind&way=tarl&pg=3-6`);
+    at(`${DAY2}&step=check&size=over70&level=behind&way=tarl&pg=3-6&purpose=new`);
     expect((await screen.findAllByText(/p\.3-6/)).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findAllByTestId('own-make').then((b) => b[b.length - 1]));
     await waitFor(() => expect(http.post).toHaveBeenCalledWith('/lp612/own', {
       lesson_id: 'g4m2',
-      answers: { size: 'over70', resources: ['textbook'], level: 'behind', way: 'tarl', note: '', pages: { start: 3, end: 6 } },
+      answers: { size: 'over70', resources: ['textbook'], level: 'behind', way: 'tarl', note: '', purpose: 'new', pages: { start: 3, end: 6 } },
     }));
   });
 

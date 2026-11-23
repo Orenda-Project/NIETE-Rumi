@@ -32,6 +32,7 @@
  *     exactly what cost that pilot its rounds.
  */
 
+const { repairNearMissKeys } = require('./lp612-key-repair');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -60,6 +61,8 @@ const { familyForBook } = require('../config/lp612-families');
 // text, and a `require(path.join(...))` is invisible to it — which is how a vendored file that
 // stopped existing would reach production as a runtime crash instead of a red gate.
 const { lint, overlayDefects, OVERLAY_MIN_COVERAGE } = require('../../vendor/lp-v9/lint_lp.js');
+const { readingStepDefects } = require('./lp612-reading-step');
+const { poemParaphraseDefects } = require('./lp612-poem-paraphrase');
 const { normalizeLatinHonorific } = require('./lp612-latin-honorific');
 const { meetsSubjectMinimum } = require('../../vendor/lp-v9/visual_check.js');
 const { validateDoc } = require('../../vendor/lp-v9/lib/validate.js');
@@ -1678,6 +1681,16 @@ function sanitizeSequence(doc, segment = {}) {
   return notes;
 }
 
+/**
+ * bd-znzjqi — a misspelled field name (live: `page2.coaching_lookfer`, three rounds running) is renamed to the
+ * one schema key it is near, before the gate reads the document. See lp612-key-repair.js for the narrow rule.
+ */
+function repairKeys(doc) {
+  const renamed = repairNearMissKeys(doc);
+  if (renamed.length) logEvent('lp612.author.keys_repaired', { renamed });
+  return doc;
+}
+
 function sanitizeUnknownTopLevel(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
   const allowed = (docSchema && docSchema.properties) ? Object.keys(docSchema.properties) : null;
@@ -1842,7 +1855,9 @@ async function runGates(doc, renderCheck, meta = {}) {
 
   return {
     schema: [],
-    lint: r.fails.slice(),
+    // bd-zrdvmi.39: a reading lesson must time its reading before the questions (sheet row 528).
+    // bd-zrdvmi.44.1: a poem reading lesson must paraphrase the poem in class (sheet row 728).
+    lint: [...r.fails, ...readingStepDefects(doc, meta.skillType), ...poemParaphraseDefects(doc, meta.skillType, meta.subtopic)],
     render,
     warns: r.warns.slice(),
   };
@@ -2302,6 +2317,7 @@ async function authorLessonPlan({
   // rule stays fail-closed; see `lp612-latin-honorific.js` for the ruling and the adjacency guard.
   normalizeLatinHonorific(doc);
   sanitizeUnknownTopLevel(doc);
+  repairKeys(doc);
   sanitizeOverlay(doc);
   // bd-zle0u: the ladder's document is overlay-free BY CONTRACT. See `stripOverlay`.
   noteStrippedOverlay(stripOverlay(doc), 0);
@@ -2312,6 +2328,7 @@ async function authorLessonPlan({
   // not held to OVERLAY_MISSING. See `languageDirective` and `overlayPass`.
   const ladderGateMeta = {
     correlationId, segmentId: segment.segment_id, lang: language, overlayExpected: false,
+    skillType: segment.skill_type, subtopic: segment.subtopic_title,
   };
   /**
    * Hand the caller the document we are holding. Its failure is swallowed on purpose: a
@@ -2551,6 +2568,7 @@ async function authorLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     noteStrippedOverlay(stripOverlay(candidate), spent);
     sanitizeSequence(candidate, segment);
@@ -3223,7 +3241,7 @@ async function reviseLessonPlan({
   const addUsage = (u) => accumulateUsage(usage, u);
 
   // The bar. Her document's own defect count — an edit may not raise it.
-  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language });
+  const gatesBefore = await runGates(original, renderCheck, { correlationId, segmentId: segment.segment_id, round: 0, lang: language, skillType: segment.skill_type, subtopic: segment.subtopic_title });
   const bar = blockingCost(gatesBefore);
   // bd-jddcu applies here too: her document already renders (schemaOk is true in the only case
   // this lane is called for), so a defect-count comparison ALONE could accept an edit that comes
@@ -3260,11 +3278,12 @@ async function reviseLessonPlan({
     applyVideo(candidate, video);
     normalizeLatinHonorific(candidate);   // bd-b7txa — the stamp, before the gate reads it.
     sanitizeUnknownTopLevel(candidate);
+    repairKeys(candidate);
     sanitizeOverlay(candidate);
     sanitizeSequence(candidate, segment);
     sanitizeObjectiveCodes(candidate); // bd-oak77.32: dedupe placeholder O#-style objective codes.
 
-    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language });
+    const g2 = await runGates(candidate, renderCheck, { correlationId, segmentId: segment.segment_id, round: spent, lang: language, skillType: segment.skill_type, subtopic: segment.subtopic_title });
     const schemaTiered = beforeSchemaOk && !schemaOk(g2);
 
     if (!schemaTiered && blockingCost(g2) <= bar) {

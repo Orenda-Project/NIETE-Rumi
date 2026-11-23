@@ -903,7 +903,7 @@ async function handleObserveVisitFlow(message, phoneNumber, userId) {
       const Obs612 = require('../services/observe/obs612/visit');
       const bound = (result && result.boundTeacher) || {};
       const visit = { teacherUserId: bound.user_id || null, schoolExtId: bound.school_ext_id || responseJson.school_ext_id || null };
-      if (user && await Obs612.asksClass(user, visit) && await Obs612.askForObserve(user, phoneNumber, { teacherName })) return true;
+      if (user && await Obs612.asksClass(user, visit) && await Obs612.askForObserve(user, phoneNumber, { teacherName, visit })) return true;
     } catch (_) { /* today's capture prompt */ }
     await WhatsAppService.sendMessage(
       phoneNumber,

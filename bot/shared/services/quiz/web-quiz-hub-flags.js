@@ -41,6 +41,12 @@ const WAIT_UX_KEY = 'web_quiz_wait_ux';
 // The child result screen's "remind me tomorrow" (bot/shared/services/push/web-quiz-push-field.js): rides this one read,
 // so a finish makes no read for it. Only the stored JSON boolean true is on.
 const PUSH_REMIND_KEY = 'web_quiz_push_remind';
+// web_quiz_order_seed (JSON true only, read with the hub's switches: flags().orderSeed): each sitting its own question and
+// option order, a re-sit a new one (web-quiz-order-seed.js); off, the start reply has no `order` and the page keeps today's
+const ORDER_SEED_KEY = 'web_quiz_order_seed';
+// web_quiz_order_seed_pct ({"pct": N}): the same, for N% of LINKS by the link's own hash (web-quiz-order-seed onFor), so the
+// re-sit gain can be measured on and off on the same days; the switch above, when on, wins.
+const ORDER_SEED_PCT_KEY = 'web_quiz_order_seed_pct';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
@@ -84,6 +90,9 @@ const REWATCH_DONE_KEY = 'web_quiz_rewatch_done';
 // One play button at 0:00 on the video players (the lesson page, the Videos tab's): the player's own controls come with
 // the first play. The hub JSON and the quiz answer name it (`video_clean`). Only the stored JSON boolean true is on.
 const VIDEO_CLEAN_KEY = 'web_quiz_video_clean_start';
+// web_quiz_voice_v2 (JSON true only, default off): a refused or stalled clip is retried on the child's next
+// tap, and a phone that cannot play Ogg Opus gets the same clip as mp3 (wq.js VOICE_V2, routes/web-quiz-clip-mp3.js)
+const VOICE_V2_KEY = 'web_quiz_voice_v2';
 // The quiz page in the child's language (web-quiz-page-lang.js): the quiz and hub answers say `page_lang`, JSON true only.
 const PAGE_LANG_KEY = 'web_quiz_page_lang';
 // The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
@@ -178,6 +187,9 @@ const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
 // The big flight in the games door (sa-game, web-quiz-hub-doors.js): this cache only (nowOf('battery')), never a read of
 // its own; its page and sink read flags().battery. Only the stored JSON boolean true is on.
 const SA_GAME_KEY = 'sa_game';
+// qfix_class_link: the class evening round (web-quiz-evening-round-flags.js owns its meaning; read here so the hub's
+// next slot asks for tonight's round without a read of its own when it is off).
+const EVENING_ROUND_KEY = 'web_quiz_evening_round';
 const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -193,7 +205,7 @@ function isTrue(value) {
 // A new switch adds one line here in its key's place (and its key constant above): KEYS, the cached answer and the
 // failed read's answer all follow from this list, and nowOf('<field>') reads it from the cache without a function of its own.
 // Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
-// object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
+// object are off); 'meter' = meterOf; 'pct' = pctOf; 'read' = read in the same query for a field worked out below (shareOpen).
 const SWITCHES = Object.freeze([
   ['battery',      SA_GAME_KEY,           'json'],
   ['adv',          ADV_KEY,               'json'],
@@ -218,6 +230,7 @@ const SWITCHES = Object.freeze([
   ['endFit',       END_FIT_KEY,           'json'],
   ['endOnce',      END_ONCE_KEY,          'json'],
   ['endShort',     END_SHORT_KEY,         'json'],
+  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
   ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],
@@ -244,6 +257,8 @@ const SWITCHES = Object.freeze([
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['orderSeed',    ORDER_SEED_KEY,        'json'],
+  ['orderSeedPct', ORDER_SEED_PCT_KEY,    'pct'],
   ['pack',         PACK_KEY,              'json'],
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
@@ -255,11 +270,18 @@ const SWITCHES = Object.freeze([
   ['sharePageLang', SHARE_PAGE_LANG_KEY, 'json'],
   [null,           SHARE_KEY,             'read'],
   ['videoClean',   VIDEO_CLEAN_KEY,       'json'],
+  ['voiceV2',      VOICE_V2_KEY,          'json'],
   ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
 ]);
-const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
+// 'pct' = the JSON object {"pct": N} as a whole number 0-100; anything else is 0
+const pctOf = (v) => (v && typeof v === 'object' && Number.isFinite(v.pct) ? Math.max(0, Math.min(100, Math.floor(v.pct))) : 0);
+const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf, pct: pctOf };
+// A 'pct' switch's arm: the id's own bucket 0-99, the same every time. The salt (the switch's key) keeps two canaries'
+// arms independent, so one switch's 10% is not the same links as another's.
+const bucketOf = (salt, id) => require('./video-quiz-render.service').hash32(`${salt}:${id}`) % 100;
+const inPct = (pct, salt, id) => pct > 0 && Boolean(id) && bucketOf(salt, id) < pct;
 
 const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 // web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
@@ -559,6 +581,7 @@ async function hubLink(studentIds, caller) {
 
 // one export per line, in name order (two changes that add an export touch different lines)
 module.exports = {
+  VOICE_V2_KEY,
   ADV_KEY,
   advNow,
   BACK_NAV_KEY,
@@ -614,6 +637,10 @@ module.exports = {
   offlineGuardNow,
   ONE_BUTTON_KEY,
   oneButtonNow,
+  ORDER_SEED_PCT_KEY,
+  bucketOf,
+  inPct,
+  pctOf,
   PACK_KEY,
   PAGE_LANG_KEY,
   pageNav,

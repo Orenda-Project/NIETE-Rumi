@@ -1,0 +1,57 @@
+{
+ "mutants": [
+  {
+   "id": "login-any-password",
+   "lane": "web",
+   "features": [
+    "portal-login",
+    "leader-portal",
+    "teacher-classes"
+   ],
+   "expect": "killed",
+   "why": "the portal accepts any password for a teacher who has one",
+   "edits": [
+    {
+     "file": "dashboard/routes/portal.routes.js",
+     "find": "      const validPassword = await bcrypt.compare(password, user.portal_password_hash);\n",
+     "replace": "      const validPassword = true;\n"
+    }
+   ]
+  },
+  {
+   "id": "leader-api-no-role-check",
+   "lane": "web",
+   "features": [
+    "portal-login",
+    "leader-portal",
+    "teacher-classes"
+   ],
+   "expect": "survived",
+   "why": "every /leader API route serves any signed-in user, teachers included (the server-side role check is gone)",
+   "edits": [
+    {
+     "file": "dashboard/routes/portal.routes.js",
+     "find": "const requireLeaderRole = makeRequireLeaderRole({ getUser: getUserById });\n",
+     "replace": "const requireLeaderRole = (req, res, next) => next(); // mutant\n"
+    }
+   ]
+  },
+  {
+   "id": "add-class-no-teacher",
+   "lane": "web",
+   "features": [
+    "portal-login",
+    "leader-portal",
+    "teacher-classes"
+   ],
+   "why": "Add a class creates the class but never assigns the teacher to it, and still answers 201 success",
+   "edits": [
+    {
+     "file": "bot/shared/routes/internal-api.routes.js",
+     "find": "    const assigned = await ClassService.assignTeacher({\n",
+     "replace": "    const assigned = { error: null }; void ({\n"
+    }
+   ]
+  }
+ ]
+}

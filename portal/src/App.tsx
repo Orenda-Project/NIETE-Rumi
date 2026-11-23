@@ -113,12 +113,16 @@ const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportP
 // bd-17v39c.4.14 — Where to coach (a teacher) and Who to coach first (a school): coach only.
 const CoachWhereToCoach = page(() => import("./portal/coach/card/WhereToCoachPage"));
 const CoachFirst = page(() => import("./portal/coach/card/CoachFirstPage"));
-const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
-const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
+// bd-o15qnr.26 — Schedule and Observe's addresses go through the visit flow v2 switch (coach/flow/routes.tsx): on, the one
+// open Schedule list (old hub and pick addresses redirect); off or unread, today's pages exactly.
+const flowRoute = (name: "ScheduleRoute" | "SchedulingRoute" | "ObserveRoute" | "ObservePickRoute") =>
+  page(() => import("./portal/coach/flow/routes").then((m) => ({ default: m[name] })));
+const CoachScheduling = flowRoute("SchedulingRoute");
+const CoachSchedule = flowRoute("ScheduleRoute");
 const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
 const CoachNewVisit = page(() => import("./portal/coach/pages/CoachNewVisit"));
-const CoachObserve = page(() => import("./portal/coach/pages/CoachObserve"));
-const CoachObservePick = page(() => import("./portal/coach/pages/CoachObservePick"));
+const CoachObserve = flowRoute("ObserveRoute");
+const CoachObservePick = flowRoute("ObservePickRoute");
 const CoachVisit = page(() => import("./portal/coach/pages/CoachVisit"));
 const CoachReports = page(() => import("./portal/coach/pages/CoachReports"));
 const CoachDisagreements = page(() => import("./portal/coach/disagreements/DisagreementsPage"));
@@ -146,6 +150,8 @@ const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 // Coach reports in the app: her debrief report as a page (behind coach_reports_app; the route answers 404 when off).
 const CoachReportPage = page(() => import("./portal/coach/report/CoachReportPage"));
 const CoachWeekPage = page(() => import("./portal/coach/report/CoachWeekPage"));
+// bd-o15qnr.28.1 (v7) — My progress, read-only, from the Home tile (the page itself sends her Home with the switch off).
+const CoachProgressPage = page(() => import("./portal/coach/report/CoachProgressPage"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
@@ -381,6 +387,7 @@ const App = () => {
             <Route path="/portal/coach/observation/:id/send" element={<CoachSendReport />} />
             <Route path="/portal/coach/report/:id" element={<CoachReportPage />} />
             <Route path="/portal/coach/week/:monday" element={<CoachWeekPage />} />
+            <Route path="/portal/coach/progress" element={<CoachProgressPage />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}

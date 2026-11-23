@@ -1,7 +1,7 @@
 # classes — Classes model: write surface, label parsing, vocabulary and class manager door
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=4ae7f6fe225d gen=51f4dacaa240 overflow=58 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=706b6a4edfd7 gen=1064b1cadd56 overflow=58 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `class.service.js` — classes, teachers, subjects, enrolment writes
@@ -16,7 +16,7 @@ Full index: `CLAUDE.index.md`
 | `roster-label.js` | Single formatter for a roster row label and WhatsApp row title with the 24-char cap |
 
 ## Who reads this (generated)
-- table `students` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+43)
+- table `students` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+44)
 - column `students.student_name` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` (+29)
 - column `students.is_active` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:332:f8c426e2` · `bot/shared/routes/edit-class-endpoint.js:47:f8c426e2` (+25)
 - table `student_lists` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:298:8479d615`? · `bot/shared/routes/attendance-setup-endpoint.js:174:8479d615`? (+25)

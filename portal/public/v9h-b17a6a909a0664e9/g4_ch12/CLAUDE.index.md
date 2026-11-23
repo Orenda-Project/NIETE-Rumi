@@ -9,10 +9,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g4_ch12_English_seg1.v9.html` | Hosted v9 lesson page G4 English ch12 seg1 (en): Chapter Vocabulary + Verb Impression Challenge (Memory Lane) |
 | `g4_ch12_English_seg2.v9.html` | Hosted v9 lesson page G4 English ch12 seg2 (en): Reading 'Pinky and the Fairies' (Journey through the text) |
 | `g4_ch12_English_seg3.v9.html` | Hosted v9 lesson page G4 English ch12 seg3 (en): Diving Deeper: Retelling Pinky's Journey + Comprehension Quiz |
+| `g4_ch12_English_seg3_partA.v9.html` | (unmapped) |
+| `g4_ch12_English_seg3_partB.v9.html` | (unmapped) |
 | `g4_ch12_English_seg4.v9.html` | Hosted v9 lesson page G4 English ch12 seg4 (en): Share and Sparkle: Being New & Feeling Blue + Best Plan + First Day |
 | `g4_ch12_English_seg5.v9.html` | Hosted v9 lesson page G4 English ch12 seg5 (en): Grammar: Adverb Match Up + Future Tense |
+| `g4_ch12_English_seg5_partA.v9.html` | (unmapped) |
+| `g4_ch12_English_seg5_partB.v9.html` | (unmapped) |
 | `g4_ch12_English_seg6.v9.html` | Hosted v9 lesson page G4 English ch12 seg6 (en): Grammar: Direct Speech + Storytelling in Reverse |
+| `g4_ch12_English_seg6_partA.v9.html` | (unmapped) |
+| `g4_ch12_English_seg6_partB.v9.html` | (unmapped) |
 | `g4_ch12_English_seg7.v9.html` | Hosted v9 lesson page G4 English ch12 seg7 (en): Write & Create: Formal Letter + Cursive (Connect and Create) |
+| `g4_ch12_English_seg7_partA.v9.html` | (unmapped) |
+| `g4_ch12_English_seg7_partB.v9.html` | (unmapped) |
 | `g4_ch12_Urdu_seg1.v9.html` | Hosted v9 lesson page G4 Urdu ch12 seg1 (ur): نئے الفاظ و ارکان سازی |
 | `g4_ch12_Urdu_seg2.v9.html` | Hosted v9 lesson page G4 Urdu ch12 seg2 (ur): بلند خوانی — متن ⁦۱–۴⁩ (دوستی کی کہانی) |
 | `g4_ch12_Urdu_seg3.v9.html` | Hosted v9 lesson page G4 Urdu ch12 seg3 (ur): تفہیم — گہرائی تک پہنچنا (منتخب جواب، مختصر، تفصیلی) اور عنوان |

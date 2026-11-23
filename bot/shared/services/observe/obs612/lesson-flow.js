@@ -14,6 +14,10 @@
  * chat lists were sent, i.e. only to a coach with obs612_coach on, and only when OBS612_LESSON_FLOW_ID is set
  * (otherwise the chat lists, as before). flow_token = <coachUserId>:o612lesson:<kind>:<ref> (kind 'o' /observe, ref the
  * visit's nonce; 'f' /observe2, ref the form id). Every word on the screens is endpoint data in the coach's language.
+ *
+ * bd-31ziu8 — with FICO-S on for the visit (deps.ficoS), Middle and High both read "FICO-S v1.1" and both ask the
+ * subject (FICO-S is one rubric for every subject; the subject is kept for the record). The screens and routes are the
+ * same (GRADE already routes to SUBJECT), so the published Flow needs no change.
  */
 
 const O = require('../../coaching/frameworks/obs612');
@@ -43,6 +47,8 @@ const bandOf = (grade) => BAND_KEYS.find((b) => BANDS[b].includes(Number(grade))
 function tapFor(t, grade, subject) {
   const g = Number(grade);
   if (BANDS.primary.includes(g)) return `o612:g:${t.kind}:${t.ref}:${g}`;
+  // bd-31ziu8: a High lesson named with its subject (FICO-S) is a subject tap; without one, a class tap as before.
+  if (BANDS.high.includes(g) && O.normSubject(subject)) return `o612:s:${t.kind}:${t.ref}:${g}:${O.normSubject(subject)}`;
   if (BANDS.high.includes(g)) return `o612:g:${t.kind}:${t.ref}:${g}`;
   if (BANDS.middle.includes(g) && O.normSubject(subject)) return `o612:s:${t.kind}:${t.ref}:${g}:${O.normSubject(subject)}`;
   return null;
@@ -60,13 +66,16 @@ function classData(s, teacherName) {
   };
 }
 
-function gradeData(s, band) {
+// Which bands ask the subject: Middle (FDE's tool is chosen by it); with FICO-S, High too.
+const asksSubject = (band, ficoS) => band === 'middle' || (ficoS && band === 'high');
+
+function gradeData(s, band, ficoS = false) {
   return {
     heading: s.lf_grade_heading,
     band_name: s.lf_bands[band].title,
     lbl: s.lf_grade_label,
     options: BANDS[band].map((g) => ({ id: String(g), title: s.grade_row(g) })),
-    next_label: band === 'middle' ? s.lf_continue : s.lf_start,
+    next_label: asksSubject(band, ficoS) ? s.lf_continue : s.lf_start,
   };
 }
 
@@ -100,7 +109,9 @@ async function handleRequest(decrypted, deps = {}) {
   if (!t) return { data: { error: { message: 'This choice is from an older visit. Send /observe again.' } } };
   let lang = 'en';
   try { lang = deps.userLang ? await deps.userLang(t.userId) : 'en'; } catch (_) { lang = 'en'; }
-  const s = obs612Strings(lang);
+  let ficoS = false;
+  try { ficoS = deps.ficoS ? Boolean(await deps.ficoS(t)) : false; } catch (_) { ficoS = false; }
+  const s = obs612Strings(lang, { ficoS });
   if (action === 'INIT') {
     let name = null;
     try { name = deps.teacherName ? await deps.teacherName(t) : null; } catch (_) { name = null; }
@@ -112,13 +123,13 @@ async function handleRequest(decrypted, deps = {}) {
   if (step === 'class') {
     const band = BAND_KEYS.includes(data.band) ? data.band : null;
     if (!band) return { screen: 'CLASS', data: classData(s, null) };
-    return { screen: 'GRADE', data: gradeData(s, band) };
+    return { screen: 'GRADE', data: gradeData(s, band, ficoS) };
   }
   if (step === 'grade') {
     const g = Number(data.grade);
     const band = bandOf(g);
     if (!band) return { screen: 'CLASS', data: classData(s, null) };
-    if (band === 'middle') return { screen: 'SUBJECT', data: subjectData(s, g) };
+    if (asksSubject(band, ficoS)) return { screen: 'SUBJECT', data: subjectData(s, g) };
     return closeWith(tapFor(t, g, null));
   }
   if (step === 'subject') {

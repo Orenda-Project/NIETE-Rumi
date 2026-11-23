@@ -111,6 +111,18 @@ Feature: FDE board-pattern paper for Grade 5
     When the teacher tries to add a question
     Then the editor says "Board-pattern papers keep their shape" and no new version is made
 
+  @sandbox @real-paper
+  # bd-zrdvmi.24: the editor's Bloom's summary is the same on a board-pattern paper; the paper and marking scheme are not touched.
+  Scenario: Editing a board-pattern paper shows the Bloom's summary and leaves the printed files alone
+    Given a ready board-pattern paper whose questions carry Bloom's levels
+    When the teacher opens Edit paper
+    Then each question shows its level and a summary shows each level's share and each question type's count
+    When the teacher removes one question and saves
+    Then the new paper and its marking scheme print no levels and no summary
+    # bd-zrdvmi.50.2 (AG row 7 point 7): FDE's own target for the grade and subject sits beside the paper's mix.
+    And on a Grade 5 Science board-pattern paper the summary shows "FDE target" with "Remember 30%", "Understand 30%" and "Apply 40%"
+    And the printed paper and marking scheme show no FDE target
+
   @sandbox @real-paper @no-mock-driver
   # No mock driver: the refusal is decided on a real paper's slot-tagged items, which only a sandbox paper carries.
   Scenario: Changing a board-pattern question's marks is refused, and sending the same marks back is not an edit
@@ -187,3 +199,11 @@ Feature: FDE board-pattern paper for Grade 5
     Given the board-pattern switch is on
     When a Grade 3 Urdu teacher makes a paper with the default mix of types Questions starts with
     Then the screens, the request, the prompt and the printed paper are identical to those made with the switch off
+
+  @sandbox
+  # bd-zrdvmi.50.4 — AG row 21: Select from the book belongs to the teacher's own paper only.
+  Scenario: A board-pattern paper never offers Select from the book
+    Given the board-pattern switch is on and the book picker is on
+    When a Grade 5 teacher picks the FDE pattern and reaches Check
+    Then no "Select from the book" is shown and the request carries no picked book questions
+    And choosing her own paper instead, by chapters, shows "Select from the book" on Questions

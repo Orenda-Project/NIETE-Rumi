@@ -12,7 +12,7 @@ export const COACH_PROFILE_EN = {
   schoolsN: (n: number) => (n === 1 ? "1 school" : `${n} schools`),
   teachersN: (n: number) => `${n} teachers`,
   childTest: "Child test",
-  assess: "Learning assessment",
+  assess: "Learning Assessment",
   account: "Account",
   privacy: "Privacy policy",
   deleteAccount: "Delete account",

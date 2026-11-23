@@ -732,6 +732,10 @@ module.exports = {
   build,
   isListenAndIdentify,
   displayOrder,
+  // the web page's per-sitting order (web-quiz-order-seed.js) pins and shuffles with the same rules
+  isOrderLocked,
+  hash32,
+  mulberry32,
   optionLabels,
   correctIndices,
   answerId,

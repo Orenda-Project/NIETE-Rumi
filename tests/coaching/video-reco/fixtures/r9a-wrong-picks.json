@@ -1,0 +1,1257 @@
+{
+ "source": "ped-align panel/r9a (20261119T215415): the 84 later-visit picks the blind r9a panel judged wrong at #5202 7eb4f4b2ea (majority of 3); r9_disagreement = one of the 71 r9 passed. Card text as the panel saw it (redacted).",
+ "picks": [
+  {
+   "item": "N0052",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب جوتوں اور سوٹ والی مثال دہرائیں، تو ایک open-ended question پوچھ کر wait time دیں، اور worksheet میں ایک extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) prompt شامل کریں جس میں بچے وجہ لکھیں کہ یہی اصول دونوں [a student] پر کیوں [a student] ہوتا ہے۔"
+  },
+  {
+   "item": "N0088",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب کوئی بچہ [a student] کی طرح 'ٹو بائے ٹو' جیسا ایک لفظ کا جواب دے، تو diagram کی طرف اشارہ کر کے ایک open-ended question پوچھیں، جیسے 'یہ like fractions کیسے ہیں، explain کریں' — پھر 5-8 سیکنڈ کا wait time دیں، pair میں بات کروائیں اور پھر report کروائیں۔"
+  },
+  {
+   "item": "N0090",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student answers with just one number during 4-times-table practice, pause and ask 'how did you get that?' then wait 5-7 seconds before moving on."
+  },
+  {
+   "item": "N0091",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب بچے گھر سے بنائے جملے لائیں، تو پوچھیں 'یہ سکتہ یہاں کیوں لگایا؟'، چند سیکنڈ کا wait time دیں، Think-Pair-Share کروائیں، پھر تعریف کے ساتھ ایک مخصوص [a student] قدم بتائیں۔"
+  },
+  {
+   "item": "N0152",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'لڑکا فٹبال کھیل رہا ہے' میں فاعل کو فعل کہے، تو اس سے اپنی زندگی کا جملہ [a student]، پوچھیں 'فاعل کیوں ہے؟' اور 5-7 سیکنڈ wait time دیں۔"
+  },
+  {
+   "item": "N0212",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'پاکستان ایک زرعی ملک ہے' پڑھتے ہوئے کسی لفظ پر [a student]، تو لفظ توڑ جوڑ کر مدد دیں، پھر چاول کی [a student] کے موسم پر ایک open-ended question پوچھ کر wait time دیں۔"
+  },
+  {
+   "item": "N0270",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a child answers with just one word like '3' for [a student], pause with a 3–5 second wait time, ask an open-ended question like 'what do you see first?', then try a quick Think-Pair-Share before confirming."
+  },
+  {
+   "item": "N0293",
+   "seg": "794-s2",
+   "rank": 3,
+   "prior": [
+    "451-s3",
+    "745-s1"
+   ],
+   "subject": "islamiat",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب [a student] کے [a student] کی تعریف دیں، اس کے فوراً بعد ایک منٹ کا think-pair-share کروائیں تاکہ طالبات انفرادی activity میں لکھنے سے پہلے اپنے الفاظ میں ایک دوسرے سے بات کریں۔"
+  },
+  {
+   "item": "N0307",
+   "seg": "804-s2",
+   "rank": 5,
+   "prior": [
+    "790-s3",
+    "451-s1",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب [a student] کی طرح کوئی بچہ 'ہرن؟' جیسے [a student] ہوئے ایک لفظ میں جواب دے، لیسن پلان کی تجویز کے مطابق فوراً 'تھینک یو' کہنے کے بجائے ایک open-ended question پوچھیں، 8-10 سیکنڈ کا wait time دیں، پھر ضرورت ہو تو pair-share کروائیں۔"
+  },
+  {
+   "item": "N0339",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ '[a student]' یا '[a student]' جیسا لفظ بولے، تو دہرانے کے بجائے ایک open-ended question پوچھیں اور 8-15 سیکنڈ کا wait time دے کر لفظ کا مطلب واضح کروائیں۔"
+  },
+  {
+   "item": "N0376",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student says only 'گزرے ہوئے' for ماضی, ask 'یہ ماضی کیوں ہے؟', wait 5-7 seconds, then have them repeat the full reasoning aloud."
+  },
+  {
+   "item": "N0405",
+   "seg": "804-s2",
+   "rank": 7,
+   "prior": [
+    "782-s1",
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student answers 'when we divide' in one word, give 7–10 seconds of silent think time, then ask 'why divide here—show me with a drawing' before pair-share."
+  },
+  {
+   "item": "N0408",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب تصویر پر سوال پوچھیں، تو پہلے ایک open-ended question دے کر 30-60 سیکنڈ کا wait time دیں، پھر 2-3 منٹ Think-Pair-Share کروا کر جواب لیں۔"
+  },
+  {
+   "item": "N0427",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ [a student] کی طرح صرف ٹینز یا ونز بولے، تو open-ended question پوچھیں جیسے 'آپ کو کیسے پتا چلا کہ یہ ہنڈرڈ ہے؟' اور 8-10 سیکنڈ wait time دیں تاکہ بچہ خود وضاحت کرے۔"
+  },
+  {
+   "item": "N0488",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "782-s1",
+    "451-s3",
+    "745-s1",
+    "804-s2"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student echoes the whole word پھول instead of naming the letter, ask 'Can you explain how you got your answer?', pause 5-7 seconds, then have pairs think-pair-share why that letter doesn't join."
+  },
+  {
+   "item": "N0529",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب ایڈوانس گروپ [a student] [a student] بیس کو percentage میں بدلے، فوراً جواب نہ دیں بلکہ ایک open-ended question پوچھیں جیسے 'آپ نے یہ کیسے نکالا؟' اور پانچ سے سات سیکنڈ کا wait time دیں تاکہ بچے خود reasoning بتائیں۔"
+  },
+  {
+   "item": "N0534",
+   "seg": "790-s2",
+   "rank": 7,
+   "prior": [
+    "95-s1",
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1",
+    "804-s2"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, during the fractions lesson, ask two open-ended 'why' or 'what if' questions, run a 60-second Think-Pair-Share, then close with a one-sentence exit ticket."
+  },
+  {
+   "item": "N0537",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ triangle shape جیسا ایک لفظ کا جواب دے، تو 'رنگ کیسا ہوگا؟' جیسا open-ended question پوچھ کر 5-7 سیکنڈ wait time دیں، پھر think-pair-share کروائیں۔"
+  },
+  {
+   "item": "N0539",
+   "seg": "905-s5",
+   "rank": 3,
+   "prior": [
+    "791-s2",
+    "451-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student blurts out a quick answer like '9' for 3 groups of 3, pause and ask them to show it with counters or do a 60-second Think-Pair-Share with a neighbour before confirming."
+  },
+  {
+   "item": "N0668",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a child gives a surprising answer about the cat (like saying it hits a big one), ask 'Why do you think that?' and wait 6 seconds before replying."
+  },
+  {
+   "item": "N0698",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں مہینوں کا سبق پڑھاتے وقت، درمیان میں تین چار منٹ کا [a student] video چلائیں، پھر دو comprehension questions پوچھیں اور pair-share کروائیں تاکہ بچوں کا اعتماد بڑھے۔"
+  },
+  {
+   "item": "N0731",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں، جب کوئی بچہ 'LISTEN' جیسے لفظ میں silent letter خود نوٹ کرے، تو فوراً ایک open-ended question پوچھیں جیسے 'یہ کیسے پتا چلا؟' اور 5-7 سیکنڈ کا wait time دیں۔"
+  },
+  {
+   "item": "N0747",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, after modelling the bangles problem, ask every child 'Can you explain why?', wait 5-7 seconds, then have pairs explain their thinking for 30 seconds before sharing out."
+  },
+  {
+   "item": "N0781",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ '[a student]' یا 'ویران' جیسے نئے لفظ پر خود سے کوئی بات شامل کرے، فوراً آگے نہ بڑھیں — دو open-ended questions پوچھیں اور 5-10 سیکنڈ کا wait time دیں تاکہ بچہ اپنی سوچ خود بیان کرے۔"
+  },
+  {
+   "item": "N0792",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student gives a one-word answer like 'No' to a forgiveness question, wait 3-5 seconds, then have them explain their thinking in their own words to a partner."
+  },
+  {
+   "item": "N0798",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب بچے صفر لگانے کا قدم دہرائیں، ایک open-ended question پوچھیں 'یہ صفر کیوں لگائے؟'، 5-7 سیکنڈ wait time دیں، پھر [a student] چارٹ کارڈ کے ساتھ 1-منٹ کا Think-Pair-Share کروائیں۔"
+  },
+  {
+   "item": "N0807",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "general_knowledge",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں، جب کوئی طالب علم 'شیر کا مسکن جنگل کیوں؟' پر ایک لفظ میں جواب دے، 'کیوں؟' یا 'مثال سے سمجھائیں' پوچھیں اور 5-7 سیکنڈ wait time دیں۔"
+  },
+  {
+   "item": "N0818",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student answers in just a word or two like [a student] did, pause for 5-7 seconds of wait time, then ask an open question like 'why does that matter in daily life?' before adding your own example."
+  },
+  {
+   "item": "N0850",
+   "seg": "905-s5",
+   "rank": 4,
+   "prior": [
+    "790-s3",
+    "451-s1",
+    "791-s2"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب کوئی بچہ [a student] کی طرح 'ٹو بائے ٹو' جیسا ایک لفظ کا جواب دے، تو diagram کی طرف اشارہ کر کے ایک open-ended question پوچھیں، جیسے 'یہ like fractions کیسے ہیں، explain کریں' — پھر 5-8 سیکنڈ کا wait time دیں، pair میں بات کروائیں اور پھر report کروائیں۔"
+  },
+  {
+   "item": "N0910",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "science",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student says 'jellyfish is non-luminous' or mentions 'particles', pause and ask one 'why' question, give 8-10 seconds wait time, then let them answer in pairs before sharing out."
+  },
+  {
+   "item": "N0919",
+   "seg": "790-s3",
+   "rank": 2,
+   "prior": [
+    "782-s1"
+   ],
+   "subject": "maths",
+   "grade": 6,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student says the surface area formula is 6l^2, stop and ask 'why six, not two or three?', then wait 10 seconds before confirming the answer."
+  },
+  {
+   "item": "N0922",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'مائنس' جیسے ایک لفظ میں جواب دے، تو فوراً ایک open-ended question پوچھیں جیسے 'آپ نے یہ جواب کیسے نکالا؟' اور جواب سننے سے پہلے 5-10 سیکنڈ کا wait time ضرور دیں۔"
+  },
+  {
+   "item": "N0925",
+   "seg": "745-s1",
+   "rank": 3,
+   "prior": [
+    "790-s3",
+    "451-s1"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کہانی پڑھائیں تو 'گاؤں والوں نے مدد کرنا کیوں بند کر دیا؟' جیسا open-ended question پوچھیں، 5-7 سیکنڈ wait time دیں، پھر Think-Pair-Share کروائیں۔"
+  },
+  {
+   "item": "N0936",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'پاک [a student]' کو اسم نکرہ اور اسم معرفہ دونوں کہے، تو pair میں ساتھی سے سوچنے کا wait time دے کر open-ended questions سے وجہ پوچھیں۔"
+  },
+  {
+   "item": "N0945",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "95-s1",
+    "790-s3"
+   ],
+   "subject": "science",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when you reach the window example, ask 'why is this transparent, not translucent?', include it among three why/how questions written on the board, and give wait time before calling on students."
+  },
+  {
+   "item": "N0953",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب subtraction کے سوال میں carry والا [a student] آئے، بچوں سے پوچھیں 'یہ ایسا کب ہوتا ہے جب ہم دکان پر پیسوں کا لین دین کرتے ہیں؟' اور جواب سے پہلے چند سیکنڈز کا wait time دیں۔"
+  },
+  {
+   "item": "N1019",
+   "seg": "790-s2",
+   "rank": 4,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "804-s2"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں، pronoun یا past tense (-ed) والے جملے کا model دینے کے بعد ایک منٹ کا turn and tell کروائیں: بچے جوڑوں میں اپنا جملہ ایک دوسرے کو بتائیں اور ساتھی انہیں ایک compliment اور ایک suggestion دیں۔"
+  },
+  {
+   "item": "N1203",
+   "seg": "905-s5",
+   "rank": 5,
+   "prior": [
+    "782-s1",
+    "790-s3",
+    "451-s1",
+    "791-s2"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی سٹوڈنٹ [a student] کردار کے بارے میں ایک لفظ میں جواب دے، تو فوراً 'کیوں؟' پوچھ کر 5 سیکنڈ کا wait time دیں، پھر 2 منٹ کا Think-Pair-Share کروا کے بچوں کو جوڑے میں سوچنے کا موقع دیں۔"
+  },
+  {
+   "item": "N1207",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student trails off during the tree story, pause for wait time, then ask a Why question about their own life, and add 'Good—can you give one more reason?'"
+  },
+  {
+   "item": "N1234",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب [a student] کی کہانی پر سوال پوچھیں، ایک open-ended question دے کر 5 سیکنڈ کا wait time دیں، اور pairs کو core اور stretch سوال دے کر تفصیلی جواب لیں۔"
+  },
+  {
+   "item": "N1236",
+   "seg": "745-s1",
+   "rank": 5,
+   "prior": [
+    "790-s3",
+    "451-s1",
+    "791-s2",
+    "905-s5"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a child gives a one-word answer like 'snow leopard,' ask 'Why do you feel that way?', wait 5-7 seconds, then have them turn to a partner before sharing with the class."
+  },
+  {
+   "item": "N1317",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ '[a student] اچھی لڑکی ہے' کو ضمیر میں بدلتے ہوئے صرف 'اسے' کہے، تو ایک open-ended سوال پوچھیں جیسے 'یہ ضمیر کیوں استعمال ہوا؟' اور جواب لینے سے پہلے 5-7 سیکنڈ کا wait time دیں۔"
+  },
+  {
+   "item": "N1347",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ زخمی جانور پر اپنے الفاظ میں جواب دے، تو اگلے سوال کے بجائے open-ended question پوچھیں، 5-7 سیکنڈ wait time دیں، اور جواب کی خوبی بتا کر اگلا قدم دیں۔"
+  },
+  {
+   "item": "N1356",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student's one-word answer surprises you — like [a student] saying joining school 'felt good' — pause, give wait time, and ask 'Tell me more about that?' before offering your own read."
+  },
+  {
+   "item": "N1377",
+   "seg": "745-s1",
+   "rank": 4,
+   "prior": [
+    "791-s2",
+    "451-s3",
+    "905-s5"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student reads the thermometer's number line, ask 'Why do you think the temperature changed?' then have them turn to a partner to compare readings and explain their answer."
+  },
+  {
+   "item": "N1390",
+   "seg": "790-s3",
+   "rank": 2,
+   "prior": [
+    "782-s1"
+   ],
+   "subject": "maths",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student gives a one-word answer on a birds word problem like 'groups of 5', ask 'why?', wait 8 seconds, then have another student restate the explanation."
+  },
+  {
+   "item": "N1412",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "Social Studies",
+   "grade": null,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "Next class, when a student offers a term like 'latitude' or 'khutoot-e-istiva', pause with wait time and ask an open-ended question, letting a quick pair discussion find the rule first."
+  },
+  {
+   "item": "N1454",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "95-s1",
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, in the last five minutes when wrapping up the story about [a student], ask one 'why' question like 'Why did [a student] say sorry?', give wait time, then let pairs share before you close."
+  },
+  {
+   "item": "N1523",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب بچے triangle یا circle کاٹ کر shape کے equal parts دکھائیں، تو ایک open-ended question پوچھیں جیسے 'یہ ٹکڑا آدھا کیوں ہے؟'، پھر 8-10 سیکنڈ کا wait time دیں اور pair-share کروائیں۔"
+  },
+  {
+   "item": "N1557",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student quickly says '56' for 840 out of 1500, ask 'how did you get that?' and wait 20-30 seconds before two students summarize percent to decimal steps."
+  },
+  {
+   "item": "N1564",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'محترم' جیسی ایک لفظ کی غلطی کرے تو فوراً درست لفظ بتانے کے بجائے ایک open-ended question پوچھیں، wait time دیں، اور sentence-making کے لیے Basic/[a student]/[a student] prompt bank استعمال کریں۔"
+  },
+  {
+   "item": "N1650",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "Next class, when a child answers 'No, ma'am' to a fairness question, ask 'Why do you think that?', wait 5–7 seconds, then run a 45-second think-pair-share: Partner A gives one reason, Partner B adds one detail."
+  },
+  {
+   "item": "N1652",
+   "seg": "790-s2",
+   "rank": 5,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ fractions کا کام جلدی مکمل کرے، اس کو Think-Pair-Share میں explainer بنائیں، ساتھی کو checker اور reporter کا رول دیں تاکہ وضاحت کے [a student] واضح ہوں۔"
+  },
+  {
+   "item": "N1673",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب 'ڈانسنگ پوائنٹ' پر 'ہم نے کیا محسوس کیا' جیسا open-ended question پوچھیں، تو 5-7 سیکنڈ کا wait time دیں اور بورڈ پر support/core/extend کی تین [a student] لکھ کر بچوں کو جواب مکمل کرنے کا موقع دیں۔"
+  },
+  {
+   "item": "N1730",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں، جب کوئی بچہ ایل سی ایم یا سبٹریکشن پر ایک لفظ میں جواب دے، تو فوراً 'کیوں' پوچھیں، ایک open-ended question جیسے 'آپ کو کیسے پتا چلا؟' شامل کریں، اور ایک منٹ کے لیے pair discussion کروائیں۔"
+  },
+  {
+   "item": "N1765",
+   "seg": "804-s2",
+   "rank": 4,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں مہینوں کا سبق پڑھاتے وقت، درمیان میں تین چار منٹ کا [a student] video چلائیں، پھر دو comprehension questions پوچھیں اور pair-share کروائیں تاکہ بچوں کا اعتماد بڑھے۔"
+  },
+  {
+   "item": "N1792",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب کوئی بچہ fractions کا کام جلدی مکمل کرے، اس کو Think-Pair-Share میں explainer بنائیں، ساتھی کو checker اور reporter کا رول دیں تاکہ وضاحت کے [a student] واضح ہوں۔"
+  },
+  {
+   "item": "N1872",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "General Science",
+   "grade": null,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'پنکھا' جیسا ایک لفظ کا جواب دے، تو 'پنکھے کو بجلی کیوں چاہیے؟' جیسا open-ended question پوچھ کر 8-10 سیکنڈ wait time دیں، پھر 90 سیکنڈ کا Think-Pair-Share کروائیں تاکہ بچے آپس میں سوچ کر بات کریں۔"
+  },
+  {
+   "item": "N1880",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب 'متضاد' پر 'پاس → دودھ' جیسا مختصر جواب آئے، تو open-ended question پوچھیں، 5-10 سیکنڈ wait time دیں، اور زیادہ تفصیل مانگیں۔"
+  },
+  {
+   "item": "N1882",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student's answer like 'itchy' feels partial, ask one open-ended question tied to a daily life example, then wait 5–7 seconds before confirming."
+  },
+  {
+   "item": "N1981",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "95-s1",
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when reviewing a decimal like 2.93, ask 'why does the 3 represent hundredths?', wait 8 seconds, then run a 3-minute think-pair-share before calling on anyone."
+  },
+  {
+   "item": "N2002",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "urdu",
+   "grade": 2,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں درجہ بندی کے کام کے دوران wait time دینے کے بعد ایک open-ended question پوچھیں، اور جواب سے پہلے بچوں کو Think-Pair-Share میں ساتھی سے بات کرنے دیں۔"
+  },
+  {
+   "item": "N2010",
+   "seg": "745-s1",
+   "rank": 2,
+   "prior": [
+    "451-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب کوئی بچہ rectangle کے ٹکڑوں پر 'ون بائی ٹو' جیسا مختصر جواب دے، تو فوراً خود درست کرنے کے بجائے کسی دوسرے بچے سے پوچھیں کہ وہ اپنے ساتھی کے جواب پر رائے دے، پھر Think-Pair-Share کے ذریعے مل کر درست جواب تک پہنچیں۔"
+  },
+  {
+   "item": "N2026",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "social_studies",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student mentions barter items like diamonds or chickens, wait 5 seconds and ask 'Can you give one reason that worked?' before linking it to the 100 rupees activity."
+  },
+  {
+   "item": "N2040",
+   "seg": "804-s2",
+   "rank": 6,
+   "prior": [
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "english",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, after modeling possessive apostrophes, say Turn to your partner and share two examples; circulate for two minutes, pause by [a student] [a student], ask 'Why?', and wait 5 seconds for his answer."
+  },
+  {
+   "item": "N2098",
+   "seg": "782-s1",
+   "rank": 3,
+   "prior": [
+    "790-s3",
+    "451-s1"
+   ],
+   "subject": "urdu",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں، جب کوئی بچہ 'پول' یا 'فل' جیسا [a student] جواب دے، تو فوراً 'پل' بتانے کے بجائے 7-10 سیکنڈ کا wait time دیں اور ایک follow-up سوال پوچھیں، جیسے 'کیا کوئی اور لفظ سوچ سکتا ہے؟'"
+  },
+  {
+   "item": "N2149",
+   "seg": "790-s2",
+   "rank": 8,
+   "prior": [
+    "782-s1",
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "islamiat",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student gives a short answer like 'سچ بولنا چاہیے,' pause and give wait time, then ask 'why do you think that?' before a quick think-pair-share and the textbook definition."
+  },
+  {
+   "item": "N2190",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student answers with just one word like 'L-Y' for an adverb, ask a follow-up question such as 'How would changing this word change the sentence's feeling?' and give wait time before moving on."
+  },
+  {
+   "item": "N2204",
+   "seg": "794-s2",
+   "rank": 5,
+   "prior": [
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student's steps come out rough like 'wet hands under tap,' pause with 5-7 seconds wait time, ask an open-ended question like 'how does First help your reader?', then try a 60-second think-pair-share before reshaping with First, Then, Finally."
+  },
+  {
+   "item": "N2206",
+   "seg": "790-s2",
+   "rank": 7,
+   "prior": [
+    "791-s2",
+    "451-s3",
+    "905-s5",
+    "745-s1",
+    "794-s2",
+    "804-s2"
+   ],
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a child names a vehicle picture, ask one open question like 'why would someone use this?', give 30 seconds of Think-Pair-Share, then follow with one specific next step instead of just 'very good'."
+  },
+  {
+   "item": "N2223",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student like [a student] gives a surprising answer, wait 5-7 seconds and ask 'how did you get that?', then offer a number line for support or challenge others to create their own pattern rule."
+  },
+  {
+   "item": "N2250",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "95-s1",
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student gives a one-word answer, share a quick daily routine example, ask an open-ended why question, wait 5 seconds, then let pairs share."
+  },
+  {
+   "item": "N2275",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ [a student] کی کتابوں والے سوال پر ایک لفظ کا جواب دے، تو فوراً آگے نہ بڑھیں — ایک open-ended question پوچھیں جیسے 'یہ تقسیم برابر کیسے ہوئی؟' اور جواب سے پہلے 3-5 سیکنڈ کا wait time دیں۔"
+  },
+  {
+   "item": "N2356",
+   "seg": "804-s2",
+   "rank": 4,
+   "prior": [
+    "451-s3",
+    "745-s1",
+    "794-s2"
+   ],
+   "subject": "urdu",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'دلکش' کے لیے صرف ایک جملہ بنائے، تو ایک open-ended question پوچھیں 'یہ کیوں دلکش ہے؟'، پھر ایک منٹ کا pair share کروائیں، اور شاباش کے ساتھ ایک بہتری کا [a student] بھی دیں۔"
+  },
+  {
+   "item": "N2359",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student says only 'divide' because of the keyword 'each', ask 'How did you decide?', wait 5-7 seconds, then have them explain to a partner."
+  },
+  {
+   "item": "N2416",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 3,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student corrects something on the board like proper or improper fractions, pause and ask 'why do you think that?', wait 5 seconds, then let them explain to the class like a teacher."
+  },
+  {
+   "item": "N2459",
+   "seg": "745-s1",
+   "rank": 3,
+   "prior": [
+    "790-s3",
+    "451-s1"
+   ],
+   "subject": "english",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'sequence' یا 'because' جیسا صرف ایک لفظ کہے، تو 45 سیکنڈ کی خاموش سوچ کے بعد [a student]/[a student] کے ساتھ 60 سیکنڈ کا pair talk کروائیں اور 'ہم پہلے... پھر... اس لیے...' جیسے sentence stems دیں تاکہ جواب مکمل جملے میں بنے۔"
+  },
+  {
+   "item": "N2532",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 1,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student answers the clock question in just one or two words like [a student] did, ask 'How did you get that? Tell us step-by-step' and wait 5-7 seconds before jumping in, so their confidence grows."
+  },
+  {
+   "item": "N2611",
+   "seg": "451-s1",
+   "rank": 3,
+   "prior": [
+    "782-s1",
+    "790-s3"
+   ],
+   "subject": "islamiat",
+   "grade": 1,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ صرف 'امین' کہے، فوراً پوچھیں 'آپ ایسا کیوں کہہ رہے ہیں، ایک مثال دیں' اور جواب سے پہلے 5-7 سیکنڈ کا wait time دیں، جیسے بیٹری والی مثال میں سوچ کھلی تھی۔"
+  },
+  {
+   "item": "N2624",
+   "seg": "745-s1",
+   "rank": 3,
+   "prior": [
+    "790-s3",
+    "451-s1"
+   ],
+   "subject": "maths",
+   "grade": 4,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": false,
+   "card": "اگلی کلاس میں جب fractions کو addition کے لیے convert کرنے کا step سکھائیں، تو دو open-ended 'کیوں/کیسے' سوالات پوچھیں، 5-7 سیکنڈ wait time دیں، پھر ایک 30 سیکنڈ turn-and-tell کروا کر بچوں سے step اپنے الفاظ میں سنیں۔"
+  },
+  {
+   "item": "N2656",
+   "seg": "745-s1",
+   "rank": 5,
+   "prior": [
+    "790-s3",
+    "451-s1",
+    "791-s2",
+    "905-s5"
+   ],
+   "subject": "english",
+   "grade": 2,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a child gives a quick or wrong answer during rhyming words, pause, give wait time, then use Think-Pair-Share so they reason it out with a partner before answering again."
+  },
+  {
+   "item": "N2661",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "maths",
+   "grade": 5,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب کوئی بچہ 'L equal to W' جیسا مختصر جواب دے، تو فوراً وضاحت دینے کے بجائے 'کیوں؟' جیسا open-ended سوال پوچھیں اور 5-7 سیکنڈ wait time دیں۔"
+  },
+  {
+   "item": "N2664",
+   "seg": "790-s3",
+   "rank": 2,
+   "prior": [
+    "782-s1"
+   ],
+   "subject": "islamiat",
+   "grade": 3,
+   "report_lang": "ur",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "اگلی کلاس میں جب [a student] [a student] جیسا کوئی بچہ امانت کے بارے میں ایک یا دو لفظوں میں جواب دے، تو 'کیوں؟' یا 'مثال دیں' پوچھ کر 5-10 سیکنڈ کا wait time دیں۔"
+  },
+  {
+   "item": "N2707",
+   "seg": "451-s1",
+   "rank": 2,
+   "prior": [
+    "790-s3"
+   ],
+   "subject": "english",
+   "grade": 5,
+   "report_lang": "en",
+   "lesson_lang": "ur",
+   "r9_disagreement": true,
+   "card": "Next class, when a student self-corrects during the pronoun conversion exercise, pause and ask 'Which word made you change your answer?' then wait 10-15 seconds before moving on."
+  }
+ ]
+}

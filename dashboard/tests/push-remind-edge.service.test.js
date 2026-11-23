@@ -37,7 +37,7 @@ let s;
 afterEach(() => new Promise((r) => (s ? s.server.close(() => { s = null; r(); }) : r())));
 
 describe('edge routes', () => {
-  test('switch off at the bot: /remind/:code falls through, the API answers 404 not_found', async () => {
+  test('switch off at the bot: /remind/:code falls through, the API answers 404 {off:true} (the page drops its worker on that only)', async () => {
     s = await start();
     const page = await fetch(`${s.base}/remind/AB12CD`);
     expect(page.status).toBe(404);
@@ -45,11 +45,11 @@ describe('edge routes', () => {
     expect(s.calls[0].url).toBe('http://bot.test/api/internal/wqpush/state');
     const key = await fetch(`${s.base}/api/wqpush/key`);
     expect(key.status).toBe(404);
-    expect(await key.json()).toEqual({ error: 'not_found' });
+    expect(await key.json()).toEqual({ off: true });
     for (const op of ['subscribe', 'unsubscribe', 'opened', 'test', 'e']) {
       const r = await fetch(`${s.base}/api/wqpush/${op}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       expect(r.status).toBe(404);
-      expect(await r.json()).toEqual({ error: 'not_found' });
+      expect(await r.json()).toEqual({ off: true });
     }
   });
 
@@ -112,7 +112,7 @@ describe('edge routes', () => {
     expect(r.headers.get('referrer-policy')).toBe('same-origin');
     const ur = await r.text();
     expect(ur).toContain('<html lang="ur" dir="rtl">');
-    expect(ur).toContain('کیا جگنو کل آپ کو یاد دلائے؟');
+    expect(ur).toContain(onMonday() ? 'کیا جگنو پیر کی شام آپ کو یاد دلائے؟' : 'کیا جگنو کل شام آپ کو یاد دلائے؟');
     // the Urdu page carries Urdu only; the other language is one small link
     expect(ur).not.toContain('Want Jugnu to remind you tomorrow?');
     expect(ur).toContain('>English</a>');
@@ -129,7 +129,7 @@ describe('edge routes', () => {
     const en = await (await fetch(`${s.base}/remind/AB12CD?lang=en`)).text();
     expect(en).toContain('<html lang="en" dir="ltr">');
     expect(en).toContain('"lang":"en"');
-    expect(en).not.toContain('کیا جگنو کل آپ کو یاد دلائے؟');
+    expect(en).not.toMatch(/کیا جگنو/);
     const phone = await (await fetch(`${s.base}/remind/AB12CD`, { headers: { 'accept-language': 'en-GB,en;q=0.9' } })).text();
     expect(phone).toContain('<html lang="en" dir="ltr">');
     const html = renderRemindPage({ code: 'AB12CD', lang: 'ur', test: false });
@@ -235,6 +235,10 @@ const UA_CHROME = 'Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit/537.36 
 const UA_WA = 'Mozilla/5.0 (Linux; Android 12; RMX3263 Build/SP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 WhatsApp/2.24';
 const UA_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const flush = async () => { for (let i = 0; i < 12; i += 1) await new Promise((r) => setImmediate(r)); };
+// The ask names the evening the reminder comes: Monday on a Friday or Saturday (PKT), tomorrow on any other day.
+const onMonday = () => [5, 6].includes(new Date(Date.now() + 5 * 3600000).getUTCDay());
+const askTitle = (T) => (onMonday() ? T.remindTitleMon : T.remindTitle);
+const askDone = (T) => (onMonday() ? T.remindDoneMon : T.remindDone);
 
 function page({ ua = UA_CHROME, key = { status: 200, body: { key: 'BPUBKEYAAAA' } }, push = true, install = null, perm = 'granted', regs = [], store = {}, existingSub = null } = {}) {
   const posts = [];
@@ -283,17 +287,31 @@ function page({ ua = UA_CHROME, key = { status: 200, body: { key: 'BPUBKEYAAAA' 
 }
 
 describe('wq-remind.js (fake DOM)', () => {
-  test('key 404 (switch off): unregisters our /sw.js worker only, renders nothing', async () => {
+  test('key 404 {off:true} (switch off): unregisters our /sw.js worker only, renders nothing', async () => {
     const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: jest.fn(async () => true) };
     const other = { active: { scriptURL: 'https://wq.example/other.js' }, unregister: jest.fn(async () => true) };
-    const p = page({ key: { status: 404, body: { error: 'not_found' } }, regs: [mine, other] });
+    const p = page({ key: { status: 404, body: { off: true } }, regs: [mine, other] });
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
-    expect(p.gets).toEqual(['/api/wqpush/key']);
+    expect(p.gets).toEqual(['/api/wqpush/key?code=AB12CD']); // the canary's ask is per quiz
     expect(mine.unregister).toHaveBeenCalled();
     expect(other.unregister).not.toHaveBeenCalled();
     expect(p.slot.innerHTML).toBe('');
     expect(p.Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  // A failed switch read is not an off: the worker the phone already has stays (the next real off still drops it).
+  test.each([
+    ['a 404 that is not an off (a route miss)', { status: 404, body: { error: 'not_found' } }],
+    ['503 (the switch could not be read)', { status: 503, body: { err: 'unavailable' } }],
+    ['the network down', { status: 0, body: {} }],
+  ])('key %s: the worker stays, nothing rendered', async (_label, key) => {
+    const mine = { active: { scriptURL: 'https://wq.example/sw.js' }, unregister: jest.fn(async () => true) };
+    const p = page({ key, regs: [mine] });
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
+    await flush();
+    expect(mine.unregister).not.toHaveBeenCalled();
+    expect(p.slot.innerHTML).toBe('');
   });
 
   test('an install card on screen: nothing rendered, nothing asked', async () => {
@@ -318,7 +336,7 @@ describe('wq-remind.js (fake DOM)', () => {
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1, test: true });
     await flush();
     const T = p.ctx.WQREMIND.T.ur;
-    expect(p.slot.innerHTML).toContain(T.remindTitle);
+    expect(p.slot.innerHTML).toContain(askTitle(T));
     expect(p.slot.innerHTML).toContain('dir="rtl"');
     expect(p.slot.innerHTML).toContain('lang="ur"');
     expect(p.slot.innerHTML).toMatch(/class="wq-btn wq-soft"[^>]*data-act="yes"/);
@@ -331,7 +349,7 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(p.reg.pushManager.subscribe.mock.calls[0][0].userVisibleOnly).toBe(true);
     const subPost = p.posts.find((x) => x.url === '/api/wqpush/subscribe');
     expect(subPost.body).toMatchObject({ code: 'AB12CD', lang: 'ur', chips: 1, sub: { endpoint: 'https://push.example/abc' } });
-    expect(p.slot.innerHTML).toContain(T.remindDone);
+    expect(p.slot.innerHTML).toContain(askDone(T));
     expect(p.slot.innerHTML).toContain(T.remindStop);
     expect(p.slot.innerHTML).not.toContain(T.remindTest);
     expect(p.slot.innerHTML).not.toContain('data-act="test"');
@@ -344,7 +362,7 @@ describe('wq-remind.js (fake DOM)', () => {
     await flush();
     await p.tap('yes');
     const T = p.ctx.WQREMIND.T.en;
-    expect(p.slot.innerHTML).toContain(T.remindDone);
+    expect(p.slot.innerHTML).toContain(askDone(T));
     expect(p.slot.innerHTML).toContain('href="/q/AB12CD"');
     expect(p.slot.innerHTML).toContain(T.remindTest);
     await p.tap('test');
@@ -388,7 +406,7 @@ describe('wq-remind.js (fake DOM)', () => {
     const p = page();
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
-    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.ur.remindTitle);
+    expect(p.slot.innerHTML).toContain(askTitle(p.ctx.WQREMIND.T.ur));
   });
 
   test('Stop: unsubscribes at the bot (by page) and in the browser; the results card says reminders are off', async () => {
@@ -427,7 +445,7 @@ describe('wq-remind.js (fake DOM)', () => {
     const after = page({ store: { wq_rm_later: String(Date.now() - 8 * 864e5) } });
     after.ctx.WQREMIND.mount(after.slot, { code: 'AB12CD', lang: 'en', chips: 1 });
     await flush();
-    expect(after.slot.innerHTML).toContain(after.ctx.WQREMIND.T.en.remindTitle);
+    expect(after.slot.innerHTML).toContain(askTitle(after.ctx.WQREMIND.T.en));
   });
 
   test("WhatsApp's Android browser: one line + ONE Open-in-Chrome button; the ⋮ hint and Copy link only behind How?", async () => {

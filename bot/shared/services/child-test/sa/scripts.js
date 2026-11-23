@@ -54,15 +54,15 @@ const BATTERY = {
     'السلام علیکم! جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔', 'egra_tk2016:p.186 (game wording)'),
   end_game: L('All done! Well done for trying.', 'سب ہو گیا! کوشش کرنے پر شاباش۔', 'adapted:game end'),
   // The engine's own screens (RULINGs #10, #13, #14, #17).
-  oral_practice: L('Let us practise answering out loud. Say: one, two, three.', 'آئیں، اونچی آواز میں جواب دینے کی مشق کریں۔ کہیں: ایک، دو، تین۔', 'RULING #13 (one practice before the first spoken answer)'),
-  oral_heard: L('I heard you!', 'مجھے سنائی دیا!', 'RULING #13'),
-  mic_check: L('Say: one, two, three.', 'کہیں: ایک، دو، تین۔', 'RULING #13 (mic probe)'),
-  mic_check_ask: L('Did you hear yourself?', 'کیا آپ کو اپنی آواز سنائی دی؟', 'RULING #13 (mic probe playback)'),
-  mercy: L('If reading is hard, tap the star.', 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔', 'RULING #10 (b) mercy rule (gender-neutral wording)'),
-  voice_not_ready: L('Voice not ready', 'آواز ابھی تیار نہیں', 'RULING #14'),
-  keypad_warmup: L('Type any numbers you like. Tap Done when you are ready.', 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔', 'RULING #17 P4 (Tangerine SA free-typing warm-up)'),
-  done: L('Done', 'ہو گیا', 'RULING #10 (c) the star tile'),
-  // RULING #31d: the engine's own lines (dashboard/sa/sa-ui.js COPY, the same words) as battery lines, so each is a
+  oral_practice: L('Let us practise answering out loud. Say: one, two, three.', 'آئیں، اونچی آواز میں جواب دینے کی مشق کریں۔ کہیں: ایک، دو، تین۔', 'one practice before the first spoken answer'),
+  oral_heard: L('I heard you!', 'مجھے سنائی دیا!', 'oral practice: the heard cue'),
+  mic_check: L('Say: one, two, three.', 'کہیں: ایک، دو، تین۔', 'mic probe'),
+  mic_check_ask: L('Did you hear yourself?', 'کیا آپ کو اپنی آواز سنائی دی؟', 'mic probe playback'),
+  mercy: L('If reading is hard, tap the star.', 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔', 'mercy rule (gender-neutral wording)'),
+  voice_not_ready: L('Voice not ready', 'آواز ابھی تیار نہیں', 'the voice-loading status line'),
+  keypad_warmup: L('Type any numbers you like. Tap Done when you are ready.', 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔', 'Tangerine SA free-typing warm-up'),
+  done: L('Done', 'ہو گیا', 'the star tile'),
+  // The engine's own lines (dashboard/sa/sa-ui.js COPY, the same words) as battery lines, so each is a
   // clip and never the phone's speech. A change to a COPY text must change its line here too (a test compares them).
   right: L('That’s right!', 'بالکل ٹھیک!', 'engine COPY.right (practice, correct)'),
   try_again: L('Try again.', 'ایک بار پھر کوشش کریں۔', 'engine COPY.try_again (practice, one retry)'),
@@ -72,7 +72,7 @@ const BATTERY = {
   last_word: L('Tap the last word you read', 'آخری پڑھا ہوا لفظ دبائیں', 'engine COPY.last_word (passage)'),
   all_done: L('All done!', 'سب ہو گیا!', 'engine COPY.all_done (battery end)'),
   back_wait: L('Your island is saved on this phone. It will go when the internet is back.', 'آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔', 'engine COPY.back_wait (game, offline)'),
-  mic_skip_task: L('No microphone, so we skip this part', 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں', 'engine COPY.mic_skip_task (RULING #38b)'),
+  mic_skip_task: L('No microphone, so we skip this part', 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں', 'engine COPY.mic_skip_task'),
   give_coach: L('Give the phone back to the coach.', 'اب فون کوچ کو واپس دے دیں۔', 'engine COPY.give_coach (coach hand-back)'),
 };
 const GAME_LINES = {
@@ -316,7 +316,7 @@ const MATHS_PRACTICE = {
   wrong_number: L('This number is {x}.', 'یہ نمبر {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong (number ID)'),
 };
 
-// RULING #31a (A08): a line that names an item of the OTHER language than the page is said as a chain: the carrier in
+// Other-language items: a line that names an item of the OTHER language than the page is said as a chain: the carrier in
 // the page's language (the same sentence without the item), then the item in its own language's clip. 'x' and 'y' are
 // the item slots of the line ({x}, {y}); every other segment is a carrier. Same-language pages keep the whole line.
 const CHAINS = {

@@ -1,14 +1,17 @@
 import { Link, Navigate, useParams } from "react-router-dom";
-import { AlertTriangle, Check, RotateCcw, Upload } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Send, Upload } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { NOTICES } from "../../teacher/notices/copy";
 import { LeaveNote } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { OBSERVE } from "../observe/copy";
-import { failureWords, lengthShort, planKindLabel } from "../observe/format";
+import { failureWords, lengthShort, planKindLabel, unreadablePart } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { retrySend, useSendJob } from "../observe/sender";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { ErrorCard } from "../flow/VisitV7";
+import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 
 /**
  * bd-4404s7.4 — the observation being sent (Blueprint: Coach_Sending): a ring that fills as the files go up, "Sending",
@@ -19,6 +22,10 @@ import { retrySend, useSendJob } from "../observe/sender";
  * It shows the job the SENDER holds, so it stays true when the notices have let go of the item (they are quiet on this
  * page). When the upload ends while she is here the page says so: sent → Open observation; failed → "Couldn't send",
  * the real reason and Try again (in the app only; nothing goes to WhatsApp). Nothing being sent for this visit → its page.
+ *
+ * bd-tymy1n (queue #179) — a file this phone could not read at Send is not "The internet stopped" (Try again would only
+ * fail again): a photo or her plan → its reason and Send without it (the rest goes; what already arrived is not sent
+ * again); an uploaded recording → its reason and Select file (Upload recording, to pick it again).
  */
 const CoachSending = () => {
   const C = useCopy(OBSERVE);
@@ -26,19 +33,32 @@ const CoachSending = () => {
   const { id = "" } = useParams();
   const job = useSendJob(id);
   const routes = useObserveRoutes();
+  // bd-o15qnr.28 (v7, board m9-errors card 2): a failed send is the red-edged card (the reason, "Nothing is lost.").
+  const v7 = useFlowV6() === true;
+  const E = useCopy(FLOW_V7_ERRORS);
   if (!job) return <Navigate to={routes.visit(id)} replace />;
 
   const failed = job.state === "failed";
   const sent = job.state === "sent";
+  const unread = failed ? unreadablePart(job.errorCode) : null;
   const hue = failed ? "#c8331f" : "#2f7a52";
   const length = lengthShort(job.durationMs, C);
   const caption = failed ? C.couldntSend : sent ? C.sent : C.sending;
 
   return (
     <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
+      trouble={failed ? "send" : null}
       dock={sent ? (
         <Link replace to={routes.observation(job.observationId || "")}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>
+      ) : unread && unread.kind === "audio" ? (
+        <Link replace to={routes.attach(id)}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.chooseFile}</Link>
+      ) : unread ? (
+        <button type="button" onClick={() => retrySend(id, unread.kind === "photo" ? { photo: unread.photo } : "lesson_plan")}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+          <Send className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />{C.sendWithoutIt}
+        </button>
       ) : failed ? (
         <button type="button" onClick={() => retrySend(id)}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
@@ -60,13 +80,16 @@ const CoachSending = () => {
             {!failed && !sent && <b data-testid="send-pct" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{job.pct}%</b>}
           </span>
         </div>
-        <p className="text-2xl font-semibold" data-testid="send-state">{caption}</p>
+        {!(v7 && failed) && <p className="text-2xl font-semibold" data-testid="send-state">{caption}</p>}
         <div className="flex flex-wrap justify-center gap-2">
           {length && <StatusChip text={length} tone="info" />}
           <StatusChip text={job.teacherName} tone="info" />
           {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
-        {failed && (
+        {failed && v7 && (
+          <div className="w-full"><ErrorCard testId="error-couldnt-send" title={C.couldntSend} line={`${failureWords(job.errorCode, C)} ${E.nothingLost}`} /></div>
+        )}
+        {failed && !v7 && (
           <p role="alert" className="w-full rounded-2xl bg-[#fef2f1] px-3.5 py-3 text-[15px] leading-snug text-[#7a271a]">{failureWords(job.errorCode, C)}</p>
         )}
         {!failed && !sent && <LeaveNote text={L.leave} sub={C.leaveSub} />}

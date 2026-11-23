@@ -6,27 +6,29 @@ import { isNativeApp } from '@/lib/runtime';
 import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { getClasses, getMonth, saveRegister, sendRegister, useRead } from './api';
-import { ATTENDANCE } from './copy';
-import { useCopy, useLang } from '../i18n';
-import { monthLabel, monthOf, shiftMonth } from './model';
-import { ATTENDANCE_V2_BASE, downloadPath } from './paths';
-import { ClassCard, ClassTray, LoadState } from './ui';
+import { getMonth, saveRegister, sendRegister, useRead } from './api';
+import { useLang } from '../i18n';
+import { monthLabel, monthOf, onlyStaff, shiftMonth } from './model';
+import { ATTENDANCE_V2_BASE, downloadPath, markPath } from './paths';
+import { ClassCard, ClassTray, LoadState, useClassesRead, useListWords } from './ui';
 
 /**
  * bd-fmf24g.7 — a class's month register (v28 canvas AttendanceDownload.dc.html): the class card (tap =
  * Change), the month (this, last, or one of the twelve before), and the register — the same Excel file
  * WhatsApp sends after each register (GET …/register). WhatsApp sends it to her chat through the bot's
  * existing delivery. In the app the browser cannot save a file, so the app offers WhatsApp only.
+ *
+ * bd-33wxxi.10 — her teachers' register (listId "staff") is the staff register WhatsApp sends (the server picks
+ * it). When they are her only register, Back and the card go to their roll call.
  */
 
 type Pick = 'this' | 'last' | 'other';
 
 export function DownloadPage() {
   const lang = useLang();
-  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
-  const classes = useRead('classes', () => getClasses());
+  const C = useListWords(listId);
+  const classes = useClassesRead();
   const today = classes.data?.date || null;
   const thisMonth = today ? monthOf(today) : null;
   const [pick, setPick] = useState<Pick>('this');
@@ -44,6 +46,7 @@ export function DownloadPage() {
   useEffect(() => { setTray(false); setSent(null); setSaveFailed(false); }, [listId, month]);
 
   const cls = classes.data?.classes.find((c) => c.listId === listId) || null;
+  const solo = onlyStaff(classes.data?.classes, listId);
 
   const send = async () => {
     if (!month || busy) return;
@@ -74,8 +77,8 @@ export function DownloadPage() {
   return (
     <TeacherPage
       title={C.downloadTitle}
-      crumb={C.title}
-      backTo={ATTENDANCE_V2_BASE}
+      crumb={solo ? C.markTitle : C.title}
+      backTo={solo ? markPath(listId) : ATTENDANCE_V2_BASE}
       feature="attendance"
       testId="attendance-download"
       dock={month ? (
@@ -97,7 +100,7 @@ export function DownloadPage() {
       ) : undefined}
     >
       <LoadState loading={classes.loading && !classes.data} failed={classes.error} onRetry={classes.reload} />
-      {cls && <ClassCard cls={cls} chip={false} onPress={() => setTray(true)} />}
+      {cls && (solo ? <ClassCard cls={cls} chip={false} to={markPath(listId)} /> : <ClassCard cls={cls} chip={false} onPress={() => setTray(true)} />)}
       {thisMonth && (
         <>
           <h2 className="mx-1 mt-2 text-[20px] font-light">{C.month}</h2>

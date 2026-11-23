@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ChevronRight, KeyRound } from 'lucide-react';
+import { AudioLines, Check, ChevronRight, Download, KeyRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import LessonPlanViewer from '../../components/LessonPlanViewer';
 import { useRecordingSession } from '../../lib/recordingSession';
-import { lessonPlanFileUrl, lessonPlanShareId, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
+import { lessonPlanFileUrl, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
 import { FeatureArt } from '../icons';
 import { teacherPath } from '../routes';
 import { CHEVRON, FOCUS } from '../ui/styles';
 import { ShareActions } from '../ui/ShareActions';
-import { shareToWhatsApp, useShareAvailable } from '../share/api';
+import { ActionStrip, type ActionStripItem } from '../ui/ActionStrip';
+import { useOpenTarget, type OpenFlash } from '../ui/useOpenTarget';
+import { useKitCopy } from '../ui/useKitCopy';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
@@ -21,6 +23,9 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
 import { useLessonsLeader } from './audience';
 import { OwnSections } from './own/OwnSections';
 import type { ChangeAt } from './own/change';
+import { useViewerSlim } from './viewerFlags';
+import { FeedbackBar } from './FeedbackBar';
+import { useLpFeedbackBar } from './feedbackApi';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -31,8 +36,8 @@ import type { ChangeAt } from './own/change';
  *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else).
  *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
  *   Quiz this lesson      the Home card's switch on and a quiz home for her: the signed quiz home (home/LessonQuizButton)
- *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
- *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
+ *   ShareActions          the dock: Open in another app (the plan's presigned PDF link, opened the way her browser
+ *                         allows). No Send on WhatsApp, for ICT or GB (bd-ain69z: the operator removed it, 22 Nov).
  *
  * While a lesson records, neither Start DC observation (one is running) nor Open in another app
  * (another app in front silences the microphone, bd-5rz1v.10); the frame's recording bar shows
@@ -47,10 +52,23 @@ import type { ChangeAt } from './own/change';
  *
  * bd-4joiqz — read by a LEADER (lessons/audience.ts): the plan, its answer key and Open in another app. None of the
  * teacher's own — no Start DC observation (her coaching), no Thing to try (her coaching test group), no Quiz this
- * lesson (her quiz home), no Send on WhatsApp (a template to her own number).
+ * lesson (her quiz home).
+ *
+ * Option A, the slim plan screen (portal_lp_viewer_slim → features.lpViewerSlim; off = all of the above, unchanged):
+ *   one ActionStrip row over the plan   Observe (Start DC observation) · Answer key · Download (useOpenTarget, the
+ *                                       logic of Open in another app). Observe: hers, not in pick / fromDc, not while a
+ *                                       lesson records. Download: not while a lesson records. A leader: Answer key and
+ *                                       Download.
+ *   the plan, most of the screen
+ *   end of the plan                     (the survey bar's place), then Quiz this lesson. No Send on WhatsApp.
+ *   no dock                             except pick's Use this lesson plan.
+ *
+ * The survey bar (FeedbackBar, switch portal_lp_feedback_bar): after the last page of HER plan (grades 1-12) once it has
+ * loaded, in both layouts; never for a leader, in `pick` / `fromDc`, on her own made plan (it has its own rating) or on
+ * the answer key.
  */
 
-type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt } | null;
+type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean; own?: ChangeAt; shelf?: boolean } | null;
 
 export function ViewerPage() {
   const C = useCopy(LESSONS);
@@ -59,7 +77,11 @@ export function ViewerPage() {
   const { toast } = useToast();
   const openPlan = useLessonPlanOpener();
   const recording = !!useRecordingSession()?.active;
-  const canSend = useShareAvailable('lesson');
+  const slim = useViewerSlim();
+  const kit = useKitCopy();
+  const feedbackOn = useLpFeedbackBar();
+  // The plan whose pages have loaded: the survey bar waits for it.
+  const [readyKey, setReadyKey] = useState('');
   const state = location.state as ViewerState;
   const view = state?.lessonPlan ?? null;
   const dc = state?.dc ?? null;
@@ -79,6 +101,8 @@ export function ViewerPage() {
 
   // A plan opens at its top, wherever the page before was scrolled to.
   const key = view ? JSON.stringify(view.source) : '';
+  // Download on the slim row: Open in another app's logic (not while a lesson records).
+  const download = useOpenTarget(view && !recording ? { fileUrl: () => lessonPlanFileUrl(view.source) } : undefined);
   useEffect(() => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -92,25 +116,82 @@ export function ViewerPage() {
     : null;
 
   const act = cn('flex min-h-[56px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[15px] font-semibold text-[#33374a]', FOCUS);
+  const openAnswerKey = () => {
+    if (answerKey) void openPlan(answerKey, view.title, { crumb: C.crumb(view.crumb, C.answerKey), page: LESSONS_VIEWER, state: { dc } });
+  };
+  const usePlanDock = pick ? (
+    <button
+      type="button"
+      onClick={() => attachToDc(navigate, pick, PICK_DEPTH.viewer, location.key !== 'default')}
+      className={cn('flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-[#33374a] bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}
+    >
+      <Check className="h-5 w-5" aria-hidden="true" />
+      {C.usePlan}
+    </button>
+  ) : null;
+  const ownSections = teacherActions && state?.own ? <OwnSections at={state.own} /> : null;
+  const thingToTry = answerKey && !leader ? (
+    <ThingToTryStrip
+      lessonId={answerKey.lessonId}
+      onStep={(index) => setStep({ key, index, jump: 0 })}
+      onShowStep={() => setStep((s) => ({ ...s, jump: s.jump + 1 }))}
+    />
+  ) : null;
+  const plan = (
+    <LessonPlanViewer
+      key={key}
+      view={view}
+      recording={recording}
+      highlight={step.key === key && step.index ? { step: step.index, jump: step.jump } : undefined}
+      chrome="none"
+      onReady={() => setReadyKey(key)}
+      onClose={close}
+      onNotReady={() => {
+        toast({ title: C.notReady });
+        close();
+      }}
+    />
+  );
+
+  // bd-96f69c.16 — every 6-12 lane plan (grades 6-12, and a GB grades 1-5 plan, bd-m8zwt1.16) is asked by its render id.
+  const barPlan = source.lane === 'k5' ? { kind: 'k5' as const, ref: source.lessonId }
+    : source.lane === 'g612' && source.renderId ? { kind: 'g612' as const, ref: source.renderId }
+      : null;
+  const feedbackBar = feedbackOn && readyKey === key && barPlan && (source.lane !== 'k5' || source.assetKind === 'lesson') && !leader && !inDc && !state?.own && !state?.shelf
+    ? <FeedbackBar plan={barPlan} />
+    : null;
+
+  if (slim) {
+    const flashWord: Record<Exclude<OpenFlash, null>, string> = {
+      opening: kit.share.opening, copied: kit.share.pasteIt, failed: kit.share.couldntOpen,
+    };
+    const strip: ActionStripItem[] = [];
+    if (teacherActions) strip.push({ key: 'observe', icon: AudioLines, label: C.observe, spoken: C.startDc, to: dcHref(teacherPath('coaching'), dc) });
+    if (answerKey) strip.push({ key: 'key', icon: KeyRound, label: C.answerKey, onPress: openAnswerKey });
+    if (download.show) {
+      strip.push({ key: 'download', icon: Download, label: C.download, onPress: () => { void download.press(); }, state: download.flash ? flashWord[download.flash] : null });
+    }
+    return (
+      <TeacherPage crumb={view.crumb} title={view.title} onBack={close} dock={usePlanDock ?? undefined}>
+        <ActionStrip items={strip} />
+        {ownSections}
+        {thingToTry}
+        {plan}
+        {/* End of the plan, in this order: the survey bar (when on), Quiz this lesson. No Send on WhatsApp (bd-ain69z). */}
+        {feedbackBar}
+        {teacherActions ? <LessonQuizButton className={act} /> : null}
+      </TeacherPage>
+    );
+  }
 
   return (
     <TeacherPage
       crumb={view.crumb}
       title={view.title}
       onBack={close}
-      dock={pick ? (
-        <button
-          type="button"
-          onClick={() => attachToDc(navigate, pick, PICK_DEPTH.viewer, location.key !== 'default')}
-          className={cn('flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-[#33374a] bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}
-        >
-          <Check className="h-5 w-5" aria-hidden="true" />
-          {C.usePlan}
-        </button>
-      ) : (
+      dock={usePlanDock ?? (
+        // bd-ain69z — Open in another app only: no Send on WhatsApp, grey or green (removed for ICT and GB, 22 Nov).
         <ShareActions
-          available={canSend}
-          onSend={leader ? undefined : () => shareToWhatsApp('lesson', lessonPlanShareId(source))}
           // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
           open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
         />
@@ -127,22 +208,14 @@ export function ViewerPage() {
         </Link>
       ) : null}
       {/* /.19 — her own plan, opened from its waiting screen: section cards (spec item 7), each with Change. */}
-      {teacherActions && state?.own ? <OwnSections at={state.own} /> : null}
-      {answerKey && !leader ? (
-        <ThingToTryStrip
-          lessonId={answerKey.lessonId}
-          onStep={(index) => setStep({ key, index, jump: 0 })}
-          onShowStep={() => setStep((s) => ({ ...s, jump: s.jump + 1 }))}
-        />
-      ) : null}
+      {ownSections}
+      {thingToTry}
       <div className="flex flex-wrap gap-2">
         {answerKey ? (
           <button
             type="button"
             className={act}
-            onClick={() => {
-              void openPlan(answerKey, view.title, { crumb: C.crumb(view.crumb, C.answerKey), page: LESSONS_VIEWER, state: { dc } });
-            }}
+            onClick={openAnswerKey}
           >
             <KeyRound className="h-5 w-5" aria-hidden="true" />
             {C.answerKey}
@@ -150,18 +223,8 @@ export function ViewerPage() {
         ) : null}
         {teacherActions ? <LessonQuizButton className={act} /> : null}
       </div>
-      <LessonPlanViewer
-        key={key}
-        view={view}
-        recording={recording}
-        highlight={step.key === key && step.index ? { step: step.index, jump: step.jump } : undefined}
-        chrome="none"
-        onClose={close}
-        onNotReady={() => {
-          toast({ title: C.notReady });
-          close();
-        }}
-      />
+      {plan}
+      {feedbackBar}
     </TeacherPage>
   );
 }

@@ -104,7 +104,9 @@ test('the table covers exactly the seven linkable features', () => {
   // assessment_report is the A/B report button's link (bd-pw1ccr.2, its own suite).
   // assessment_topic_nudge is the topic-end nudge's link (bd-pw1ccr.4.2, its own suite).
   // lp_make_own is the lesson-plan Flow's Make my own row (bd-iceyyu, its own suite).
-  const NOT_COMMANDS = ['assessment_topics', 'ai_coaching_recording', 'assessment_report', 'assessment_topic_nudge', 'lp_make_own'];
+  // principal_observe is a principal's observe on the principal app (bd-eqkr0n, principal-app-observe.test.js).
+  const NOT_COMMANDS = ['assessment_topics', 'ai_coaching_recording', 'assessment_report', 'assessment_topic_nudge', 'lp_make_own',
+    'principal_observe'];
   expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => !NOT_COMMANDS.includes(f)).sort());
 });
 

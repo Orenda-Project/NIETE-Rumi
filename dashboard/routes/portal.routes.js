@@ -80,6 +80,9 @@ const { isMultiKey } = require('../../bot/shared/services/training/paper-marking
 const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
+// bd-r2uzg1.18.1 — the band gate on band-only providers (I-SAPS needs HIGH), the bot's own code, run in-process
+// with this file's supabase client. It requires only pure modules (tests/portal/portal-reaches-bot-modules).
+const { gateTeacherScopes } = require('../../bot/shared/services/training/vendor-band-gate.service');
 // bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
 // (zero requires, like paper-marking.service.js); the portal hands it its logger.
 const { servableQuestions } = require('../../bot/shared/services/training/question-stem.rules');
@@ -101,6 +104,7 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  PORTAL_COACH_FLOW_V2_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -110,6 +114,7 @@ const {
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
+  PORTAL_LP_OWN_GOAL_START_KEY,
   isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_COACHIP_KEY,
@@ -126,6 +131,8 @@ const {
   isRoleSwitchUser,
   ROLE_SWITCH_ROLES,
 } = require('../lib/feature-flags');
+// The lesson plan in the app and the activity Home (each off by default; see the file).
+const LpAppSwitches = require('../lib/lp-app-switches');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
@@ -1844,6 +1851,12 @@ router.get('/analytics/scope', requirePortalAuth, requireAnalyticsViewer, async 
   }
 });
 
+// The team view "Where teachers get to" (LP tab, Primary): the activity store only, this file's guard and scope;
+// dark unless portal_teacher_journey names the account (routes/portal-analytics-journey.routes.js).
+router.use(require('./portal-analytics-journey.routes').createAnalyticsJourneyRouter({
+  supabase, requirePortalAuth, requireAnalyticsViewer, analyticsScope,
+}));
+
 /**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
@@ -2272,6 +2285,9 @@ router.get('/leader/observations', requirePortalAuth, requireLeaderRole, async (
 router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (req, res) => {
   try {
     const { teacherExtId, date, slot } = req.body || {};
+    // bd-o15qnr.27 (queue #204, v6) — "Schedule for Now": the coach is already in the class, so the teacher gets no
+    // "visit scheduled" WhatsApp and the coach no calendar invite (#188's audit, finding 4). Only a literal true.
+    const now = !!req.body && req.body.now === true;
     const result = await createSchedule(
       (sql, params) => pool.query(sql, params),
       req.session.portalUserId,
@@ -2284,8 +2300,8 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
     // saved and answered already; the client never throws. A same-slot re-book
     // re-times the invite but is not news to the teacher (moved:false).
     // bd-o15qnr.8: a past-dated booking records a visit that already happened —
-    // nothing is sent.
-    if (result && result.id && !result.past) {
+    // nothing is sent. bd-o15qnr.27: nor is a booking for now.
+    if (result && result.id && !result.past && !now) {
       ObserveNotice.notifyTeacher({
         scheduleId: result.id,
         leaderUserId: req.session.portalUserId,
@@ -2523,10 +2539,38 @@ function coachFail(res, where, error) {
   return res.status(500).json({ success: false, error: 'Could not load this page.' });
 }
 
+/**
+ * bd-o15qnr.30 (queue #214) — the stale-item rules ride the v6/v7 switch (portal_coach_flow_v2) for the reader: Needs
+ * you, the banner and the Home counts never offer a row the observation page refuses, and a Debrief past its due day
+ * leaves Needs you. History is unchanged. Off = as before.
+ * A failed flag read is off (today's lists).
+ */
+async function staleRulesOn(req) {
+  try {
+    return await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, req.session && req.session.portalUserId);
+  } catch (_) { return false; }
+}
+
+/** bd-o15qnr.30 — what a list held back and why (one event per read that held any back). Never fails the request. */
+function logWithheld(where, req, withheld) {
+  if (!withheld || !withheld.length) return;
+  try {
+    telemetry.logEvent('coach_list_withheld', {
+      correlation_id: crypto.randomUUID(),
+      list: where,
+      user_uuid: req.session && req.session.portalUserId,
+      count: withheld.length,
+      rows: withheld.slice(0, 20),
+    });
+  } catch (_) { /* instrumentation only */ }
+}
+
 /** GET /api/portal/coach/home — today's visits (the current one marked) and the tile numbers. */
 router.get('/coach/home', ...coachV2, async (req, res) => {
   try {
-    const home = await CoachV2.getCoachHome(pgQuery, req.session.portalUserId, { today: coachToday(req) });
+    // bd-o15qnr.30 — the tile numbers count what the lists show (switch on: the stale-item rules).
+    const v7 = await staleRulesOn(req);
+    const home = await CoachV2.getCoachHome(pgQuery, req.session.portalUserId, { today: coachToday(req), v7 });
     return res.json({ success: true, home });
   } catch (error) { return coachFail(res, 'home', error); }
 });
@@ -2548,6 +2592,20 @@ async function requireCoachReports(req, res, next) {
 const coachReports = [...coachV2, requireCoachReports];
 const COACH_REPORT_STATUS = { forbidden: 403, not_found: 404, not_ready: 409 };
 
+// bd-o15qnr.28 (queue #204, v7) — ONE feedback page for coaches AND principals: the visit's feedback opens the debrief
+// report. Its read and its "opened" stamp also open for anyone the v6/v7 switch (portal_coach_flow_v2) names: a coach
+// on the coach app (coach_reports_app or not), or a principal on the principal app (observerReads decides which). Fail
+// closed as before; the service still checks the report is the session user's own. The week stays coachReports.
+async function requireCoachReportsOrFlow(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  const principal = req.observerRole === 'principal';
+  const on = (!principal && await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId))
+    || await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const debriefReports = [...observerReads, requireCoachReportsOrFlow];
+
 /** GET /api/portal/coach/reports/ready — what her Home card shows: her coached debriefs she has not opened or closed. */
 router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
   try {
@@ -2562,7 +2620,7 @@ router.get('/coach/reports/ready', ...coachReports, async (req, res) => {
 });
 
 /** GET /api/portal/coach/report/:id — her debrief report; another coach's is 403, a missing one 404, uncoached 409. */
-router.get('/coach/report/:id', ...coachReports, async (req, res) => {
+router.get('/coach/report/:id', ...debriefReports, async (req, res) => {
   try {
     const out = await CoachReport.getCoachReport(pgQuery, req.session.portalUserId, req.params.id);
     if (out.status !== 'ok') return res.status(COACH_REPORT_STATUS[out.status] || 404).json({ success: false, error: out.status });
@@ -2581,6 +2639,35 @@ router.get('/coach/week/:monday', ...coachReports, async (req, res) => {
   } catch (error) { return coachFail(res, 'week', error); }
 });
 
+/*
+ * bd-o15qnr.28.1 (queue #204, v7) — My progress (services/coach-progress.service.js): the coach's own week, Key Focus
+ * Area, 8 behaviours over her last 10 debriefs, latest observations and weekly reports, read-only. COACHES ONLY: the
+ * coach app v2 chain, then coach_reports_app OR the v6/v7 switch (portal_coach_flow_v2), as the debrief report's read;
+ * a principal is 404 on every switch (no weekly report, no My progress for principals). Her weekly reports are listed
+ * only when her week page opens (coach_reports_app: the week route's own gate, unchanged). The coach is ALWAYS the
+ * session user; nothing sent in names anyone.
+ */
+const CoachProgress = require('../services/coach-progress.service');
+
+async function requireCoachProgress(req, res, next) {
+  const userId = req.session && req.session.portalUserId;
+  if (isPrincipalRole(req.portalUser && req.portalUser.role)) return res.status(404).json({ success: false, error: 'Not found' });
+  const reportsApp = await isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId);
+  const on = reportsApp || await isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  req.coachReportsApp = reportsApp === true;
+  return next();
+}
+
+/** GET /api/portal/coach/progress — her progress (counts only), read-only. */
+router.get('/coach/progress', ...coachV2, requireCoachProgress, async (req, res) => {
+  try {
+    const progress = await CoachProgress.getCoachProgress(pgQuery, req.session.portalUserId, { weeks: req.coachReportsApp === true });
+    res.set('Cache-Control', 'no-store');
+    return res.json({ success: true, progress });
+  } catch (error) { return coachFail(res, 'progress', error); }
+});
+
 /** POST /api/portal/coach/week/:monday/opened | /seen — she opened her week / closed its card: the week's one row. */
 for (const what of ['opened', 'seen']) {
   router.post(`/coach/week/:monday/${what}`, ...coachReports, async (req, res) => {
@@ -2593,7 +2680,7 @@ for (const what of ['opened', 'seen']) {
 
 /** POST /api/portal/coach/report/:id/opened | /seen — she opened it (any door) / closed the Home card with ✕. Once, hers only. */
 for (const what of ['opened', 'seen']) {
-  router.post(`/coach/report/:id/${what}`, ...coachReports, async (req, res) => {
+  router.post(`/coach/report/:id/${what}`, ...debriefReports, async (req, res) => {
     try {
       const stamped = await CoachReport.markCoachReport(pgQuery, req.session.portalUserId, req.params.id, what);
       return res.json({ success: true, stamped });
@@ -2604,13 +2691,17 @@ for (const what of ['opened', 'seen']) {
 /** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
 router.get('/coach/pending', ...coachV2, async (req, res) => {
   try {
-    const out = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId);
+    // bd-o15qnr.30 — switch on: the banner counts what Needs you shows; held-back rows are logged, never sent.
+    const v7 = await staleRulesOn(req);
+    const { withheld, ...out } = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId, { v7 });
+    logWithheld('pending', req, withheld);
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'pending', error); }
 });
 
 /** GET /api/portal/coach/schedule?from=&to= — her visits in the range (default this week) and the overdue ones. */
-router.get('/coach/schedule', ...coachV2, async (req, res) => {
+// bd-31ziu8 — a principal on the principal app reads her own booked visits too (principals schedule like coaches).
+router.get('/coach/schedule', ...observerReads, async (req, res) => {
   const { from, to } = req.query || {};
   if ((from != null && !isDay(from)) || (to != null && !isDay(to))) {
     return res.status(400).json({ success: false, error: 'Invalid date — expected YYYY-MM-DD' });
@@ -2678,7 +2769,15 @@ router.get('/coach/observation/:id', ...observerReads, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), role: req.observerRole });
-    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    if (!out) {
+      // bd-o15qnr.30 — a tap that cannot open: logged, so a list that still offers such a row shows up in the logs.
+      try {
+        telemetry.logEvent('coach_observation_not_openable', {
+          correlation_id: crypto.randomUUID(), user_uuid: req.session.portalUserId, session_uuid: req.params.id, role: req.observerRole || 'coach',
+        });
+      } catch (_) { /* instrumentation only */ }
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
     const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
       ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${reportKey}`)
@@ -2817,9 +2916,14 @@ router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
 router.get('/coach/reports', ...observerReads, async (req, res) => {
   const { page, q } = req.query || {};
   try {
-    const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
-      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole,
+    // bd-o15qnr.30 (queue #214) — switch on: Needs you never offers a row the observation page refuses (the operator's
+    // 4 Oct "Pending debrief" that opened to nothing), and a Debrief past its due day leaves it; History keeps every row.
+    // Held back = logged.
+    const v7 = await staleRulesOn(req);
+    const { withheld, ...out } = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined, role: req.observerRole, v7,
     });
+    logWithheld('reports', req, withheld);
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'reports', error); }
 });
@@ -2990,6 +3094,16 @@ router.get('/curriculum/lps', requirePortalAuth, async (req, res) => {
   }
 });
 /**
+ * One survey per plan: with the survey bar on for her (portal_lp_feedback_bar, grades 1-12 since bd-96f69c.16), she is asked at the end of
+ * the plan in the app, so the open tells the bot `inApp` and WhatsApp does not ask. Only where the bar can be drawn:
+ * her plan, not its answer key, and the teacher app v2 on for her (GET /config lpFeedbackBar). Else, or a failed read:
+ * today's — WhatsApp asks.
+ */
+const k5Survey = (userId, kind = 'lesson') => (kind !== 'lesson' ? Promise.resolve(true)
+  : Promise.all([LpAppSwitches.isLpFeedbackBarOn(supabase, userId), teacherAppOnFor(supabase, PORTAL_TEACHER_V2_KEY, userId)])
+    .then(([bar, v2]) => (bar && v2 ? 'in_app' : true), () => true));
+
+/**
  * GET /api/portal/curriculum/lp/:lesson_id/pdf?kind=lesson|answer_key
  *
  * Was a uuid lookup against curriculum_lp_ast / pre_generated_lps
@@ -3021,7 +3135,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     }
     // bd-5rz1v.15 — the link is minted to be opened in another app: that is an open.
     // Not awaited: logging never delays or fails the open.
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' });
+    k5Survey(userId, kind).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' }, { survey }));
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -3065,7 +3179,7 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   // bd-5rz1v.15 — recorded only once the PDF has gone out whole (a refused link, a storage error
   // or a dropped connection is not an open). After the response, so it can never delay it.
   if (res.statusCode === 200 && res.writableFinished) {
-    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' });
+    k5Survey(userId, kind).then((survey) => LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' }, { survey }));
   }
   return undefined;
 });
@@ -3220,9 +3334,10 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     if (isOpenHint(req.query.open) && out.state === 'ready' && out.url) {
       // bd-4joiqz — whose open it is is read after the answer, so it never delays the poll.
       const userId = req.session.portalUserId;
-      LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+      const own = out.shelf === true || typeof out.changesLeft === 'number'; // her own plan draws no bar
+      Promise.all([LpReader.readerOf(userId), own ? true : k5Survey(userId)]).then(([reader, survey]) => LpReader.recordOpen(reader, dbQuery, {
         userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
-      }, { renderId }));
+      }, { renderId, survey }));
     }
     res.json({ success: true, ...out });
   } catch (error) {
@@ -3262,9 +3377,11 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
   if (res.statusCode === 200 && res.writableFinished) {
     // bd-4joiqz — a teacher's open row and survey, or a leader's event; read after the response.
     const userId = req.session.portalUserId;
-    LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+    // bd-96f69c.16 — the survey bar is drawn on her 6-12 plan too (not her own plan), so the app asks, not WhatsApp.
+    const own = out.shelf === true || typeof out.changesLeft === 'number';
+    Promise.all([LpReader.readerOf(userId), own ? true : k5Survey(userId)]).then(([reader, survey]) => LpReader.recordOpen(reader, dbQuery, {
       userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
-    }, { renderId }));
+    }, { renderId, survey }));
     // bd-snkn32.51 (queue #134 A) — an own plan: hers ('mine'; several per ownId = re-opens) or a shelf plan ('shelf').
     if (out.shelf === true || typeof out.changesLeft === 'number') {
       logAppAction(req, 'own_plan.opened', 'lesson_plan', {
@@ -3426,6 +3543,26 @@ router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/portal/assessment/exercises?grade=4&subject=science&chapters=3,5
+ * → { success, enabled, chapters: [{ chapterNumber, title, exercises: [{ ref, heading, text, type, page }] }] }
+ * AG row 21: her chapters' own exercise questions for the "Pick from the book" tick-list; enabled false = no picker.
+ */
+router.get('/assessment/exercises', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = /^\d+$/.test(String(req.query.grade ?? '')) ? parseInt(req.query.grade, 10) : NaN;
+    const subject = String(req.query.subject || '').trim();
+    const chapters = String(req.query.chapters || '').split(',').filter((c) => /^\d+$/.test(c.trim())).map((c) => parseInt(c, 10));
+    if (!Number.isFinite(grade) || !subject || !chapters.length) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapters required' });
+    }
+    const data = await Assessment.listExercises(grade, subject, chapters, req.session.portalUserId);
+    res.json({ success: true, ...data });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load the book questions');
+  }
+});
+
+/**
  * POST /api/portal/assessment/generate
  * Body { grade, subject, chapterNumber|pageRanges, questionCount, ... }
  * → 202 { success, requestId }
@@ -3449,6 +3586,9 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       questionCount: body.questionCount,
       // bd-fmf24g.6 — Mix's book count and the marks budget, as the WhatsApp Flow sends them.
       seenCount: body.seenCount ?? null,
+      seenTypes: body.seenTypes,
+      // AG row 21: the book questions she ticked. Absent unless she ticked some, so a plain request is unchanged.
+      seenPicked: body.seenPicked ?? undefined,
       totalMarks: body.totalMarks ?? null,
       questionTypes: body.questionTypes,
       includeAnswerKey: body.includeAnswerKey,
@@ -3658,11 +3798,13 @@ async function _filterLevelsByScopes(userId, levels) {
   const programIds = [...new Set((assignments || []).map(a => a.program_id))];
   if (programIds.length === 0) return [];
 
-  const { data: scopes } = await supabase
+  const { data: allScopes } = await supabase
     .from('training_program_scopes')
-    .select('vendor_id, level_ids')
+    .select('program_id, vendor_id, level_ids')
     .in('program_id', programIds);
-  if (!scopes || scopes.length === 0) return [];
+  if (!allScopes || allScopes.length === 0) return [];
+  // bd-r2uzg1.18.1 — the same band gate the bot's catalogue applies (I-SAPS only with HIGH or I-SAPS work).
+  const scopes = await gateTeacherScopes(supabase, userId, allScopes);
 
   const allowedByVendor = _levelScopeByVendor(scopes);
   return levels.filter(l => _levelInScope(allowedByVendor, l));
@@ -3883,11 +4025,14 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
     // 2. Program scopes → vendor_ids (dedup — a single program can list a
     //    vendor multiple times via multiple scope rows), and per vendor the
     //    levels those scopes show (the same union GET /training/levels uses)
-    const { data: scopes, error: sErr } = await supabase
+    const { data: allScopes, error: sErr } = await supabase
       .from('training_program_scopes')
-      .select('vendor_id, level_ids')
+      .select('program_id, vendor_id, level_ids')
       .in('program_id', programIds);
     if (sErr) throw sErr;
+    // bd-r2uzg1.18.1 — minus a band-only provider her band does not cover (I-SAPS needs HIGH), unless she has
+    // work there: the bot's catalogue applies the same rule, so the cards and the levels agree.
+    const scopes = await gateTeacherScopes(supabase, userId, allScopes || []);
 
     const levelScope = _levelScopeByVendor(scopes);
     const vendorIds = Array.from(new Set((scopes || []).map(s => s.vendor_id).filter(Boolean)));
@@ -6309,6 +6454,40 @@ async function _attemptAnswers(attemptId) {
 const _resultsOf = (rows) => rows.map((r) => ({ question_id: r.question_id, question_index: r.question_index, is_correct: Boolean(r.is_correct) }));
 
 /**
+ * bd-r2uzg1.18.13 — the question she is on: the first one with no saved answer. The saved answers
+ * are the record; current_question_index is only where WhatsApp resumes, and it can lag them —
+ * checking an answer is two writes (the answer, then the cursor), and a database timeout between
+ * them saved the answer and left the cursor behind. The order rule used to read the cursor while
+ * start sent her screen to the next unanswered question, so every Check after that was refused
+ * ("Answer the questions in order") and she could never move on.
+ */
+function _nextUnanswered(rows, total) {
+  const done = new Set(rows.map((r) => Number(r.question_index)));
+  let i = 0;
+  while (i < total && done.has(i)) i += 1;
+  return i;
+}
+
+/**
+ * Move the cursor FORWARD to `to` (never back: a slower parallel write cannot rewind it). Best
+ * effort: the answer that matters is already saved, and the order rule reads the answers, so a
+ * failure here is logged and the next answer or reopen moves it on.
+ */
+async function _catchUpCursor(attemptId, to, log) {
+  try {
+    const { error } = await supabase
+      .from('training_assessment_attempts')
+      .update({ current_question_index: to, last_activity_at: new Date().toISOString() })
+      .eq('id', attemptId)
+      .eq('status', 'in_progress')
+      .lt('current_question_index', to);
+    if (error) log(error);
+  } catch (error) {
+    log(error);
+  }
+}
+
+/**
  * A module-quiz step that failed: on Axiom (the portal's telemetry sink) as well as the Railway
  * console. The console line used to be all there was, so a start that answered 500 left nothing in
  * the logs anyone queries. Carries the pg code and the request's correlation id, which the 5xx body
@@ -6497,9 +6676,16 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
     }
 
     const done = await _attemptAnswers(attempt.id);
+    // bd-r2uzg1.18.13 — the screen opens on the first unanswered question, the one answer will
+    // accept; a cursor left behind by a timed-out write is moved up to it here, so WhatsApp resumes
+    // there too.
+    const nextIndex = _nextUnanswered(done, attempt.total_questions);
+    if (open && Number(open.current_question_index) < nextIndex) {
+      await _catchUpCursor(attempt.id, nextIndex, (error) => _quizAttemptFailed('start_cursor', { correlationId, userId, moduleId, attemptId: attempt.id, error }));
+    }
     return res.json({
       success: true,
-      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: done.length },
+      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: nextIndex },
       // Options in the served order, each carrying its canonical 1-based value —
       // the value the bot marks against. The key itself is never sent.
       questions: paper.map(({ q, display_order }) => {
@@ -6546,7 +6732,8 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
 
     // A checked answer is final. Reported with what she chose and its verdict,
     // so a reloaded page shows the same locked state.
-    const stored = (await _attemptAnswers(attempt.id)).find((r) => r.question_index === index);
+    const saved = await _attemptAnswers(attempt.id);
+    const stored = saved.find((r) => r.question_index === index);
     if (stored) {
       return res.status(409).json({
         success: false, error: 'Already answered', already_answered: true,
@@ -6554,8 +6741,11 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       });
     }
     if (attempt.status !== 'in_progress') return res.status(409).json({ success: false, error: 'This quiz is already finished' });
-    if (index !== attempt.current_question_index) {
-      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: attempt.current_question_index });
+    // In order = the first question with no saved answer, not the cursor: the cursor can lag the
+    // answers after a timed-out write, and comparing with it refused her for ever (bd-r2uzg1.18.13).
+    const expected = _nextUnanswered(saved, attempt.total_questions);
+    if (index !== expected) {
+      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: expected });
     }
 
     const { q } = paper[index];
@@ -6592,16 +6782,14 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       }
       throw ansErr;
     }
-    const { error: moveErr } = await supabase
-      .from('training_assessment_attempts')
-      .update({ current_question_index: index + 1, last_activity_at: now })
-      .eq('id', attempt.id)
-      .eq('status', 'in_progress');
-    if (moveErr) throw moveErr;
+    // The answer is saved: from here she gets her verdict even if the cursor cannot move this time
+    // (the next answer or reopen moves it on). Throwing here used to answer 500 for a saved answer.
+    const after = _nextUnanswered([...saved, { question_index: index }], attempt.total_questions);
+    await _catchUpCursor(attempt.id, after, (error) => _quizAttemptFailed('answer_cursor', { correlationId, userId, moduleId, attemptId, error }));
 
     // The last answer saves the result there and then.
     let result = null;
-    if (index + 1 >= attempt.total_questions) {
+    if (after >= attempt.total_questions) {
       try {
         const fresh = await _ownModuleAttempt(userId, moduleId, attempt.id);
         const out = await _finishModuleQuizAttempt(userId, moduleId, fresh, paper);
@@ -6616,7 +6804,7 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       success: true,
       question_id: q.id,
       is_correct: Boolean(g.is_correct),
-      answered: index + 1,
+      answered: saved.length + 1,
       total_questions: attempt.total_questions,
       result,
     });
@@ -8369,17 +8557,39 @@ router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
 
 /**
  * POST /api/portal/leader/observe/start
- * Body { teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Body { teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys?, lesson?, notes? }
  * → 200 { coachingSessionId }   400 { reason: 'not_your_teacher' | 'plan_not_found' | … }
  */
 router.post('/leader/observe/start', ...coachObserve, (req, res) => {
-  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson } = req.body || {};
+  const { teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes } = req.body || {};
   return relayToBot(res, 'observe-start', () => PortalCoachingClient.startObservation({
     userId: sessionCoach(req), teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys,
     lessonPlan: libraryPlanPick(lessonPlan),
     lesson: observeLessonPick(lesson),
+    notes: observeNotesPick(notes),
   }));
 });
+
+/**
+ * bd-ra8xu.60 — her Observation Notes as they ride to the bot: the note fields only (no ids, nothing else), text
+ * capped at 600, at most 40. The bot keeps them only for a FICO17 v6 visit while her switch is on. Absent → undefined.
+ */
+const OBSERVE_NOTE_CAP = 600;
+const OBSERVE_NOTES_MAX = 40;
+function observeNotesPick(notes) {
+  if (!Array.isArray(notes)) return undefined;
+  const str = (v) => (typeof v === 'string' ? v : undefined);
+  return notes
+    .filter((n) => n && typeof n === 'object' && typeof n.text === 'string' && n.text.trim())
+    .slice(0, OBSERVE_NOTES_MAX)
+    .map((n) => ({
+      text: Array.from(n.text).slice(0, OBSERVE_NOTE_CAP).join(''),
+      rec_time: str(n.rec_time),
+      recTime: Number.isFinite(n.recTime) ? n.recTime : undefined,
+      source: str(n.source),
+      typed_at: str(n.typed_at),
+    }));
+}
 
 /**
  * bd-ra8xu.40 — the lesson's class the coach named on Check and send ({ primary: true } for grades 1-5, or
@@ -8426,12 +8636,17 @@ router.get('/leader/observe/:id/draft', ...coachObserve, (req, res) => (
  * POST /api/portal/leader/observe/:id/draft  Body { edits, submit? } — save her changes (the form's r_/ev_/imp_/fid_
  * keys). bd-ra8xu.40: an FDE (obs612) visit's form saves the same way, and `submit: true` submits it (400 with the
  * missing items and field errors while anything is missing). { edits } alone is passed on as before.
+ * bd-o15qnr.32: `evidence_review` (an object: the v7 form's evidence option B, per indicator) is passed on when sent;
+ * the bot checks its shape. Anything that is not an object is not passed on.
  */
 router.post('/leader/observe/:id/draft', ...coachObserve, (req, res) => {
   const edits = req.body && req.body.edits && typeof req.body.edits === 'object' ? req.body.edits : {};
   const submit = !!req.body && req.body.submit === true;
+  const er = req.body && req.body.evidence_review;
+  const evidenceReview = er && typeof er === 'object' && !Array.isArray(er) ? er : null;
   return relayToBot(res, 'observe-draft-save', () => PortalCoachingClient.saveObservationDraft({
     userId: sessionCoach(req), coachingSessionId: req.params.id, edits, ...(submit ? { submit: true } : {}),
+    ...(evidenceReview ? { evidenceReview } : {}),
   }));
 });
 
@@ -9357,6 +9572,7 @@ router.get('/config', async (req, res) => {
       schoolCardRaw,
       roleSwitch,
       coachFullAppRaw,
+      coachFlowV2Raw,
       coachReportsAppRaw,
       principalApp,
       lpMakeOwnRaw,
@@ -9364,6 +9580,13 @@ router.get('/config', async (req, res) => {
       lpOwnShelfRaw,
       lpOwnReviewer,
       configRole,
+      lpOwnGoalStartRaw,
+      lpFeedbackBarRaw,
+      teacherHomeActivityRaw,
+      teacherJourney,
+      lpWhatsappPdfOff,
+      lpViewerSlimRaw,
+      lpOwnUnitRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9404,6 +9627,8 @@ router.get('/config', async (req, res) => {
       isRoleSwitchUser(supabase, userId),
       // bd-jjcofw — the full coach app (Schedule + Observe) for a listed tester; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_COACH_FULL_APP_KEY, userId),
+      // bd-o15qnr.26 — the coach visit flow v2 (one open Schedule list, Observations); rides with v2 + the full app.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId),
       // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
       // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
@@ -9417,6 +9642,20 @@ router.get('/config', async (req, res) => {
       isUserListedInFlag(supabase, PORTAL_LP_OWN_REVIEWERS_KEY, userId),
       // bd-w0zbbe — her role, so the observe page follows the observe API's own gate (requireCoachObservation).
       configRoleOf(userId),
+      // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
+      isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // The survey bar at the end of the plan (rides with the teacher app), the Home's "Last 30 days" block (rides
+      // with the Home card, whose route carries it) and My journey + the team view (as it reads for her: an analytics
+      // account is not on the teacher app).
+      LpAppSwitches.isLpFeedbackBarOn(supabase, userId),
+      LpAppSwitches.isTeacherHomeActivityOn(supabase, userId),
+      LpAppSwitches.isTeacherJourneyOn(supabase, userId),
+      // lp_whatsapp_pdf_off for her programme (never throws; false = today). Its own read, so it is not a rider.
+      LpAppSwitches.isLpWhatsappPdfOffFor(supabase, userId),
+      // The plan screen's slim layout (rides with the teacher app).
+      LpAppSwitches.isLpViewerSlimOn(supabase, userId),
+      // bd-snkn32.59 (queue #165) — Make my own → A whole unit: a list or "teachers" (bd-snkn32.59.8), rides with Make my own on.
+      require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9457,6 +9696,11 @@ router.get('/config', async (req, res) => {
         coachipDecode: coachip && coachipDecodeRaw,
         schoolCard: coachV2 && schoolCardRaw,
         coachFullApp: coachV2 && coachFullAppRaw,
+        coachFlowV2: coachV2 && coachFullAppRaw && coachFlowV2Raw,
+        // bd-o15qnr.27 (queue #204, v6) — the same switch for a principal on the principal app (the operator 20 Nov: "For the
+        // Coach and the Principal both ... On Portal"): Pick the teacher → When? (Now / Later) and the recording that keeps
+        // going. Its own key so the coach-only screens never read it.
+        principalFlowV2: principal && principalApp === true && coachFlowV2Raw === true,
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
@@ -9464,6 +9708,15 @@ router.get('/config', async (req, res) => {
         helpVideos: teacherV2 && helpVideosRaw,
         lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
         lpOwnReviewer,
+        lpOwnGoalStart: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnGoalStartRaw,
+        lpOwnUnit: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnUnitRaw === true,
+        lpFeedbackBar: teacherV2 && lpFeedbackBarRaw,
+        teacherHomeActivity: teacherHomeCard && teacherHomeActivityRaw,
+        teacherJourney,
+        // May the plan screen show Send on WhatsApp? false only when her programme's lesson-plan PDF is off on
+        // WhatsApp; POST /share/whatsapp checks again.
+        lpWhatsappSend: lpWhatsappPdfOff !== true,
+        lpViewerSlim: teacherV2 && lpViewerSlimRaw,
       },
     });
   } catch (error) {
@@ -9494,12 +9747,22 @@ router.get('/config', async (req, res) => {
         coachipDecode: false,
         schoolCard: false,
         coachFullApp: false,
+        coachFlowV2: false,
+        principalFlowV2: false,
         roleSwitch: false,
         principalApp: false,
         lpMakeOwn: false,
         helpVideos: false,
         lpOwnShelf: false,
         lpOwnReviewer: false,
+        lpOwnGoalStart: false,
+        lpOwnUnit: false,
+        lpFeedbackBar: false,
+        teacherHomeActivity: false,
+        teacherJourney: false,
+        // Not a switch that turns something on: true is today (the server still refuses a send that is off).
+        lpWhatsappSend: true,
+        lpViewerSlim: false,
       },
       roleSwitchRoles: [],
     });

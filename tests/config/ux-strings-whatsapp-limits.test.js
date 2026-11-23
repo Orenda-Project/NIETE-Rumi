@@ -104,6 +104,9 @@ const KEY_FIELD = {
   videoRecoButton: 'buttonText',
   videoRecoBodyLead: 'body',
   videoRecoBodyMeta: 'body',
+  // bd-r2uzg1.18.11 — the grey line under the /class Flow's Add students box (TextArea
+  // helper-text, served as `add_hint`). It carries the worked example a teacher copies.
+  classAddStudentsHint: 'helperText',
 };
 
 /**

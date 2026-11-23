@@ -65,13 +65,13 @@ describe('the engine listens on the story with r8_reading_position, whatever sa_
 describe('the v4 clips\' word timings (sa/v4/<lang>/<key>.json) go on the phone too, best effort', () => {
   const { prepVisit, timingUrls } = require('../sa/sa-offline');
   const B = { tasks: [{ id: 'ur.x', instruction: { audio: { ur: 'sa/v4/ur/aaa111.mp3', en: 'sa/v4/en/bbb222.mp3' } }, items: [{ id: 'i1', prompt_audio: 'sa/v1/ur/ccc333.mp3' }] }] };
-  test('timingUrls: one .json beside each v4 clip only', () => {
-    expect(timingUrls(['/sa/v4/ur/aaa111.mp3', '/sa/v1/ur/ccc333.mp3', '/sa/v4/en/bbb222.mp3'])).toEqual(['/sa/v4/ur/aaa111.json', '/sa/v4/en/bbb222.json']);
+  test('timingUrls: one .json beside each v4 clip the timing index lists, only', () => {
+    expect(timingUrls(['/sa/v4/ur/aaa111.mp3', '/sa/v1/ur/ccc333.mp3', '/sa/v4/en/bbb222.mp3'], { ur: ['aaa111'], en: ['bbb222'] })).toEqual(['/sa/v4/ur/aaa111.json', '/sa/v4/en/bbb222.json']);
   });
   test('prepVisit asks for them after everything else; a timing the server does not have is not "missing"', async () => {
     const msgs = [];
     const ask = async (m) => { msgs.push(m); const missing = m.urls.filter((u) => u.endsWith('.json') && u.includes('/v4/')); return { ok: !missing.length, cached: m.urls.length - missing.length, missing, bytes: 0 }; };
-    const r = await prepVisit({ forms: ['sa.coach.G3.A.ur'], ask, readBattery: async () => B });
+    const r = await prepVisit({ forms: ['sa.coach.G3.A.ur'], ask, readBattery: async () => B, loadIndex: async () => ({ ur: ['aaa111'], en: [] }) });
     expect(msgs[msgs.length - 1].urls).toEqual(['/sa/v4/ur/aaa111.json']);
     expect(r.ok).toBe(true);
     expect(r.missing).toBe(0);

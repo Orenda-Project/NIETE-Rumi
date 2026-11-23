@@ -118,7 +118,7 @@ describe("CoachHome (kit)", () => {
     vi.mocked(useChildTestSa).mockReturnValue(true);
     renderHome();
     expect(await screen.findByTestId("more-row-assess")).toHaveAttribute("href", "/portal/leader/assess");
-    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning assessment");
+    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning Assessment"); // bd-39qx8x: capital A
     vi.mocked(useChildTestSa).mockReturnValue(false);
   });
 

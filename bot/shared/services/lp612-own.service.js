@@ -42,7 +42,7 @@ const OWN_LANG = 'en';
 const K5_TV = 'k5_own_v1';
 /** Her status read. Plus the AI reviewer's library verdict (V1.9.9) and her change chain's root (V1.9.8). */
 const OWN_READ = 'id, user_id, segment_id, lesson_id, status, r2_key, error_code, lang, started_at, completed_at, '
-  + 'parent_own_id, library_eligible, review_score';
+  + 'parent_own_id, library_eligible, review_score, answers'; // answers: a goal-unit day's band (bd-snkn32.59.4), never sent out
 
 /** Queue her row's job; a queue that fails marks the row failed, so it never counts (shared with lp612-own-change). */
 async function queueOwn(d, row, key, correlationId) {
@@ -107,18 +107,32 @@ function createOwnService(deps) {
   }
 
   async function requestOwn({ userId, segmentId, lessonId, answers, correlationId = null } = {}) {
+    if (userId && !segmentId && !lessonId && answers && answers.unit && answers.unit.start === 'goals') {
+      // bd-snkn32.59.4 (queue #165) — a day of her GOAL unit: no segment, no book day (lp-own-unit-request).
+      return require('./lp-own-unit-request').requestGoalUnitDay({ ...d, now }, queue, { userId, answers, correlationId, tv: K5_TV });
+    }
     if (!userId || (!segmentId === !lessonId)) {
       return { outcome: 'bad_request', error: 'userId and one of segmentId or lessonId are required' };
     }
     // bd-snkn32.13: a 6–12 segment's answers are checked against its grade band's ways (a 1–5 day: the primary ones).
-    const parsed = parseOwnAnswers(answers, lessonId ? undefined : { segmentId });
+    const parsed = parseOwnAnswers(answers, lessonId ? { lessonId } : { segmentId });
     if (!parsed.ok) return { outcome: 'bad_request', error: parsed.error };
     const ext = parseExtend(answers.extend);
     if (!ext.ok) return { outcome: 'bad_request', error: ext.error };
     if (ext.extend && lessonId) return { outcome: 'bad_request', error: 'extend is for a grades 6-12 lesson' };
     // bd-snkn32.15: five makes + changes per Pakistan day, checked before anything is written or asked for.
     if ((await d.countToday(userId, karachiDayStart(now()))) >= dailyLimit(d.env || process.env)) return { outcome: 'daily_limit' };
-    if (lessonId) return requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId });
+    if (parsed.answers.goal) {
+      // bd-snkn32.56 — a goal start: off for everyone but portal_lp_own_goal_start's list (checked here, fail-closed),
+      // and it is the book-less path, so no book pages and no next lesson ride with it.
+      let on = false;
+      try { on = !!d.goalStartOn && (await d.goalStartOn(userId)) === true; } catch (_) { on = false; }
+      if (!on) return { outcome: 'not_found' };
+      if (answers.pages != null || answers.extend != null) return { outcome: 'bad_request', error: 'a goal start takes no pages or next lesson' };
+    }
+    // bd-snkn32.58.2 — a note dropped for a blocked word is said back to her (the app shows one line).
+    const told = (out) => (parsed.answers.noteDropped && out && out.outcome === 'queued' ? { ...out, noteDropped: true } : out);
+    if (lessonId) return told(await requestK5({ userId, lessonId, answers: parsed.answers, pages: answers.pages, correlationId }));
     if (!(await d.segmentExists(segmentId))) return { outcome: 'not_found' };
 
     const tv = d.templateVersion();
@@ -147,7 +161,7 @@ function createOwnService(deps) {
     });
     if (!row || !row.id) return { outcome: 'error' };
 
-    return queue(row, segmentId, correlationId);
+    return told(await queue(row, segmentId, correlationId));
   }
 
   /** Her fork in the render row's shape (renderStatus), or null — never someone else's, never a throw. */
@@ -256,6 +270,8 @@ function liveDeps() {
     },
     listChain: (rootId, userId) => listChain(supabase, rootId, userId),
     countToday: (userId, since) => countToday(supabase, userId, since),
+    goalStartOn: (userId) => require('./lp612-own-goal.store').goalStartOn(supabase, userId),
+    unitOn: (userId) => require('./lp-own-unit.store').unitOn(supabase, userId), // bd-snkn32.59.4
     log: (msg, meta) => logToFile(msg, meta),
   };
 }

@@ -29,14 +29,19 @@ const PLAN = {
 const pad = (n) => String(n).padStart(2, '0');
 const srcAt = (it, i) => new RegExp(`\\.items\\[${i}\\]$`).test(String(it.src || ''));
 
-/** A spare item in the shape the W3 task's own items have (show / target / answer; a sum keeps its say + clip). */
+/**
+ * A spare item in the shape the W3 task's own items have (show / target / answer; a sum keeps its say + clip). A spare
+ * with accepted forms (a non-empty `accept` list) keeps them, so the words prompt lists them beside the word
+ * (sa_r28_words_prompt); a spare without them gets no key.
+ */
 function asItem(task, spare, id) {
-  if (Array.isArray(spare.options) && !spare.say) return { id, target: spare.target, options: spare.options.slice(), src: spare.src };
+  const acc = Array.isArray(spare.accept) && spare.accept.length ? { accept: spare.accept.slice() } : {};
+  if (Array.isArray(spare.options) && !spare.say) return { id, target: spare.target, options: spare.options.slice(), src: spare.src, ...acc };
   if (spare.shown != null) {
     const show = String(spare.shown).replace(/\s*=\s*$/, '').replace(/ - /g, ' − ');
-    return { id, show, target: spare.target, answer: spare.target, src: spare.src, say: spare.say, prompt_audio: spare.prompt_audio };
+    return { id, show, target: spare.target, answer: spare.target, src: spare.src, say: spare.say, prompt_audio: spare.prompt_audio, ...acc };
   }
-  return { id, show: spare.target, target: spare.target, answer: spare.target, src: spare.src };
+  return { id, show: spare.target, target: spare.target, answer: spare.target, src: spare.src, ...acc };
 }
 
 /** The spares a plan names, from the battery's own tasks; null when one is missing (the task then stays as it is). */

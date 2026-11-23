@@ -111,7 +111,7 @@ maybe('the coach marks the last word (sa-ui)', () => {
     const x = mount({ coach_last_word: true, lastWordHint: () => Promise.resolve(null) });
     x.view.render(); await flush();
     const lines = x.said.map((s) => (s && (s.en || s.text)) || '');
-    expect(lines).toContain('Give the phone back to the coach.');
+    expect(lines).toContain(require('../sa/sa-ui').COPY.en.give_coach);
     expect(lines).not.toContain('Tap the last word you read');
   });
 

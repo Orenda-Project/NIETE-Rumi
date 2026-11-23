@@ -1,7 +1,7 @@
 # checks — Design-rule tests that fail the build when the new UI breaks DESIGN.md
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=3550d0cdef43 gen=cabc9825b654 overflow=52 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=5621ce6e6935 gen=ef3b444c479b overflow=63 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `rules.ts` — rule functions (max 4-word labels, allowlist) the *.test files call
@@ -12,8 +12,8 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `rules.ts` | bd-5rz1v.19: design-rule functions (max 4-word labels, allowlist) the checks/*.test files call |
-| `tap.test.tsx` | bd-5rz1v.19: every interactive kit component keeps the tap-target class contract (at least 56px) |
 | `source.ts` | bd-5rz1v.19: test-only reader of newui source (fs plus TypeScript parser) for the design checks |
+| `tap.test.tsx` | bd-5rz1v.19: every interactive kit component keeps the tap-target class contract (at least 56px) |
 | `copy.test.ts` | bd-5rz1v.19 CHECK 1: new-UI copy is labels not sentences; all words live in copy.ts |
 | `style.test.tsx` | bd-5rz1v.19 CHECK 3: green primaries only, logical spacing for RTL, motion only when allowed |
 
@@ -35,9 +35,9 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/teacher/attendance/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/classes/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/coaching/checks.test.tsx` (rules.ts, source.ts)
+- `portal/src/portal/teacher/journey/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/lessons/checks.test.tsx` (rules.ts, source.ts)
-- `portal/src/portal/teacher/notices/checks.test.tsx` (rules.ts, source.ts)
-- … 52 more → `CLAUDE.index.md`
+- … 63 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/CLAUDE.md`?

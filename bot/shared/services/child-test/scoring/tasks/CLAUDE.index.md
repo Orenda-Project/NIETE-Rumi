@@ -25,13 +25,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `letters.js` ← imported by `bot/shared/services/child-test/scoring/tasks/index.js:20:5c867406`
 - `listening.js` ← imported by `bot/shared/services/child-test/scoring/tasks/index.js:19:729c1ee1`
 - `oral.js` ← imported by `bot/shared/services/child-test/scoring/tasks/index.js:27:ed37931b`
-- `prompts.js` ← imported by `bot/shared/services/child-test/sa/score.js:301:c39e83bd` · `bot/shared/services/child-test/scoring/tasks/fluency.js:8:8194ea63` · `bot/shared/services/child-test/scoring/tasks/letters.js:11:8194ea63` · `bot/shared/services/child-test/scoring/tasks/listening.js:10:8194ea63` (+1: `python3 kg/kg.py who-reads prompts.js`)
+- `prompts.js` ← imported by `bot/shared/services/child-test/sa/score.js:373:c39e83bd` · `bot/shared/services/child-test/scoring/tasks/fluency.js:8:8194ea63` · `bot/shared/services/child-test/scoring/tasks/letters.js:11:8194ea63` · `bot/shared/services/child-test/scoring/tasks/listening.js:10:8194ea63` (+1: `python3 kg/kg.py who-reads prompts.js`)
 - `story.js` ← imported by `bot/shared/services/child-test/scoring/tasks/index.js:23:50834e88`
 - `wordlist.js` ← imported by `bot/shared/services/child-test/scoring/tasks/index.js:21:ba6b2614`
 
 ## Tests (all, generated)
 - `common.js` ← `tests/child-test/L37/score-task.test.js` · `tests/child-test/L40/e2e-scoring-fixes.test.js` · `tests/child-test/L40/finish-time.test.js` · `tests/child-test/L40/review-seam.test.js`
-- `engine.js` ← `tests/coaching/video-reco/engine.test.js`?
+- `engine.js` ← `tests/coaching/video-reco/engine.test.js`? · `tests/e2e-mock/engine.js`?
 
 ## Related (all, generated)
 - docs: `bot/shared/services/child-test/scoring/CLAUDE.md`?

@@ -135,22 +135,24 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   }
 
   if (want('LANG09')) {
-    // LANG09 — /register launch bubble English regardless of language (@known-issue). Account may now be registered.
+    // LANG09 — /register on an Urdu account answers in Urdu. Inverted 2026-11-18 (bd-kbo9h0.7): it asserted the
+    // old English bubble (a @known-issue), which the localised registration invite fixed.
     s = t();
     r = await api.sendWait('/register');
-    rec('LANG09', 'The registration launch bubble is English regardless of any prior language (@known-issue)',
-        ...V(r.ok && latinOnly(r.txt), { reply: r.txt.slice(0, 120), english: latinOnly(r.txt) }), t() - s);
+    rec('LANG09', '/register on an Urdu account answers in Urdu',
+        ...V(r.ok && UR.test(r.txt) && !latinOnly(r.txt), { reply: r.txt.slice(0, 120), urdu: UR.test(r.txt) }), t() - s);
     await api.resetFlow();
   }
 
   if (want('LANG16')) {
-    // LANG16 — Lesson Plans card + Pick-Class Flow on an Urdu account (@known-issue: Flow interior English)
+    // LANG16 — Lesson Plans card + Pick-Class Flow on an Urdu account. Inverted 2026-11-18 (bd-kbo9h0.7): it now
+    // asserts Urdu and FAILS while the Flow interior is English (known-findings.json lists it until the fix).
     s = t();
     r = await api.sendWait('/lp');
     const op = await api.openFlow('جماعت چنیں|Pick Class|شروع کریں|Browse');
     const fp = op.ok ? await api.flowProbe() : { text: '' };
-    rec('LANG16', 'Lesson Plans via the Pick-Class Flow renders English on an Urdu account (@known-issue)',
-        op.ok ? V(latinOnly(fp.text), { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) })[0] : 'BLOCKED',
+    rec('LANG16', 'Lesson Plans via the Pick-Class Flow speaks Urdu on an Urdu account',
+        op.ok ? V(UR.test(r.txt) && UR.test(fp.text) && !latinOnly(fp.text), { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) })[0] : 'BLOCKED',
         op.ok ? { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) } : { harness: op.err, card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt) }, t() - s);
     await api.resetFlow();
   }

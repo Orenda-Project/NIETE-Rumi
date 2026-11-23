@@ -7,7 +7,7 @@
   "held_rule": "a key with `held` is never rendered or sent",
   "retired_rule": "a key with `retired: true` is rendered or sent by no surface; it is kept, never deleted, so old lifts stay traceable",
   "nbsp_rule": "U+00A0 inside a unit that must not break («واٹس ایپ», «ہوم اسکرین», a question's last pair); lifts copy it byte for byte",
-  "keys": 221
+  "keys": 227
  },
  "jg.lantern.trail_one": {
   "en": "A game is waiting for you on the Trail.",
@@ -1518,14 +1518,14 @@
   }
  },
  "jg.t.link_sub": {
-  "en": "Forward it once a term and pin it. It always opens this week's story.",
-  "ur": "ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ یہ ہمیشہ اس ہفتے کی کہانی کھولتا ہے۔",
+  "en": "Forward it once a term and pin it. Each child taps their name and plays.",
+  "ur": "ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ بچے اپنا نام دبا کر کھیلتے ہیں۔",
   "surface": "page.teacher",
   "cap_cp": 120,
   "switch": "web_quiz_class_link",
   "cp": {
-   "en": 69,
-   "ur": 83
+   "en": 72,
+   "ur": 78
   }
  },
  "jg.t.link_copy": {
@@ -2454,6 +2454,72 @@
   "cp": {
    "en": 52,
    "ur": 47
+  }
+ },
+ "qfix_class_link.round_title": {
+  "en": "Tonight's quiz",
+  "ur": "آج شام کا کوئز",
+  "surface": "page.hub.next",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 14,
+   "ur": 14
+  }
+ },
+ "qfix_class_link.quiz_ready": {
+  "en": "Quiz ready",
+  "ur": "کوئز تیار",
+  "surface": "page.who",
+  "cap_cp": 16,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 10,
+   "ur": 9
+  }
+ },
+ "qfix_class_link.done_tonight": {
+  "en": "Done for tonight!",
+  "ur": "آج شام کا کوئز ہو گیا!",
+  "surface": "page.who+page.quiz",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 17,
+   "ur": 22
+  }
+ },
+ "qfix_class_link.past_title": {
+  "en": "{day}'s quiz",
+  "ur": "{day} کا کوئز",
+  "surface": "page.hub.next",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 16,
+   "ur": 14
+  }
+ },
+ "qfix_class_link.rounds_played_one": {
+  "en": "{n} child played",
+  "ur": "{n} بچے نے کھیلا",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 16,
+   "ur": 16
+  }
+ },
+ "qfix_class_link.rounds_played": {
+  "en": "{n} children played",
+  "ur": "{n} بچوں نے کھیلا",
+  "surface": "page.teacher",
+  "cap_cp": 24,
+  "switch": "web_quiz_evening_round",
+  "cp": {
+   "en": 19,
+   "ur": 17
   }
  }
 }

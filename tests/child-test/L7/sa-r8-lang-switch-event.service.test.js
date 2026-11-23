@@ -42,7 +42,8 @@ describe('the language switch reaches the session', () => {
     const res = await Svc.saBatch({ userId: COACH, sessionId: SESSION, seqFrom: 1, seqTo: 1, events, results: [] }, deps);
     expect(res).toEqual({ status: 'ok', ackedTo: 1 });
     const kept = deps.saStore.markSynced.mock.calls[0][1].events;
-    expect(kept).toEqual([{ seq: 1, type: 'lang_switch', task_id: 'ma.add1', at: '2026-10-28T09:00:01Z', data: { from: 'ur', to: 'en', item_id: 'ma.add1.02' } }]);
+    // the kept row names its item at the top level too (kept events carry item_id when the event names one); data keeps it
+    expect(kept).toEqual([{ seq: 1, type: 'lang_switch', task_id: 'ma.add1', item_id: 'ma.add1.02', at: '2026-10-28T09:00:01Z', data: { from: 'ur', to: 'en', item_id: 'ma.add1.02' } }]);
   });
   test('an event type the server does not know is accepted and dropped, never a refused batch', async () => {
     const Svc = require(SVC);

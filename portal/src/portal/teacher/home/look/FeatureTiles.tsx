@@ -3,7 +3,7 @@ import { TEACHER_FRAME } from "../../copy";
 import { useCopy } from "../../i18n";
 import { FeatureMotionProvider, type AnyFeature } from "../../icons";
 import { teacherPath } from "../../routes";
-import { FeatureTile } from "../../ui";
+import { FeatureTile, tileGrid } from "../../ui";
 import type { HomeTileKey, TapKind } from "../api";
 import { QuizFeatureTile } from "../QuizTile";
 
@@ -37,7 +37,7 @@ export function FeatureTiles({ tiles, order, className, quiz }: {
   if (quiz) cells.splice(Math.max(cells.indexOf("lessons"), 0) + 1, 0, "quiz");
   return (
     <FeatureMotionProvider>
-      <nav aria-label={C.home.features} data-testid="feature-tiles" className={cn("[display:grid] grid-cols-3 gap-2.5", className)}>
+      <nav aria-label={C.home.features} data-testid="feature-tiles" className={cn(tileGrid(true), className)}>
         {cells.map((key) => {
           if (key === "quiz") return quiz ? <QuizFeatureTile key="quiz" quizHome={quiz.quizHome} onGo={quiz.onGo} compact /> : null;
           return <FeatureTile key={key} feature={art.get(key)!} label={C.home.tiles[key]} to={teacherPath(key)} compact />;

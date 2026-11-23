@@ -216,8 +216,9 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   const firstButton = observe2 && (observe2.held || fdeObserve2)
     ? { id: require('./observe2/start').fillButtonId(observe2.form.id), title: fdeObserve2 ? require('./obs612/strings').obs612Strings(lang).form_cta : require('./observe2/strings').observe2Strings(lang).btn_fill_form }
     : { id: `observe_ok_${session.id}`, title: S.btn_ok_wait };
-  // An /observe FDE visit was acknowledged by its form (startObserveVisit): no second message.
-  if (!fdeVisit) {
+  // An /observe FDE visit was acknowledged by its form (startObserveVisit): no second message. Queue #184: a FICO 6-12
+  // visit for the Digital Coach gets the ordinary ack (its form comes pre-filled after the analysis, as v6's does).
+  if (!fdeVisit || fdeVisit.dc) {
     await WhatsAppService.sendInteractiveButtons(from, {
       body: fdeObserve2 ? require('./obs612/strings').obs612Strings(lang).recording_saved(Boolean(observe2.form.sealed_at))
         : observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
@@ -225,6 +226,14 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
         { id: firstButton.id, title: [...firstButton.title].slice(0, 20).join('') },
         { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
       ],
+    });
+  }
+
+  // bd-ra8xu.60: Observation Notes. On a v6 visit (the stamp above; never /observe2 or FDE) with the switch on for the
+  // coach, one more message: the notes Flow, while Rumi listens and before the form. Never throws.
+  if (!observe2 && !fdeVisit) {
+    await require('./observation-notes').offerNotes({
+      observerId: user.id, to: from, session, lang, teacherName: (boundTeacher && boundTeacher.teacher_name) || null,
     });
   }
 

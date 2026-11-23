@@ -20,7 +20,7 @@ const { detectRegion } = require('../utils/region');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
-const { observesOwnSchoolAtOnce } = require('../config/role-features');
+const { observesOwnSchool } = require('../config/role-features');
 
 // bd-2432 (port of main-bot FEAT-116) — the visit-picker feature flag.
 //
@@ -144,7 +144,7 @@ async function maybeLaunchVisitFlow(user, from) {
     // A principal goes straight in too. Their own school (users.school_id) is one of their schools now,
     // and without one the menu still offers "add a school" and their own lesson: 477 of 522 prod principals held no
     // leader_schools row on 15 Nov and were sent the redirect instead of the picker.
-    const isPrincipal = user && observesOwnSchoolAtOnce(user);
+    const isPrincipal = user && observesOwnSchool(user);
     if (user && (isCoach || isPrincipal || await leaderHasAssignment(user))) {
       await sendObserveVisitFlow(user, from);
       return 'launched';

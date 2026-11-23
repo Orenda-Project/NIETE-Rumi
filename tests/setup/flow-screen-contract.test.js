@@ -32,6 +32,8 @@ const PAIRS = [
   ['bot/shared/routes/observe2-form-endpoint.js', 'docs/flows/observe2-field-form.json'],
   ['bot/shared/routes/observe2-check-endpoint.js', 'docs/flows/observe2-evidence-check.json'],
   ['bot/shared/routes/obs612-endpoint.js', 'bot/docs/flows/obs612-flow.json'],
+  // bd-31ziu8 — FICO-S v1.1 (ICT grades 6-12): its own Flow on the same endpoint path, answered by fico-s-endpoint.js.
+  ['bot/shared/routes/fico-s-endpoint.js', 'bot/docs/flows/fico-s-flow.json'],
 ];
 
 describe('flow screen contract', () => {

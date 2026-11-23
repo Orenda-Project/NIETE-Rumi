@@ -226,6 +226,12 @@ async function _claimAsk(userId, lessonKey) {
 }
 
 async function sendFeedbackPrompt({ lessonPlanId, userId, phone, context }) {
+  // lp_whatsapp_survey_off: her programme is asked in the app, not here. Checked in the delayed send, so the delivery
+  // pays nothing for it; absent, malformed or another programme listed → asked as today.
+  if (await require('./lp-whatsapp-off').isLpWhatsappSurveyOffFor(userId)) {
+    logToFile('LP Feedback: prompt skipped — the WhatsApp survey is off for her programme', { lessonPlanId });
+    return;
+  }
   const lessonKey = context && context.lessonKey;
   // Only a caller that names its lesson pays the cache round-trip; every other door is unchanged.
   if (lessonKey && !(await _claimAsk(userId, lessonKey))) {
@@ -312,6 +318,15 @@ async function handleFeedbackButton(buttonId, phone, opts = {}) {
     .eq('lesson_plan_id', lessonPlanId)
     .eq('user_id', lp.user_id)
     .maybeSingle();
+
+  // She answered this lesson in the app already (its own lesson_plans row): the app answer stands, no second row.
+  const inApp = existing ? null : await require('./lp-in-app-answer')
+    .answeredInApp(lp.user_id, meta.v8 && meta.v8.lesson_id).catch(() => null);
+  if (inApp) {
+    logToFile('LP Feedback: already answered in the app', { lessonPlanId, existingId: inApp.id });
+    await _thank(phone, messageId, 'lpFeedbackThanksYes', language, 'lp_feedback_answered_in_app');
+    return true;
+  }
 
   if (existing) {
     if (existing.useful !== useful) {

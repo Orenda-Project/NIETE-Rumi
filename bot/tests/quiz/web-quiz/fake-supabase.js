@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/lte/order/limit/range; or() over is/eq/neq; select/insert/update/delete; is/not also on a
+ * APPLIES the filters it is given (eq/is/not/in/ilike/gte/gt/lt/lte/order/limit/range; or() over is/eq/neq; select/insert/update/delete; eq/is/not also on a
  * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -35,7 +35,16 @@ const EMBEDS = {
   student_videos: { quizzes: ['id', 'video_id', 'many'] },
   students: { student_lists: ['list_id', 'id', 'one'] },
 };
-const embedsOf = (cols) => [...String(cols || '').matchAll(/(?:^|,)\s*(?:(\w+):)?(\w+)\(/g)].map((m) => ({ name: m[2], as: m[1] || m[2] }));
+// the column list that opens at `i` (just after its '('), up to its own ')'
+const listAt = (s, i) => { let d = 1; let j = i; for (; j < s.length && d > 0; j += 1) { if (s[j] === '(') d += 1; else if (s[j] === ')') d -= 1; } return s.slice(i, j - 1); };
+// the select's own list, every embed's list left out
+const topOf = (cols) => { let d = 0; let o = ''; for (const c of String(cols || '')) { if (c === '(') d += 1; else if (c === ')') d -= 1; else if (d === 0) o += c; } return o; };
+const embedsOf = (cols) => [...String(cols || '').matchAll(/(?:^|,)\s*(?:(\w+):)?(\w+)\(/g)].map((m) => ({ name: m[2], as: m[1] || m[2], inner: listAt(String(cols), m.index + m[0].length) }));
+// A select may name a jsonb path under an alias, `src:meta->>source` (PostgREST), at the top or inside an embed: the row
+// carries the top list's aliases, an embedded row its own embed's, with the key's text value, or null, as the server
+// answers it (an alias inside an embed never lands on the outer row).
+const pathsOf = (cols) => [...String(cols || '').matchAll(/(?:^|[,(])\s*(\w+):(\w+->>\w+)/g)].map((m) => ({ as: m[1], path: m[2] }));
+const withPaths = (o, paths) => { (paths || []).forEach((p) => { o[p.as] = val(o, p.path); }); return o; };
 
 // `maxRows` ({ table: n }, default none): PostgREST's max-rows — a read of that table answers at most n rows, whatever
 // range or limit it asked for, as the server does; a read that does not page past it goes red.
@@ -47,8 +56,8 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
   function builder(t) {
     const st = { t, filters: [], order: [], limit: null, op: 'select', count: false, head: false, payload: null, single: null };
     const b = {
-      select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; st.embeds = embedsOf(cols); if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
-      eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
+      select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; st.embeds = embedsOf(cols); st.paths = pathsOf(topOf(cols)); if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
+      eq(c, v) { st.filters.push((r) => same(val(r, c), v)); return b; },
       // SQL `<>`: a NULL cell is not "not equal" — PostgREST's neq never returns it
       neq(c, v) { st.filters.push((r) => r[c] != null && r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
@@ -71,7 +80,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       // PostgREST echoes the query into the Content-Location header and Node's fetch caps response headers at 16 KB:
       // a list of more than ~390 UUIDs fails the request as supabase-js reports it (postgrest-js: `TypeError: fetch failed`,
       // the headers-overflow hint, data null). A read that feeds a data-sized list in unchunked goes red here.
-      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(r[c])); return b; },
+      in(c, vs) { if ((vs || []).length > IN_MAX) st.overflow = vs.length; st.filters.push((r) => vs.includes(val(r, c))); return b; },
       // PostgREST ilike: % is any run, case-insensitive.
       ilike(c, pat) {
         const rx = new RegExp(`^${String(pat).split('%').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 'i');
@@ -142,14 +151,14 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     if (st.count) return { data: st.head ? null : hit, count: hit.length, error: null };
     const out = (r) => {
       const o = { ...r };
-      for (const { name, as } of st.embeds || []) {
+      for (const { name, as, inner } of st.embeds || []) {
         const rel = (EMBEDS[st.t] || {})[name];
         if (!rel) continue;
         const [mine, theirs, kind, other] = rel;
-        const found = table(other || name).filter((x) => r[mine] != null && x[theirs] === r[mine]).map((x) => ({ ...x }));
+        const found = table(other || name).filter((x) => r[mine] != null && x[theirs] === r[mine]).map((x) => withPaths({ ...x }, pathsOf(inner)));
         o[as] = kind === 'one' ? found[0] || null : found;
       }
-      return o;
+      return withPaths(o, st.paths);
     };
     if (st.single) return { data: hit[0] ? out(hit[0]) : null, error: null };
     return { data: hit.map(out), error: null };

@@ -4,20 +4,29 @@
  *                                file after the primary has painted). Never a test button here.
  *   WQREMIND.landing(root, ctx)  the /remind/:code page (edge-rendered; this file boots it from #wq-remind-boot). After
  *                                Done: the Play door to /q/<code>, and "Send one now" only when ctx.test (sandbox QA).
- *   ctx = {code, lang, chips, chip?, test?, host?}
+ *   ctx = {code, lang, chips, chip?, test?, host?, src?}   src: where it is mounted ('class_link' under the standing
+ *                                link's chips; else the result screen), sent on every step as src (landing: 'landing')
  *
  * First GET /api/wqpush/key: a 404 means the switch is off, so any of our workers (/sw.js) is unregistered and nothing
  * is drawn. Never drawn beside an install card (#wqp-inst non-empty or [data-door="install"]), never on a class phone
- * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e. */
+ * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e.
+ *
+ * Each step, the subscribe and the context kept for the worker carry `ps`, this page load's telemetry session id, when
+ * wq-tel.js has one (window.WQT.on; it keeps the id in sessionStorage as wq_ps), so a funnel read can drop QA walks by
+ * page_start.ua. Telemetry off, no wq-tel on the page (the /remind landing) or no id: the bodies are as they were. */
 (function () {
   'use strict';
   var T = {
     en: {
-      remindTitle: 'Want Jugnu to remind you tomorrow?',
-      remindBody: 'One reminder on this phone, after school. You can stop it any time.',
-      remindYes: 'Yes, remind me',
+      remindTitle: 'Jugnu can remind you tomorrow evening.',
+      remindTitleMon: 'Jugnu can remind you on Monday evening.',
+      remindBody: 'One reminder on this phone, on school-day evenings. You can stop it any time.',
+      remindYes: 'Yes',
       remindLater: 'Not now',
-      remindDone: 'Done. Jugnu will remind you tomorrow after school.',
+      remindWait: 'Turning reminders on…',
+      remindHint: 'Now tap Allow below',
+      remindDone: 'Done. Jugnu will remind you tomorrow evening.',
+      remindDoneMon: 'Done. Jugnu will remind you on Monday evening.',
       remindTest: 'Send one now',
       remindStop: 'Stop reminders',
       remindDenied: 'Reminders are off in this browser. You can turn them on in the browser settings.',
@@ -34,11 +43,16 @@
       offTitle: 'Reminders are off',
     },
     ur: {
-      remindTitle: 'کیا جگنو کل آپ کو یاد دلائے؟',
-      remindBody: 'اس فون پر، اسکول کے بعد، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
-      remindYes: 'جی ہاں، یاد دلائیں',
+      remindTitle: 'جگنو کل شام آپ کو یاد دلا سکتا ہے۔',
+      remindTitleMon: 'جگنو پیر کی شام آپ کو یاد دلا سکتا ہے۔',
+      remindBody: 'اس فون پر، اسکول کے دنوں کی شام، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
+      remindYes: 'ہاں',
       remindLater: 'ابھی نہیں',
-      remindDone: 'ہو گیا۔ جگنو کل اسکول کے بعد یاد دلائے گا۔',
+      remindWait: 'یاد دہانی آن ہو رہی ہے…',
+      // names no button: Chrome's permission dialog follows the phone's language, not the page's
+      remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
+      remindDone: 'ہو گیا۔ جگنو کل شام یاد دلائے گا۔',
+      remindDoneMon: 'ہو گیا۔ جگنو پیر کی شام یاد دلائے گا۔',
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
       remindStop: 'یاد دہانی بند کریں',
       remindDenied: 'اس براؤزر میں یاد دہانی بند ہے۔ آپ براؤزر کی سیٹنگز سے اسے کھول سکتے ہیں۔',
@@ -57,6 +71,10 @@
   };
   var IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;
   var CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+  var PS_RX = /^[a-z0-9]{12}$/;
+  // The reminder comes on the next school evening (Mon–Fri, PKT; the bot's nextAt): on a Friday or a Saturday that is
+  // Monday, so the ask and the done line say Monday there, and tomorrow on every other day.
+  function onMonday() { var d = new Date(Date.now() + 5 * 3600000).getUTCDay(); return d === 5 || d === 6; }
   var DAY = 864e5;
   var API = '/api/wqpush/';
 
@@ -67,6 +85,13 @@
   function lsSet(k, v) { try { window.localStorage.setItem(k, String(v)); } catch (_) { /* private mode: no snooze */ } }
   function within(k, days) { var t = Number(lsGet(k)) || 0; return t > 0 && Date.now() - t < days * DAY; }
   function snoozed() { return within('wq_rm_asked', 30) || within('wq_rm_later', 7); }
+  // This page load's telemetry session id, or '' (telemetry off: a wq_ps left by an earlier page in the tab is not this one)
+  function pageSession() {
+    if (!window.WQT || window.WQT.on !== true) return '';
+    var v = '';
+    try { v = String(window.sessionStorage.getItem('wq_ps') || ''); } catch (_) { v = ''; }
+    return PS_RX.test(v) ? v : '';
+  }
 
   function post(op, body) {
     try {
@@ -74,9 +99,10 @@
         .then(function (r) { return r; }, function () { return null; });
     } catch (_) { return Promise.resolve(null); }
   }
-  function getKey() {
+  // code: the quiz this ask is about; the bot answers ask:false outside the canary (web_quiz_push_canary)
+  function getKey(code) {
     try {
-      return Promise.resolve(window.fetch(API + 'key', { credentials: 'same-origin', headers: { accept: 'application/json' } }))
+      return Promise.resolve(window.fetch(API + 'key' + (code ? '?code=' + encodeURIComponent(code) : ''), { credentials: 'same-origin', headers: { accept: 'application/json' } }))
         .then(function (r) {
           if (!r) return { status: 0 };
           return Promise.resolve(r.json()).then(function (b) { return { status: r.status, body: b || {} }; }, function () { return { status: r.status, body: {} }; });
@@ -129,7 +155,7 @@
     for (var i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
     return out;
   }
-  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang}). Best effort. */
+  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang, ps?}). Best effort. */
   function keep(ctxVal) {
     return new Promise(function (resolve) {
       try {
@@ -162,13 +188,15 @@
     var code = CODE_RX.test(String(ctx.code || '')) ? String(ctx.code) : '';
     var host = String(ctx.host || window.location.host || '').replace(/[^A-Za-z0-9.:-]/g, '');
     var landing = mode === 'landing';
+    var src = landing ? 'landing' : ctx.src === 'class_link' ? 'class_link' : 'result';
     var key = null;
     var busy = false;
     var iab = false;
 
     function ev(step, extra) {
-      var b = { step: step, lang: lang };
+      var b = { step: step, lang: lang, src: src };
       if (iab) b.iab = true;
+      if (pageSession()) b.ps = pageSession();
       if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
       post('e', b);
     }
@@ -198,11 +226,21 @@
     }
 
     var show = {
-      ask: function () { draw((landing ? '' : title(c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
+      // after Chrome's Allow: the worker and the push service take seconds, so the card says it is working at once
+      wait: function () { draw('<p class="wq-sub" role="status" aria-busy="true" style="margin:0' + fs + lh + '">' + esc(c.remindWait) + '</p>'); },
+      // while Chrome's permission sheet is up (it is in English): where to tap
+      hint: function () { draw('<p class="wq-sub" role="status" style="margin:0' + fs + lh + '">' + esc(c.remindHint) + '</p>'); },
+      // the result screen (take A): one line, then 🔔 Yes and Not now on one row, so the score and "See my card" stay the
+      // heroes; the /remind landing keeps the consent line under its own question
+      ask: function () {
+        var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.remindYes) + '</button>';
+        var row = '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + yes + btn('wq-ghost', 'later', c.remindLater) + '</div>';
+        draw(landing ? line(c.remindBody) + row : title(onMonday() ? c.remindTitleMon : c.remindTitle) + row);
+      },
       done: function () {
         pageTitle(c.onTitle);
         // the landing's one next step is Play (the primary); Stop is the small ghost; the test-send only for QA (?qa=1)
-        draw(line(c.remindDone)
+        draw(line(onMonday() ? c.remindDoneMon : c.remindDone)
           + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')
           + (landing && ctx.test === true ? btn('wq-ghost', 'test', c.remindTest) : '')
           + btn('wq-ghost', 'stop', c.remindStop));
@@ -224,7 +262,9 @@
       return Promise.resolve(sw.register('/sw.js', { scope: '/' }))
         .then(function () { return sw.ready; })
         .then(function (reg) {
-          return keep({ key: key, code: code, lang: lang }).then(function () {
+          var kept = { key: key, code: code, lang: lang };
+          if (pageSession()) kept.ps = pageSession();
+          return keep(kept).then(function () {
             return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
           });
         })
@@ -233,6 +273,7 @@
           try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) { tz = ''; }
           var body = { sub: sub.toJSON(), code: code, lang: lang, chips: Number(ctx.chips) || 0, tz: tz };
           if (typeof ctx.chip === 'string' && ctx.chip) body.chip = ctx.chip;
+          if (pageSession()) body.ps = pageSession();
           return post('subscribe', body).then(function (r) {
             if (r && r.status === 200) return 'ok';
             try { sub.unsubscribe(); } catch (_) { /* best effort */ }
@@ -246,6 +287,7 @@
       if (busy) return;
       busy = true;
       ev('yes');
+      show.hint();
       var asked = new Promise(function (resolve) {
         var r = window.Notification.requestPermission(resolve);
         if (r && typeof r.then === 'function') r.then(resolve, function () { resolve('default'); });
@@ -258,6 +300,7 @@
           return null;
         }
         ev('granted');
+        show.wait();
         return subscribe().then(function (out) {
           if (out === 'ok') { ev('subscribed'); show.done(); } else if (out === 'class') { ev('failed', { ok: false }); draw(''); } else { ev('failed', { ok: false }); show.ask(); }
         });
@@ -305,9 +348,12 @@
         if ((Number(ctx.chips) || 0) >= 4) return Promise.resolve();
         if (installOnScreen()) return Promise.resolve();
         if (!landing && snoozed()) return Promise.resolve();
-        return getKey().then(function (r) {
-          if (r.status === 404) return dropWorkers();
+        return getKey(code).then(function (r) {
+          // only a real off drops the worker; a 5xx, a route miss or no network leaves it (a failed read is not OFF)
+          if (r.status === 404 && r.body && r.body.off === true) return dropWorkers();
           if (r.status !== 200) return null;
+          // outside the canary: no card, no step, and any worker this phone already has stays
+          if (r.body && r.body.ask === false) return null;
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
           var b = branch();
           if (b === 'iab') { iab = true; ev('shown'); show.iab(); return null; }

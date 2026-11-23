@@ -6,28 +6,48 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `fixtures/` | → (no door; 2 files) |
+| `certificate-issuing-env.js` | (unmapped) |
+| `corpus_reader.py` | (unmapped) |
+| `gb-roster.js` | (unmapped) |
 | `gb_migration.py` | (unmapped) |
+| `gb_reader.py` | (unmapped) |
 | `legacy-media-rehost.rules.js` | Pure rules: which legacy training media need re-hosting, and target refs; used by rehost-legacy-training-media.js |
 | `legacy_taleemabad_import.py` | Pure decision logic (question filters, ordering, insert vs update plan) behind import-legacy-taleemabad.py (bd-s42dye.4) |
 | `mark_test_users.py` | Pure helpers merging predicate rows with an allowlist and counting selections per rule for mark-test-users.py |
+| `merge_duplicates.py` | (unmapped) |
 | `roster_school_backfill.py` | Pure classifier (backfill, conflict, ambiguous, skipped) for backfill-school-id-from-roster.py |
+| `sandbox_scrub.py` | (unmapped) |
 | `schema_ledger.py` | Pure helpers that diff migration files against schema_versions and plan strong/weak probes for schema-ledger-audit.py |
 | `set_organization.py` | Rules and transactional apply normalizing users.organization to niete in the six ICT sectors; for set-organization.py |
+| `test_corpus_reader.py` | (unmapped) |
+| `test_corpus_reader_r2.py` | (unmapped) |
+| `test_gb_reader.py` | (unmapped) |
 | `test_textbook_import.py` | Red-first unittest for textbook_import normalisation, one case per defect found in 27 ICT books (bd-60012) |
 | `textbook_import.py` | General importer: reads a book's OCR pages and chapters from the staging tenant, writes our textbook tables |
 | `training-band-derivation.js` | Derives a teacher's grade band(s) and training programs from users.training_bands, levels and grades (bd-2672) |
 
 ## Who reads this (all, generated)
+- `certificate-issuing-env.js` ← imported by `scripts/release-isaps-held-attempts.js:26:22b68bd0` · `scripts/settle-certificates.js:28:22b68bd0` · `scripts/smoke-test-training-flow.js:22:f149366b`
+- `corpus_reader.py` ← imported by `scripts/lib/gb_reader.py:33:f242b5b9` · `scripts/lib/test_corpus_reader.py:16:90a09856`
+- `gb-roster.js` ← imported by `scripts/seed-gb-roster.js:21:c3f46b81`
+- `gb_reader.py` ← imported by `scripts/lib/test_gb_reader.py:14:347ce981`
 - `legacy-media-rehost.rules.js` ← imported by `scripts/rehost-legacy-training-media.js:91:b653db42`
-- `textbook_import.py` ← imported by `scripts/lib/test_textbook_import.py:11:f7838b5f`
+- `textbook_import.py` ← imported by `scripts/lib/corpus_reader.py:43:00575dd4` · `scripts/lib/gb_reader.py:34:204bd090` · `scripts/lib/test_textbook_import.py:11:f7838b5f`
 - `training-band-derivation.js` ← imported by `scripts/backfill-training-assignments.js:63:f4d9178f`
 
 ## Tests (all, generated)
+- `certificate-issuing-env.js` ← `tests/training/bd-r2uzg1-16-cert-scripts-need-production-env.test.js`
+- `corpus_reader.py` ← `scripts/lib/test_corpus_reader.py`
+- `gb-roster.js` ← `tests/region/gb-roster.test.js`
 - `gb_migration.py` ← `scripts/tests/test_gb_migration.py`?
+- `gb_reader.py` ← `scripts/lib/test_gb_reader.py`
 - `legacy-media-rehost.rules.js` ← `tests/training/bd-s42dye-4-legacy-media-rehost.test.js`
 - `legacy_taleemabad_import.py` ← `scripts/tests/test_legacy_taleemabad_import.py`?
 - `mark_test_users.py` ← `scripts/tests/test_mark_test_users.py`?
+- `merge_duplicates.py` ← `scripts/tests/test_merge_duplicates.py`?
 - `roster_school_backfill.py` ← `scripts/tests/test_roster_school_backfill.py`?
+- `sandbox_scrub.py` ← `scripts/tests/test_sandbox_scrub.py`?
 - `schema_ledger.py` ← `scripts/tests/test_schema_ledger.py`?
 - `set_organization.py` ← `scripts/tests/test_set_organization.py`?
 - `textbook_import.py` ← `scripts/lib/test_textbook_import.py`

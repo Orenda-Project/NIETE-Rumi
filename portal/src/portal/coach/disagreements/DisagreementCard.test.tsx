@@ -105,7 +105,7 @@ describe("DisagreementCard", () => {
     renderCard();
     const score = await screen.findByTestId("reason-score");
     expect(score).toHaveTextContent("My score doesn't seem right");
-    expect(score).toHaveTextContent("Score she questions");
+    expect(score).toHaveTextContent("Score the teacher questions");
     expect(score).toHaveTextContent("61% 86 / 140 · lowest: Student Engagement (64%). Details in B.");
     expect(score).not.toHaveTextContent("Active Participation Rate");
     expect(within(score).queryByRole("button", { name: /Listen/ })).toBeNull();

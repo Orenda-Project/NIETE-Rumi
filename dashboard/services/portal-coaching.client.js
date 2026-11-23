@@ -44,6 +44,37 @@ function config() {
   };
 }
 
+/**
+ * bd-tfya0m (queue #205) — the bot could not be reached (its connection reset or refused, as while it restarts for a
+ * deploy) or its proxy answered 502/503/504. Production 19 Nov: a coach's debrief guide came back 502 at 10 s while the
+ * bot restarted (server started 13:48:58 UTC; the 502 at 13:49:15). A timeout is NOT one of these: the request may
+ * still be running on the bot.
+ */
+const UNREACHED_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ENOTFOUND', 'EAI_AGAIN']);
+function unreached(err) {
+  if (!err) return false;
+  if (err.code && UNREACHED_CODES.has(err.code)) return true;
+  const status = err.response && err.response.status;
+  return status === 502 || status === 503 || status === 504;
+}
+
+let RETRY_WAIT_MS = 3_000;
+const pause = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+/**
+ * One more ask after RETRY_WAIT_MS when the bot was not reached. ONLY for asks that are safe to repeat (the bot keeps
+ * the answer, or a repeat returns the same one) — never a send.
+ */
+async function postAgainIfUnreached(path, body, timeoutMs) {
+  try {
+    return await post(path, body, timeoutMs);
+  } catch (err) {
+    if (!unreached(err)) throw err;
+    await pause(RETRY_WAIT_MS);
+    return post(path, body, timeoutMs);
+  }
+}
+
 async function post(path, body, timeoutMs = TIMEOUT_MS) {
   const { baseUrl, apiKey } = config();
   if (!baseUrl || !apiKey) {
@@ -107,9 +138,9 @@ function recentPlans({ userId }) {
 // The debrief guide is one model call on its first open (the WhatsApp path's).
 const GUIDE_TIMEOUT_MS = 100_000;
 
-/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson}} args */
-function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson }) {
-  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson });
+/** @param {{userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes}} args */
+function startObservation({ userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes }) {
+  return post('observe/start', { userId, teacherExtId, schoolExtId, key, lessonPlanKey, photoKeys, lessonPlan, lesson, notes });
 }
 /** bd-ra8xu.40 — whether Check and send asks the lesson's class (and subject): FDE's switch for this coach. */
 function observeLessonQuestion({ userId }) { return post('observe/lesson-question', { userId }); }
@@ -121,11 +152,17 @@ function listObservations({ userId }) { return post('observe/list', { userId });
 function observationView({ userId, coachingSessionId }) { return post('observe/view', { userId, coachingSessionId }); }
 function getObservationDraft({ userId, coachingSessionId }) { return post('observe/draft', { userId, coachingSessionId }); }
 // bd-ra8xu.40 — `submit` (true only) submits an FDE (obs612) visit's form; a FICO save posts what it always posted.
-function saveObservationDraft({ userId, coachingSessionId, edits, submit }) {
-  return post('observe/draft/save', { userId, coachingSessionId, edits, ...(submit === true ? { submit: true } : {}) });
+// bd-o15qnr.32 — `evidenceReview` (the v7 form's evidence option B) posts as evidence_review only when given.
+function saveObservationDraft({ userId, coachingSessionId, edits, submit, evidenceReview }) {
+  return post('observe/draft/save', {
+    userId, coachingSessionId, edits, ...(submit === true ? { submit: true } : {}),
+    ...(evidenceReview ? { evidence_review: evidenceReview } : {}),
+  });
 }
+// bd-tfya0m: the guide is built once and kept on the observation (an ask while it is written shares that write), so
+// a guide ask that never reached the bot is asked once more.
 function observationTalkGuide({ userId, coachingSessionId }) {
-  return post('observe/talk/guide', { userId, coachingSessionId }, GUIDE_TIMEOUT_MS);
+  return postAgainIfUnreached('observe/talk/guide', { userId, coachingSessionId }, GUIDE_TIMEOUT_MS);
 }
 function startObservationTalk({ userId, coachingSessionId, key }) {
   return post('observe/talk/start', { userId, coachingSessionId, key });
@@ -153,4 +190,6 @@ module.exports = {
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,
   liveEligible, liveCard, liveKey, liveDetect, liveEnd, liveTaps,
+  // Tests: the wait before the one more ask (bd-tfya0m).
+  _setRetryWaitMs: (ms) => { RETRY_WAIT_MS = ms; },
 };

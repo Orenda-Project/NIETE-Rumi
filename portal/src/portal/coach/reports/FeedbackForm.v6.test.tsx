@@ -62,6 +62,7 @@ const toPartC = async () => { await screen.findByText("No lesson plan was provid
 const level = (indName: string, optTitle: RegExp) => fireEvent.click(within(screen.getByRole("radiogroup", { name: indName })).getByRole("radio", { name: optTitle }));
 
 beforeEach(() => {
+  localStorage.clear(); // bd-tfya0m: the form keeps her answers on the phone; each test starts with none
   vi.clearAllMocks();
   L.getObservation.mockResolvedValue(VIEW);
   L.getObservationDraft.mockResolvedValue(DRAFT());
@@ -117,6 +118,26 @@ describe("Feedback Form — FICO17 v6 (bd-ra8xu.40)", () => {
     expect(await screen.findByLabelText("Why you changed it")).toBeInTheDocument();
     expect(screen.getByText("At least 20 letters")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Why you changed it"), { target: { value: "Only closed questions were asked." } });
+    next();
+    expect(await screen.findByText("How many children spoke")).toBeInTheDocument();
+  });
+
+  it("N/A (per-indicator N/A, 19 Nov): its own words, Rumi's N/A ringed, and an N/A needs no 20-letter reason", async () => {
+    const C2_OPTS = lv(["Wrong answer ignored", "Marked wrong", "Reason 2+ times", "Child fixed it"], [{ id: "NA", title: "N/A · No child was wrong" }]);
+    const C3_OPTS = lv(["Took whoever answered", "Chose once", "Chose 2+ times", "2+ named answered"], [{ id: "NA", title: "N/A · No question asked" }]);
+    const d = DRAFT();
+    (d.sections[1] as any).indicators = [
+      { id: "C2", field: "C2", name: "Helping when a child is wrong", kind: "dc", options: C2_OPTS, rumi: "NA", rating: "NA", evidence: "No student answer is clearly wrong.", improvement: "" },
+      { id: "C3", field: "C3", name: "Who got to answer", kind: "combined", options: C3_OPTS, body: "How the teacher chooses who answers.", rating: "", why: "" },
+    ];
+    L.getObservationDraft.mockResolvedValue(d);
+    renderPage();
+    await toPartC();
+    const c2 = within(screen.getByRole("radiogroup", { name: "Helping when a child is wrong" }));
+    const na = c2.getByRole("radio", { name: /No child was wrong/ });
+    expect(na).toHaveAttribute("aria-checked", "true");
+    expect(na).toHaveAccessibleName(/Digital Coach/);
+    level("Who got to answer", /No question asked/);
     next();
     expect(await screen.findByText("How many children spoke")).toBeInTheDocument();
   });

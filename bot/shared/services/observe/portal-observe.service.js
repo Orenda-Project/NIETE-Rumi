@@ -88,13 +88,22 @@ function withDefaults(deps = {}) {
     rubric: () => ({
       decideV6: require('./observe-fico17-v6').decideVisitFramework,
       fdeOn: require('./obs612/visit').asksClass,
+      // bd-31ziu8: FICO-S v1.1 for this visit (ICT grades 6-12; the observer's fico_s_coach switch).
+      ficoSOn: require('../coaching/fico-s-switch').forVisit,
+      // Queue #184: FICO 6-12 visits go to the Digital Coach for this observer (fico_s_dc).
+      ficoSDcOn: require('../coaching/fico-s-switch').dcForVisit,
       createLessonForm: require('./observe2/field-form.store').createLessonForm,
     }),
     // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
     principalApp: () => require('./principal-app-switch').isOnPrincipalApp,
+    // bd-ra8xu.60 — Observation Notes: the coach's switch, and the notes store.
+    notesOn: () => require('./observation-notes-switch').isOn,
+    observationNotes: () => require('./observation-notes'),
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
+    // bd-tfya0m — the wait before the report's one more ask of the queue (tests pass 0).
+    retryWaitMs: () => 2000,
   };
   const d = {};
   for (const [name, load] of Object.entries(lazy)) {
@@ -108,6 +117,18 @@ function withDefaults(deps = {}) {
 
 const notFound = () => ({ status: 'not_found' });
 const notReady = (reason) => ({ status: 'not_ready', reason });
+
+/**
+ * bd-tfya0m (queue #205) — does this observation have the analysis its draft is made from? Production 19 Nov: a
+ * WhatsApp observation left at awaiting_observer_review with analysis_data null showed an empty form, and every save
+ * threw "Cannot read properties of null (reading 'domains')" (applyObserverEdits) → the portal's 502. On production
+ * (20 Nov, 60 days) the only reviewable leader observations without an analysis object were 2 such rows; an FDE
+ * (obs612) or FICO-S form keeps its own and is answered before this is asked.
+ */
+function hasAnalysis(row) {
+  const ad = row && row.analysis_data;
+  return !!ad && typeof ad === 'object' && !Array.isArray(ad);
+}
 
 async function loadCoach(d, userId) {
   const { data } = await d.supabase
@@ -207,7 +228,8 @@ function lessonOfArg(lesson) {
   const g = O.normGrade(lesson.grade);
   if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
   // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, like grades 1-5: no subject, no FDE tool.
-  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null };
+  // bd-31ziu8: the subject named is kept aside (named_subject) for a FICO-S visit, which decideStamp reads.
+  if (!O.isFdeGrade(g)) return { primary: true, grade: g, subject: null, named_subject: O.normSubject(lesson.subject) };
   if (!O.normSubject(lesson.subject)) return null;
   // obs612/visit.js lessonFrom, from the pure rubric module (visit.js loads the database client at require time).
   const t = O.toolFor(g, lesson.subject);
@@ -233,6 +255,22 @@ async function decideStamp(d, coach, teacherUserId, lesson, schoolExtId = null) 
   const visit = { teacherUserId: teacherUserId || null, ...(schoolExtId ? { schoolExtId: String(schoolExtId) } : {}) };
   let fdeOn = false;
   try { fdeOn = !!(await d.rubric.fdeOn(coach, visit)); } catch (_) { fdeOn = false; }
+  // bd-31ziu8 (operator 18 Nov): FICO-S v1.1 is every ICT grade 6-12 lesson, ahead of FDE's tools and FICO17 v6.
+  let ficoS = false;
+  try { ficoS = !!(d.rubric.ficoSOn && (await d.rubric.ficoSOn(coach, visit))); } catch (_) { ficoS = false; }
+  if (ficoS && lesson && lesson.grade) {
+    const O = require('../coaching/frameworks/obs612');
+    const subject = lesson.subject || lesson.named_subject || null;
+    const t = O.toolFor(lesson.grade, subject, { ficoS: true });
+    if (t) {
+      let dc = false;
+      try { dc = !!(d.rubric.ficoSDcOn && (await d.rubric.ficoSDcOn(coach, visit))); } catch (_) { dc = false; }
+      return {
+        v6Stamp: null,
+        fdeLesson: { primary: false, grade: O.normGrade(lesson.grade), subject: O.normSubject(subject), rubricId: t.rubricId, tool: t.tool, sheet: null, ...(dc ? { dc: true } : {}) },
+      };
+    }
+  }
   const named = fdeOn && lesson ? lesson : null;
   if (named && !named.primary) return { v6Stamp: null, fdeLesson: named };
   let v6Stamp = null;
@@ -289,7 +327,7 @@ async function startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolE
     return false;
   }
   const { error } = await d.supabase.from('coaching_sessions')
-    .update({ framework: lesson.rubricId, framework_selection_reason: 'obs612_lesson' })
+    .update({ framework: lesson.rubricId, framework_selection_reason: lesson.dc ? require('./obs612/fico-s-dc').REASON : 'obs612_lesson' })
     .eq('id', session.id);
   if (error) {
     d.log('❌ portal observe: the FDE stamp was not written', { coachingSessionId: session.id, formId: made.form.id, error: error.message }, 'error');
@@ -303,7 +341,20 @@ async function startFdeVisit(d, { userId, session, ownerUserId, teacher, schoolE
  * Whether Check and send asks the lesson's class (and, for grades 6-12, its subject): the obs612 switch for this coach,
  * as WhatsApp's visit planner asks it after Start. The words are the portal's; this gives the keys.
  */
+/**
+ * What Check and send asks (the class, FDE's switch) and, bd-ra8xu.60, whether Record and Check and send show the
+ * Observation Notes box for her (`observationNotes: true`, the coach's observation_notes switch; absent when off, so
+ * the answer is byte-identical to before while the switch is off).
+ */
 async function lessonQuestion({ userId }, deps) {
+  const out = await classQuestion({ userId }, deps);
+  if (!out || out.status !== 'ok') return out;
+  let observationNotes = false;
+  try { observationNotes = !!(await withDefaults(deps).notesOn(userId)); } catch (_) { observationNotes = false; }
+  return observationNotes ? { ...out, observationNotes: true } : out;
+}
+
+async function classQuestion({ userId }, deps) {
   if (!userId) return { status: 'invalid', reason: 'no_user' };
   const d = withDefaults(deps);
   const coach = await loadCoach(d, userId);
@@ -315,12 +366,16 @@ async function lessonQuestion({ userId }, deps) {
   try { ask = !!(await d.rubric.fdeOn(coach)); } catch (_) { ask = false; }
   if (!ask) return { status: 'ok', ask: false };
   const O = require('../coaching/frameworks/obs612');
+  // bd-31ziu8: FICO-S on → grades 6-12 are all FICO-S lessons, and each is asked its subject (for the record).
+  let ficoS = false;
+  try { ficoS = !!(d.rubric.ficoSOn && (await d.rubric.ficoSOn(coach))); } catch (_) { ficoS = false; }
   return {
     status: 'ok',
     ask: true,
+    rubric: ficoS ? 'fico_s' : 'fde',
     grades: O.GRADES.filter((g) => g > O.PRIMARY_MAX_GRADE),
-    // bd-ra8xu.40: only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons.
-    subjectGrades: O.FDE_GRADES.slice(),
+    // bd-ra8xu.40: only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons (FICO-S: all of 6-12).
+    subjectGrades: ficoS ? O.FICO_S_GRADES.slice() : O.FDE_GRADES.slice(),
     subjects: O.SUBJECTS.map((x) => x.key),
   };
 }
@@ -334,7 +389,7 @@ async function lessonQuestion({ userId }, deps) {
  */
 async function startPortalObservation({
   userId, teacherExtId, schoolExtId = null, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [],
-  lesson: lessonArg = undefined,
+  lesson: lessonArg = undefined, notes = null,
 }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
   if (!userId) return { status: 'invalid', reason: 'no_user' };
@@ -405,6 +460,17 @@ async function startPortalObservation({
   // bd-ra8xu.40: the visit's rubric, decided ONCE here as observe-capture decides it on WhatsApp.
   const { v6Stamp, fdeLesson } = await decideStamp(d, coach, ownerUserId, lesson, schoolExtId);
 
+  // bd-ra8xu.60: the Observation Notes typed on Record (with the recording clock) and on Check and send go on the new
+  // row itself: only for a visit stamped v6, while her switch is on. Anything else is dropped (and logged).
+  let observationNotes = [];
+  const typed = Array.isArray(notes) ? notes : [];
+  if (typed.length) {
+    let on = false;
+    try { on = !!v6Stamp && !!(await d.notesOn(userId)); } catch (_) { on = false; }
+    if (on) observationNotes = d.observationNotes.initialNotes(d.observationNotes.fromClient(typed, { now: d.now() }), `portal:${key}`);
+    else d.log('📝 portal observe: Observation Notes dropped (not a v6 visit, or the switch is off)', { count: typed.length, v6: !!v6Stamp });
+  }
+
   const startedAt = d.now().toISOString();
   const planKey = lessonPlanKey || libraryPdfKey;
   // Field for field what lesson-plan-processor writes (handleLessonPlanUpload,
@@ -441,6 +507,7 @@ async function startPortalObservation({
         : {}),
       // FICO17 v6 (the coach switch): stamped on the row itself, before transcription is queued.
       ...(v6Stamp ? { framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' } : {}),
+      ...(observationNotes.length ? { analysis_data: { observation_notes: observationNotes } } : {}),
       created_at: startedAt,
     })
     .select()
@@ -648,6 +715,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: FDE's form, its own module
   if (fde.isFdeSession(row)) return fde.portalDraft({ userId, row });
   if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
+  if (!hasAnalysis(row)) return notReady('no_analysis');
   const editable = EDITABLE_STATUSES.includes(row.status) && !REPORT_OUT.includes(deliveryOf(row).status);
 
   const pack = d.pack();
@@ -668,6 +736,8 @@ async function getDraft({ userId, coachingSessionId }, deps) {
       sections: [...(b ? [b.section] : []), ...v6Sections(row.analysis_data || {}, lang)],
       saved: row.status === 'observer_review_complete',
       editable,
+      // bd-ra8xu.60: her Observation Notes, word for word, shown read-only at the top of each part.
+      notes: v6Notes(d, userId, coachingSessionId, row, editable),
     };
   }
   let scale = pack.scaleOptions || null;
@@ -687,6 +757,22 @@ async function getDraft({ userId, coachingSessionId }, deps) {
     saved: row.status === 'observer_review_complete',
     editable,
   };
+}
+
+/**
+ * bd-ra8xu.60 — a v6 review's Observation Notes as the form shows them ([{ text, recTime }]), and, the first time an
+ * editable review is opened while her switch is on, the review-opened stamp (beside the response, never awaited).
+ */
+function v6Notes(d, userId, coachingSessionId, row, editable) {
+  const N = d.observationNotes;
+  const list = N.notesOf(row.analysis_data || {}).filter((n) => n && n.text).map((n) => ({ text: n.text, recTime: n.rec_time || null }));
+  if (editable && !(row.analysis_data || {})[N.REVIEW_KEY]) {
+    Promise.resolve()
+      .then(() => d.notesOn(userId))
+      .then((on) => (on ? N.markReviewOpened(coachingSessionId) : null))
+      .catch(() => null);
+  }
+  return list;
 }
 
 /**
@@ -784,6 +870,7 @@ function savedV6Edits(analysis) {
 function v6Sections(analysis, lang = 'en') {
   const O = require('./observe-fico17-v6');
   const v6 = require('../coaching/frameworks/fico17-v6');
+  const Lines = require('../coaching/frameworks/indicator-lines');
   const edits = savedV6Edits(analysis);
   return Object.values(v6.SECTIONS).map((sec) => {
     const p = O.buildScreenPrefill(analysis, sec.key, { edits });
@@ -794,13 +881,20 @@ function v6Sections(analysis, lang = 'en') {
       kind: 'v6',
       indicators: sec.codes.map((code) => {
         const saved = (edits && edits[`r_${code}`]) || '';
+        // Per-indicator N/A (19 Nov): N/A is on the list where the table offers it; an old review's N/A elsewhere is kept so it shows.
         const keep = saved === 'NA' || saved === 'IE' ? saved : null;
         const options = O.optionsFor(code, { keep, lang }).map((o) => ({ id: o.id, title: o.title, description: o.description || '' }));
         const base = { id: code, field: code, name: v6.indicatorText(code, lang).name, options };
         if (v6.isCombined(code)) {
-          return { ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '' };
+          // bd-o15qnr.36: `recording` (the box as parts, in the person's language) beside today's `body`; additive.
+          return {
+            ...base, kind: 'combined', body: p[`cb_${code}`] || '', rating: saved, why: p[`w_${code}`] || '', recording: O.combinedParts(analysis, code, lang),
+            // bd-o15qnr.37: one plain line on what the indicator looks at (#217's guide line), under its name; additive.
+            about: Lines.lineFor('fico17_v6', code, lang),
+          };
         }
-        const rumi = O.rumiNumeric(analysis, code);
+        // Rumi's choice, ringed on the page: 1-4, or N/A on C2 (per-indicator N/A, 19 Nov) when Rumi heard no wrong answer.
+        const rumi = O.rumiChoice(analysis, code);
         return {
           ...base,
           kind: 'dc',
@@ -808,6 +902,12 @@ function v6Sections(analysis, lang = 'en') {
           rating: p[`s_${code}`],
           evidence: p[`e_${code}`] || '',
           improvement: p[`i_${code}`] || '',
+          // bd-o15qnr.32 (evidence option B, #204): Rumi's summary line and every {time, quote}, in full, and the
+          // coach's saved review of them; additive (null when there is none), the fields above are unchanged.
+          rumiEvidence: O.rumiEvidenceOf(analysis, code),
+          evidenceReview: O.savedEvidenceReview(analysis, code),
+          // bd-o15qnr.37: one plain line on what the indicator looks at (#217's guide line), under its name; additive.
+          about: Lines.lineFor('fico17_v6', code, lang),
         };
       }),
       changeReason: p[`wc_${sec.key}`] || '',
@@ -815,21 +915,39 @@ function v6Sections(analysis, lang = 'en') {
   });
 }
 
-/** The v6 Flow's refusals for the whole review (every C/D/F screen), as { field: message }; {} when it may be saved. */
+/**
+ * The v6 Flow's refusals for the whole review (every C/D/F screen), as { field: message }; {} when it may be saved.
+ * bd-o15qnr.36 (#204, the operator 21 Nov ~14:20: "keep the note box, optional"): on the portal the note under one of
+ * the six is optional, so its "write why" refusal is dropped here; the WhatsApp Flow's own check is unchanged.
+ */
 function v6Refusals(analysis, edits, S) {
   const O = require('./observe-fico17-v6');
-  return O.LETTERS.reduce((all, l) => ({ ...all, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
+  const v6 = require('../coaching/frameworks/fico17-v6');
+  const all = O.LETTERS.reduce((acc, l) => ({ ...acc, ...O.validateScreen(`DOMAIN_${l}`, edits, analysis, S) }), {});
+  for (const code of v6.COMBINED_CODES) delete all[`why_${code}`];
+  return all;
 }
 
-/** Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save. */
-async function saveDraft({ userId, coachingSessionId, edits, submit = false }, deps) {
+/**
+ * Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save.
+ * bd-o15qnr.32: on a v6 visit, `evidenceReview` ({ [code]: EvidenceReview }, the v7 form's evidence option B) is
+ * checked (observe-fico17-v6.sanitizeEvidenceReview) and rides with the edits as `evidence_review` to the review's own
+ * save, which writes it beside each indicator row. Absent or unusable: the save is exactly today's.
+ */
+async function saveDraft({ userId, coachingSessionId, edits, submit = false, evidenceReview }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   const fde = require('./obs612/portal'); // bd-ra8xu.40 — an FDE (obs612) visit: save / Submit FDE's form, no WhatsApp
-  if (fde.isFdeSession(row)) return fde.portalSave({ userId, row, edits, submit: submit === true });
+  if (fde.isFdeSession(row)) {
+    const out = await fde.portalSave({ userId, row, edits, submit: submit === true });
+    // bd-31ziu8 — a FICO-S Submit is the HITL review save: the debrief notes start now (#147), as after a FICO save.
+    if (out && out.submitted && out.tool === 'ficos') writeNotesAfterSave(d, userId, coachingSessionId);
+    return out;
+  }
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
+  if (!hasAnalysis(row)) return notReady('no_analysis');
 
   const isV6 = !!require('./observe-fico17-v6').visitFramework(row);
   const keyRx = isV6 ? V6_EDIT_KEY_RX : EDIT_KEY_RX;
@@ -845,7 +963,8 @@ async function saveDraft({ userId, coachingSessionId, edits, submit = false }, d
     const errors = v6Refusals(row.analysis_data || {}, clean, O.messages(lang));
     if (Object.keys(errors).length) return { status: 'invalid', reason: 'v6_review', errors };
   }
-  const summary = await d.draft.applyObserverEdits(coachingSessionId, clean);
+  const review = isV6 && evidenceReview !== undefined ? require('./observe-fico17-v6').sanitizeEvidenceReview(evidenceReview) : null;
+  const summary = await d.draft.applyObserverEdits(coachingSessionId, review ? { ...clean, evidence_review: review } : clean);
   if (summary && summary.refused) return { status: 'not_ready', reason: 'terminal' };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'draft');
   writeNotesAfterSave(d, userId, coachingSessionId);
@@ -981,6 +1100,32 @@ async function retryTalk({ userId, coachingSessionId }, deps) {
 // ── the report ─────────────────────────────────────────────────────────────
 
 /**
+ * bd-tfya0m (queue #205) — queue a report phase, asking the queue once more if it fails (e.g. unreachable while a
+ * deploy restarts things). Still failing: the delivery is marked send_failed — the page's "Report not sent" with Try
+ * again (which makes the report again) — so it is never left "preparing" or "sending" with no job behind it, and the
+ * coach is answered queue_failed (502). The send never happened, so nothing reaches the teacher twice.
+ */
+async function queueReportPhase(d, coachingSessionId, opts) {
+  for (let n = 0; n < 2; n += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await d.queue.queueObserveTeacherReport(coachingSessionId, { ...opts, dedupNonce: d.newId() });
+      return true;
+    } catch (err) {
+      d.log('❌ portal observe: report could not be queued', { coachingSessionId, phase: opts.phase, attempt: n + 1, error: err && err.message }, 'error');
+      // eslint-disable-next-line no-await-in-loop
+      if (n === 0 && d.retryWaitMs > 0) await new Promise((r) => { setTimeout(r, d.retryWaitMs); });
+    }
+  }
+  try {
+    await d.send.mergeTeacherDelivery(coachingSessionId, { status: 'send_failed', send_requested_at: null });
+  } catch (err) {
+    d.log('❌ portal observe: report could not be marked not sent', { coachingSessionId, error: err && err.message }, 'error');
+  }
+  return false;
+}
+
+/**
  * startSendFlow's bound branch, minus the chat: the teacher the observation is
  * bound to is the recipient, the roster learns her, and the preview phase is
  * queued — marked as the portal's, so the worker sends the coach nothing.
@@ -1006,9 +1151,8 @@ async function previewReport({ userId, coachingSessionId }, deps) {
   await d.send.mergeTeacherDelivery(coachingSessionId, {
     teacher_name: picked.name, teacher_phone: picked.phone, status: 'previewing', channel: 'portal', send_requested_at: null,
   });
-  await d.queue.queueObserveTeacherReport(coachingSessionId, {
-    from: coach && coach.phone_number, phase: 'preview', channel: 'portal', dedupNonce: d.newId(),
-  });
+  const queued = await queueReportPhase(d, coachingSessionId, { from: coach && coach.phone_number, phase: 'preview', channel: 'portal' });
+  if (!queued) return { status: 'queue_failed', coachingSessionId };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
@@ -1023,9 +1167,8 @@ async function sendReport({ userId, coachingSessionId }, deps) {
 
   const coach = await loadCoach(d, userId);
   await d.send.mergeTeacherDelivery(coachingSessionId, { send_requested_at: d.now().toISOString(), channel: 'portal' });
-  await d.queue.queueObserveTeacherReport(coachingSessionId, {
-    from: coach && coach.phone_number, phase: 'deliver', channel: 'portal', dedupNonce: d.newId(),
-  });
+  const queued = await queueReportPhase(d, coachingSessionId, { from: coach && coach.phone_number, phase: 'deliver', channel: 'portal' });
+  if (!queued) return { status: 'queue_failed', coachingSessionId };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
@@ -1044,4 +1187,6 @@ module.exports = {
   retryTalk,
   previewReport,
   sendReport,
+  // For tests (bd-31ziu8): the stamp a portal start decides, with the coach and the lesson she named.
+  _decideStamp: (deps, coach, teacherUserId, lesson, schoolExtId) => decideStamp(withDefaults(deps), coach, teacherUserId, lessonOfArg(lesson), schoolExtId),
 };

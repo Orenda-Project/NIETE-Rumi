@@ -380,7 +380,8 @@ describe.each(KINDS)('%s', (_, kind) => {
       whatsappAnswers(true);
       // force = the teacher's ask (a class nobody finished is answered only on the scheduled reason, as today)
       expect(await report.generate(SC, { reason: 'scheduled', force: true })).toBe(true);
-      expect(stamped()).not.toBeNull();
+      // answered and sent, but report_sent_at stays the automatic report's
+      expect(stamped()).toBeNull();
     });
 
     test('a refusal then an accepted retry: marked once', async () => {

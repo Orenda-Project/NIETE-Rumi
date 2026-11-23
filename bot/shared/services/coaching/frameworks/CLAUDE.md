@@ -1,7 +1,7 @@
 # frameworks — Observation frameworks (FICO, OECD, HOTS, MEWAKA, Teach): prompts and scoring
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=1984ecb64025 gen=d61d2bc67549 overflow=51 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=6770634c3916 gen=39f1227f46bc overflow=84 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `framework-registry.js` — key to module lookup
@@ -12,18 +12,21 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `fico-s/` | (no description yet) → `fico-s/CLAUDE.md` |
+| `fico17-v6/` | (no description yet) → `fico17-v6/CLAUDE.md` |
+| `obs612/` | (no description yet) → `obs612/CLAUDE.md` |
 | `fico-framework.js` | FICO v4 rubric: prompt, indicator definitions and per-session computeScores with subject-gated denominator |
+| `fico17-v6-framework.js` | (unmapped) |
 | `mewaka-framework.js` | MEWAKA Tanzanian CPD framework: 25 indicators in 6 domains, scale 0-3, prompt and scoring |
-| `framework-selector.js` | Chooses a user's framework: explicit preference, then region default, then env deployment default |
-| `hots-framework.js` | HOTS (PESRP/PECTAA) framework: 16 indicators, scale 1-3, prompt and scoring |
 | `framework-registry.js` | Lazy-loading registry mapping a framework key to its observation framework module |
-| … | 2 more → `CLAUDE.index.md` |
+| `own-rubric.js` | (unmapped) |
+| … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `fico-framework.js` ← imported by `bot/shared/services/coaching/coaching-breakdown.service.js:166:3f55b568` · `bot/shared/services/coaching/coaching-card/prioritized-action.service.js:53:e626b151` (+11)
-- `mewaka-framework.js` ← imported by `bot/scripts/generate-observe-flow-json.js:27:df211ba3` · `bot/shared/services/coaching/report-v2/score-adapters/mewaka-adapter.js:14:159130a0` (+2)
-- `hots-framework.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/hots-adapter.js:9:a6cc910e` · `bot/shared/services/observe/observe-framework.js:28:908f5abe` (+1)
-- … 4 more → `CLAUDE.index.md`
+- `fico17-v6-framework.js` ← imported by `bot/shared/services/observe/observe-fico17-v6.js:100:3284512b` · `bot/shared/services/observe/observe-framework.js:242:e5bf8808` (+3)
+- `own-rubric.js` ← imported by `bot/shared/services/coaching/coaching-trend.service.js:47:ae7e414a` · `bot/shared/services/coaching/report-v2/hero-report.service.js:26:5e4ef125` (+3)
+- … 7 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Score adapters read the scale from the framework, never a local copy (report-v2/score-adapters/fico-adapter.js:11)
@@ -32,7 +35,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/observe-endpoint-hots.test.js` (hots-framework.js, mewaka-framework.js)
 - `bot/tests/observe/observe-framework-pack.test.js` (framework-registry.js, mewaka-framework.js)
-- … 45 more → `CLAUDE.index.md`
+- … 72 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?

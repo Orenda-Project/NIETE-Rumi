@@ -239,7 +239,8 @@ describe('grades 1-5 are untouched', () => {
     expect((src.match(enAlias) || []).length).toBe(1);
     const base = crypto.createHash('sha256').update(src.replace(guard, '').replace(enAlias, '')).digest('hex');
     // bd-ipoxhx.10: Label the Diagram is drawn now and offered again (NEEDS_PRINTED_PICTURE lost it).
-    expect(base).toBe('3d241201deabe0168d5058b27f8e523d162624f9bac3fbfd4a14e8eac416f110');
+    // bd-zrdvmi.50.3 (AG row 12): GROUPED_TYPES/MAX_ITEMS/limitCount/parsePaperSize; G1-5 type lists unchanged.
+    expect(base).toBe('853a5d2e96e5a1098f71b86b7f18dfc98a6326c4d2cc73c94b208c742f1a5587');
   });
 
   it('the 6-12 module answers nothing for grade <= 5', () => {

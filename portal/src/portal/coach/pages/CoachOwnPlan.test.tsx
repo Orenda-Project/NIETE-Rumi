@@ -63,6 +63,8 @@ const renderCheck = () => render(
 const pick = async (testid: string, f: File) => {
   await screen.findByText("Ayesha Bibi’s observation");
   fireEvent.change(screen.getByTestId(testid), { target: { files: [f] } });
+  // bd-tymy1n: the file is read when she picks it, so the plan (or the bar) shows a moment later
+  await waitFor(() => expect(screen.queryByTestId("chosen-plan") || screen.queryByRole("alert")).not.toBeNull());
 };
 
 beforeEach(async () => {
@@ -177,8 +179,8 @@ describe("Check and send, Lesson plan", () => {
     expect(screen.queryByTestId("chosen-plan")).toBeNull();
     // the next good file clears the bar
     fireEvent.change(screen.getByTestId("plan-file-input"), { target: { files: [file("ok.pdf", "application/pdf")] } });
+    await waitFor(() => expect(screen.getByTestId("chosen-plan")).toHaveTextContent("ok.pdf"));
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByTestId("chosen-plan")).toHaveTextContent("ok.pdf");
   });
 
   it("Remove plan puts the three tiles back and sends no plan", async () => {

@@ -1,0 +1,135 @@
+{
+ "_note": "20 fixed ids pinning the hash split across Python, JS and SQL (DESIGN section 5). bucket = int(sha256(salt + ':' + unit_id).hex[:8], 16) % 10000; arms take cumulative shares_bp in key order.",
+ "salt": "ict-lp-short-vs-full:2026-12:v1",
+ "shares_bp": {
+  "A": 5000,
+  "B": 5000
+ },
+ "cases": [
+  {
+   "unit_id": "school-001",
+   "bucket": 4056,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-002",
+   "bucket": 1285,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "school-003",
+   "bucket": 350,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "school-004",
+   "bucket": 2599,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "school-005",
+   "bucket": 4307,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-006",
+   "bucket": 6126,
+   "arm": "B",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-007",
+   "bucket": 3348,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-008",
+   "bucket": 4496,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-009",
+   "bucket": 7182,
+   "arm": "B",
+   "arm_3": "C"
+  },
+  {
+   "unit_id": "school-010",
+   "bucket": 4686,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "school-011",
+   "bucket": 9751,
+   "arm": "B",
+   "arm_3": "C"
+  },
+  {
+   "unit_id": "school-012",
+   "bucket": 7864,
+   "arm": "B",
+   "arm_3": "C"
+  },
+  {
+   "unit_id": "11111111-2222-4333-8444-555555555555",
+   "bucket": 2456,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   "bucket": 963,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "teacher:42",
+   "bucket": 7595,
+   "arm": "B",
+   "arm_3": "C"
+  },
+  {
+   "unit_id": "+unit with space",
+   "bucket": 9283,
+   "arm": "B",
+   "arm_3": "C"
+  },
+  {
+   "unit_id": "ü-unicode-ε",
+   "bucket": 3652,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "0",
+   "bucket": 3905,
+   "arm": "A",
+   "arm_3": "B"
+  },
+  {
+   "unit_id": "9999",
+   "bucket": 2685,
+   "arm": "A",
+   "arm_3": "A"
+  },
+  {
+   "unit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "bucket": 4866,
+   "arm": "A",
+   "arm_3": "B"
+  }
+ ],
+ "shares_bp_3": {
+  "A": 3334,
+  "B": 3333,
+  "C": 3333
+ }
+}

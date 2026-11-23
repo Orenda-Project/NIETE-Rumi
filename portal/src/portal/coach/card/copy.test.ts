@@ -56,11 +56,11 @@ describe("coach · school card copy", () => {
     expect(SCHOOL_CARD.en.byTeacher.coach).toBe("Coach observations by teacher");
     expect(SCHOOL_CARD.en.daysUsed).toBe("days used");
     expect(SCHOOL_CARD.en.byPractice).toBe("Average by practice");
-    expect(SCHOOL_CARD.en.across.dc(4, 2)).toBe("Across her 4 reports · out of 2");
-    expect(SCHOOL_CARD.en.across.coach(1, 2)).toBe("Across her 1 observation · out of 2");
+    expect(SCHOOL_CARD.en.across.dc(4, 2)).toBe("Across 4 reports · out of 2");
+    expect(SCHOOL_CARD.en.across.coach(1, 2)).toBe("Across 1 observation · out of 2");
     expect(SCHOOL_CARD.en.scoredIn(1, 4)).toBe("Scored in 1 of 4 (the others had no lesson plan)");
-    expect(SCHOOL_CARD.en.herList.dc).toBe("Her reports");
-    expect(SCHOOL_CARD.en.herList.coach).toBe("Her observations");
+    expect(SCHOOL_CARD.en.herList.dc).toBe("Their reports");
+    expect(SCHOOL_CARD.en.herList.coach).toBe("Their observations");
     expect(SCHOOL_CARD.en.noKind.dc.week).toBe("No DC observations this week");
     expect(SCHOOL_CARD.en.noKind.coach.today).toBe("No coach observations today");
     expect(SCHOOL_CARD.en.lessonOf("Math")).toBe("Math lesson");

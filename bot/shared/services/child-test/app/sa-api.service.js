@@ -69,6 +69,7 @@ const hidePractice = require('./hide-practice-switch');
 const practiceFirst = require('./practice-first-switch');
 const coachNameGuard = require('./coach-name-guard-switch');
 const levelSwitch = require('./level-switch');
+const mcqSwitch = require('./mcq-switch');
 const { levelsOf } = require('../sa/level');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { isSetAside } = require('../sa/set-aside');
@@ -480,9 +481,34 @@ const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repea
 // Round 8: the phone's readiness (device_ready: ready, voice, clips_total, clips_cached, persisted), the voice stop and its
 // Try again, so a slow or refused start can be read afterwards. A few per session (offline / online are not kept: a
 // flapping network would fill the session's cap; device.offline already says it).
-const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES];
+// voice_late_none { task, ms }: the 'none' verdict landed inside a timed task; the refusal waited for its end.
+// voice_deferred_end { task, ms, by }: how that wait ended ('task_end', or the phase that ended the task), just before the refusal.
+// worker_swap { from, to, task }: round 28, a newer worker took the page over mid-session (its clips come from then on).
+const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry', 'voice_late_none', 'voice_deferred_end', 'worker_swap'];
+// practice_answer { item_id, value: { value, ok, try } }: each practice tap (sa-core.js practiceAnswer). Retry once, then
+// the answer is shown: at most 2 per answerable practice item, 4 per part (the grid / keypad / choice parts have two; the
+// letter-sound picker and the story questions one). Not behind any switch.
+const PRACTICE_TYPES = ['practice_answer'];
+// Round 28: how many answer cards the child could reach at each picker item (cards_reach) and story question
+// (options_reach), { n, hit, vw, vh, at, fold } with the item (sa-ui.js reachRead): at 'draw' once per item, and at 'offer'
+// once more when the item offers Next; fold: the coach's fold was open at the read. The picker and the story questions
+// are only ever served under their own switches.
+const REACH_TYPES = ['cards_reach', 'options_reach'];
+// The session's start and its sound check ({ heard, tries }): the sound check's pass, its wrong taps and its time can be
+// read from the row. One of each per attempt (sa-store.js keepEvents keeps it across batches): the earliest start and the
+// LATEST sound check (one per try, tries counting up, nothing after a pass: the last is the pass or the last miss).
+const ONCE_TYPES = ['session_start', 'audio_check'];
+const LATEST_ONCE = 'audio_check';
+// record_stop { task_id, item_id?, value: { duration_ms, parts } }: round 28, the recorder's stop, logged only once the
+// recording's closing marker is on the phone. One per task, the last (sa-store.js keepEvents keeps it outside the cap).
+const LAST_PER_TASK = ['record_stop'];
+// mic_check { value: { ok, rms } }: round 28, the microphone check's answer (one "no" skips every speaking task, sa-core.js
+// micChecked). One per attempt, the last (sa-store.js keepEvents keeps it outside the cap).
+const LAST_PER_ATTEMPT = ['mic_check'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES, ...DEVICE_TYPES, ...PRACTICE_TYPES, ...REACH_TYPES, ...ONCE_TYPES, ...LAST_PER_TASK, ...LAST_PER_ATTEMPT];
 const MAX_EVENT_DATA = 300; // characters of JSON
+// a batch keeps at most this many practice taps of one part (the engine logs at most 4); the first ones
+const MAX_PRACTICE_PER_TASK = 4;
 
 function loadBank() {
   try {
@@ -612,7 +638,39 @@ function keptEvent(e) {
   } catch (_) {
     data = null;
   }
-  return { seq: e.seq, type: e.type, task_id: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, data };
+  const out = { seq: e.seq, type: e.type, task_id: typeof e.task_id === 'string' ? e.task_id : null };
+  // the item the event happened on, when it names one (a practice tap's item)
+  if (typeof e.item_id === 'string' && ITEM_RE.test(e.item_id)) out.item_id = e.item_id;
+  out.at = typeof e.at === 'string' ? e.at : null;
+  out.data = data;
+  return out;
+}
+
+/** The events the session keeps, in batch order: KEPT types, a part's practice taps up to MAX_PRACTICE_PER_TASK, the
+ *  first session_start and the last audio_check of the batch (ONCE_TYPES), the last record_stop of each task and the last mic_check. */
+function keptEvents(events) {
+  const practice = new Map();
+  const once = new Set();
+  const lastCheck = events.reduce((m, e) => (e && e.type === LATEST_ONCE ? e : m), null);
+  const lastOfTask = new Map();
+  for (const e of events) if (e && LAST_PER_TASK.includes(e.type)) lastOfTask.set(`${e.type}|${e.task_id}`, e);
+  const lastOfBatch = new Map();
+  for (const e of events) if (e && LAST_PER_ATTEMPT.includes(e.type)) lastOfBatch.set(e.type, e);
+  return events.filter((e) => {
+    if (!KEPT.includes(e.type)) return false;
+    if (e.type === LATEST_ONCE) return e === lastCheck;
+    if (LAST_PER_TASK.includes(e.type)) return lastOfTask.get(`${e.type}|${e.task_id}`) === e;
+    if (LAST_PER_ATTEMPT.includes(e.type)) return lastOfBatch.get(e.type) === e;
+    if (ONCE_TYPES.includes(e.type)) {
+      if (once.has(e.type)) return false;
+      once.add(e.type);
+      return true;
+    }
+    if (!PRACTICE_TYPES.includes(e.type)) return true;
+    const n = (practice.get(e.task_id) || 0) + 1;
+    practice.set(e.task_id, n);
+    return n <= MAX_PRACTICE_PER_TASK;
+  }).map(keptEvent);
 }
 
 const whenOf = (e, d) => {
@@ -639,7 +697,7 @@ const saBatch = onSession('sa_batch', async ({ sessionId, seqTo, events, results
   }
   const start = clean.find((e) => e.type === 'session_start');
   const end = clean.find((e) => e.type === 'battery_end');
-  const kept = events.filter((e) => KEPT.includes(e.type)).map(keptEvent);
+  const kept = keptEvents(events);
   const synced = await sa.store.markSynced(sessionId, {
     ...(kept.length ? { events: kept } : {}),
     lastSeq: seqTo,
@@ -790,13 +848,16 @@ function numbersOf(marks) {
 
 /**
  * sa_stop_rules: the reason a scored task names on Results (panel G-12 §5): questions not asked after the passage (or,
- * when they were asked and recorded, voided because the recording shows the reading stopped early), × not asked after
+ * when they were asked and recorded, voided because the recording shows the reading stopped early; when they were
+ * tapped, not counted, the taps kept but none credited), × not asked after
  * no right + / −, else stopped early by EGRA's (reading) or EGMA's (maths) rule; null when none.
  */
 function ruleStop(r, m) {
   const d = (m && m.detail) || {};
   const block = r.block;
-  if (d.stop_detail === 'comprehension') return hasRecording(r) ? 'comprehension_voided' : 'comprehension_not_asked';
+  // a tapped MCQ under the reading floor: the phone asked its questions and the taps are kept, but none is credited
+  const tapped = (r.response_mode || resultOf(r).mode) === 'tap';
+  if (d.stop_detail === 'comprehension') return hasRecording(r) ? 'comprehension_voided' : tapped ? 'comprehension_not_counted' : 'comprehension_not_asked';
   if (d.stop_detail === 'multiplication') return 'multiplication_not_asked';
   if (d.stopped_by_rule !== true) return null;
   return String(block || '').startsWith('ma.') ? 'stopped_by_rule_egma' : 'stopped_by_rule';
@@ -813,10 +874,22 @@ function whyOf(m) {
  * One task's row as the coach reads it: the SA scale for tap / keypad, the recording's state for a spoken task.
  * With sa_stop_rules (`stops`), a task the scorer stopped by EGRA's rule says so in place of the phone's reason.
  */
-function shapeTask(r, stops = false) {
+function shapeTask(r, stops = false, mcqFloor = false) {
   const m = r.ai_marks || null;
   const res = resultOf(r);
   const mode = r.response_mode || (typeof res.mode === 'string' ? res.mode : null);
+  // sa_r28_mcq (the reading floor): a story MCQ is shown as the oral questions are until the scorer has applied its
+  // passage's gate (scored later, no count); once applied, a gated one names the oral's comprehension stop
+  const floor = mcqFloor && mode === 'tap' && MCQ_RE.test(String(r.block || '')) && !(res.unrated === true || (m && m.unrated === true));
+  if (floor && mcqParked(r)) {
+    const stop0 = typeof res.stop_reason === 'string' ? res.stop_reason : '';
+    return { ...shapeTask(r, stops), correct: null, chanceCorrected: null, itemsPerMin: null, stopReason: stop0 || null, recording: 'scored_later', score: null };
+  }
+  if (floor && m) {
+    const out = shapeTask(r, stops);
+    const rule = ruleStop(r, m);
+    return rule ? { ...out, stopReason: rule } : out;
+  }
   const spoken = mode === 'record' || mode === 'oral';
   const keypad = mode === 'keypad' || mode === 'keyboard';
   const tap = mode === 'tap';
@@ -864,6 +937,14 @@ function shapeTask(r, stops = false) {
   };
 }
 
+// sa_r28_mcq: the story's questions picked from four, and whether the row is parked for its reading floor (no marks
+// yet; parked or being scored). A row synced before the floor keeps the phone's marks (no detail: never checked).
+const MCQ_RE = /\.story_mcq_w3$/;
+function mcqParked(r) {
+  const reason = String(r.ai_reason || '');
+  return !r.ai_marks && reason.startsWith('final:sa_') && !reason.startsWith('final:sa_score_failed:');
+}
+
 /**
  * { tapBeforeSound: { n, of } } when some answer carries a numeric tap_ms; else nothing (today's tap tasks). n counts
  * the taps made before the prompt's sound: an answer's pre_taps (taps the picker logged and never scored, the item
@@ -883,10 +964,10 @@ const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.creat
  * Read only. The header (grade, form, block, status, times, language) and one entry per task, in the order the child
  * took them. Never the child's name, roll number, student id or draw, and never a recording's key.
  */
-async function resultsOf(sessionId, d, session, bank, stops = false, level = null) {
+async function resultsOf(sessionId, d, session, bank, stops = false, level = null, mcqFloor = false) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
-  return shapeResults(session, got.blocks, bank, stops, level);
+  return shapeResults(session, got.blocks, bank, stops, level, mcqFloor);
 }
 
 /**
@@ -911,7 +992,7 @@ async function levelReader(deps) {
 }
 
 /** resultsOf on rows already read (the dashboard reads every session's rows at once). */
-function shapeResults(session, rowsIn, bank, stops = false, level = null) {
+function shapeResults(session, rowsIn, bank, stops = false, level = null, mcqFloor = false) {
   // round 7b: a restarted child's ended attempt (set aside on the session) is never on Results or the dashboard
   const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
@@ -933,13 +1014,13 @@ function shapeResults(session, rowsIn, bank, stops = false, level = null) {
       endedAt: session.finished_at || session.client_finished_at || null,
       lang,
     },
-    tasks: blocks.map((r) => ({ ...shapeTask(r, stops), title: titleOf(r.block) })),
+    tasks: blocks.map((r) => ({ ...shapeTask(r, stops, mcqFloor), title: titleOf(r.block) })),
     // sa_r20_level: per subject, where the child reached, the level and why it stopped (ON only)
-    ...(level ? { levels: levelsOf(blocks, (session.device || {}).events, { itemsOf: level.itemsOf(session), titleOf }) } : {}),
+    ...(level ? { levels: levelsOf(blocks, (session.device || {}).events, { itemsOf: level.itemsOf(session), titleOf, ...(mcqFloor ? { mcqFloor: true } : {}) }) } : {}),
   };
 }
 
-const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank, await stopRulesSwitch.enabled(sa.deps), await levelReader(sa.deps)));
+const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank, await stopRulesSwitch.enabled(sa.deps), await levelReader(sa.deps), await mcqSwitch.enabled(sa.deps)));
 
 /**
  * An admin (sa_results_admins, checked by the portal for ITS session user and sent as asAdmin: true — never taken
@@ -955,7 +1036,7 @@ function saResults(args = {}, deps = {}) {
     const session = got.session;
     if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
     d.log('child_test.sa.results_admin', { userId, sessionId });
-    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps), await levelReader(deps));
+    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps), await levelReader(deps), await mcqSwitch.enabled(deps));
   })(rest, deps);
 }
 
@@ -1029,6 +1110,8 @@ function saSessions(args = {}, deps = {}) {
     const bank = deps.bank !== undefined ? deps.bank : loadBank();
     const stops = await stopRulesSwitch.enabled(deps);
     const level = await levelReader(deps);
+    // sa_r28_mcq: the MCQ waits for its reading floor on Results and the level lines
+    const mcqFloor = await mcqSwitch.enabled(deps);
     // sa_dash_filters (round 7b): the coaches' names, read once for every session (staff; never a child's)
     const dash = await dashFilters.enabled(deps);
     let coachNames = null;
@@ -1046,7 +1129,7 @@ function saSessions(args = {}, deps = {}) {
     const out = [];
     const stopOnly = [];
     for (const s of sessions) {
-      const results = shapeResults(s, rowsOf.get(s.id), bank, stops, level);
+      const results = shapeResults(s, rowsOf.get(s.id), bank, stops, level, mcqFloor);
       const extra = dash ? dashFieldsOf(s, coachNames, draws) : null;
       if (!results.tasks.length && !(extra && extra.stops.length)) continue;
       const school = schoolOf.get(s.school_id) || {};

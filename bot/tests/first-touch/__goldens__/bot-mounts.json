@@ -212,6 +212,15 @@
             ]
           },
           {
+            "path": "/delivered",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
             "path": "/portal/subscribe",
             "methods": [
               "post"
@@ -414,6 +423,15 @@
           },
           {
             "path": "/quiz/teacher/:token/send",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/quiz/teacher/:token/fwd",
             "methods": [
               "get"
             ],

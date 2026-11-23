@@ -22,7 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `AssessmentEditor.tsx` ← imported by `portal/src/portal/components/AssessmentPapersPanel.tsx:29:13d6e7c7`
 - `AssessmentVersionsDialog.tsx` ← imported by `portal/src/portal/components/AssessmentPapersPanel.tsx:30:ad6b99df`
 - `QuestionFields.tsx` ← imported by `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:10:aeac43ae`
-- `draft.ts` ← imported by `portal/src/portal/teacher/assessment/EditPages.tsx:10:8ba0e596` · `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:16:082ec0da`
+- `draft.ts` ← imported by `portal/src/portal/teacher/assessment/EditPages.tsx:11:8ba0e596` · `portal/src/portal/components/assessment-edit/AssessmentEditor.tsx:16:082ec0da`
 
 ## Tests (all, generated)
 - `AddQuestionFields.tsx` ← `portal/src/portal/components/assessment-edit/AddQuestionFields.test.tsx`

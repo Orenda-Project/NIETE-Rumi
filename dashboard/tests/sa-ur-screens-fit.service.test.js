@@ -94,7 +94,8 @@ maybeDom('the page marks its mount (sa-ui)', () => {
     const c = require('../sa/sa-core');
     const ui = require('../sa/sa-ui');
     const runner = c.createRunner({ battery: TAP, now: () => 0, mic: () => 'ok' });
-    const el = document.getElementById('m');
+    // each view on its own element: mount() only adds its classes, so a second mount on #m would keep the first's
+    const el = document.body.appendChild(document.createElement('main'));
     const view = ui.mount(el, Object.assign({ runner, battery: TAP, lang: 'ur', mode: 'proctored', speak: () => Promise.resolve() }, uiOpts));
     views.push(view);
     return el;

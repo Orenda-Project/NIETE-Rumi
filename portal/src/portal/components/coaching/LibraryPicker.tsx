@@ -3,6 +3,7 @@ import { BookOpen, ChevronRight, Loader2 } from 'lucide-react';
 import { portal } from '../../services/api';
 import type { LibraryGrade, LibraryLesson, LibraryOption, RecentLessonPlan } from '../../services/api';
 import type { LibraryPick } from '../../lib/coachingSend';
+import { subjectKeyOf, type PlanClass } from '../../lib/observePlanClass';
 import { SkeletonList } from '../Skeleton';
 
 /**
@@ -16,6 +17,13 @@ import { SkeletonList } from '../Skeleton';
  * Curriculum page). A 6-12 lesson that has not been written yet is got ready
  * first (the Curriculum page's request, ~3 minutes) and picked once it is. A GB
  * Grades 1-5 lesson (`onRequest`, queue #71) is handled exactly like a 6-12 one.
+ *
+ * bd-o15qnr.33 — `only`: the class is already named (a coach's Check and send, its class question, behind the v6/v7
+ * switch). The grades offered are that class's (Grade 1-5: 1 to 5), the subjects that subject (folded the same way as the
+ * recent plans, lib/observePlanClass); a step left with ONE answer is taken for her, and shown as plain words, not a chip
+ * to tap back to. Back never lands on a taken step (it would only take it again): onStepChange counts only the steps she
+ * chose herself, so the page leaves the picker from the first step she sees. A grade or subject the library does not have
+ * offers every one, so she is never stuck. `hideRecent`: no recent block (the page's tray already lists them).
  */
 
 export type PickedPlan = { pick: LibraryPick; title: string; sub: string };
@@ -50,7 +58,7 @@ function recentWhere(p: RecentLessonPlan): string {
   return bits.join(' · ');
 }
 
-const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTitle, showUsed = true }: {
+const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTitle, showUsed = true, only = null, hideRecent = false }: {
   onPick: (plan: PickedPlan) => void;
   /** How deep she is (0 = grades), so the page's back arrow can step back first. */
   onStepChange?: (level: number) => void;
@@ -68,8 +76,15 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
    * picking for a teacher would see her OWN downloads there, so she hides it.
    */
   showUsed?: boolean;
+  /** bd-o15qnr.33 — the class already named: only its grades and subject; a step with one answer is taken for her. */
+  only?: PlanClass | null;
+  /** bd-o15qnr.33 — no recent plans block (they are listed before the picker opens). */
+  hideRecent?: boolean;
 }) => {
   const [step, setStep] = useState<Step>({ level: 0 });
+  // bd-o15qnr.33 — the steps taken for her (0 = grade, 1 = subject): each is taken once, and Back steps over it.
+  const [taken, setTaken] = useState<readonly number[]>([]);
+  const tried = useRef<{ grade: boolean; subject: boolean }>({ grade: false, subject: false });
   const [recent, setRecent] = useState<RecentLessonPlan[]>([]);
   const [grades, setGrades] = useState<LibraryGrade[] | null>(null);
   const [options, setOptions] = useState<LibraryOption[] | null>(null);
@@ -82,7 +97,9 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
 
   useEffect(() => () => { if (poll.current) clearTimeout(poll.current); }, []);
 
-  useEffect(() => { onStepChange?.(step.level); }, [step.level, onStepChange]);
+  // How many steps she can still go back inside the picker (the taken ones are not counted: Back steps over them).
+  const depth = step.level - taken.filter((l) => l < step.level).length;
+  useEffect(() => { onStepChange?.(depth); }, [depth, onStepChange]);
 
   // The page's back arrow: one step up (the page leaves the picker from step 0).
   const lastBack = useRef(backSignal);
@@ -90,13 +107,18 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
     if (backSignal === lastBack.current) return;
     lastBack.current = backSignal;
     setStep((s) => {
-      if (s.level === 3) return { level: 2, grade: s.grade, subject: s.subject };
-      if (s.level === 2) return { level: 1, grade: s.grade };
+      // One step up, over any step taken for her; never below the first step she saw.
+      let to = s.level - 1;
+      while (to >= 0 && taken.includes(to)) to -= 1;
+      if (to < 0) return s;
+      if (to === 2 && s.level === 3) return { level: 2, grade: s.grade, subject: s.subject };
+      if (to === 1 && (s.level === 2 || s.level === 3)) return { level: 1, grade: s.grade };
       return { level: 0 };
     });
-  }, [backSignal]);
+  }, [backSignal, taken]);
 
   useEffect(() => {
+    if (hideRecent) return undefined;
     let live = true;
     (loadRecent ? loadRecent() : portal.getRecentLessonPlans())
       .then((r) => { if (live) setRecent((r && r.plans) || []); })
@@ -134,13 +156,45 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, reload]);
 
-  const trail: { label: string; go: () => void }[] = [];
+  // bd-o15qnr.33 — the class's grades and subjects (all of them when the library has none of the class's).
+  const fits = <T,>(all: T[] | null, keep: (x: T) => boolean): T[] | null => {
+    if (!all) return all;
+    const mine = all.filter(keep);
+    return mine.length ? mine : all;
+  };
+  const shownGrades = only ? fits(grades, (g) => only.grades.includes(g.grade)) : grades;
+  const onlySubject = only?.subject ?? null;
+  const shownOptions = step.level === 1 && onlySubject
+    ? fits(options, (o) => subjectKeyOf(o.label) === onlySubject || subjectKeyOf(o.key) === onlySubject)
+    : options;
+
+  // A step left with one answer is taken for her, once.
+  useEffect(() => {
+    if (!only || step.level !== 0 || tried.current.grade || !shownGrades) return;
+    tried.current.grade = true;
+    if (shownGrades.length === 1 && only.grades.includes(shownGrades[0].grade)) {
+      setTaken((t) => [...t, 0]);
+      setStep({ level: 1, grade: shownGrades[0] });
+    }
+  }, [only, step.level, shownGrades]);
+  useEffect(() => {
+    if (!onlySubject || step.level !== 1 || tried.current.subject || !shownOptions || options == null) return;
+    tried.current.subject = true;
+    const one = shownOptions.length === 1 ? shownOptions[0] : null;
+    if (one && (subjectKeyOf(one.label) === onlySubject || subjectKeyOf(one.key) === onlySubject)) {
+      setTaken((t) => [...t, 1]);
+      setStep({ level: 2, grade: step.grade, subject: one });
+    }
+  }, [onlySubject, step, shownOptions, options]);
+
+  // Each chip goes back to its step; a step taken for her is plain words (nothing to go back to).
+  const trail: { label: string; go: (() => void) | null }[] = [];
   if (step.level !== 0) {
     const { grade } = step;
-    trail.push({ label: `Grade ${grade.grade}`, go: () => setStep({ level: 0 }) });
+    trail.push({ label: `Grade ${grade.grade}`, go: taken.includes(0) ? null : () => setStep({ level: 0 }) });
     if (step.level !== 1) {
       const { subject } = step;
-      trail.push({ label: subject.label, go: () => setStep({ level: 1, grade }) });
+      trail.push({ label: subject.label, go: taken.includes(1) ? null : () => setStep({ level: 1, grade }) });
       if (step.level === 3) trail.push({ label: step.chapter.label, go: () => setStep({ level: 2, grade, subject }) });
     }
   }
@@ -203,16 +257,20 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
     <div className="flex flex-col gap-3.5">
       {trail.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          {trail.map((t, i) => (
+          {trail.map((t, i) => (t.go ? (
             <button key={t.label} type="button" onClick={t.go}
               className="h-9 rounded-full border border-primary bg-white px-3 text-sm font-semibold text-primary">
               {t.label}{i < trail.length - 1 ? ' ›' : ''}
             </button>
-          ))}
+          ) : (
+            <span key={t.label} dir="auto" className="flex h-9 items-center px-1 text-sm font-semibold text-[#3a3f4b]">
+              {t.label}{i < trail.length - 1 ? ' ·' : ''}
+            </span>
+          )))}
         </div>
       )}
 
-      {step.level === 0 && recent.length > 0 && (
+      {step.level === 0 && !hideRecent && recent.length > 0 && (
         <>
           <div className="text-base font-bold text-primary">{recentTitle || COPY.recent}</div>
           {recent.slice(0, 3).map((p) => (
@@ -241,9 +299,9 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
 
       {failed && failure}
 
-      {!failed && step.level === 0 && (grades == null ? loading : (
+      {!failed && step.level === 0 && (shownGrades == null ? loading : (
         <div className="grid grid-cols-4 gap-2.5">
-          {grades.map((g) => (
+          {shownGrades.map((g) => (
             <button key={`${g.lane}-${g.grade}`} type="button" onClick={() => setStep({ level: 1, grade: g })}
               className="h-16 rounded-xl border-2 border-primary bg-white text-2xl font-bold text-primary">
               {g.grade}
@@ -252,9 +310,9 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
         </div>
       ))}
 
-      {!failed && (step.level === 1 || step.level === 2) && (options == null ? loading : options.length === 0 ? (
+      {!failed && (step.level === 1 || step.level === 2) && (shownOptions == null ? loading : shownOptions.length === 0 ? (
         <div className="text-[15px] text-muted-foreground">{COPY.none}</div>
-      ) : options.map((o) => (
+      ) : shownOptions.map((o) => (
         <button key={o.key} type="button"
           onClick={() => (step.level === 1
             ? setStep({ level: 2, grade: step.grade, subject: o })

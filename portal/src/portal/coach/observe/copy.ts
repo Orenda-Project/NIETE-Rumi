@@ -46,7 +46,7 @@ export const OBSERVE_COPY = {
   next: 'Next',
   done: 'Done',
   overdueN: (n = 0) => `${n} overdue`,
-  daysLate: (n = 0) => `${n} days late`,
+  daysLate: (n = 0) => (n === 1 ? '1 day late' : `${n} days late`),
   scheduleFirst: 'Schedule a visit first',
   nothingYet: 'No visits yet',
 
@@ -90,6 +90,14 @@ export const OBSERVE_COPY = {
   screenOff: 'The screen went off for a while. Part of it may be silent. Keep this screen open.',
   micBlocked: 'Microphone blocked',
   micAllow: 'When the phone asks, tap Allow.',
+  /* bd-ra8xu.60 (queue #127) — Observation Notes, while her observation_notes switch is on: the card on Record (each note
+     stamped with the recording clock) and the box on Check and send for anything remembered after Stop. The operator's
+     words; the bot is never named here. */
+  notesTitle: 'Observation Notes',
+  notesHint: "What the recording can't hear: the board, group work, who stayed quiet.",
+  notesPlaceholder: 'Type what you see…',
+  addNote: 'Add',
+  notesMore: 'Anything else you saw?',
 
   /* upload */
   chooseFile: 'Select file',
@@ -127,6 +135,10 @@ export const OBSERVE_COPY = {
   kindPhoto: 'Photo',
   upToMb: (n = 0) => `Up to ${n} MB`,
   notPlanFile: 'Not a plan file',
+  /* bd-tymy1n (queue #179) — a file the phone will not open, refused when she picks it (the teacher app's words) */
+  fileWontOpen: 'File will not open',
+  /** bd-tymy1n — Send again without the photo or plan the phone could not read (the teacher app's words) */
+  sendWithoutIt: 'Send without it',
   planChip: (kind = '') => `Plan · ${kind}`.trim(),
   lpReading: 'Reading',
   lpRead: 'Read',
@@ -168,11 +180,23 @@ export const OBSERVE_COPY = {
     plan: 'That lesson plan could not be used. Select another, or take a photo of the plan.',
     notYourTeacher: 'That teacher is not in your schools any more.',
     refused: 'Something was not accepted. Please try again.',
+    /* bd-tymy1n — a file this phone could not read at Send: not the internet; say which, and the way on */
+    photoUnreadable: (n = 0) => `Photo ${n} could not be read on this phone. Send without it.`,
+    planUnreadable: 'The lesson plan could not be read on this phone. Send without it.',
+    recordingUnreadable: 'The recording could not be read on this phone. Select the file again.',
+    /* bd-tfya0m — every file arrived, the start got no answer after its own tries */
+    startFailed: 'Your recording arrived, but the observation did not start. Tap Try again.',
   },
 
   /** Short weekday and month names, for "Tue 6 Oct" (index 0 = Sunday / January). */
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+
+  /* bd-9652yj (queue #166) — the way back to WhatsApp: the strip on every Observe screen, and the line it types in the
+   * chat (the bot reads it: bot/shared/services/coach-app-nudge.service.js). The operator's words (mockups, option B). */
+  troubleAsk: 'Having trouble?',
+  continueOnWhatsApp: 'Continue on WhatsApp',
+  handoffLine: (code = '') => (code ? `Continue my visit on WhatsApp (code ${code})` : 'Continue my visit on WhatsApp'),
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -244,6 +268,12 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   screenOff: 'اسکرین کچھ دیر بند رہی۔ کچھ حصہ خاموش ہو سکتا ہے۔ یہ اسکرین کھلی رکھیں۔',
   micBlocked: 'مائیک کی اجازت نہیں',
   micAllow: 'فون پوچھے تو اجازت دیں پر ٹیپ کریں۔',
+  // bd-ra8xu.60 — MACHINE-DRAFTED from the operator's brief, awaiting a native check (NATIVE-CHECK).
+  notesTitle: 'مشاہدے کے نوٹس',
+  notesHint: 'جو ریکارڈنگ میں سنائی نہیں دیتا: بورڈ، گروپ کا کام، کون خاموش رہا۔',
+  notesPlaceholder: 'جو دیکھ رہے ہیں لکھیں…',
+  addNote: 'شامل کریں',
+  notesMore: 'اور کچھ جو آپ نے دیکھا؟',
 
   chooseFile: 'فائل چنیں',
   notAudio: 'یہ ریکارڈنگ نہیں',
@@ -278,6 +308,8 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   kindPhoto: 'تصویر',
   upToMb: (n = 0) => `${n} MB تک`,
   notPlanFile: 'پلان کی فائل نہیں',
+  fileWontOpen: 'فائل نہیں کھل رہی',
+  sendWithoutIt: 'اس کے بغیر بھیجیں',
   planChip: (kind = '') => `پلان · ${kind}`.trim(),
   lpReading: 'پڑھا جا رہا ہے',
   lpRead: 'پڑھ لیا',
@@ -315,17 +347,37 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
     plan: 'وہ لیسن پلان استعمال نہیں ہو سکا۔ دوسرا چنیں، یا پلان کی تصویر لیں۔',
     notYourTeacher: 'یہ ٹیچر اب آپ کے اسکولوں میں نہیں ہے۔',
     refused: 'کچھ قبول نہیں ہوا۔ براہ کرم دوبارہ کوشش کریں۔',
+    photoUnreadable: (n = 0) => `تصویر ${n} اس فون پر نہیں کھل سکی۔ اس کے بغیر بھیجیں۔`,
+    planUnreadable: 'لیسن پلان اس فون پر نہیں کھل سکا۔ اس کے بغیر بھیجیں۔',
+    recordingUnreadable: 'ریکارڈنگ اس فون پر نہیں کھل سکی۔ فائل دوبارہ چنیں۔',
+    startFailed: 'آپ کی ریکارڈنگ پہنچ گئی، مگر مشاہدہ شروع نہیں ہوا۔ دوبارہ کوشش کریں دبائیں۔',
   },
 
   weekdays: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],
   months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
+
+  troubleAsk: 'کوئی مسئلہ؟',
+  // 4 words, the kit's limit: option A's Urdu for the same action in the mockups (the 5-word «… جاری رکھیں» is too long);
+  // WhatsApp's two Urdu words are joined by U+00A0 so a narrow strip never splits them.
+  continueOnWhatsApp: 'واٹس\u00A0ایپ پر کریں',
+  // «واٹس ایپ» is one unit (U+00A0), as in the bot's copy; the bot reads the line with either space.
+  handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
 };
 
 /** The Observe screens' words in both languages. */
 export const OBSERVE = bilingual(OBSERVE_COPY, OBSERVE_COPY_UR);
 export type ObserveCopy = Words<typeof OBSERVE_COPY>;
 
-/** Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. */
-export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure'] as const;
+/**
+ * Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. bd-9652yj:
+ * the strip's question ("Having trouble?", the operator's words in the option B mockups) and the line typed into
+ * WhatsApp, which the bot reads.
+ */
+export const SENTENCES = [
+  'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine',
+  // bd-ra8xu.60 — the Observation Notes card's hint, its box's prompt (five Urdu words) and Check and send's question:
+  // the operator's own sentences for what the recording cannot hear.
+  'notesHint', 'notesPlaceholder', 'notesMore',
+] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;

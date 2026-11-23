@@ -23,7 +23,7 @@ const { applyReviewed, loadReviewed } = require('./reviewed-lines');
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
 
-// The forms (RULING #4). Coach: Grades 1-5 on the term's set (draw/term-set.js); EGRA/EGMA have no per-grade forms, so
+// The forms. Coach: Grades 1-5 on the term's set (draw/term-set.js); EGRA/EGMA have no per-grade forms, so
 // Grades 1-2 take the G3 items and Grade 4 the G5 items. Game: the Challenge's grade
 // bands (web-quiz-challenge-draw.js gradeBand: 2-3 → G3, 4-5 → G5) plus grade 1, which reads the same EGRA forms (the
 // May RWP instrument was one form for Grades 1-5) and Core EGMA (written for Grades 1-3).
@@ -86,7 +86,7 @@ function sayBoth(en, ur) {
   return { en, ur, audio: { en: audioKey('en', en), ur: audioKey('ur', ur) } };
 }
 /**
- * RULING #31a: a line naming an item, as the chain of clips the other-language page says: each carrier (CHAINS, both
+ * Other-language items: a line naming an item, as the chain of clips the other-language page says: each carrier (CHAINS, both
  * languages) then the item in its own language's clip ('x', 'y'). Kept next to the whole line; runtimeItem picks.
  */
 function chainOf(segs, itemLang, x, y) {
@@ -144,9 +144,9 @@ function seqStep(seq) {
   return Math.abs((x1 - x0) / (i1 - i0)) || 1;
 }
 
-// RULING #17 ⚠4: a tap first row stops at chance, not at zero (5 tiles: ≤ 2 of 10 letters; 4 tiles: ≤ 1 of 5 words).
+// Chance-level stop: a tap first row stops at chance, not at zero (5 tiles: ≤ 2 of 10 letters; 4 tiles: ≤ 1 of 5 words).
 const CHANCE_MAX = { letters: 2, letter_sounds: 2, nonwords: 1, words: 1 };
-const CHANCE_NOTE = 'the first-row stop on the tap side is at chance (≤ 2 of 10 letters, ≤ 1 of 5 words; RULING #17), the recording side keeps EGRA\'s zero rule';
+const CHANCE_NOTE = 'the first-row stop on the tap side is at chance (≤ 2 of 10 letters, ≤ 1 of 5 words), the recording side keeps EGRA\'s zero rule';
 const chanceStop = (stop, kind) => (stop && CHANCE_MAX[kind] != null ? { ...stop, max_correct: CHANCE_MAX[kind] } : stop);
 
 function stopOf(v3stop, firstLineN) {
@@ -202,7 +202,7 @@ function gridTask({ lang, kind, spec, extraPractice }) {
     ...(!(spec.practice || []).length && practice.length ? { practice_note: 'practice items from the official form named in each src (v3 holds none)' } : {}),
     script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null,
       example && chainOf((CHAINS[kind === 'letters' ? task : kind] || {}).example, lang, example.say.text)),
-    source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01); RULING #2'),
+    source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01)'),
     deviation: `recognition, not production: Jugnu says the item and the child taps it (Tangerine SA's own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s; ${CHANCE_NOTE}`,
   };
 }
@@ -219,7 +219,7 @@ function storyTasks({ lang, spec, task = `${lang}.story`, base = `v3:sets.${SET}
       stop: stopOf(spec.stop, first), last_word_tap: true },
     practice: [], practice_note: spec.practice_note,
     script: scriptOf('story', 'record', LINES.story.last_word),
-    source: sourceOf(spec, `${base}.script.intro`, adaptation || 'RTI bracket: at time-up the child taps the last word read (RULING #2); Tangerine moving-window reading NOT adopted'),
+    source: sourceOf(spec, `${base}.script.intro`, adaptation || 'RTI bracket: at time-up the child taps the last word read; Tangerine moving-window reading NOT adopted'),
     deviation: 'the child taps the last word read instead of the assessor bracketing it',
   };
   const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), needs_line: q.needs_line || null,
@@ -264,7 +264,7 @@ function mathsFeedback(lines, ans, numberId) {
 function mathsTask({ kind, spec, grade, borrowed }) {
   const task = `ma.${kind}`;
   const base = `v3:sets.${SET}.maths.${grade}.${kind}`;
-  // RULING #17 M3: missing number is typed at Grade 5 (tap 1 of 4 at Grades 1-3).
+  // Missing number is typed at Grade 5 (tap 1 of 4 at Grades 1-3).
   const keypad = ['add1', 'sub1', 'add2', 'sub2', 'word_problems'].includes(kind) || (kind === 'missing' && grade === '5');
   const timed = !!spec.timed_s;
   const lines = LINES[task] || {};
@@ -301,8 +301,8 @@ function mathsTask({ kind, spec, grade, borrowed }) {
     record: null,
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }), ...(practiceV2 ? { practice_v2: practiceV2 } : {}),
     script: scriptOf(task, 'tap'),
-    source: sourceOf(spec, `${base}.script`, keypad ? 'Tangerine SA keypad (sec_l1_addition_01, sec_l1_word_problem_01); RULING #2' : 'Tangerine SA tap (sec_num_id1, sec_num_comp1, sec_miss_num_01); RULING #2'),
-    deviation: keypad ? `typed on a keypad, not spoken${op ? '; the sum is shown and spoken only on the replay tile (RULING #17)' : ''}` : kind === 'number_id' ? 'recognition instead of naming' : null,
+    source: sourceOf(spec, `${base}.script`, keypad ? 'Tangerine SA keypad (sec_l1_addition_01, sec_l1_word_problem_01)' : 'Tangerine SA tap (sec_num_id1, sec_num_comp1, sec_miss_num_01)'),
+    deviation: keypad ? `typed on a keypad, not spoken${op ? '; the sum is shown and spoken only on the replay tile' : ''}` : kind === 'number_id' ? 'recognition instead of naming' : null,
   };
 }
 
@@ -367,7 +367,7 @@ function extraTasks(f, extra) {
 
   // Patterns: levels 1-2 tap 1 of the item's own 4 printed options; levels 3-4 typed, only after a correct level 1-2 item.
   const pat = m.patterns.items.map((it, i) => ({ it, i }));
-  // RULING #44 addendum 2: the row as RWP printed it — a "what comes next" row ends with its blank, and a printed ___
+  // The row as RWP printed it — a "what comes next" row ends with its blank, and a printed ___
   // is the same gap (null), so the gap tile marks where the child answers on either page's reading direction.
   const BLANK_LAST = ['next_term_mc', 'next_term_open'];
   const shownOf = (it) => [...it.seq.map((s) => (s === '___' ? null : glyph[s] || s)), ...(BLANK_LAST.includes(it.type) ? [null] : [])];
@@ -377,7 +377,7 @@ function extraTasks(f, extra) {
       // Numerals stay Western digits on both pages (the maths convention), as the row shows them.
       const labels = { en: it.options, ur: it.options.map((o) => ur[o] || o) };
       const glyphs = it.options.map((o) => glyph[o] || null);
-      // RULING #44 (A13): picture options; Jugnu says the four, as the RWP enumerator read the card's a)-d).
+      // Picture options; Jugnu says the four, as the RWP enumerator read the card's a)-d).
       const pictured = glyphs.every(Boolean);
       const listEn = `${labels.en.slice(0, -1).join(', ')}, or ${labels.en[labels.en.length - 1]}?`;
       const listUr = `${labels.ur.slice(0, -1).join('، ')} یا ${labels.ur[labels.ur.length - 1]}؟`;
@@ -632,7 +632,7 @@ function readingExtras(extra) {
   return out;
 }
 
-// Orientation to print (RULING #2: before the story at coach G3 and game G1-G3): the official prompts asked on the
+// Orientation to print (before the story at coach G3 and game G1-G3): the official prompts asked on the
 // passage this form shows next (Set A on the coach, the second passage in the game); the child taps a word or an arrow.
 const ARROWS = ['→', '←', '↓', '↑'];
 function printOrientation(lang, story, extra) {
@@ -702,7 +702,7 @@ const runRank = (id) => {
 
 // ---------------------------------------------------------------------------------------------- A02 passage rotation
 /**
- * RULING #39 (A02, switch sa_passage_rotation): on the coach forms the passage, its questions and the listening story
+ * Passage rotation (switch sa_passage_rotation): on the coach forms the passage, its questions and the listening story
  * rotate per child over the fielded, sourced texts. variants[0] is the form's own (RWP May 2026, Set A); then SELECT
  * 2024 and PRP-KP 2020 for Urdu, the EGRA Toolkit 2009 sample for English (fielded: false, the sourcing gap named in
  * PASSAGE_SOURCES). Each variant is a whole task of the same shape; the page picks one index per child for all three.
@@ -777,7 +777,7 @@ function reusePractice(list, extra) {
   }
 }
 
-// RULING #42 (A14): the RDF short form, exactly the tester's list. Checks = the battery's own audio check and mic
+// The RDF short form, exactly the tester's list. Checks = the battery's own audio check and mic
 // pre-flight; letter sounds and familiar words are read aloud on the official grids (60 s, recorded, scored per
 // minute later as EGRA does; panel C1); word problems run their first 3 items; the Set A story questions drop lit4
 // (panel C2: lit1-3 + both inference items), the reach rule on top. rdf_items: a number caps the items, {drop}
@@ -792,7 +792,7 @@ function recordGrid({ task, lang, subtask, title, scriptKey, grid, per_row, dire
   return {
     task, lang, kind: 'grid', legacy_block: null, family: 'egra', subtask, title, modes: ['record'], tap: null,
     record: { grid, per_row, direction, time_limit_s: 60, stop },
-    practice: [], practice_note: 'a spoken answer cannot be checked on the phone; the oral practice screen (RULING #13) comes before the first spoken answer',
+    practice: [], practice_note: 'a spoken answer cannot be checked on the phone; the oral practice screen comes before the first spoken answer',
     script: scriptOf(scriptKey, 'record'),
     source: { items: base, script: LINES[scriptKey].intro_record.from, sa_adaptation: adaptation }, deviation,
   };
@@ -845,7 +845,7 @@ function formTasks({ maths }, v3, extra) {
 }
 
 /**
- * RULING #31a addendum: where a line has its chain (`<k>_chain`), the other-language page says the chain, so the whole
+ * Chains: where a line has its chain (`<k>_chain`), the other-language page says the chain, so the whole
  * line keeps only the task's own language: no clip says an item of the other language inside a sentence.
  */
 function dropCrossWholeLines(task) {
@@ -878,7 +878,7 @@ function buildSaBank({ v3, extra, w3, r28 = loadR28(), reviewed = loadReviewed()
     const core18 = formTasks(f, v3, extra);
     // The second passages and stories (parallel_of) are the game's; the coach keeps Set A only.
     const extras = extra ? [...readingExtras(extra), ...extraTasks(f, extra)].filter((t) => f.surface === 'game' || !t.parallel_of) : [];
-    // Orientation to print at Grades 1-3 (RULING #2), on the passage this form shows.
+    // Orientation to print at Grades 1-3, on the passage this form shows.
     if (extra && f.grades.some((g) => g <= 3)) {
       for (const lang of ['ur', 'en']) {
         const story = extras.find((t) => t.task === `${lang}.story2`) || core18.find((t) => t.task === `${lang}.story`);
@@ -912,7 +912,7 @@ function buildSaBank({ v3, extra, w3, r28 = loadR28(), reviewed = loadReviewed()
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
-      // RULING #16: Design A's blocks hold the 18 v3 tasks only; every extra is in the full form (the coach's toggle).
+      // Design A's blocks hold the 18 v3 tasks only; every extra is in the full form (the coach's toggle).
       const blocks = BLOCKS;
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES, ...(rdfOnly.length ? { rdf: RDF, rdf_items: RDF_ITEMS, rdf_name: RDF_NAME } : {}) });
       if (w3Only.length) {
@@ -921,7 +921,7 @@ function buildSaBank({ v3, extra, w3, r28 = loadR28(), reviewed = loadReviewed()
       }
       if (r28Only.length) form.r28_tasks = r28Only.map((t) => t.task);
     } else {
-      // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
+      // Each island: that subject's tasks in run order, extras included; the tower stays the 18.
       const swapped = new Set(list.filter((t) => t.parallel_of).map((t) => t.parallel_of).flatMap((id) => [id, `${id}_comp`]));
       const of = (p) => order.filter((id) => id.startsWith(p) && !swapped.has(id));
       Object.assign(form, { islands: { maths: of('ma.'), english: of('en.'), urdu: of('ur.') }, tower: core18.map((t) => t.task) });
@@ -1024,7 +1024,7 @@ function runtimeItem(it, lang, tl) {
   return o;
 }
 
-/** A task's lines in the page's language: a line naming an other-language item is its chain (RULING #31a). */
+/** A task's lines in the page's language: a line naming an other-language item is its chain. */
 function runtimeScript(t, lang) {
   const sc = t.script;
   const cross = !!t.lang && t.lang !== lang;

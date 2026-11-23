@@ -41,7 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `create-child-test-review-flow-draft.js` ← `tests/child-test/L28/review-flow-draft.test.js`
 - `doctor.js` ← `tests/setup/doctor.test.js`
-- `flow-configs.js` ← `tests/quiz/quiz-flow-endpoint.test.js` · `tests/registration/bd-x7aprz9-finish-closes-flow.test.js` · `tests/setup/flow-config-conformance.test.js` · `tests/setup/flow-key-consistency.test.js` · `tests/setup/setup-state.test.js` · `tests/training/quiz-multi-select-flow.test.js`
+- `flow-configs.js` ← `tests/quiz/quiz-flow-endpoint.test.js` · `tests/registration/bd-x7aprz9-finish-closes-flow.test.js` · `tests/registration/n3-flow-v6-json.test.js` · `tests/setup/flow-config-conformance.test.js` · `tests/setup/flow-key-consistency.test.js` · `tests/setup/setup-state.test.js` (+1: `python3 kg/kg.py who-reads bot/scripts/setup/flow-configs.js`)
 - `meta-api.js` ← `tests/setup/meta-api.test.js` · `tests/setup/register-all-flows.test.js` · `tests/setup/validate-flows.test.js`
 - `register-all-flows.js` ← `tests/setup/flow-configs-paths.test.js` · `tests/setup/register-all-flows.test.js`
 - `register-all-templates.js` ← `tests/setup/register-all-templates.test.js`

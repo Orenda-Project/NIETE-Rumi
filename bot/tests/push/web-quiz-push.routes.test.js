@@ -69,7 +69,7 @@ test('without the internal key: 401', async () => {
 test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe, e', async () => {
   settings({ web_quiz_push_remind: true });
   expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: false, portal: false });
-  expect(await (await call('GET', '/key')).json()).toEqual({ key: 'BPubKey' });
+  expect(await (await call('GET', '/key')).json()).toEqual({ key: 'BPubKey', ask: true }); // no canary row: every quiz asks
   const s = await call('POST', '/subscribe', { sub: SUB, code: 'ABC123', lang: 'en', chips: 1 }, { 'x-wq-device': 'AAAAAAAAAAAAAAAAAAAAAA', 'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/130' });
   expect([s.status, await s.json()]).toEqual([200, { ok: 1 }]);
   expect(fake.db.web_quiz_push_subscriptions[0]).toMatchObject({ device_ref: 'AAAAAAAAAAAAAAAAAAAAAA', ua_class: 'chrome_android', quiz_code: 'ABC123' });
@@ -120,23 +120,26 @@ test('the finish field rides the hub switches\' cache: {} cold, off, or without 
   expect(pushField()).toEqual({});
 });
 
-test('the worker schedules the due tick behind WEB_QUIZ_PUSH_SEND_ENABLED and the expiry tick ungated', async () => {
+test('the worker schedules the due and funnel ticks behind WEB_QUIZ_PUSH_SEND_ENABLED and the expiry tick ungated', async () => {
   const { schedulePushTicks } = require('../../workers/push-ticks');
   const intervals = [];
   const timeouts = [];
   const due = jest.fn(async () => ({}));
   const expire = jest.fn(async () => ({}));
+  const funnel = jest.fn(async () => null);
   let env = true;
-  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire, envReady: () => env });
+  schedulePushTicks({ setIntervalFn: (fn, ms) => intervals.push([fn, ms]), setTimeoutFn: (fn, ms) => { timeouts.push([fn, ms]); }, dueTick: due, expireTick: expire, envReady: () => env, funnelTick: funnel });
   for (const [fn] of timeouts) await fn();
   delete process.env.WEB_QUIZ_PUSH_SEND_ENABLED;
   for (const [fn] of intervals) await fn();
   expect(due).not.toHaveBeenCalled();
+  expect(funnel).not.toHaveBeenCalled();
   expect(expire).toHaveBeenCalled();
   process.env.WEB_QUIZ_PUSH_SEND_ENABLED = '1';
   for (const [fn] of intervals) await fn();
   expect(due).toHaveBeenCalled();
-  expect(intervals.map(([, ms]) => ms).sort((a, b) => a - b)).toEqual([60 * 1000, 6 * 60 * 60 * 1000]);
+  expect(funnel).toHaveBeenCalled();
+  expect(intervals.map(([, ms]) => ms).sort((a, b) => a - b)).toEqual([60 * 1000, 60 * 60 * 1000, 6 * 60 * 60 * 1000]);
   // a tier without the push env (and so without the table) is inert: the expiry tick does nothing
   env = false;
   expire.mockClear();

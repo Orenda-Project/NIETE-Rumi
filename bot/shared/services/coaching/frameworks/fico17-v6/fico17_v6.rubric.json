@@ -41,6 +41,7 @@
       "couldnt_tell": "the teacher's speech is missing or garbled for a large part of the lesson, so the questions cannot be made out.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -76,6 +77,7 @@
       "couldnt_tell": "student answers are too garbled to tell whether any of them was wrong.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -111,6 +113,7 @@
       "couldnt_tell": "the teacher's speech before student answers is missing or garbled.",
       "combined_evidence": "The DC reports the times the teacher names a child before a question or sets pair talk or \"everyone write\", and the level the transcript alone supports.",
       "coach_adds": "choosing that cannot be heard (pointing, a nod, \"you tell\" with no name), and whether children who had not put a hand up were brought in. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -146,6 +149,7 @@
       "couldnt_tell": "the teacher's instructions for the tasks are missing or garbled.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -181,6 +185,7 @@
       "couldnt_tell": "the transcript has gaps around the changes of activity, so the signals or times cannot be read.",
       "combined_evidence": "The DC reports the teacher's signals for each change of activity, with timestamps, and the level the transcript alone supports.",
       "coach_adds": "how long the class actually took to settle into the next activity (chairs moved, books out, working), which the transcript times only roughly. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -216,6 +221,7 @@
       "couldnt_tell": "the teacher's replies to student answers are missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -251,6 +257,7 @@
       "couldnt_tell": "the part of the lesson where group work is set or reported back is missing or garbled.",
       "combined_evidence": "The DC reports the teacher's spoken set-up (pairs or groups, a shared task, what the group must make, roles, report back) and the level the transcript alone supports.",
       "coach_adds": "whether the groups actually worked together on one product and used the roles, which is mostly silent or too quiet for the recording. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -286,6 +293,7 @@
       "couldnt_tell": "the teacher's instructions are missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -321,6 +329,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson, so their answers cannot be read.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -328,7 +337,7 @@
       "name": "How many children spoke",
       "was": "Participation Breadth",
       "kind": "combined",
-      "definition": "How many different children speak across the lesson, and whether children silent early on speak later.",
+      "definition": "How much of the class speaks during the lesson: a few children, many, or most of the class. A child counts when they speak on their own (answer, read out, ask a question); chorus answers do not count.",
       "levels": [
         {
           "n": 1,
@@ -337,25 +346,26 @@
         },
         {
           "n": 2,
-          "text": "Only the same one or two children speak.",
-          "example": "(coach) \"Only Ali and Sara answered all lesson; 30 student turns, almost all theirs.\""
+          "text": "Only a few children speak.",
+          "example": "(coach) \"The same few children in the front row answered every question; the rest only joined the chorus.\""
         },
         {
           "n": 3,
-          "text": "Three to five different children speak.",
-          "example": "(coach) \"4 different children answered, all from the front rows.\""
+          "text": "Many children speak, but a large part of the class never does.",
+          "example": "(coach) \"Many children answered, front rows and back, but the same ones all lesson; a large part of the class never spoke.\""
         },
         {
           "n": 4,
-          "text": "Six or more different children speak, and at least two children who had not spoken in the first half speak in the second half.",
-          "example": "(coach) \"9 different children spoke, including 2 from the back row who were quiet until the group activity.\""
+          "text": "Most of the class speaks at least once.",
+          "example": "(coach) \"After the pair talk, most of the class answered at least once, back rows too.\""
         }
       ],
       "na_rule": null,
       "na_link": null,
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
-      "combined_evidence": "The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because every level counts different children.",
-      "coach_adds": "how many different children spoke, and how many children who were quiet in the first half spoke in the second. The coach sets the final level with a written justification.",
+      "combined_evidence": "The DC reports the number of student turns, split into the first and second half of the lesson. It does not give a level, because the transcript cannot tell children apart.",
+      "coach_adds": "how much of the class spoke on their own. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "coach"
     },
     {
@@ -391,6 +401,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson. This is separate from the N/A line below, which is for lessons where no child-to-child talk is found.",
       "combined_evidence": "The DC reports the exchanges it finds (a child agreeing with or adding to another, a second child named to agree) and the level the transcript alone supports.",
       "coach_adds": "children talking to each other about the task that the recording did not pick up, mostly during pair and group work, and whether they gave reasons or reached a shared answer. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -426,6 +437,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
       "combined_evidence": "The DC reports unsure answers (\"Maybe...\", \"Should I say...?\", an answer that changes halfway), second tries after a wrong answer, and answers given without being asked, with the level the transcript alone supports. Its cues are English only for now and rarely appear in the Urdu transcripts.",
       "coach_adds": "how children behave when they are unsure: whether they have a go or go quiet, put a hand up or wait for the teacher, and try again after a wrong answer. The coach sets the final level with a written justification.",
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -461,6 +473,7 @@
       "couldnt_tell": "student lines are missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -496,6 +509,7 @@
       "couldnt_tell": "the teacher's speech is missing or garbled for a large part of the lesson, or the only possible errors may be transcription mistakes (a mis-heard number or term).",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -531,6 +545,7 @@
       "couldnt_tell": "the teacher's speech is missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -566,6 +581,7 @@
       "couldnt_tell": "the teacher's speech is missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     },
     {
@@ -601,6 +617,7 @@
       "couldnt_tell": "the teacher's speech is missing or garbled for a large part of the lesson.",
       "combined_evidence": null,
       "coach_adds": null,
+      "starred": false,
       "levels_for": "all"
     }
   ]

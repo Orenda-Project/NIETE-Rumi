@@ -130,6 +130,14 @@
  *                           as the screen's own content is in view and never stays drawn over nothing (sa-ui.js scrollCheck).
  *   sa_r28_toggle_fit       round 8's language toggle keeps its 56 px button inside a 44 px top bar on every screen, and a
  *                           head row holding a tappable keeps its distance from the toggle's hit area (sa.css, round 28 A11).
+ *   sa_r28_check_fit        the Urdu sound check fits a phone-height frame: its question, hint, Jugnu row and the two picture
+ *                           tiles sized so both tiles are whole and tappable without scrolling (sa.css, round 28, the check fit).
+ *   sa_r28_end_task_copy    battery.ui.r28_end_task_copy = true: the coach's hold menu says End this task in Urdu as
+ *                           «یہ کام ختم کریں», apart from the portal's End this section (sa-ui.js sCoachMenu).
+ *   sa_r28_mic_unknown      battery.ui.r28_mic_unknown = true: in coach mode a phone with no stored mic check is not a
+ *                           phone with no mic; the first recorded task shows the coach's mic card (try it, hear it back;
+ *                           a pass needs a level above the floor), and only the coach's "go on without" skips
+ *                           (sa-engine.js micState, sa-ui.js sMicCheck, sa-mic.js).
  *
  * Pure: applySwitches(battery, on) never changes its input.
  */
@@ -178,6 +186,12 @@ const SWITCHES = {
   r28StoryClock: 'sa_r28_story_clock',
   // round 28, A11: the scroll cue never holds itself; the language toggle inside a 44 px top bar (sa-ui.js, sa.css)
   r28CueGuard: 'sa_r28_cue_guard', r28ToggleFit: 'sa_r28_toggle_fit',
+  // round 28, the check fit: the Urdu sound check fits a phone-height frame (sa.css)
+  r28CheckFit: 'sa_r28_check_fit',
+  // round 28: the hold menu's Urdu End this task no longer reads as the portal's End this section (sa-ui.js sCoachMenu)
+  r28EndTaskCopy: 'sa_r28_end_task_copy',
+  // round 28, O-115: an unknown microphone in coach mode is tried, never taken as none (sa-engine.js, sa-ui.js)
+  r28MicUnknown: 'sa_r28_mic_unknown',
 };
 /** sa_r13_whole_stop's value → which reader is ON (anything else: both OFF). */
 const R13_ALL = (v) => v === true || v === 'all';
@@ -208,7 +222,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r10BiggerAudio: 'r10_bigger_audio', r10PracticeGap: 'r10_practice_gap', r12IntroOnce: 'r12_intro_once',
   r20AutoEndSection: 'r20_auto_end_section',
   r28LetterPick: 'r28_letter_pick', r28Mcq: 'r28_mcq', r28Ceiling: 'r28_ceiling', r28StoryClock: 'r28_story_clock',
-  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit' };
+  r28CueGuard: 'r28_cue_guard', r28ToggleFit: 'r28_toggle_fit', r28CheckFit: 'r28_check_fit',
+  r28EndTaskCopy: 'r28_end_task_copy', r28MicUnknown: 'r28_mic_unknown' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 const { COMMON } = require('../../bot/shared/services/child-test/sa/scripts');

@@ -4,16 +4,25 @@
  * page and its /api/wq/cl/* forwards. Mounted inside web-quiz-internal.routes.js, behind requireInternalKey.
  * Every answer with the switch off (or a parent off) is 404 not_found, the same as an unknown code.
  *
- *   GET  /cl/:code[?pv=1][&jt=]  the landing: {lang} for a live link (no door_shown for pv=1, a link-preview fetch,
+ *   GET  /cl/:code[?pv=1][&jt=]  the landing: {lang, class_label?} for a live link (no door_shown for pv=1, a link-preview fetch,
  *                           or jt, the teacher card's signed token for this code)
- *   POST /cl/arrive         {code, device_ref, jt?}      → "Whose turn?" (played here) or the teacher step
+ *   POST /cl/arrive         {code, device_ref, jt?, via?}  → "Whose turn?" (played here) or the teacher step; counts the
+ *                           open (class_link_open, via = the landing's marker, else remembered / forward)
  *   POST /cl/teacher        {code, s, tk}                → the letter step, or the teacher step again
  *   POST /cl/letter         {code, s, letter}            → the first-name chips under that letter
  *   POST /cl/pick           {code, s, chip, device_ref}  → {href: /h/<token>}
+ *   POST /cl/app            {teacher}                    → the teacher app's Home card {classes, reportHref}
+ *   POST /cl/app/tap        {teacher, class_id, how}     → the card's Send / Copy: {ok, href?} (web-quiz-class-link-app.js)
+ *
+ * arrive and pick hand the steps the push field (pushField(): {push_remind: true} while web_quiz_push_remind is on,
+ * else {}; it rides the hub switches' one read, so no read here): "Whose turn?" (a phone that already holds a child)
+ * and the pick's answer then carry push_remind + remind_code for the reminder ask; the steps before a pick never do.
+ * Read here, not in the class-link service, which the push service itself requires.
  */
 const express = require('express');
 const { logToFile } = require('../utils/logger');
 const CL = require('../services/quiz/web-quiz-class-link');
+const { pushField } = require('../services/push/web-quiz-push-field');
 
 const router = express.Router();
 
@@ -28,10 +37,32 @@ const serve = (fn) => async (req, res) => {
   }
 };
 
-router.post('/arrive', serve((req) => CL.arrive(req.body || {})));
+// ── the teacher app's Home card (web-quiz-class-link-app.js). `teacher` is trusted ONLY because the portal's
+// /api/portal/class-link sets it from the signed-in session, never from the browser; this router sits behind the
+// internal key. Off, outside the canary, or not the teacher's class → 404 not_found, as every other /cl answer.
+//   POST /app      {teacher}                          → {classes, reportHref}
+//   POST /app/tap  {teacher, class_id, how: forward|copy} → {ok, href?}
+const App = () => require('../services/quiz/web-quiz-class-link-app');
+const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const idOr400 = (v) => { if (typeof v === 'string' && ID_RX.test(v)) return v; throw new CL.ClassLinkError(400, { error: 'bad_request' }); };
+const orNotFound = (v) => { if (!v) throw new CL.ClassLinkError(404, { error: 'not_found' }); return v; };
+router.post('/app', serve(async (req) => orNotFound(await App().forApp(idOr400((req.body || {}).teacher)))));
+router.post('/app/tap', serve(async (req) => {
+  const b = req.body || {};
+  if (b.how !== 'forward' && b.how !== 'copy') throw new CL.ClassLinkError(400, { error: 'bad_request' });
+  return orNotFound(await App().tap({ teacherId: idOr400(b.teacher), classId: idOr400(b.class_id), how: b.how }));
+}));
+// ── end the teacher app's Home card ──
+// A walk's browser carries " QFIXQA" in its user agent (the portal forwards it): its open is marked qa, so a read drops
+// it exactly. Only the user agent marks a walk; a body field is never believed.
+const isWalk = (req) => / QFIXQA/.test(String(req.get('user-agent') || ''));
+router.post('/arrive', serve((req) => CL.arrive(req.body || {}, pushField(), { qa: isWalk(req) })));
 router.post('/teacher', serve((req) => CL.teacher(req.body || {})));
 router.post('/letter', serve((req) => CL.letter(req.body || {})));
-router.post('/pick', serve((req) => CL.pick(req.body || {})));
-router.get('/:code', serve((req) => CL.resolve(req.params.code, { preview: req.query.pv === '1', jt: typeof req.query.jt === 'string' ? req.query.jt : null })));
+router.post('/pick', serve((req) => CL.pick(req.body || {}, pushField())));
+router.get('/:code', serve((req) => CL.resolve(req.params.code, {
+  preview: req.query.pv === '1',
+  jt: typeof req.query.jt === 'string' ? req.query.jt : null,
+})));
 
 module.exports = router;

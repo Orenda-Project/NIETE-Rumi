@@ -13,6 +13,7 @@
  */
 import { bilingual, type Bilingual } from '../i18n';
 import type { CopyEntry } from '../copyRegistry';
+import { ACTIVITY_COPY_ENTRY } from './activity/copy';
 
 /** Left-to-right isolate: a number or a fraction ("3/7") inside Urdu text. */
 const LRI = '⁦';
@@ -127,3 +128,6 @@ export const COPY_ENTRY: CopyEntry = {
   // The titles are sentences (the build contract), the lesson's sub line names three things, and the LP button mirrors the bot.
   longOk: ['class.title', 'coach.title', 'lesson.title', 'lesson.sub', 'obs.title', 'first.title', 'lp.quizThis', 'look.leadIn'],
 };
+
+/** The "Last 30 days" block and My journey row (activity/copy.ts), registered here: the registry globs only <feature>/copy.ts. */
+export const COPY_ENTRIES: readonly CopyEntry[] = [ACTIVITY_COPY_ENTRY];

@@ -11,10 +11,11 @@ import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, TOPIC_STEPS, checkPages, chosenTypes, defaultTypeCounts, isFde, questionTotal, toSpec,
+  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, TOPIC_STEPS, checkPages, chosenSeenTypes, chosenTypes, livePicks, defaultTypeCounts, isFde, limitTotal, questionTotal, seenTotal, toSpec,
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
+import { SeenTypes } from './SeenTypes';
 import { StemChips } from './StemChips';
 import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
@@ -54,7 +55,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
   if (same) return { subjectName: name };
-  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeStems: {}, typesSeeded: false };
+  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeStems: {}, typesSeeded: false, seenPicked: undefined };
   // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
   return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
@@ -411,6 +412,8 @@ export function QuestionsStep() {
   const [p, set] = usePicks();
   const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const max = dataOf(cat)?.maxQuestions ?? 50;
+  // AG row 12: the bot's grouped types count one each toward max; absent (an older bot), every item counts.
+  const limits = dataOf(cat)?.limits;
   const defaultCount = dataOf(cat)?.defaultQuestions ?? 15;
   const needsClass = needsClassOf(p);
   const [types, retry] = useLoad(
@@ -423,15 +426,18 @@ export function QuestionsStep() {
   const seedNow = !needsClass && !p.typesSeeded && types.status === 'ok';
   useEffect(() => {
     if (!seedNow) return;
-    set((cur) => (cur.typesSeeded ? {} : { typeCounts: defaultTypeCounts(offered, Math.max(1, defaultCount - cur.seen)), typesSeeded: true }));
+    set((cur) => (cur.typesSeeded ? {} : { typeCounts: defaultTypeCounts(offered, Math.max(1, defaultCount - seenTotal(cur))), typesSeeded: true }));
   }, [seedNow, offered, defaultCount, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const total = questionTotal(p);
   const unseen = unseenTotal(p);
   const rows = Object.entries(p.typeCounts);
-  const full = total >= max;
-  const over = total > max;
+  const counted = limits ? limitTotal(p, limits.grouped) : total;
+  const full = counted >= max || (!!limits && total >= limits.maxItems);
+  const over = counted > max || (!!limits && total > limits.maxItems);
+  // One more of a grouped type adds an item, not a question: it is held only by the printed-item ceiling.
+  const canAdd = (id: string) => (limits?.grouped.includes(id) ? total < limits.maxItems : !full);
   const marks = p.marks;
   const marksBad = marks !== null && (marks < 1 || marks > MAX_TOTAL_MARKS || marks < total);
   const num = (d: string) => Number(d || '0');
@@ -474,33 +480,16 @@ export function QuestionsStep() {
 
   const totalLine = (
     <span data-testid="questions-total">
-      {C.join(C.questionsCount(total), C.seenShort(p.seen), C.unseenShort(unseen), marks !== null ? C.marksCount(marks) : null)}
+      {C.join(C.questionsCount(counted), C.seenShort(seenTotal(p)), C.unseenShort(unseen), marks !== null ? C.marksCount(marks) : null)}
     </span>
   );
 
   return (
-    <StepFrame step="questions" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo(p.topicScope ? 'topics' : 'cover')} hint={totalLine} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('check') }}>
+    <StepFrame step="questions" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo(p.topicScope ? 'topics' : 'cover')} hint={totalLine} next={{ label: C.next, why: stepReason('questions', p, max, C, { limits }), to: newPaperPath('check') }}>
       <h2 className="mx-1 mt-3 text-[20px] font-bold leading-snug">{C.askCount}</h2>
 
       <p className={GROUP}>{C.seenQuestions}</p>
-      <ListCard label={C.seenQuestions}>
-        <CountRow
-          first
-          name={C.asInBook}
-          ariaName={C.typeCount(C.seenQuestions)}
-          value={String(p.seen)}
-          dim={p.seen === 0}
-          error={over && p.seen > 0}
-          onType={(d) => set({ seen: num(d) })}
-          onLess={() => set({ seen: Math.max(0, p.seen - 1) })}
-          onMore={() => set({ seen: p.seen + 1 })}
-          canLess={p.seen > 0}
-          canMore={!full}
-          lessLabel={C.fewerOf(C.seenQuestions)}
-          moreLabel={C.moreOf(C.seenQuestions)}
-          testId="count-seen"
-        />
-      </ListCard>
+      <SeenTypes p={p} set={set} offered={offered} status={types.status} retry={retry} full={full} over={over} />
 
       <p className={GROUP}>{C.unseenQuestions}</p>
       <ListCard label={C.unseenQuestions}>
@@ -518,7 +507,7 @@ export function QuestionsStep() {
             onLess={() => (n <= 1 ? remove(id) : setCount(id, n - 1))}
             onMore={() => setCount(id, n + 1)}
             canLess
-            canMore={!full}
+            canMore={canAdd(id)}
             lessLabel={n <= 1 ? C.removeType(id) : C.fewerOf(id)}
             moreLabel={C.moreOf(id)}
             testId={`type-count-${id}`}
@@ -596,6 +585,9 @@ export function CheckStep() {
 function PlainCheck() {
   const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
+  // AG row 12: the bot's cap and counting rule, as on the Questions step.
+  const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
+  const catalogue = dataOf(cat);
   const navigate = useNavigate();
   const { start } = useJobs();
   const needsClass = needsClassOf(p);
@@ -620,10 +612,14 @@ function PlainCheck() {
     : (p.ranges.length ? C.pageRange(p.ranges[0][0], p.ranges[0][1]) : C.pages);
   // One Questions row: the count, then its seen / unseen parts, then the unseen types (as she chose them on Questions).
   const unseen = unseenTotal(p);
+  const seenLine = chosenSeenTypes(p).map(([id, n]) => `${id} ${n}`).join(' · ');
   const typesLine = chosenTypes(p).map(([id, n]) => `${id} ${n}`).join(' · ');
   const questionsSub = (
     <>
-      <span className="block">{C.join(C.seenShort(p.seen), C.unseenShort(unseen))}</span>
+      <span className="block">{C.join(C.seenShort(seenTotal(p)), C.unseenShort(unseen))}</span>
+      {livePicks(p).length > 0
+        ? <span className="block">{C.fromBookPicked(livePicks(p).length)}</span>
+        : seenLine && <span className="block">{`${C.seenTypesTitle}: ${seenLine}`}</span>}
       {typesLine && <span className="block">{typesLine}</span>}
     </>
   );
@@ -632,7 +628,7 @@ function PlainCheck() {
     { k: C.steps.class, v: C.gradeSubject(p.grade as number, p.subjectName ?? p.subject ?? ''), to: newPaperPath('class') },
     { k: p.coverBy === 'chapters' ? C.chapters : C.pages, v: cover.map((c) => <span key={c} className="block">{c}</span>), to: newPaperPath('cover') },
     ...(p.topicScope ? [{ k: C.steps.topics, v: p.topicIds?.length ? C.picked(p.topicIds.length) : C.wholeChapter, to: newPaperPath('topics') }] : []),
-    { k: C.steps.questions, v: C.questionsCount(questionTotal(p)), sub: questionsSub, to: newPaperPath('questions') },
+    { k: C.steps.questions, v: C.questionsCount(catalogue?.limits ? limitTotal(p, catalogue.limits.grouped) : questionTotal(p)), sub: questionsSub, to: newPaperPath('questions') },
     { k: C.totalMarks, v: p.marks === null ? C.noLimit : C.marksCount(p.marks), to: newPaperPath('questions') },
   ];
 
@@ -648,7 +644,7 @@ function PlainCheck() {
   };
 
   return (
-    <StepFrame step="check" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
+    <StepFrame step="check" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, catalogue?.maxQuestions ?? 50, C, { limits: catalogue?.limits }), onPress: make, busy }}>
       {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
