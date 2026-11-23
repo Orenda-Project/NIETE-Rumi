@@ -108,15 +108,20 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     await waitFor(() => expect(within(items).getByTestId("visit-feedback")).toHaveTextContent("38%"));
     expect(screen.queryByText("What you made")).toBeNull();
     expect(screen.queryByTestId("what-you-made")).toBeNull();
+    // bd-o15qnr.47 (#243): newest first, each step folded to one row; the class recording last
     const order = Array.from(items.querySelectorAll("[data-item]")).map((n) => n.getAttribute("data-item"));
-    expect(order).toEqual(["form", "debrief", "debrief-recording", "debrief-report"]);
+    expect(order).toEqual(["debrief-report", "debrief", "debrief-recording", "form", "class-recording"]);
     const talk = within(items).getByTestId("debrief-recording");
     expect(talk).toHaveTextContent("Debrief recording");
+    // compact: the bar and ±10 s open on her first tap (still skippable and 2×-able)
+    expect(within(talk).queryByRole("slider")).toBeNull();
+    fireEvent.click(within(talk).getByRole("button", { name: "Play" }));
     expect(within(talk).getByRole("slider", { name: "Position" })).toBeInTheDocument();
     expect(within(talk).getByRole("button", { name: "Forward 10 s" })).toBeInTheDocument();
     expect((talk.querySelector("audio") as HTMLAudioElement).getAttribute("src")).toBe(TALK_URL);
     // the class recording plays in place with the same controls
     const lesson = screen.getByTestId("class-recording");
+    fireEvent.click(within(lesson).getByRole("button", { name: "Play" }));
     expect(within(lesson).getByRole("slider", { name: "Position" })).toBeInTheDocument();
     expect((lesson.querySelector("audio") as HTMLAudioElement).getAttribute("src")).toBe(LESSON_URL);
     // the action comes first, the items after it
@@ -124,14 +129,14 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     expect(send.compareDocumentPosition(items) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("sent: the report the teacher received is the last item", async () => {
+  it("sent: the report the teacher received is the FIRST item, the newest (bd-o15qnr.47)", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "sent", imageUrl: "https://r2.example/report.png", caption: "Well done", sentAt: "2026-11-19T10:00:00Z" }));
     L.getObservation.mockResolvedValue(VIEW("sent", { report: { ...VIEW("sent").report, status: "sent", imageUrl: "https://r2.example/report.png", sentAt: "2026-11-19T10:00:00Z" } }));
     renderVisit();
     const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(items.querySelector('[data-item="teacher-report"]')).not.toBeNull());
     const order = Array.from(items.querySelectorAll("[data-item]")).map((n) => n.getAttribute("data-item"));
-    expect(order[order.length - 1]).toBe("teacher-report");
+    expect(order[0]).toBe("teacher-report");
     expect(items.querySelector('[data-item="teacher-report"]')).toHaveTextContent("Report sent to Lubna");
     expect(screen.queryByText("What you made")).toBeNull();
   });
@@ -145,6 +150,7 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(items.querySelector('[data-item="teacher-report"]')).not.toBeNull());
     const item = items.querySelector('[data-item="teacher-report"]') as HTMLElement;
+    fireEvent.click(within(item).getByRole("button", { name: "View report" })); // bd-o15qnr.47: folded to one row
     fireEvent.click(within(item).getByRole("button", { name: /Open full screen/ }));
     const viewer = await screen.findByTestId("report-viewer");
     expect(within(viewer).getByTestId("report-viewer-image")).toHaveAttribute("src", "https://r2.example/report.png");
@@ -165,7 +171,9 @@ describe("the visit lists every item in order, no 'What you made' heading (bd-o1
     renderVisit(true);
     const items = await screen.findByTestId("visit-items", {}, { timeout: 8000 });
     await waitFor(() => expect(within(items).getByTestId("debrief-recording")).toBeInTheDocument());
-    expect(within(screen.getByTestId("class-recording")).getByRole("slider", { name: "Position" })).toBeInTheDocument();
+    const lesson = screen.getByTestId("class-recording");
+    fireEvent.click(within(lesson).getByRole("button", { name: "Play" }));
+    expect(within(lesson).getByRole("slider", { name: "Position" })).toBeInTheDocument();
   });
 
   it("switch off: as on production (What you made, the plain play button)", async () => {

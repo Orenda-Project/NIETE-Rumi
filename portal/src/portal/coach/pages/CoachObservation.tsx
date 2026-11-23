@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, useParams } from "react-router-dom";
 import { useBack } from "../../lib/useBack";
@@ -27,7 +27,7 @@ import { Obs612Block } from "../../components/coaching/Obs612Block";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { bandOfRubric } from "../../teacher/help/observe/guides";
 import { StatusLine } from "../flow/StatusLine";
-import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, FeedbackCard, FormStage, SendStage, StoppedStage } from "../flow/VisitV7";
+import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, DoneRow, FeedbackCard, FormStage, SendStage, StoppedStage, ViewLink, ViewToggle } from "../flow/VisitV7";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { ReportImage } from "../reports/ReportImage";
@@ -86,6 +86,9 @@ const CoachObservation = () => {
   const [tick, setTick] = useState(0);
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id, tick]);
   const [view, setView] = useState<CoachObservationView | null>(null);
+  // bd-o15qnr.47 — what the visit's folded rows have open in place (the 6-12 / FDE form, the report sent).
+  const [formOpen, setFormOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const mine = !!data?.mine;
 
   // Her own observation: the pipeline's view knows the finer steps and their content, whichever side it was
@@ -164,6 +167,61 @@ const CoachObservation = () => {
     </Link>
   ) : undefined;
 
+  // bd-o15qnr.47 — the switch's visit (see the comment over its body below).
+  const fdeVisit = /^(obs612-|fico_s_v)/.test(String(view?.rubric?.id || ""));
+  const scoreSub = allDone && data?.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
+  const rubricLabel = !data?.obs612 && view?.rubric?.label ? (
+    <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{view.rubric.label}</span>
+  ) : null;
+  // The form is filled once FDE's result is in, or the visit is past the form (Debrief, Send, done).
+  const formFilled = !!data?.obs612 || at >= 2;
+  // A 6-12 / FDE form opens in place, read-only (the coach app: the principal's app shows no result, #55).
+  const formObs612 = routes.showScores && data?.obs612 ? data.obs612 : null;
+  const formLine = formObs612
+    ? formObs612.headline
+    : routes.showScores && !fdeVisit && data
+      ? (data.score != null ? C.finalScore(C.pct(data.score)) : data.dcScore != null ? C.dcScoreOf(C.pct(data.dcScore)) : null)
+      : null;
+  // The class recording, one compact row; before a 1-5 form is filled it still carries the AI score's ring.
+  const preFormScore = routes.showScores && !fdeVisit && !data?.obs612 && !formFilled;
+  const classRecording = !data ? null : data.audioUrl ? (
+    <div data-item="class-recording">
+      {preFormScore
+        ? <AudioCard title={C.dcScore} sub={scoreSub} src={data.audioUrl} lead={<ScoreRing value={score} label={C.dcScore} />} controls compact testId="class-recording" />
+        : <AudioCard title={W.classRecording} src={data.audioUrl} controls compact testId="class-recording" />}
+    </div>
+  ) : preFormScore ? (
+    <section data-item="score" data-testid="score-card" className={cn(LIST_CARD, "flex min-h-[72px] items-center gap-3 p-3")}>
+      <ScoreRing value={score} label={C.dcScore} />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[16px] font-semibold leading-[1.3]">{C.dcScore}</span>
+        <span className="text-[13px] leading-[1.3] text-[#6b7280]">{scoreSub}</span>
+      </span>
+    </section>
+  ) : null;
+  // The card on top: the step she does next ("Next: …"), or what the Digital Coach is doing, or why it stopped.
+  let active: ReactNode = null;
+  let nextShown = false;
+  if (stopped) {
+    active = dupStop
+      // bd-k8uh1r (queue #238) — a recording this coach already had analysed (bd-erpvf) says so, and what to do.
+      ? <StoppedStage text={C.problems.duplicate} line={C.stoppedDuplicateLine} />
+      : <StoppedStage text={C.stopped} />;
+  } else if (at === 0 && working) {
+    active = <AnalysingStage />;
+  } else if (listening && mine) {
+    active = <DebriefListeningStage />;
+  } else if (herTurn && dockStep === "form") {
+    active = <FormStage to={routes.observation(id, "form")} />;
+    nextShown = true;
+  } else if (herTurn && dockStep === "debrief") {
+    active = <DebriefStage to={routes.observation(id, "debrief")} due={<DebriefDue visitDay={pkDayOf(data?.date ?? null)} />} />;
+    nextShown = true;
+  } else if (herTurn && dockStep === "send") {
+    active = <SendStage name={first} to={routes.observation(id, "send")} />;
+    nextShown = true;
+  }
+
   const chips = data ? (
     <>
       {data.teacher.schoolName && <PageChip><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{data.teacher.schoolName}</PageChip>}
@@ -174,112 +232,110 @@ const CoachObservation = () => {
   return (
     <ReportsFrame title={name} crumb={C.title} onBack={back} chips={chips} dock={dock} testId="coach-observation" helpBand={bandOfRubric(view?.rubric?.id)}>
       <LoadState status={failed ? "error" : data ? "ok" : "loading"} empty={false} onRetry={reload} />
-      {data && (
+      {/* bd-o15qnr.47 (queue #243; the operator 23 Nov ~23:23: "On the observation page when the form has been filled, it
+          is just there on this page as a whole. Pushes the next stuff all the way down.") — the switch's visit, coach and
+          principal: the step she does next (or the one the Digital Coach is on) FIRST, under the header; the status line;
+          then every step done, folded to one row each, the newest on top: the report sent, the debrief report, the
+          debrief, the Feedback Form (one row: Form filled, its result, View form), and the class recording as one
+          compact row; the lesson plan and the rubric's small label last. */}
+      {data && v7 && (
+        <>
+          {active}
+          {!stopped && <StatusLine at={at} current={listening ? W.debriefAnalysing : undefined} hideNow={nextShown} />}
+          {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
+
+          <div data-testid="visit-items" className="flex flex-col gap-3">
+            {mine && allDone && reportImage && (
+              <DoneRow testId="observation-report" item="teacher-report" title={waitingTap ? C.sentTitle(first) : W.reportSentTo(first)} line={sentOn || null}
+                action={<ViewToggle open={reportOpen} onToggle={() => setReportOpen((o) => !o)} view={W.viewReport} hide={W.hideReport} />}>
+                {reportOpen && (
+                  <div className="flex flex-col gap-2 border-t border-[#f0f1f3] p-2.5">
+                    {/* bd-o15qnr.39.2: opens full screen in the app, the same viewer as on Send */}
+                    <ReportImage src={reportImage} alt={C.reportImage(name)} loading="lazy" />
+                    {reportCaption && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{reportCaption}</p>}
+                  </div>
+                )}
+              </DoneRow>
+            )}
+            {mine && hasFeedback && (at >= 3 || allDone) && (
+              <div data-item="debrief-report"><FeedbackCard id={id} to={feedbackTo} /></div>
+            )}
+            {mine && (at >= 3 || allDone) && (
+              <DoneRow testId="visit-debrief" item="debrief" title={W.steps[2].done} line={view?.talk.recordedAt ? dayOf(view.talk.recordedAt) : null}
+                action={view?.talk.guide ? <ViewLink to={routes.observation(id, "debrief")} label={W.viewDebrief} /> : undefined} />
+            )}
+            {mine && talkAudio && (
+              <div data-item="debrief-recording">
+                <AudioCard title={W.debriefRecording} src={talkAudio} controls compact testId="debrief-recording" />
+              </div>
+            )}
+            {formFilled && (
+              <DoneRow testId="visit-form" item="form" title={W.steps[1].done} line={formLine} ltr={!!formObs612}
+                action={formObs612
+                  ? <ViewToggle open={formOpen} onToggle={() => setFormOpen((o) => !o)} view={W.viewForm} hide={W.hideForm} />
+                  : mine ? <ViewLink to={routes.observation(id, "form")} label={W.viewForm} /> : undefined}>
+                {formObs612 && formOpen && (
+                  <div className="border-t border-[#f0f1f3] px-4 pb-4 pt-3">
+                    <Obs612Block o={formObs612} className="rounded-none border-0 p-0 shadow-none" />
+                  </div>
+                )}
+              </DoneRow>
+            )}
+            {classRecording}
+          </div>
+
+          <LessonPlanRow lp={view?.lessonPlan} />
+          {rubricLabel}
+        </>
+      )}
+      {data && !v7 && (
         <>
           {(() => {
             // bd-33wxxi.6 — no scores (the principal app, #55 Q1): the lesson still plays, under its own word
             // ("Class recording", Digital Coaching's), with no ring and no score line; no recording, no card.
-            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} controls={v7} testId="class-recording" /> : null;
+            if (!routes.showScores) return data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} testId="class-recording" /> : null;
             // bd-pni007 — an FDE visit has no FICO score: the lesson (if recorded), then FDE's own result.
             // bd-ra8xu.40 — before Submit there is no result yet (the visit is FDE by its rubric): the lesson alone.
             // bd-31ziu8: a FICO-S v1.1 visit (fico_s_v1_1) is filled and shown the same way.
-            const fdeVisit = /^(obs612-|fico_s_v)/.test(String(view?.rubric?.id || ""));
             if (data.obs612 || fdeVisit) {
               return (
                 <>
-                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} controls={v7} testId="class-recording" /> : null}
+                  {data.audioUrl ? <AudioCard title={stepRecording} src={data.audioUrl} testId="class-recording" /> : null}
                   {data.obs612 ? <Obs612Block o={data.obs612} /> : null}
                 </>
               );
             }
             const ring = <ScoreRing value={score} label={C.dcScore} />;
-            const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
             return data.audioUrl
-              ? <AudioCard title={C.dcScore} sub={sub} src={data.audioUrl} lead={ring} controls={v7} testId="class-recording" />
+              ? <AudioCard title={C.dcScore} sub={scoreSub} src={data.audioUrl} lead={ring} testId="class-recording" />
               : (
                 <section data-testid="score-card" className={cn(LIST_CARD, "flex min-h-[84px] items-center gap-3 p-3")}>
                   {ring}
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-[16px] font-semibold leading-[1.3]">{C.dcScore}</span>
-                    <span className="text-[13px] leading-[1.3] text-[#6b7280]">{sub}</span>
+                    <span className="text-[13px] leading-[1.3] text-[#6b7280]">{scoreSub}</span>
                   </span>
                 </section>
               );
           })()}
 
           {/* bd-ra8xu.40 — the rubric this visit was scored with, very small (an FDE block prints its own). */}
-          {!data.obs612 && view?.rubric?.label && (
-            <span data-testid="rubric-label" dir="ltr" className="self-end px-1 text-[10px] leading-none text-[#9ca3af]">{view.rubric.label}</span>
-          )}
+          {rubricLabel}
 
           <LessonPlanRow lp={view?.lessonPlan} />
 
-          {stopped && v7 && dupStop ? (
-            // bd-k8uh1r (queue #238) — a recording this coach already had analysed (bd-erpvf) says so, and what to do.
-            <StoppedStage text={C.problems.duplicate} line={C.stoppedDuplicateLine} />
-          ) : stopped && v7 ? (
-            <StoppedStage text={C.stopped} />
-          ) : stopped ? (
+          {stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{dupStop ? C.stoppedDuplicateLine : C.stopped}</span>
             </Card>
-          ) : v7 ? (
-            <>
-              <StatusLine at={at} current={listening ? W.debriefAnalysing : undefined} />
-              {herTurn && dockStep === "debrief" && <DebriefDue visitDay={pkDayOf(data.date ?? null)} />}
-            </>
           ) : (
             <ProgressSteps heading={C.steps} steps={steps} done={allDone} doneLabel={waitingTap ? C.waitingTeacher(first) : C.reportSentOn(sentOn)}
               copy={{ stepsCount: () => bidi(kit.stepOf(Math.min(at + 1, labels.length), labels.length)) }} />
           )}
           {onWhatsApp && <p className="px-1 text-[13px] text-[#6b7280]">{C.continueOnWhatsApp}</p>}
 
-          {/* v7: the current step's card, on the visit */}
-          {v7 && !stopped && at === 0 && working && <AnalysingStage />}
-          {v7 && !stopped && herTurn && dockStep === "form" && <FormStage to={routes.observation(id, "form")} />}
-          {v7 && !stopped && herTurn && dockStep === "debrief" && <DebriefStage to={routes.observation(id, "debrief")} />}
-          {v7 && !stopped && listening && mine && <DebriefListeningStage />}
-          {v7 && !stopped && herTurn && dockStep === "send" && <SendStage name={first} to={routes.observation(id, "send")} />}
-
-          {/* bd-o15qnr.39 (the operator 22 Nov ~00:50: "I don't think the 'What you made' heading is needed. Just show all
-              the submitted items ... here") — every item of the visit, in order, each opening or playing in place: (the
-              class recording and the lesson plan above,) the Feedback Form, the debrief (its guide), the debrief
-              recording, the debrief report (its top card), the report the teacher was sent. */}
-          {v7 && mine && (
-            <div data-testid="visit-items" className="flex flex-col gap-3">
-              {(allDone || at >= 2) && (
-                <div className={LIST_CARD}>
-                  <div data-item="form">
-                    <ListRow icon="file" label={C.stepForm} subtitle={C.formRowSub} variant="row" first to={routes.observation(id, "form")} />
-                  </div>
-                  {view?.talk.guide && (
-                    <div data-item="debrief">
-                      <ListRow icon="file" label={C.stepDebrief} subtitle={C.debriefRowSub} variant="row" first={false} to={routes.observation(id, "debrief")} />
-                    </div>
-                  )}
-                </div>
-              )}
-              {talkAudio && (
-                <div data-item="debrief-recording">
-                  <AudioCard title={W.debriefRecording} sub={view?.talk.recordedAt ? dayOf(view.talk.recordedAt) : undefined} src={talkAudio} controls testId="debrief-recording" />
-                </div>
-              )}
-              {hasFeedback && (at >= 3 || allDone) && (
-                <div data-item="debrief-report"><FeedbackCard id={id} to={feedbackTo} /></div>
-              )}
-              {allDone && reportImage && (
-                <section data-item="teacher-report" data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
-                  <h2 className="m-0 px-1 pt-1 text-[16px] font-semibold leading-[1.3]">{waitingTap ? C.sentTitle(first) : W.reportSentTo(first)}</h2>
-                  {/* bd-o15qnr.39.2: opens full screen in the app, the same viewer as on Send */}
-                  <ReportImage src={reportImage} alt={C.reportImage(name)} loading="lazy" />
-                  {reportCaption && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{reportCaption}</p>}
-                </section>
-              )}
-            </div>
-          )}
-
           {/* Once the debrief is coached, what she made opens here — her feedback included (it sits inside Debrief). */}
-          {!v7 && (allDone || at >= 3) && mine && (
+          {(allDone || at >= 3) && mine && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.whatYouMade}</h2>
               <div className={LIST_CARD} data-testid="what-you-made">
@@ -290,7 +346,7 @@ const CoachObservation = () => {
             </>
           )}
 
-          {!v7 && allDone && reportImage && (
+          {allDone && reportImage && (
             <>
               <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{waitingTap ? C.sentTitle(first) : C.reportReceived(first)}</h2>
               <section data-testid="observation-report" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
@@ -301,6 +357,7 @@ const CoachObservation = () => {
           )}
         </>
       )}
+
     </ReportsFrame>
   );
 };

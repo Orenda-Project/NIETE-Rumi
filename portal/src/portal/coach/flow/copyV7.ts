@@ -56,6 +56,14 @@ export const FLOW_V7_COPY = {
   classRecording: "Class recording",
   reportSentTo: (name: string) => `Report sent to ${name}`,
 
+  /* bd-o15qnr.47 (queue #243, the operator 23 Nov ~23:23: the filled form "pushes the next stuff all the way down") — a
+     step she has done folds to one row on the visit, with what opens it */
+  viewForm: "View form",
+  hideForm: "Hide form",
+  viewDebrief: "View debrief",
+  viewReport: "View report",
+  hideReport: "Hide report",
+
   /* Check and send: the class question as chips (grades 6–12 pick the form) */
 } as const;
 
@@ -106,6 +114,13 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   debriefRecording: "ڈی بریف کی ریکارڈنگ",
   classRecording: "کلاس کی ریکارڈنگ",
   reportSentTo: (name: string) => `${name} کو بھیجی گئی رپورٹ`,
+
+  // NATIVE-CHECK (bd-o15qnr.47, machine-drafted; دیکھیں / چھپائیں as the app's other View / Hide buttons)
+  viewForm: "فارم دیکھیں",
+  hideForm: "فارم چھپائیں",
+  viewDebrief: "ڈی بریف دیکھیں",
+  viewReport: "رپورٹ دیکھیں",
+  hideReport: "رپورٹ چھپائیں",
 };
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
