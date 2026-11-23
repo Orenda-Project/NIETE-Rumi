@@ -129,7 +129,7 @@ const {
 const LpAppSwitches = require('../lib/lp-app-switches');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
-const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole } = require('../lib/leader-role');
+const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole, principalWithoutSchool } = require('../lib/leader-role');
 // bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
 const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
@@ -1340,7 +1340,9 @@ router.get('/leader/overview', requirePortalAuth, requireLeaderRole, async (req,
       // costs no extra round-trip.
       { role: req.portalUser && req.portalUser.role }
     );
-    res.json({ success: true, overview: summarizePatch(teachers) });
+    // bd-r2uzg1.21.4 — a principal whose row names no school has an empty patch: say so, so My Patch shows "No school
+    // linked yet" and what to do instead of zero tiles. Read from her own row (req.portalUser), never the request.
+    res.json({ success: true, noSchool: principalWithoutSchool(req.portalUser), overview: summarizePatch(teachers) });
   } catch (error) {
     console.error('leader/overview error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your patch overview.' });
@@ -1366,6 +1368,8 @@ router.get('/leader/teachers', requirePortalAuth, requireLeaderRole, async (req,
     );
     res.json({
       success: true,
+      // bd-r2uzg1.21.4 — no school linked to this principal (not "a school with no teachers yet")
+      noSchool: principalWithoutSchool(req.portalUser),
       total: teachers.length,
       onRumi: teachers.filter((t) => t.onRumi).length,
       teachers
@@ -1692,6 +1696,8 @@ router.get('/leader/school-analytics', requirePortalAuth, requireLeaderRole, asy
 
     res.json({
       success: true,
+      // bd-r2uzg1.21.4 — no school linked to her account: Analytics says so instead of "Teachers 0"
+      noSchool: principalWithoutSchool(req.portalUser),
       range,
       school: {
         name: (teachers.find((t) => t.schoolName) || {}).schoolName || null,
