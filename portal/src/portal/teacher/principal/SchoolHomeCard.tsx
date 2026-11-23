@@ -4,11 +4,10 @@ import { LIST_CARD } from "../ui/styles";
 import { useCopy } from "../i18n";
 import { teacherPath } from "../routes";
 import { Stats } from "../../coach/ui";
-import { EmptyRow } from "../../coach/people/rows";
-import { PEOPLE } from "../../coach/people/copy";
 import { SCHOOL_CARD } from "../../coach/card/copy";
 import { ANALYTICS } from "../analytics/copy";
 import { getPrincipalSchoolCard, type PrincipalSchoolCard } from "./api";
+import { NoSchoolNotice } from "./NoSchool";
 
 /**
  * bd-33wxxi.2 — the principal's "My school" card on the Home (#55, Home A). A composition of existing pieces and no
@@ -19,14 +18,13 @@ import { getPrincipalSchoolCard, type PrincipalSchoolCard } from "./api";
  *
  * The numbers are the server's for her own school, This week (GET /principal/school/card): lesson plans, Digital
  * Coaching sessions, modules completed, assessments. Unloaded or unreadable, every number is "—", never 0. Her row
- * naming no school: one slim "No school" row (EmptyRow).
+ * naming no school: the NoSchoolNotice (no school linked yet, ask her coach to add her; bd-r2uzg1.21.4).
  */
 type Load = { status: "loading" | "error" } | { status: "ready"; card: PrincipalSchoolCard };
 
 export function SchoolHomeCard() {
   const A = useCopy(ANALYTICS);
   const S = useCopy(SCHOOL_CARD);
-  const P = useCopy(PEOPLE);
   const [load, setLoad] = useState<Load>({ status: "loading" });
   useEffect(() => {
     let live = true;
@@ -37,7 +35,7 @@ export function SchoolHomeCard() {
   }, []);
 
   const card = load.status === "ready" ? load.card : null;
-  if (card && !card.school) return <EmptyRow icon={<span>·</span>} testId="my-school-none">{P.noSchool}</EmptyRow>;
+  if (card && !card.school) return <NoSchoolNotice testId="my-school-none" />;
   const ov = card?.overview;
   const num = (v: number | null | undefined) => (v == null ? S.dash : v);
   return (

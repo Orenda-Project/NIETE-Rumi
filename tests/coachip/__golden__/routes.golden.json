@@ -140,6 +140,7 @@
     "GET /leader/overview": {
       "status": 200,
       "body": {
+        "noSchool": "boolean",
         "overview": {
           "avgLastScore": "null",
           "focus": [],
@@ -160,6 +161,7 @@
     "GET /leader/teachers": {
       "status": 200,
       "body": {
+        "noSchool": "boolean",
         "onRumi": "number",
         "success": "boolean",
         "teachers": [],
