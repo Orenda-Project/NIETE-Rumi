@@ -91,6 +91,7 @@ export const COACH_REPORT_EN = {
   lpAsPlanned: "Done as planned:",
   lpMostMissed: "Most missed:",
   lpAbout: (time: string) => `about ${time}`,
+  lpComma: ", ",
   lpMoves: "Lesson moves: what the plan had, and what happened",
   lpPartly: "Partly:",
   lpMoveNotAssessed: "not assessed",
@@ -201,6 +202,7 @@ const COACH_REPORT_UR: Words<typeof COACH_REPORT_EN> = {
   lpAsPlanned: "پلان کے مطابق:",
   lpMostMissed: "سب سے زیادہ رہ گیا:",
   lpAbout: (time: string) => `تقریباً ${time}`,
+  lpComma: "، ",
   lpMoves: "سبق کے موو: پلان میں کیا تھا، اور کیا ہوا",
   lpPartly: "جزوی طور پر:",
   lpMoveNotAssessed: "جانچا نہیں گیا",
@@ -242,5 +244,5 @@ export const COPY_ENTRY: CopyEntry = {
   // title / readyDebrief / concern: the WhatsApp report's own wording («آپ کی ڈی بریف رپورٹ», «کھل کر کہنے کی بات»).
   longOk: ["title", "readyDebrief", "concern", "respect", "tapHint", "did", "missed", "focus", "foot",
     "completeNote", "dayHint", "smallWeek", "stays", "reached", "lastTen", "thenNext", "openModule", "respectWeek", "fullWeek", "weekFoot", "noDebriefs", "readyWeek", "stepsDraft", "complete", "weekSpan", "weekFocus", "doneIn", "notExtra", "same", "lastWeek", "howTo", "ofTheWeek", "ofDebriefs", "upBy", "downBy", "firstWeek", "noneLastWeek", "weekEyebrow", "weekDebriefs", "openWeek", "lastWeekCol", "thisWeek",
-    "lpMoves", "lpReminder", "lpNoPlanQuestion", "lpNaMismatch", "lpNaRecording", "lpNaUnavailable", "lpCueNameIt", "lpCueWait", "lpLine2", "lpPlanDoneLine", "lpNotScored", "lpSeeMoves", "lpNoPlanCard", "lpFull", "lpFullOf", "lpLastWeek", "lpMissedIn", "lpNoPlanWeek", "lpCovered", "lpThenWait", "lpNextTime", "lpDiscussion", "lpWeekTitle", "lpMissedMost", "lpMostMissed", "lpAsPlanned", "lpCheck"],
+    "lpComma", "lpMoves", "lpReminder", "lpNoPlanQuestion", "lpNaMismatch", "lpNaRecording", "lpNaUnavailable", "lpCueNameIt", "lpCueWait", "lpLine2", "lpPlanDoneLine", "lpNotScored", "lpSeeMoves", "lpNoPlanCard", "lpFull", "lpFullOf", "lpLastWeek", "lpMissedIn", "lpNoPlanWeek", "lpCovered", "lpThenWait", "lpNextTime", "lpDiscussion", "lpWeekTitle", "lpMissedMost", "lpMostMissed", "lpAsPlanned", "lpCheck"],
 };
