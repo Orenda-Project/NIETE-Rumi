@@ -10,21 +10,25 @@
  * box (15 px Nastaliq at line-height 1.9), and the same clamp trimmed it at the box top, so گ showed one bar, like ک.
  * Measured at a true 3× scale with the crop starting 22 px above the box: live vs overflow:visible differ by 103 px
  * above the box for گ and by 0 for ک. (An earlier crop started 8 px above the box and could not see it.) Any گ on the
- * first line is hit, not only a line-initial one. The title also gets 6 px of room at its top.
+ * first line is hit, not only a line-initial one. An Urdu-script title also gets 6 px of room at its top; a Latin title on
+ * the Urdu grid draws no گ and keeps its box.
  */
 const { computed, node, root } = require('./cascade');
 
 const DOORS = [root('wq.css'), root('wq-doors.css')];
 const BAR_PX = 6;
-const TOP_PX = 6; // گ's upper bar: ≈ 4.7 px above the line box, measured at 3×
+// گ's upper bar reaches 15 device px (5.00 CSS px) above the first line box at 3×, its faintest antialias row included
+// (live vs overflow:visible, topmost differing row); 6 = that + 1 px for fractional device scales.
+const TOP_PX = 6;
 
-const title = (lang, adv = false) => [
+// wq-doors.js draws `<b class="wq-vct"><bdi …>title</bdi></b>`; a Latin title's bdi carries `wq-lat` (lat()).
+const title = (lang, adv = false, latin = false) => [
   node('html', adv ? ['wq-adv'] : [], { lang }),
   node('body'),
   node('div', ['wq-vrow']),
   node('div', ['wq-vcard']),
   node('button', ['wq-vbox']),
-  node('b', ['wq-vct']),
+  node('b', ['wq-vct'], {}, undefined, [node('bdi', latin ? ['wq-lat'] : [])]),
 ];
 const px = (v) => (v == null ? 0 : parseFloat(v));
 const value = (path, prop) => (computed(path, prop, DOORS) || {}).value;
@@ -36,6 +40,14 @@ describe('the Urdu shelf title has room at its start for a ک or گ bar, and at 
 
   test.each([[false], [true]])('Urdu, advanced look %s: top room is at least 6 px, so گ keeps both bars', (adv) => {
     expect(px(value(title('ur', adv), 'padding-top'))).toBeGreaterThanOrEqual(TOP_PX);
+  });
+
+  // A Latin title on the Urdu grid has no گ: its box stays as it was (no top room), in both looks.
+  test.each([[false, '1.9'], [true, '1.3']])('a Latin title on the Urdu grid, advanced look %s: no top room, its box unchanged', (adv, lh) => {
+    const p = title('ur', adv, true);
+    expect(px(value(p, 'padding-top'))).toBe(0);
+    expect(value(p, 'line-height')).toBe(lh);
+    expect(px(value(p, 'padding-inline-start'))).toBeGreaterThanOrEqual(BAR_PX);
   });
 
   test('it is still a 2-line clamp that hides the rest (a long title stops at 2 lines)', () => {
