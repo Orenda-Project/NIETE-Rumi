@@ -248,15 +248,15 @@ router.get('/pdf/:token', handle(async (req, res) => {
   res.status(200).type('application/pdf').send(pdf);
 }));
 
-/** quiz_forward_tap { surface: wa_report } for one of the teacher's quizzes; never throws, never delays the redirect long. */
-async function forwardTap(teacherId, quizId) {
+/** quiz_forward_tap { surface: wa_report } for one of the teacher's quizzes (qa: a QA walk's user agent); never throws, never delays the redirect long. */
+async function forwardTap(teacherId, quizId, ua) {
   try {
     const Forward = require('../services/first-touch/quiz-forward');
     const { data } = await supabase.from('quizzes').select('id, teacher_id, quiz_source, meta').eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
     const sc = data && data.meta ? uuidOr(data.meta.share_code_id) : null;
     const code = sc && typeof data.meta.share_code === 'string' ? data.meta.share_code : null;
     const codeH = code ? (require('../services/quiz/web-quiz.service').codeHash(code) || null) : null;
-    Forward.logTap({ uid: teacherId, shareCodeId: sc, codeH, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source) });
+    Forward.logTap({ uid: teacherId, shareCodeId: sc, codeH, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source), qa: Forward.isWalk(ua) });
   } catch (_) { /* the meter never decides the reminder */ }
 }
 
@@ -273,7 +273,7 @@ router.get('/remind/:token', handle(async (req, res) => {
     teacherId: v.teacherId, quizId, notPlayed: Array.isArray(report.notPlayed) ? report.notPlayed.length : null,
   });
   // the report's one tap to the class group is the forward meter's wa_report surface (quiz-forward.js; never switched)
-  await forwardTap(v.teacherId, quizId);
+  await forwardTap(v.teacherId, quizId, req.get('user-agent'));
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));

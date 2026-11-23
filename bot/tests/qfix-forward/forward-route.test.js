@@ -215,3 +215,46 @@ describe('code_h: a tap carries the hash page_open carries', () => {
     expect(taps().map((x) => [x.share_code_id, x.code_h, x.stale])).toEqual([[OWN_CODE, null, false], [null, null, true]]);
   });
 });
+
+// A QA walk's browser carries " QFIXQA" in its user agent (the portal relays the phone's UA, web-quiz.routes.js
+// createBotClient): its taps and results are marked qa:true so a canary read drops walks exactly (A149's shape). Any other
+// user agent: the event as before, with no qa key at all. A qa in the body is never believed.
+describe('qa: a QA walk\'s forward taps are marked', () => {
+  const QA = (ua) => `${ua} QFIXQA`;
+  const postUa = (p, body, ua) => fetch(url(p), { method: 'POST', headers: { ...H(), 'content-type': 'application/json', 'user-agent': ua }, body: JSON.stringify(body), redirect: 'manual' });
+
+  test('/fwd from a walk (WebView and Chrome) and its stale twin → qa:true; a phone without the mark → no qa key', async () => {
+    seed();
+    await boot();
+    expect((await get(`/quiz/teacher/${qf()}/fwd`, QA(WA_UA))).status).toBe(302);
+    expect((await get(`/quiz/teacher/${qf()}/fwd`, QA(CHROME_UA))).status).toBe(302);
+    await get(`/quiz/teacher/${qf({ exp: Math.floor(Date.now() / 1000) - 60 })}/fwd`, QA(CHROME_UA));
+    expect((await get(`/quiz/teacher/${qf()}/fwd`, WA_UA)).status).toBe(302);
+    const t = taps();
+    expect(t.map((x) => [x.method, x.stale, x.qa])).toEqual([['wa_scheme', false, true], ['wa_me', false, true], ['wa_me', true, true], ['wa_scheme', false, undefined]]);
+    expect(t[3]).not.toHaveProperty('qa');
+  });
+
+  test('the home\'s send tap, the native tap and its result from a walk → qa:true; a body qa from a phone → no qa key', async () => {
+    seed({ settings: [{ key: 'quiz_forward_button', value: true }] });
+    await boot();
+    const t = HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' });
+    expect((await postUa('/api/th/step', { t, step: 'share_tap', kind: 'again', id: OWN_QUIZ, origin: 'again' }, QA(CHROME_UA))).status).toBe(204);
+    expect((await postUa('/api/th/step', { t, step: 'fwd_native', kind: 'again', id: OWN_QUIZ, origin: 'again' }, QA(CHROME_UA))).status).toBe(204);
+    expect((await postUa('/api/th/step', { t, step: 'fwd_result', kind: 'again', id: OWN_QUIZ, r: 'shared' }, QA(CHROME_UA))).status).toBe(204);
+    expect((await postUa('/api/th/step', { t, step: 'fwd_native', kind: 'again', id: OWN_QUIZ, origin: 'again', qa: true }, CHROME_UA)).status).toBe(204);
+    expect(taps().map((x) => [x.method, x.qa])).toEqual([['wa_me', true], ['native', true], ['native', undefined]]);
+    expect(taps()[2]).not.toHaveProperty('qa');
+    expect(logEvent).toHaveBeenCalledWith('quiz_forward_result', expect.objectContaining({ result: 'shared', qa: true }));
+  });
+
+  test('the library send route (/send?c) from a walk → qa:true', async () => {
+    seed();
+    await boot();
+    const t = HomeToken.signTeacherHome({ uid: TEACHER.id, lang: 'en', via: 'go' });
+    const home = await (await get(`/api/th/home?t=${t}&g=4`)).json();
+    const c = home.library && home.library.pick ? home.library.pick.send.c : home.primary.send.c;
+    expect((await get(`/quiz/teacher/${t}/send?c=${c}&o=library`, QA(CHROME_UA))).status).toBe(302);
+    expect(taps()).toEqual([expect.objectContaining({ surface: 'teacher_home', share_code_id: c, qa: true })]);
+  });
+});

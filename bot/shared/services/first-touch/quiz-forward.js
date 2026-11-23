@@ -132,24 +132,29 @@ const tkOf = (uid) => { try { return require('../quiz/web-quiz-kid').tk(uid) || 
 const CODE_H_RX = /^[0-9a-f]{12}$/;
 const codeHIn = (h) => (typeof h === 'string' && CODE_H_RX.test(h) ? h : null);
 
+// A QA walk's browser carries " QFIXQA" in its user agent (the portal relays the phone's UA): its taps and results say
+// qa:true, so a canary read drops walks exactly (A149's shape). Any other user agent: no qa key at all.
+const isWalk = (ua) => / QFIXQA/.test(String(ua || ''));
+const qaOf = (qa) => (qa === true ? { qa: true } : {});
+
 /** quiz_forward_tap, ids only. Never throws. */
-function logTap({ uid = null, shareCodeId = null, codeH = null, surface, method = 'wa_me', origin = null, stale = false }) {
+function logTap({ uid = null, shareCodeId = null, codeH = null, surface, method = 'wa_me', origin = null, stale = false, qa = false }) {
   try {
     logEvent('quiz_forward_tap', {
       w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null, code_h: codeHIn(codeH),
       surface: SURFACES[surface] ? surface : 'unknown', method: METHODS.includes(method) ? method : 'wa_me',
-      origin: ORIGINS.includes(origin) ? origin : null, stale: stale === true,
+      origin: ORIGINS.includes(origin) ? origin : null, stale: stale === true, ...qaOf(qa),
     });
   } catch (_) { /* a failed log never decides a send */ }
 }
 
 /** quiz_forward_result, only for a result the browser reported. Never throws. */
-function logResult({ uid = null, shareCodeId = null, codeH = null, surface, result }) {
+function logResult({ uid = null, shareCodeId = null, codeH = null, surface, result, qa = false }) {
   if (!RESULTS.includes(result)) return;
   try {
     logEvent('quiz_forward_result', {
       w: 's', tk: tkOf(uid), share_code_id: UUID_RX.test(String(shareCodeId || '')) ? shareCodeId : null, code_h: codeHIn(codeH),
-      surface: SURFACES[surface] ? surface : 'unknown', result,
+      surface: SURFACES[surface] ? surface : 'unknown', result, ...qaOf(qa),
     });
   } catch (_) { /* never decides anything */ }
 }
@@ -164,6 +169,6 @@ function originOf(source) {
 }
 
 module.exports = {
-  on, signForward, verifyForward, forwardUrl, lineFor, logTap, logResult, originOf, targetFor,
+  on, signForward, verifyForward, forwardUrl, lineFor, logTap, logResult, originOf, targetFor, isWalk,
   KEY, KIND, TTL_S, SURFACES, METHODS, RESULTS, _resetCache: () => { cache = null; },
 };
