@@ -159,6 +159,33 @@ function lessonKeyOf(key, deps) {
   return parsed && parsed.provider ? key : null;
 }
 
+// A74: the one-lesson page waits this long for its lesson's name, then opens without it (today's page)
+const TITLE_WAIT_MS = 400;
+const TITLE_MAX = 200; // code points; catalog names are far shorter
+
+/**
+ * The name of the lesson PLAN a one-lesson page opened for (?lesson=, A74), read by its provider's own get(teacher, ref):
+ * for lp_v8 the delivery row behind the key, only when it is this teacher's, sent and makeable, named from the K-5 catalog
+ * (the name the home's list and the 15:00 offer print, in the lesson's own language). → the name, or null for anything
+ * else: a key no provider parses, another teacher's lesson, no catalog name, a failed read, a read slower than `ms`.
+ * Never throws; a failed or slow read is logged and the page opens as today.
+ */
+async function lessonTitleOf(uid, key, deps, { ms = TITLE_WAIT_MS } = {}) {
+  const parsed = uid && lessonKeyOf(key, deps) ? providersOf(deps).parseLessonKey(key) : null;
+  if (!parsed || typeof parsed.provider.get !== 'function') return null;
+  let timer = null;
+  const late = new Promise((r) => { timer = setTimeout(() => r({ late: true }), ms); if (timer.unref) timer.unref(); });
+  const read = Promise.resolve().then(() => parsed.provider.get(uid, parsed.lessonRef)).then((item) => ({ item }), (err) => ({ err }));
+  const got = await Promise.race([read, late]);
+  clearTimeout(timer);
+  if (got.late || got.err) {
+    logToFile('⚠️ teacher home: the one-lesson page opened without its lesson name', { reason: got.late ? 'slow' : 'read_failed', ms, error: got.err && got.err.message }, 'warn');
+    return null;
+  }
+  const name = got.item && typeof got.item.topic === 'string' ? got.item.topic.trim() : '';
+  return name ? [...name].slice(0, TITLE_MAX).join('') : null;
+}
+
 /** A quiz the page is waiting on → { state, message?, wa? } | null (not this teacher's). */
 async function quizStatus({ uid, lang, quizId }, deps) {
   const supabase = supabaseOf(deps);
@@ -175,4 +202,4 @@ async function quizStatus({ uid, lang, quizId }, deps) {
   return { state: state === 'failed' ? 'failed' : 'making', title: q.topic || '' };
 }
 
-module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, storedCodeOf, ownFrom, againOf, startQuiz, quizStatus, lessonKeyOf };
+module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, storedCodeOf, ownFrom, againOf, startQuiz, quizStatus, lessonKeyOf, lessonTitleOf, TITLE_WAIT_MS };

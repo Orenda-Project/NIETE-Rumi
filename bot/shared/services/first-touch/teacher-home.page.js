@@ -387,6 +387,17 @@ const ONE_LESSON_SCRIPT_HASH = sha(ONE_LESSON_SCRIPT);
 const ONE_LESSON_SCRIPT_FWD = swapped(ONE_SCRIPT_FWD, LESSON_SWAPS, 'the lesson-plan part');
 const ONE_LESSON_SCRIPT_FWD_HASH = sha(ONE_LESSON_SCRIPT_FWD);
 /**
+ * A74: the lesson plan's page NAMES its lesson: one line right under "Quiz from this lesson", the name the server read
+ * (boot `ot`) as text in a dir=auto <bdi>, so an Urdu name on an English page (and the reverse) keeps its own direction.
+ * Built only when the server has a name; without one the page is ONE_LESSON_SCRIPT(_FWD), byte for byte.
+ */
+const TITLE_SWAPS = Object.freeze([["c.appendChild(el('p','th-say',S['th.one.say']));",
+  "c.appendChild(el('p','th-say',S['th.one.say']));var ot=el('p','th-sub');ot.appendChild(topic(b.ot));c.appendChild(ot);"]]);
+const ONE_LESSON_TITLED_SCRIPT = swapped(ONE_LESSON_SCRIPT, TITLE_SWAPS, 'the lesson name part');
+const ONE_LESSON_TITLED_SCRIPT_HASH = sha(ONE_LESSON_TITLED_SCRIPT);
+const ONE_LESSON_TITLED_SCRIPT_FWD = swapped(ONE_LESSON_SCRIPT_FWD, TITLE_SWAPS, 'the lesson name part');
+const ONE_LESSON_TITLED_SCRIPT_FWD_HASH = sha(ONE_LESSON_TITLED_SCRIPT_FWD);
+/**
  * The "Quiz reports" section (quiz_teacher_home_reports, bd-5j1zaf): its drawing and its taps, swapped onto whichever
  * script the other switches chose (each variant under its own hash, built on first use), with its own few styles. The
  * row's verb is the row button's 48 px; the late chip is a pill like "Sent ✓", in the warning colours. The tap's beacon
@@ -482,12 +493,16 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * `reports` (only a real true; never on the one-lesson page) adds the "Quiz reports" section, its styles and its script part.
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, forward = false, reports = false }) {
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, lessonTitle = null, forward = false, reports = false }) {
   const sessionId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
   const lessonKey = !sessionId && typeof lesson === 'string' && LESSON_KEY_RX.test(lesson) ? lesson : null;
   const oneId = sessionId || lessonKey;
+  // A74: the plan's name (the server's read), only on a lesson-plan page; blank or absent → today's page
+  const name = lessonKey && typeof lessonTitle === 'string' && lessonTitle.trim() ? lessonTitle.trim() : null;
   const fwd = forward === true;
-  const oneScript = lessonKey
+  const oneScript = name
+    ? (fwd ? { text: ONE_LESSON_TITLED_SCRIPT_FWD, hash: ONE_LESSON_TITLED_SCRIPT_FWD_HASH } : { text: ONE_LESSON_TITLED_SCRIPT, hash: ONE_LESSON_TITLED_SCRIPT_HASH })
+    : lessonKey
     ? (fwd ? { text: ONE_LESSON_SCRIPT_FWD, hash: ONE_LESSON_SCRIPT_FWD_HASH } : { text: ONE_LESSON_SCRIPT, hash: ONE_LESSON_SCRIPT_HASH })
     : (fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH });
   const key = `${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}|${fwd}`;
@@ -508,7 +523,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
     ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${sessionId ? `&amp;session=${sessionId}` : lessonKey ? `&amp;lesson=${encodeURIComponent(lessonKey)}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
-  const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s, ...(oneId ? { one: oneId } : {}) };
+  const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s, ...(oneId ? { one: oneId } : {}), ...(name ? { ot: name } : {}) };
   // the one-lesson page's way to the whole home: the plain page, in the language this one was opened in
   const allLink = oneId ? `\n<a class="th-link" id="th-one-all" data-tap="one_all" href="/quiz/teacher/${enc}${boot.ask ? '?lang=en' : ''}">${esc(str('th.one.all', l))}</a>` : '';
   const html = `${head(l, str('th.title', l), style, styleHash, scriptHash)}
@@ -570,5 +585,6 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
   FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
-  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS, ONE_LESSON_SCRIPT, ONE_LESSON_SCRIPT_FWD, REPORTS_SWAPS,
+  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS, ONE_LESSON_SCRIPT, ONE_LESSON_SCRIPT_FWD, ONE_LESSON_TITLED_SCRIPT,
+  ONE_LESSON_TITLED_SCRIPT_FWD, REPORTS_SWAPS,
 };
