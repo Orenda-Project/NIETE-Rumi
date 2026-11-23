@@ -5,3 +5,4 @@
 {"ts":"2026-11-23T14:48:38Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
 {"ts":"2026-11-23T14:51:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of the lp612 quiz source/provider fix; fan-out mapping to training; no training surface changed)","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
 {"ts":"2026-11-23T14:51:40Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-87fd8aaec362","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
+{"ts":"2026-11-23T16:21:55Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
