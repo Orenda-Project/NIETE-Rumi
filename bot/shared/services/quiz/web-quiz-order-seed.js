@@ -81,6 +81,10 @@ function shuffled(list, seed) {
   return out;
 }
 
+// session_started.order_algo: how this code orders a sitting's questions. 'rank' (ranked below); the earlier list
+// shuffle was 'shuffle', and its events carry no order_algo, so a read can tell which code served a sitting.
+const ALGO = 'rank';
+
 /** The questions in the sitting's order: each id's rank by a hash of (seed, id), so one leaving or joining moves no other. */
 function ranked(ids, seed) {
   const key = new Map(ids.map((id) => [id, Render.mulberry32(Render.hash32(`${seed}|q|${id}`))()]));
@@ -116,4 +120,4 @@ function sittingOrder(rows, payloads, sessionId) {
   return { order: { q, o }, seed, pinned };
 }
 
-module.exports = { onFor, armOf, seedOf, pinReason, sittingOrder, ANCHORED_UR, ORDER_TEST, KEY: 'web_quiz_order_seed' };
+module.exports = { onFor, armOf, seedOf, pinReason, sittingOrder, ANCHORED_UR, ORDER_TEST, ALGO, KEY: 'web_quiz_order_seed' };
