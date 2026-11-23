@@ -2,8 +2,8 @@
 /**
  * A resume keeps the sitting's order even when the quiz's served set has changed since the start (web_quiz_order_seed).
  *
- * The served set can change under an open sitting: an answer-key hold set or cleared (quiz_key_hold_on_disagree filters
- * loadQuestions), a quiz edited in the evening. The resume then draws the order again over a different list. When the
+ * The served set can change under an open sitting: a quiz edited (a row gone from the quiz, or back), or an answer-key
+ * hold set or cleared once a hold filters loadQuestions. The resume then draws the order again over a different list. When the
  * order was a shuffle of that list, one item leaving or joining reordered nearly all the rest: of 2,000 simulated
  * 15-item sittings with one item gone, 0.2% kept their remaining sequence. Nothing was re-asked (the page skips answered
  * ids), but the child met their unanswered questions in a new order after a reload. Each question's place is now a rank
@@ -145,5 +145,31 @@ describe('the question rank itself', () => {
       expect(seed).toBe(OrderSeed.seedOf(sid));
       rows.forEach((r) => expect(order.o[r.id]).toEqual(before(['A', 'B', 'C', 'D'], Render.hash32(`${seed}|${r.external_id}`))));
     }
+  });
+});
+
+describe('session_started names the order algorithm (order_algo), so a sitting is attributable to the code that served it', () => {
+  const { logEvent } = require('../../shared/utils/structured-logger');
+  const started = () => logEvent.mock.calls.filter(([name]) => name === 'web_quiz.session_started').map(([, d]) => d);
+
+  test('switch on: the start event carries order_algo "rank" beside its seed', async () => {
+    world(NINE.slice(0, 8));
+    logEvent.mockClear();
+    await play('Sara Testwala');
+    const ev = started().pop();
+    expect(Number.isInteger(ev.order_seed)).toBe(true);
+    expect(ev.order_algo).toBe('rank');
+  });
+
+  test('switch off: no seed and no order_algo (today\'s event)', async () => {
+    world(NINE.slice(0, 8));
+    db.app_settings = db.app_settings.filter((r) => r.key !== 'web_quiz_order_seed');
+    logEvent.mockClear();
+    const a = await play('Sara Testwala');
+    expect(a).not.toHaveProperty('order');
+    const ev = started().pop();
+    expect(ev).toBeDefined();
+    expect(ev).not.toHaveProperty('order_seed');
+    expect(ev).not.toHaveProperty('order_algo');
   });
 });
