@@ -53,7 +53,10 @@ router.post('/app/tap', serve(async (req) => {
   return orNotFound(await App().tap({ teacherId: idOr400(b.teacher), classId: idOr400(b.class_id), how: b.how }));
 }));
 // ── end the teacher app's Home card ──
-router.post('/arrive', serve((req) => CL.arrive(req.body || {}, pushField())));
+// A walk's browser carries " QFIXQA" in its user agent (the portal forwards it): its open is marked qa, so a read drops
+// it exactly. Only the user agent marks a walk; a body field is never believed.
+const isWalk = (req) => / QFIXQA/.test(String(req.get('user-agent') || ''));
+router.post('/arrive', serve((req) => CL.arrive(req.body || {}, pushField(), { qa: isWalk(req) })));
 router.post('/teacher', serve((req) => CL.teacher(req.body || {})));
 router.post('/letter', serve((req) => CL.letter(req.body || {})));
 router.post('/pick', serve((req) => CL.pick(req.body || {}, pushField())));
