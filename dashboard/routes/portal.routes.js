@@ -8603,7 +8603,15 @@ function observeNotesPick(notes) {
  */
 function observeLessonPick(lesson) {
   if (!lesson || typeof lesson !== 'object') return undefined;
-  if (lesson.primary === true) return { primary: true };
+  // bd-o15qnr.40.7 (queue #229): a grades 1-5 lesson may carry its grade and subject (the Lesson Plan picker); the bot
+  // checks them and keeps FICO17 v6.
+  if (lesson.primary === true) {
+    return {
+      primary: true,
+      ...(Number.isInteger(lesson.grade) ? { grade: lesson.grade } : {}),
+      ...(typeof lesson.subject === 'string' && lesson.subject ? { subject: lesson.subject.slice(0, 40) } : {}),
+    };
+  }
   return { grade: lesson.grade, subject: lesson.subject };
 }
 

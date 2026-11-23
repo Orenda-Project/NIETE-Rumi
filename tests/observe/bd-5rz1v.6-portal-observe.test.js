@@ -694,6 +694,24 @@ describe('startPortalObservation — the rubric stamp, as on WhatsApp (bd-ra8xu.
     expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
   });
 
+  // bd-o15qnr.40.7 (queue #229, the operator 23 Nov ~19:45: for 1-5 "it never asks a subject … Why is that?") — a grades
+  // 1-5 lesson now comes with its real grade and subject (the Lesson Plan picker): the rubric is still FICO17 v6 (decided
+  // by lessonIsPrimary, never FICO-S or FDE), and the class is kept on the row (analysis_data.observed_lesson).
+  test('grades 1-5 with its grade and subject: v6 as before, the class kept on the row, never FICO-S', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), ficoSOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
+    await start({ lesson: { primary: true, grade: 3, subject: 'maths' } }, d);
+    expect(d.rubric.decideV6).toHaveBeenCalledWith({ userId: COACH, region: 'sihala', teacherUserId: TEACHER_UID, schoolExtId: 'sch-1', lessonIsPrimary: true });
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6', analysis_data: { observed_lesson: { grade: 3, subject: 'maths' } } });
+    expect(d.rubric.createLessonForm).not.toHaveBeenCalled();
+  });
+
+  test('grades 1-5: a grade outside 1-5 or an unknown subject is dropped from the record, the lesson still v6', async () => {
+    const d = deps({ supabase: leaderSupabase(), rubric: { fdeOn: jest.fn().mockResolvedValue(true), decideV6: jest.fn().mockResolvedValue('fico17_v6') } });
+    await start({ lesson: { primary: true, grade: 9, subject: 'astrology' } }, d);
+    expect(sessionInsert(d)).toMatchObject({ framework: 'fico17_v6' });
+    expect(sessionInsert(d).analysis_data?.observed_lesson).toBeUndefined();
+  });
+
   test('FDE on and a grade 7 Maths lesson: FDE form row made, session stamped obs612-msci-v1, no v6 decision, no WhatsApp', async () => {
     const order = [];
     const d = deps({

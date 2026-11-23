@@ -233,8 +233,15 @@ async function resolveTeacherSafely(d, userId, teacherExtId, schoolExtId) {
 function lessonOfArg(lesson) {
   if (lesson === undefined || lesson === null) return undefined;
   if (typeof lesson !== 'object') return null;
-  if (lesson.primary === true) return { primary: true, grade: null, subject: null };
   const O = require('../coaching/frameworks/obs612');
+  // bd-o15qnr.40.7 (queue #229): a grades 1-5 lesson may name its grade (1-5) and subject (the Lesson Plan picker). The
+  // rubric stays FICO17 v6 (lessonIsPrimary); the class is only recorded (`observed`). Anything else is dropped.
+  if (lesson.primary === true) {
+    const pg = O.normGrade(lesson.grade);
+    const ps = O.normSubject(lesson.subject);
+    const observed = pg !== null && pg >= 1 && pg <= O.PRIMARY_MAX_GRADE ? { grade: pg, subject: ps || null } : null;
+    return { primary: true, grade: null, subject: null, ...(observed ? { observed } : {}) };
+  }
   const g = O.normGrade(lesson.grade);
   if (g === null || g <= O.PRIMARY_MAX_GRADE) return null;
   // bd-ra8xu.40 (operator, 12 Nov ~11:00): grades 9-12 stay on FICO, like grades 1-5: no subject, no FDE tool.
@@ -517,7 +524,13 @@ async function startPortalObservation({
         : {}),
       // FICO17 v6 (the coach switch): stamped on the row itself, before transcription is queued.
       ...(v6Stamp ? { framework: v6Stamp, framework_selection_reason: 'coach_rubric_switch' } : {}),
-      ...(observationNotes.length ? { analysis_data: { observation_notes: observationNotes } } : {}),
+      // bd-o15qnr.40.7: the grades 1-5 class the observer named (grade + subject), kept beside the notes.
+      ...(observationNotes.length || (lesson && lesson.observed)
+        ? { analysis_data: {
+          ...(observationNotes.length ? { observation_notes: observationNotes } : {}),
+          ...(lesson && lesson.observed ? { observed_lesson: lesson.observed } : {}),
+        } }
+        : {}),
       created_at: startedAt,
     })
     .select()
