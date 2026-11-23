@@ -6,3 +6,4 @@
 {"ts":"2026-11-23T14:51:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of the lp612 quiz source/provider fix; fan-out mapping to training; no training surface changed)","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
 {"ts":"2026-11-23T14:51:40Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-87fd8aaec362","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
 {"ts":"2026-11-23T16:21:55Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
+{"ts":"2026-11-23T16:21:58Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-97daxo.34-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"87fd8aaec362","branch":"bd-97daxo.34-main","user":""}
