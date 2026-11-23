@@ -10,12 +10,13 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToPdf: jest.fn(async () => Buffer.from('%PDF-1.4 fake')) }));
 
 const express = require('express');
+const { digitsFor } = require('../../../shared/config/ux-strings');
 
 const TOKEN = 'eyJrIjoidHIifQ.AAAAAAAAAAAAAAAAAAAAAA';
 const page = (cls, lang) => require('../../../shared/templates/teacher-report.page')
   .renderPage({ class: { cells: [], weeks: [], ...cls } }, { lang, tab: 'class', tokens: { self: TOKEN } });
 const row = (html, topic) => (html.match(/<li>[\s\S]*?<\/li>/g) || []).find((li) => li.includes(`>${topic}<`)) || '';
-const n = (x) => `<b class="num"><span class="ltr">${x}</span></b>`; // an Urdu page wraps its numbers left-to-right
+const n = (x) => `<b class="num">${digitsFor(x, 'ur')}</b>`; // an Urdu page writes its numbers in Urdu digits (§9.4)
 const story = (over = {}) => ({ id: 's-1', date: '2026-10-05T09:00:00Z', topic: 'The Kite', source: 'story', played: 3, of: 12, avg: null, ...over });
 const quiz = (over = {}) => ({ id: 'q-1', date: '2026-10-05T09:00:00Z', topic: 'Magnets', source: 'transcript', played: 5, of: 12, avg: 80, ...over });
 
@@ -56,7 +57,7 @@ describe('quiz rows are unchanged', () => {
     expect(en).toContain('<h2>Your quizzes</h2>');
     expect(en).toContain('Your quizzes from the last 60 days');
     const ur = page({ quizzes: [quiz(), story()] }, 'ur');
-    expect(row(ur, 'Magnets')).toContain(`· ${n(12)} میں سے ${n(5)} نے کھیلا · <span class="num">80%</span></span>`);
+    expect(row(ur, 'Magnets')).toContain(`· ${n(12)} میں سے ${n(5)} نے کھیلا · <span class="num">۸۰٪</span></span>`);
     expect(ur).toContain('آپ کے کوئز');
   });
 });
