@@ -12,6 +12,7 @@
  *   POST /e            {step, how?, iab?, lang?, ok?, src?, ps?} → {ok:1}: a page step, allow-listed enums only
  *   POST /delivered    {tag, shown?, err?, ps?} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
  *                      ps?: the page-session id (wq-tel.js) the page sent or kept for its worker; logged, never stored
+ *                      /e, /subscribe, /opened, /delivered: a user agent carrying "QFIXQA" (a QA walk) logs qa: true
  *   POST /portal/subscribe|unsubscribe|test   the teacher card (portal_push_remind): the edge adds user_id from its session
  */
 const express = require('express');
@@ -55,10 +56,10 @@ function createRouter() {
       device_ref: req.get('x-wq-device'), ua: req.get('user-agent'), via: 'family_phone' });
   }));
   router.post('/unsubscribe', wrap((req) => Push.unsubscribe({ endpoint: body(req).endpoint, by: body(req).by === 'notification' ? 'notification' : 'page' })));
-  router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint, ps: body(req).ps })));
+  router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint, ps: body(req).ps, ua: req.get('user-agent') })));
   router.post('/test', wrap((req) => Push.sendTest({ endpoint: body(req).endpoint })));
-  router.post('/e', wrap((req) => Push.stepEvent(body(req))));
-  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag, shown: body(req).shown, err: body(req).err, ps: body(req).ps })));
+  router.post('/e', wrap((req) => Push.stepEvent(body(req), { ua: req.get('user-agent') })));
+  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag, shown: body(req).shown, err: body(req).err, ps: body(req).ps, ua: req.get('user-agent') })));
 
   // the teacher card (car C): the edge's portal session names the teacher
   router.post('/portal/subscribe', wrap((req) => {
