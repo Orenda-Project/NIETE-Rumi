@@ -125,6 +125,7 @@ describe('findDonor', () => {
       ['is', 'exam_json->_reuse->>from', null],
       ['eq', 'status', 'ready'],
       ['is', 'edited_from', null],
+      ['is', 'edited_at', null],
       ['gte', 'created_at', '2026-10-23T00:00:00.000Z'],
     ]));
     expect(q.order).toEqual(['created_at', { ascending: false }]);
