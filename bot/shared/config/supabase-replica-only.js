@@ -42,7 +42,8 @@ async function checkReplica(db) {
   if (!db) return { ok: false, reason: 'no_replica' };
   if (testSiteClient && db === testSiteClient) return { ok: true, tier: 'test_site' };
   try {
-    const { data, error } = await db.rpc('db_is_replica');
+    // GET: the Supabase read replica refuses POST rpc calls (HTTP 400), and supabase-js sends POST by default.
+    const { data, error } = await db.rpc('db_is_replica', undefined, { get: true });
     if (error) return { ok: false, reason: 'check_failed' };
     return data === true ? { ok: true } : { ok: false, reason: 'not_replica' };
   } catch (_) {

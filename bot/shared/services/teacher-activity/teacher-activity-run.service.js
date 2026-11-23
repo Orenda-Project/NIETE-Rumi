@@ -66,7 +66,8 @@ async function readSlots(db) {
 }
 
 async function rpcData(db, name, args) {
-  const { data, error } = await db.rpc(name, args);
+  // GET: every call here is on the read replica, which refuses POST rpc calls (HTTP 400).
+  const { data, error } = await db.rpc(name, args, { get: true });
   if (error) throw new Error(error.message || `${name} failed`);
   return data;
 }

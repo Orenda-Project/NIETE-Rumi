@@ -57,8 +57,10 @@ function fakeReader({ sw = { at: '02:00' }, replica = true, tests = TESTS, failM
       };
       return b;
     },
-    async rpc(name, args) {
+    // The real replica answers GET only (23 Nov 2026: a POST rpc came back HTTP 400), so this fake does too.
+    async rpc(name, args, opts) {
       calls.push([name, args]);
+      if (!(opts && opts.get === true)) return { data: null, error: { message: 'Read replica does not handle POST requests' } };
       if (name === 'db_is_replica') return { data: replica, error: null };
       if (name === 'ab_tracker_live_tests') return { data: tests, error: null };
       if (name === 'ab_tracker_metric_rows') {
