@@ -148,16 +148,16 @@ describe('prompts', () => {
   test('each call gets the filled section task, the slot lines and the book text; later sections see earlier stems', async () => {
     const { calls } = await run(CELLS.fictional);
     const [a, b] = calls;
-    expect(a.system).toContain('WRITE ONE SECTION');
-    expect(a.system).toContain('SECTION A of the paper');
-    expect(a.system).toContain('- Q1 [slot A.Q1]: 4 x mcq at 1 marks');
-    expect(a.system).toContain('Earlier sections already asked: none yet');
+    expect(a.user).toContain('WRITE ONE SECTION');
+    expect(a.user).toContain('SECTION A of the paper');
+    expect(a.user).toContain('- Q1 [slot A.Q1]: 4 x mcq at 1 marks');
+    expect(a.user).toContain('Earlier sections already asked: none yet');
     expect(a.user).toContain('MADE-UP BOOK TEXT');
-    expect(b.system).toContain('attempt any 2 of 3, write all 3');
-    expect(b.system).toContain('OR: write both alternatives (srq / srq) at 5 marks each');
-    expect(b.system).toContain('TEACHER-MARKED');
-    expect(b.system).not.toContain('Earlier sections already asked: none yet');
-    expect(b.system).toMatch(/Earlier sections already asked: Item 1/);
+    expect(b.user).toContain('attempt any 2 of 3, write all 3');
+    expect(b.user).toContain('OR: write both alternatives (srq / srq) at 5 marks each');
+    expect(b.user).toContain('TEACHER-MARKED');
+    expect(b.user).not.toContain('Earlier sections already asked: none yet');
+    expect(b.user).toMatch(/Earlier sections already asked: Item 1/);
   });
 });
 

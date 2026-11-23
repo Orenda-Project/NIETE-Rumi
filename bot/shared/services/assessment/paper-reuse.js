@@ -24,10 +24,26 @@ function _canonical(v) {
   return v ?? null;
 }
 
+const _hash = (inputs) => crypto.createHash('sha256').update(JSON.stringify(_canonical(inputs))).digest('hex');
+
 /** sha256 of the generator inputs that decide what gets written; a missing input counts as null. */
 function reuseKey({ grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck }) {
-  const inputs = { grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck };
-  return crypto.createHash('sha256').update(JSON.stringify(_canonical(inputs))).digest('hex');
+  return _hash({ grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck });
+}
+
+/**
+ * The same for a plain (non-board) paper (bd-h8zy3q): every request field that reaches the writer or
+ * is stored on the paper. Tagged `plain` so it can never equal a board key. Question types keep their
+ * order (it can change the paper); how the paper is printed or sent (format, answer lines) is not here.
+ */
+function plainReuseKey({
+  grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks,
+  seenCount, seenTypes, scope, compact, curriculum,
+}) {
+  return _hash({
+    kind: 'plain', grade, subject, chapterNumber, pageRanges, questionTypes: questionTypes || [], contentSource,
+    questionCount, totalMarks, seenCount, seenTypes, scope, compact: Boolean(compact), curriculum,
+  });
 }
 
 /** A copy of the paper carrying `_reuse`; `from` only on a re-served copy. */
@@ -63,6 +79,7 @@ async function findDonor({ db, key, userId, now = new Date() }) {
       .is('exam_json->_reuse->>from', null)
       .eq('status', 'ready')
       .is('edited_from', null)
+      .is('edited_at', null) // an in-place edit (versions off) keeps its stamp but is no longer an original
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(MAX_DONORS);
@@ -81,4 +98,4 @@ async function findDonor({ db, key, userId, now = new Date() }) {
   }
 }
 
-module.exports = { reuseKey, stamp, findDonor, MAX_AGE_DAYS };
+module.exports = { reuseKey, plainReuseKey, stamp, findDonor, MAX_AGE_DAYS };

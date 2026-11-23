@@ -13,6 +13,7 @@
  */
 const { buildLayout } = require('./board-layout');
 const { unitsOf, chunksOf, sized } = require('./board-6-12/units');
+const { boardTask } = require('./prompts-6-12');
 const SP = require('./board-6-12/section-prompt');
 const BL = require('./board-6-12/book-level');
 const T = require('./board-6-12/tree');
@@ -56,7 +57,7 @@ async function writeBoardPaper(args, d) {
   const ask = async (unit, done, note) => {
     const values = SP.promptValues({ grade, row, P, variant: V, unit, done, slotsAll: allSlots, sloList });
     const system = d.assemble({ row, kind: 'board', values });
-    const user = SP.userPrompt({ content: loaded.content, pageReference: loaded.pageReference, note });
+    const user = SP.userPrompt({ content: loaded.content, pageReference: loaded.pageReference, note, task: boardTask(values) });
     const messages = d.sectionMessages({ system, user, pageContent: loaded.content, model });
     const began = Date.now();
     const got = await d.writeSection({ messages, model, ownModel, job, pattern, section: { id: unit.key, slots: unit.slots } });

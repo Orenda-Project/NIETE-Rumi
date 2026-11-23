@@ -162,12 +162,14 @@ describe('prompts-6-12.js', () => {
     expect(out).toBe(keys.map((k) => P6.fill(k, PROMPTS[k], valuesFor(keys))).join('\n\n'));
   });
 
-  it('assemble (ur, board): system, format, urdu format, board task, safety', () => {
+  it('assemble (ur, board): system, format, urdu format, safety; the board task is not in the system (bd-i9yhrz)', () => {
     const r = row('pakistan_studies_ur', 10);
-    const keys = [r.prompt_key, 'eg.format.secondary', 'eg.format.secondary_urdu', 'eg.task.board_section',
-      'eg.safety.policies.6_12'];
-    const out = P6.assemble({ row: r, kind: 'board', values: valuesFor(keys) });
-    expect(out).toBe(keys.map((k) => P6.fill(k, PROMPTS[k], valuesFor(keys))).join('\n\n'));
+    const keys = [r.prompt_key, 'eg.format.secondary', 'eg.format.secondary_urdu', 'eg.safety.policies.6_12'];
+    const all = valuesFor(keys.concat(['eg.task.board_section']));
+    const out = P6.assemble({ row: r, kind: 'board', values: all });
+    expect(out).toBe(keys.map((k) => P6.fill(k, PROMPTS[k], all)).join('\n\n'));
+    expect(out).not.toMatch(/WRITE ONE SECTION/);
+    expect(P6.boardTask(all)).toBe(P6.fill('eg.task.board_section', PROMPTS['eg.task.board_section'], all));
   });
 
   it('assemble refuses a row with no prompt key, and an unknown kind', () => {
