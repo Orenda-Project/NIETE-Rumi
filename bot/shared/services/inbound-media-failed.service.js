@@ -24,6 +24,17 @@ const MEDIA_DOWNLOAD_ERROR = 131052;
 const ONCE_PER_SECONDS = 24 * 60 * 60;
 const KEY_PREFIX = 'inbound_media_failed_notice:';
 
+// bd-f3b562 (queue #233, 23 Nov 2026) — a coach in the MIDDLE of an observation, armed for a recording, hears it every
+// time. On prod a coach armed for her debrief sent the recording 6 times in 3 hours; Meta refused each one (131052) and
+// the once-a-day rule answered only the first, so the debrief looked stuck to her and to her lead. Her visit waits on
+// exactly that file, so each refused send gets the step's own line. A short burst key still folds two files refused
+// together (a double-send) into one reply. Any other sender keeps the once-a-day notice.
+const OBSERVE_BURST_SECONDS = 2 * 60;
+const OBSERVE_KEY_BY_STATE = {
+  awaiting_debrief_audio: 'inboundMediaObserveDebrief',
+  awaiting_audio: 'inboundMediaObserveLesson',
+};
+
 const digits = (phone) => String(phone || '').replace(/^\+/, '');
 const last4 = (phone) => digits(phone).slice(-4);
 
@@ -42,7 +53,20 @@ const defaultDeps = {
     return data || null;
   },
   send: (to, text) => require('./whatsapp.service').sendMessage(to, text),
+  getObserveState: (userId) => require('./observe/observe-state.service').getState(userId),
 };
+
+/** The observe recording she is armed for ('inboundMediaObserve…'), or null. A failed lookup reads as none. */
+async function observeKeyFor(user, deps) {
+  if (!user || !user.id || typeof deps.getObserveState !== 'function') return null;
+  try {
+    const st = await deps.getObserveState(user.id);
+    return (st && OBSERVE_KEY_BY_STATE[st.state]) || null;
+  } catch (err) {
+    logToFile('inbound_media_failed.observe_state_unknown', { userId: user.id, error: err && err.message }, 'warn');
+    return null;
+  }
+}
 
 /**
  * A failed status receipt from Meta. Acts only on 131052.
@@ -55,13 +79,22 @@ async function onFailedStatus(status, deps = defaultDeps) {
       return { sent: false, reason: 'not_131052' };
     }
     const phone = digits(status.recipient_id);
-    const claimed = await deps.setNX(KEY_PREFIX + phone, '1', ONCE_PER_SECONDS);
-    if (!claimed) {
-      logToFile('inbound_media_failed.already_told_today', { phone: last4(phone) });
-      return { sent: false, reason: 'already_told_today' };
-    }
     const user = await deps.findUser(phone);
-    const key = isTooBig(error) ? 'inboundMediaTooBig' : 'inboundMediaResend';
+    const observeKey = await observeKeyFor(user, deps);
+    if (observeKey) {
+      const fresh = await deps.setNX(`${KEY_PREFIX}${phone}:observe`, '1', OBSERVE_BURST_SECONDS);
+      if (!fresh) {
+        logToFile('inbound_media_failed.told_just_now', { phone: last4(phone), userId: user.id });
+        return { sent: false, reason: 'told_just_now' };
+      }
+    } else {
+      const claimed = await deps.setNX(KEY_PREFIX + phone, '1', ONCE_PER_SECONDS);
+      if (!claimed) {
+        logToFile('inbound_media_failed.already_told_today', { phone: last4(phone) });
+        return { sent: false, reason: 'already_told_today' };
+      }
+    }
+    const key = isTooBig(error) ? 'inboundMediaTooBig' : (observeKey || 'inboundMediaResend');
     // No account (or no stored choice): resolveUx falls to the catalog floor, English (clampLanguage).
     const text = resolveUx(key, { user: user || undefined });
     const ok = await deps.send(phone, text);
@@ -74,4 +107,6 @@ async function onFailedStatus(status, deps = defaultDeps) {
   }
 }
 
-module.exports = { onFailedStatus, isTooBig, MEDIA_DOWNLOAD_ERROR, KEY_PREFIX, ONCE_PER_SECONDS };
+module.exports = {
+  onFailedStatus, isTooBig, MEDIA_DOWNLOAD_ERROR, KEY_PREFIX, ONCE_PER_SECONDS, OBSERVE_BURST_SECONDS,
+};
