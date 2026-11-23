@@ -1,1 +1,2 @@
 {"ts":"2026-11-23T13:45:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"3ce4a3c2974b","branch":"HEAD","user":""}
+{"ts":"2026-11-23T14:51:52Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (same GB lp612 quiz-source fix, earlier sha/cherry-pick; fan-out mapping, no training surface changed)","sha":"3ce4a3c2974b","branch":"bd-97daxo.34-main","user":""}
