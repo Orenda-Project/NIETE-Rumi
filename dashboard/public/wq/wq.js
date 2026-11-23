@@ -1792,6 +1792,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return '<span class="wq-sent">' + esc(s).replace(/([.!?\u06D4\u061F]) (?=\S)/g, '$1</span> <span class="wq-sent">') + '</span>';
   } : null;
 
+  // The start card's count: what a sitting serves (the payload's n) where the page ships more (an evening round's pool,
+  // which the start's order cuts to the child's set); else the questions here.
+  function cardN() { return Q.n > 0 && Q.n < N ? Q.n : N; }
   function landing() {
     var here = kids();
     var classChips = {};
@@ -1811,7 +1814,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       (fold ? '' : pic) +
       // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
       (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (chLineHtml ? chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
@@ -1839,7 +1842,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-preview">' + esc(T.previewPlay) + '</button>' +
@@ -1951,7 +1954,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLS_PICK = null;
   // Identity v2 (name first; dashboard/public/wq/wq-identity.js) when the server turns it on for this quiz.
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
-    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
+    T: T, TW: TW, CLS: CLS, Q: Q, N: cardN(), LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
     lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher, chLineHtml: chLineHtml
@@ -2185,8 +2188,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); return; }
-      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words, then the landing.
-      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); toast(T.doneTonight); landing(); return; }
+      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words on their own screen.
+      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); doneTonight(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -2201,6 +2204,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset' || pick.via === 'known') landing(); });
+  }
+  // "Done for tonight!": the quiz and Jugnu saying it, with nothing to tap that starts again (no Play, no child's card:
+  // the server would answer the same, and the landing's Play went round in a loop). The bar is the landing's.
+  function doneTonight() {
+    render(bar() + jug('sleep', T.doneTonight, true) +
+      '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>', 'M3-done');
+    wireBar();
   }
 
   // web_quiz_order_seed: the sitting's own order from the start reply ({ q: [qid…], o: { qid: [slot…] } }), kept with the
