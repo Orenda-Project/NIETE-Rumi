@@ -88,6 +88,7 @@ const STR = {
     p_dc_none: 'The Digital Coach could not set a level from the recording. Choose the level you saw.',
     p_dc_none_why: (why) => `The Digital Coach could not set a level from the recording (${why}). Choose the level you saw.`,
     p_star_line: '★ Starred: yours alone. The Digital Coach never scores this one; set it from what you saw.',
+    p_help_chg: 'Only if you changed the level from the recording (20+ characters).',
     lbl_chg: 'Why you changed',
     help_chg: "Only if you changed Rumi's level (20+ characters).",
     next: 'Next',
@@ -175,6 +176,7 @@ const STR = {
     p_dc_none: 'ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا۔ جو لیول آپ نے دیکھا وہ چنیں۔',
     p_dc_none_why: (why) => `ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     p_star_line: '★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ ڈیجیٹل کوچ اسے کبھی نہیں جانچتا؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
+    p_help_chg: 'صرف اگر آپ نے ریکارڈنگ سے دیا گیا لیول بدلا (کم از کم ۲۰ حروف)۔',
     lbl_chg: 'تبدیلی کی وجہ',
     help_chg: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
     next: 'آگے',
@@ -699,7 +701,8 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
         ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
       parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`));
-      if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.help_chg}`));
+      // bd-o15qnr.40.4: the portal's own help (the Flow's still names Rumi on staging and production).
+      if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.p_help_chg}`));
     } else if (screen.kind === 'checklist') {
       parts.push({ type: 'heading', text: s.cl_heading });
       parts.push({ type: 'sub', text: s.cl_note });
