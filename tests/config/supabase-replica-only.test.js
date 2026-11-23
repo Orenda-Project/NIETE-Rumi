@@ -69,7 +69,7 @@ describe('checkReplica', () => {
   test('db_is_replica true → true', async () => {
     const c = client(async () => ({ data: true, error: null }));
     await expect(M.checkReplica(c)).resolves.toEqual({ ok: true });
-    expect(c.rpc).toHaveBeenCalledWith('db_is_replica');
+    expect(c.rpc).toHaveBeenCalledWith('db_is_replica', undefined, { get: true }); // the replica refuses POST
   });
 
   test.each([

@@ -87,15 +87,18 @@ async function readSwitch(db) {
   }
 }
 
-async function call(db, name, args) {
-  const { data, error } = await db.rpc(name, args);
+async function call(db, name, args, opts) {
+  const { data, error } = await db.rpc(name, args, opts);
   if (error) throw new Error(error.message || `${name} failed`);
   return data;
 }
 
+/** A read on the replica: sent as GET, because the Supabase read replica refuses POST rpc calls (HTTP 400). */
+const read = (db, name, args) => call(db, name, args, { get: true });
+
 /** Reads every live test's database measures (replica), then writes them (primary). Returns the counts. */
 async function rollup({ reader, writer, today, sleep, pauseMs, batchRows }) {
-  const tests = (await call(reader, 'ab_tracker_live_tests')) || [];
+  const tests = (await read(reader, 'ab_tracker_live_tests')) || [];
   if (!Array.isArray(tests)) throw new Error('live tests is not a list');
   const rows = [];
   const counts = { tests: tests.length, reads: 0, full_windows: 0, skipped_metrics: 0, failed: 0, rows: 0, read_ms: 0, write_ms: 0 };
@@ -109,7 +112,7 @@ async function rollup({ reader, writer, today, sleep, pauseMs, batchRows }) {
         if (counts.reads > 0) await sleep(pauseMs);
         const started = Date.now();
         try {
-          const got = await call(reader, 'ab_tracker_metric_rows', { p_test_id: t.test_id, p_metric_id: metric, p_from: s.from, p_to: s.to });
+          const got = await read(reader, 'ab_tracker_metric_rows', { p_test_id: t.test_id, p_metric_id: metric, p_from: s.from, p_to: s.to });
           for (const r of got || []) rows.push({ ...r, test_id: t.test_id, metric_id: metric });
         } catch (err) {
           counts.failed += 1;

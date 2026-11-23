@@ -106,6 +106,7 @@ whose furthest step is **exactly** this one ("Stopped here"), `user_ids` = those
   URL = the job is off on that tier. Every hourly tick first calls `rpc('db_is_replica')`, before any other read, and
   refuses unless it answers true. A slot is at most 22:30, so its 90-minute window ends by midnight.
   The switch, the region registry and every count are read on the replica; the primary is never read by the job.
+  Every replica rpc goes as GET (`rpc(name, args, { get: true })`): the Supabase read replica refuses POST with HTTP 400.
 - **Reads (migration V1.10.5):** `teacher_activity_teachers()` once (active teachers: role teacher, not deleted or
   merged, and a WhatsApp message, a portal sign-in or an app plan open in the last 60 days), then
   `teacher_activity_batch(ids)` per 500 teachers with a 1 s pause. Both are read only with a 20 s statement timeout.
