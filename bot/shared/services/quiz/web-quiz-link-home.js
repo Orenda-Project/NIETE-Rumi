@@ -56,16 +56,20 @@ async function isOn(now = Date.now()) {
   return Boolean((await Flags.flags()).hub);
 }
 
-// An evening round's code is never a way home. Read only with the switch on, cached per code; a failed read is "not a
-// round" (today's answer).
-const isRound = (shareCodeId) => require('./web-quiz-evening-round').isRoundShareCode(shareCodeId);
+// An evening round's code is never a way home. The quiz page's own quiz row (`quiz`, read with its meta) decides with no
+// read; without one, the round module's per-code check (cached; a failed read is "not a round", today's answer).
+function isRound(ctx, quiz = null) {
+  const Round = require('./web-quiz-evening-round');
+  if (quiz && quiz.id) return Promise.resolve(Round.isEveningRound(quiz));
+  return Round.isRoundShareCode(ctx.shareCodeId);
+}
 
 /** May the quiz payload carry `link_home`? Never on a friend's challenge or the teacher's preview. Never throws. */
-async function field(ctx, { preview = false } = {}) {
+async function field(ctx, { preview = false, quiz = null } = {}) {
   try {
     if (!ctx || ctx.invitedByStudentId || preview) return false;
     if (!(await isOn())) return false;
-    return !(await isRound(ctx.shareCodeId));
+    return !(await isRound(ctx, quiz));
   } catch (_) {
     return false;
   }
@@ -87,10 +91,11 @@ async function home(body = {}, resolveCode = null) {
     if (typeof resolveCode !== 'function') return no('no_code');
     try { ctx = await resolveCode(body.code); } catch (_) { return no('no_code'); }
     if (ctx.invitedByStudentId) return no('challenge');
-    if (await isRound(ctx.shareCodeId)) return no('round');
-    const { data, error } = await dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
+    // the round check rides beside the phone's runs, so it adds no read in a row
+    const [{ data, error }, round] = await Promise.all([dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
       .select('id, student_id, user_id, invited_by_student_id, status, created_at')
-      .eq('share_code_id', ctx.shareCodeId).eq('device_ref', d).limit(50));
+      .eq('share_code_id', ctx.shareCodeId).eq('device_ref', d).limit(50)), isRound(ctx)]);
+    if (round) return no('round');
     if (error) return no('db');
     const rows = data || [];
     if (!rows.length) return no('not_played_here');
