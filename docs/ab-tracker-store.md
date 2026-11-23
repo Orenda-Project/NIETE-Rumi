@@ -4,7 +4,7 @@
 apply V1.10.7 on a test site.** The Sandbox copy was rolled back on 21 Nov.
 
 The workspace's A/B tracker keeps its numbers in this database, in five small tables of its own (migration V1.10.7).
-One job a night on the bot's worker reads the app's rows on the **read replica only** and writes those tables only.
+One job a night, on its own Railway cron service, reads the app's rows on the **read replica only** and writes those tables only.
 (The test sites, staging and sandbox, have no paid read copy, so there the job reads their own database;
 `bot/shared/config/supabase-replica-only.js` allows that only for those two Railway environment names.)
 
@@ -21,7 +21,16 @@ One job a night on the bot's worker reads the app's rows on the **read replica o
 No foreign key, trigger or write reaches an app table. After a launch inserts assignment rows, run
 `ANALYZE ab_assignment;` (once, with cold statistics, the local reads ran about 70 times slower; see the load budget).
 
-## The job (`bot/shared/services/ab-tracker/ab-tracker-rollup.service.js`, ticked hourly by `bot/workers/ab-tracker-schedule.js`)
+## The job (`bot/shared/services/ab-tracker/ab-tracker-rollup.service.js`)
+
+- **Where it runs (operator, 23 Nov 2026):** its own Railway project, like RDF: **Impact - A/B Tracker**
+  (`bba06868-b76a-4ff5-8d96-b41fd522b427`), service `ab-tracker-cron`, built from this repo with config
+  `railway.ab-tracker-cron.json`. Railway starts `bot/scripts/ab-tracker-cron.js` at 22:00 UTC (03:00 Pakistan); it
+  runs once, closes Redis and exits. Exit 1 (run shows red) on refused, partial, error, or no Redis.
+- **Env the service needs:** `NIETE_SUPABASE_REPLICA_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`
+  (the bot's Redis, so the date marker is shared). Its Railway environment is `production`, so the replica rule holds.
+- The older hourly tick on the bot's worker (`bot/workers/ab-tracker-schedule.js`) is retired when the cron goes live;
+  until then the shared Redis marker keeps the two from running the same date twice.
 
 - **Switch:** `app_settings` `ab_tracker_rollup_enabled` = `{"at":"HH:MM"}` (Pakistan time; window 90 minutes, must end by
   midnight) or `true` (03:00). No row, a malformed value or a failed read = off. Read on the replica.

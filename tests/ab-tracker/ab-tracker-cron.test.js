@@ -31,6 +31,14 @@ describe('ab-tracker-cron entry point', () => {
     expect(exitCodeFor({ outcome: o })).toBe(1);
   });
 
+  it('skipped because Redis is unavailable exits 1: with no Redis the claim never succeeds, so the job never runs', () => {
+    expect(exitCodeFor({ outcome: 'skipped', reason: 'unavailable' })).toBe(1);
+  });
+
+  it('skipped because another process holds the tick exits 0', () => {
+    expect(exitCodeFor({ outcome: 'skipped', reason: 'other' })).toBe(0);
+  });
+
   it('an empty result exits 1', () => {
     expect(exitCodeFor(undefined)).toBe(1);
   });

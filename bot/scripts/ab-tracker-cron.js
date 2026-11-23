@@ -12,6 +12,8 @@ const { logToFile } = require('../shared/utils/logger');
 const QUIET = new Set(['ran', 'off', 'not_due', 'skipped', 'done_already']);
 
 function exitCodeFor(result) {
+  // No Redis means the tick claim can never succeed, so the job would skip every night in silence: show it red.
+  if (result && result.outcome === 'skipped' && result.reason === 'unavailable') return 1;
   return result && QUIET.has(result.outcome) ? 0 : 1;
 }
 
