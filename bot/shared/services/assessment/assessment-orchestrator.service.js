@@ -644,7 +644,11 @@ async function buildPaper(job, user = {}) {
     const avoid = await RepeatGuard.previousQuestions({ db: supabase, requestId, grade });
     // bd-5jmnfj.38.31: grade 6 and up gets its own free paper (time-sized, marking points, checked).
     const writeExam = Number(grade) >= 6 ? require('./free-secondary.service').generateExam : Generation.generateExam;
-    const [generated, oral] = await Promise.all([writeExam({
+    // Re-serving (bd-h8zy3q), behind the same setting as board papers: a donor's paper and oral part, or null.
+    const reuseKey = PaperReuse.plainReuseKey({ grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks, seenCount, seenTypes, scope, compact, curriculum });
+    // Not when she has earlier questions to avoid: the writer runs with that list, as with the setting off.
+    const donor = (!avoid.length && await isFlagEnabled('assessment_paper_reuse_plain')) ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
+    const [generated, oral] = donor ? [{ examJson: donor.examJson, questionCount: donor.questionCount, tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 } }, null] : await Promise.all([writeExam({
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
@@ -668,9 +672,10 @@ async function buildPaper(job, user = {}) {
     if (oral) generated.examJson._oral = oral;
     // "Save paper" rides on the paper itself, so every edit and re-render prints it the same way.
     if (compact) generated.examJson._print = { compact: true };
+    const stored = PaperReuse.stamp(generated.examJson, { key: reuseKey, from: donor?.id, pageReference: source.pageReference });
     await _patchPaper(paperId, {
-      exam_json: generated.examJson,
-      ...(versioned ? {} : { original_exam_json: generated.examJson }),
+      exam_json: stored,
+      ...(versioned ? {} : { original_exam_json: stored }),
       question_count: generated.questionCount,
       model: generated.tokenData?.model,
       input_tokens: generated.tokenData?.inputTokens,
