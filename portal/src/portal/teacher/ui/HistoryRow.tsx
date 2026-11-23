@@ -11,6 +11,7 @@ import { gradeColoursFor } from './gradeColours';
 import { subjectShort } from './subjects';
 import { SubjectTile } from './SubjectTile';
 import { TimeStamp, type TimeTone } from './TimeStamp';
+import { initialsOf } from './initials';
 
 /**
  * bd-fmf24g.2.1 / bd-fmf24g.16 — HistoryRow (COMPONENTS.md §2): one thing she did — a lesson plan opened, an
@@ -80,12 +81,6 @@ const AVATAR_TONE: Record<HistoryLeadTone, string> = {
   amber: 'bg-[#fef3c7] text-[#b45309]',
 };
 
-/** "Ayesha Bibi" → "AB"; one word → its first letter. */
-function initialsOf(name: string): string {
-  const w = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!w.length) return '·';
-  return (Array.from(w[0])[0] + (w.length > 1 ? Array.from(w[w.length - 1])[0] : '')).toUpperCase();
-}
 
 export interface HistoryRowProps {
   /** Which lead: the grade·subject column (default) or a coach's round avatar. */

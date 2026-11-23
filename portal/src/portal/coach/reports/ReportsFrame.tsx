@@ -7,6 +7,7 @@ import { useCopy } from "../../teacher/i18n";
 import { AttentionBanner } from "../../teacher/ui";
 import type { AnyFeature } from "../../teacher/icons";
 import { REPORTS } from "./copy";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { RecordingBarShownContext } from "../../lib/recordingBarShown";
 import { ObserveHelp, ObserveHelpButton } from "../../teacher/help/observe/ObserveHelp";
 import type { Band } from "../../teacher/help/observe/guides";
@@ -31,8 +32,12 @@ export function usePendingReports(): Pending | null {
 
 export function PendingReportsBanner() {
   const C = useCopy(REPORTS);
+  // bd-o15qnr.45 (the operator 23 Nov ~20:20: "The X observations need you are on too many pages. They should be maximum
+  // at the home and main Observation page.") — on the visit flow switch this bar is Home's only (the main Observe page
+  // opens with Needs you). Off: as before; while the switch is read, nothing (no flash).
+  const flow = useFlowV6();
   const pending = usePendingReports();
-  if (!pending || pending.waiting < 1) return null;
+  if (flow !== false || !pending || pending.waiting < 1) return null;
   const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
   return <AttentionBanner text={C.reportsWaiting(pending.waiting)} to={to} testId="pending-banner" />;
 }
