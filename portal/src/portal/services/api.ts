@@ -1203,12 +1203,13 @@ export const analytics = {
 // Leader Portal endpoints (bd-2434) — school-leader family only.
 // The backend gate 403s non-leaders; the frontend also hides these via isLeader.
 export const leader = {
-  getOverview: async (): Promise<{ success: boolean; overview: LeaderOverview }> => {
+  // bd-r2uzg1.21.4 — noSchool: a principal whose account names no school (the pages say so instead of zeros).
+  getOverview: async (): Promise<{ success: boolean; noSchool?: boolean; overview: LeaderOverview }> => {
     const response = await api.get('/leader/overview');
     return response.data;
   },
 
-  getTeachers: async (): Promise<{ success: boolean; total: number; onRumi: number; teachers: LeaderPatchTeacher[] }> => {
+  getTeachers: async (): Promise<{ success: boolean; noSchool?: boolean; total: number; onRumi: number; teachers: LeaderPatchTeacher[] }> => {
     const response = await api.get('/leader/teachers');
     return response.data;
   },
