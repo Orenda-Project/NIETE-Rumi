@@ -74,7 +74,87 @@ function winName(behaviour, S) {
   return Object.prototype.hasOwnProperty.call(names, behaviour) ? names[behaviour] : behaviour;
 }
 
+/**
+ * Queue #230 (the operator, 23 Nov: "on a report i am seeing in underscores one_improvement_only. why is that?") — no
+ * rubric key ever reaches a page as text. The judge is asked to aim its "try" at "a rubric key you judged FALSE", and
+ * in about 1 debrief in 6 it wrote the KEY itself as try.move ("one_improvement_only"), which the report printed as
+ * its Key Focus Area; a few focus_why lines name keys mid-sentence ("feeds both elicited_if_then and …").
+ *
+ * keysToWords: a rubric key in a line becomes that behaviour's name (observe-strings coach_rubric_names, Urdu in an
+ * Urdu line, else English; a bare key takes `lang`); any other snake_case word loses its underscores. Pure.
+ */
+const RESPECT_NAME = { en: 'Respect held', ur: 'احترام قائم رہا' };
+const SNAKE = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
+const URDU_LETTERS = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/g;
+const LATIN_LETTERS = /[A-Za-z]/g;
+
+/**
+ * Urdu when Urdu letters outnumber Latin ones, else English. Not "any Urdu letter": an English debrief quotes the
+ * officer's Urdu speech ("You said 'شاباش' …"), and is still English. A key's own letters are not counted.
+ */
+function scriptOf(s) {
+  const t = String(s == null ? '' : s).replace(SNAKE, '');
+  return (t.match(URDU_LETTERS) || []).length > (t.match(LATIN_LETTERS) || []).length ? 'ur' : 'en';
+}
+
+function rubricNames(lang) {
+  const { observeStrings } = require('./observe-strings');
+  const names = (observeStrings(lang) || {}).coach_rubric_names || {};
+  return { ...names, disparaged_teacher: RESPECT_NAME[lang] || RESPECT_NAME.en };
+}
+
+/** Does this text carry a raw snake_case key? */
+function hasRawKey(s) {
+  return typeof s === 'string' && new RegExp(SNAKE.source).test(s);
+}
+
+/**
+ * @param {string} s     a line the model wrote
+ * @param {'en'|'ur'} [lang] the language for a line that is nothing but a key (no script of its own to go by)
+ */
+function keysToWords(s, lang) {
+  if (typeof s !== 'string' || !hasRawKey(s)) return s;
+  const bare = /^\s*[a-z][a-z0-9]*(?:_[a-z0-9]+)+\s*$/.test(s);
+  const { clampLanguage } = require('../../config/ux-strings');
+  const l = bare ? clampLanguage(lang, ['en', 'ur']) : scriptOf(s);
+  const names = rubricNames(l);
+  const words = (k) => (Object.prototype.hasOwnProperty.call(names, k) ? names[k] : k.replace(/_/g, ' '));
+  return bare ? words(s.trim()) : s.replace(SNAKE, words);
+}
+
+/** The language the judge wrote the feedback in: the script with more letters across all its lines (scriptOf). */
+function feedbackLanguage(fb) {
+  const f = fb || {};
+  const lines = [f.praise_line, f.focus_why, f.reflection_question, (f.try || {}).evidence, (f.try || {}).instead,
+    ...Object.values(f.concern || {}), ...Object.values(f.missed || {}), ...Object.values(f.did || {}),
+    ...(Array.isArray(f.wins) ? f.wins.map((w) => w && w.evidence) : [])];
+  return scriptOf(lines.filter((x) => typeof x === 'string').join(' '));
+}
+
+const mapValues = (o, fn) => (o && typeof o === 'object' && !Array.isArray(o)
+  ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fn(v)])) : o);
+
+/**
+ * The judge's feedback with every line it wrote in words (keysToWords). What the code reads stays as it was: the
+ * rubric, focus, the keys of missed/did, and each win's behaviour (named from coach_rubric_names where shown). Pure:
+ * a new object, the input untouched; anything that is not an object comes back as it was.
+ */
+function feedbackInWords(fb) {
+  if (!fb || typeof fb !== 'object') return fb;
+  const lang = feedbackLanguage(fb);
+  const W = (s) => keysToWords(s, lang);
+  const out = { ...fb };
+  for (const k of ['praise_line', 'focus_why', 'reflection_question']) if (k in out) out[k] = W(out[k]);
+  if (out.try && typeof out.try === 'object') out.try = mapValues(out.try, W);
+  if (out.concern && typeof out.concern === 'object') out.concern = mapValues(out.concern, W);
+  if (out.missed) out.missed = mapValues(out.missed, W);
+  if (out.did) out.did = mapValues(out.did, W);
+  if (Array.isArray(out.wins)) out.wins = out.wins.map((w) => (w && typeof w === 'object' ? { ...w, evidence: W(w.evidence) } : w));
+  return out;
+}
+
 module.exports = {
   winName,
   BEHAVIOUR_KEYS, rubricMarks, missedBehaviours, validFocus, nextFocusKey, stars,
+  hasRawKey, keysToWords, feedbackLanguage, feedbackInWords,
 };

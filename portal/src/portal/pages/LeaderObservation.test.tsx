@@ -103,6 +103,15 @@ describe("LeaderObservation", () => {
     await waitFor(() => expect(L.previewReport).toHaveBeenCalledWith("cs-1"));
   });
 
+  // Queue #230: a win the judge named by its rubric key shows the behaviour's name, never "one_improvement_only".
+  it("a win named by its rubric key shows the behaviour's name, not the key", async () => {
+    const keyed = { ...FEEDBACK, wins: [{ behaviour: "one_improvement_only", evidence: "you raised one change", name: { en: "One improvement", ur: "صرف ایک بہتری" } }] };
+    L.getObservation.mockResolvedValue(view({ step: "feedback", talk: { guide: null, recordedAt: "t", feedback: keyed } }));
+    renderPage();
+    expect(await screen.findByText("One improvement")).toBeInTheDocument();
+    expect(screen.queryByText(/one_improvement_only/)).toBeNull();
+  });
+
   it("a harmful talk shows the concern, never praise", async () => {
     const harmful = { ...FEEDBACK, harmful: true, praise_line: null, wins: [], concern: { what_happened: "a", why_it_matters: "b", instead: "c" } };
     L.getObservation.mockResolvedValue(view({ step: "feedback", talk: { guide: null, recordedAt: "t", feedback: harmful } }));
