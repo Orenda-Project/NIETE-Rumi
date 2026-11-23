@@ -207,7 +207,9 @@ describe("the six: the line under the name says how to fill it", () => {
   it("D2: the line and its hint together; the can't-count line stays; no You add", async () => {
     await toIndicator("D", "D2");
     const about = screen.getByTestId("ff-about");
-    expect(flat(about.textContent)).toBe(`${D2_ABOUT} ${D2_HINT}`);
+    // the line's own paragraph: on the v6 switch the box also holds #217's "Examples" (the "?" guide has D2)
+    const lineOf = (box: HTMLElement) => within(box).getByTestId("ff-hint").closest("p") as HTMLElement;
+    expect(flat(lineOf(about).textContent)).toBe(`${D2_ABOUT} ${D2_HINT}`);
     expect(within(about).getByTestId("ff-hint")).toHaveTextContent(D2_HINT);
     expect(card().getByTestId("cant-count")).toHaveTextContent("The Digital Coach can't count this one. You decide.");
     expect(screen.getByTestId("ff-indicator").textContent).not.toMatch(/You add/);
@@ -233,7 +235,7 @@ describe("the six: the line under the name says how to fill it", () => {
 
   it("the principal: the same line and hint", async () => {
     await toIndicator("D", "D2", true);
-    expect(flat(screen.getByTestId("ff-about").textContent)).toBe(`${D2_ABOUT} ${D2_HINT}`);
+    expect(flat((within(screen.getByTestId("ff-about")).getByTestId("ff-hint").closest("p") as HTMLElement).textContent)).toBe(`${D2_ABOUT} ${D2_HINT}`);
   });
 
   it("Urdu: the Urdu line and hint, in Nastaliq", async () => {
@@ -241,7 +243,8 @@ describe("the six: the line under the name says how to fill it", () => {
     L.getObservationDraft.mockResolvedValue(V6({ ur: true }));
     await toIndicator("D", "D2");
     const about = screen.getByTestId("ff-about");
-    expect(flat(about.textContent)).toBe("جماعت کا کتنا حصہ اکیلے بولتا ہے۔ سب کا مل کر ایک ساتھ جواب دینا شمار نہیں ہوتا۔");
+    const line = within(about).getByTestId("ff-hint").closest("p") as HTMLElement;
+    expect(flat(line.textContent)).toBe("جماعت کا کتنا حصہ اکیلے بولتا ہے۔ سب کا مل کر ایک ساتھ جواب دینا شمار نہیں ہوتا۔");
     expect(about.querySelector("p")).toHaveAttribute("data-urdu");
     expect(screen.getByTestId("ff-indicator").textContent).not.toMatch(/آپ شامل کریں/);
   });

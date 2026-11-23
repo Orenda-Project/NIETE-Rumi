@@ -8,6 +8,7 @@ import { ConfirmTray, RatingScale, SelectField, StatusChip, StepBar } from "../.
 import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import ReportsFrame from "./ReportsFrame";
+import { bandOfRubric } from "../../teacher/help/observe/guides";
 import { REPORTS } from "./copy";
 import { rungName } from "./formModel";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
@@ -795,7 +796,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       .filter(Boolean).join(" · ");
     const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
     return (
-      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={backSaving} dock={dock} testId="coach-fde-form" dockSpace>
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={backSaving} dock={dock} testId="coach-fde-form" helpBand={bandOfRubric(draft.rubricId)} dockSpace>
         <div ref={top} />
         {section && (
           <>
@@ -823,7 +824,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   }
 
   return (
-    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-fde-form">
+    <ReportsFrame title={C.formTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.form, OBSERVATION_STEPS) : C.observation} onBack={back} dock={dock} testId="coach-fde-form" helpBand={bandOfRubric(draft.rubricId)}>
       <div ref={top} />
       {section && (
         <>

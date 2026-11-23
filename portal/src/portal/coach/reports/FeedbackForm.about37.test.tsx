@@ -12,7 +12,8 @@ import type { ReactNode } from "react";
  *   under the name   one plain line on what the indicator looks at (the bot's `about`: #217's guide line), muted, two
  *                    lines at most ("ff-about")
  *   Examples         a small link that opens that indicator in the "?" guide, shown only when the guide has it
- *                    (IndicatorGuideContext, which #217 provides; until then no link)
+ *                    (IndicatorGuideContext; bd-3xf7vb.1 / #217: the Observe frames provide it on the switch, so
+ *                    the link is there and opens that indicator's card in the "?" tray)
  *   the six          the line is not said again inside "From the recording" (bd-o15qnr.39.1: the box is now
  *                    "Digital Coach's evidence", findings only; an older bot's look-for goes under the name)
  *   FICO-S           the card no longer repeats the look-for text: it keeps the notes (scoring note, How)
@@ -32,6 +33,7 @@ import { coach, leader } from "../../services/api";
 import FeedbackForm from "./FeedbackForm";
 import { COACH_OBSERVE_ROUTES, ObserveRoutesProvider } from "../observe/observeRoutes";
 import { IndicatorGuideContext, type IndicatorGuide } from "./indicatorGuide";
+import { AboutLine } from "./FormV7";
 
 const L = leader as any;
 const CO = coach as any;
@@ -123,7 +125,7 @@ beforeEach(async () => {
 });
 
 describe("FICO17 v6.1: the line under the name", () => {
-  it("one muted line, two lines at most, between the name row and the card; no Examples link without the guide", async () => {
+  it("one muted line, two lines at most, between the name row and the card; Examples, since the \"?\" guide (#217) has C1", async () => {
     await toV6("C1");
     const about = screen.getByTestId("ff-about");
     const line = within(about).getByText(C1_ABOUT);
@@ -132,19 +134,27 @@ describe("FICO17 v6.1: the line under the name", () => {
     expect(line).toHaveAttribute("dir", "auto");
     expect(after(screen.getByTestId("ff-nav"), about)).toBe(true);
     expect(after(about, screen.getByTestId("ff-card"))).toBe(true);
-    expect(screen.queryByRole("button", { name: /Examples/ })).toBeNull();
+    expect(within(about).getByRole("button", { name: "Examples" })).toBeInTheDocument();
   });
 
-  it("Examples shows once the guide has the indicator, and opens it there", async () => {
-    const guide = guideFor(["C1"]);
-    await toV6("C1", { guide });
-    const link = within(screen.getByTestId("ff-about")).getByRole("button", { name: "Examples" });
-    fireEvent.click(link);
-    expect(guide.open).toHaveBeenCalledWith("fico17_v6", "C1");
+  it("Examples opens C1 in the \"?\" guide (#217): its card, in the Grades 1–5 guide, inside the tray", async () => {
+    await toV6("C1");
+    fireEvent.click(within(screen.getByTestId("ff-about")).getByRole("button", { name: "Examples" }));
+    const tray = await screen.findByTestId("observe-help-tray");
+    // #217: the guide (Rifat's manual) loads when it opens, so its chips arrive a moment later
+    expect(await within(tray).findAllByTestId("guide-code")).toHaveLength(17);
+    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it measures")).toBeInTheDocument();
   });
 
-  it("a guide without that indicator: still no link", async () => {
-    await toV6("C1", { guide: guideFor(["C2"]) });
+  it("a guide without that indicator: still no link", () => {
+    const guide = guideFor(["C2"]);
+    render(<IndicatorGuideContext.Provider value={guide}><AboutLine text={C1_ABOUT} rubric="fico17_v6" code="C1" /></IndicatorGuideContext.Provider>);
+    expect(screen.queryByRole("button", { name: "Examples" })).toBeNull();
+    expect(guide.has).toHaveBeenCalledWith("fico17_v6", "C1");
+  });
+
+  it("switch off: no guide, so no link", () => {
+    render(<AboutLine text={C1_ABOUT} rubric="fico17_v6" code="C1" />);
     expect(screen.queryByRole("button", { name: "Examples" })).toBeNull();
   });
 
@@ -192,15 +202,17 @@ describe("FICO-S v1.2: the line under the name", () => {
     expect(card).not.toHaveTextContent("Look for C1");
     expect(card).toHaveTextContent("A scoring note.");
     expect(card).toHaveTextContent("How: In class");
-    expect(screen.queryByRole("button", { name: "Examples" })).toBeNull();
+    expect(within(about).getByRole("button", { name: "Examples" })).toBeInTheDocument();
   });
 
-  it("Examples opens the FICO-S indicator in the guide", async () => {
-    const guide = guideFor(["C1"]);
-    renderPage({ guide });
+  it("Examples opens the FICO-S indicator in the \"?\" guide (#217): Grades 6–12, its card", async () => {
+    renderPage();
     await screen.findByText("C1 · Quality of questions");
     fireEvent.click(within(screen.getByTestId("ff-about")).getByRole("button", { name: "Examples" }));
-    expect(guide.open).toHaveBeenCalledWith("fico_s_v1_2", "C1");
+    const tray = await screen.findByTestId("observe-help-tray");
+    // #217: the guide (Rifat's manual) loads when it opens, so its chips arrive a moment later
+    expect(await within(tray).findAllByTestId("guide-code")).toHaveLength(23);
+    expect(within(within(tray).getByTestId("guide-card-C1")).getByText("What it measures")).toBeInTheDocument();
   });
 
   it("the principal: the same", async () => {
