@@ -34,9 +34,8 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   read, no database read). Load: this is far more replica reads than the one nightly run `TEAM/load_budget.md`
   measured, including in school hours; the budget should be re-measured on the first school day it runs.
 - **Env the service needs:** `NIETE_SUPABASE_REPLICA_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`
-  (the bot's Redis, so the slot marker is shared). Its Railway environment is `production`, so the replica rule holds.
-- The older hourly tick on the bot's worker (`bot/workers/ab-tracker-schedule.js`) is retired when the cron goes live;
-  until then the shared Redis slot marker keeps the two from running the same slot twice.
+  (the project's own Redis; the bot's has no public URL). Its Railway environment is `production`, so the replica rule holds.
+- The cron is the only caller. The bot worker's older hourly tick was retired (bd-3kshar.6.5.1, 23 Nov 2026).
 
 - **Switch:** `app_settings` `ab_tracker_rollup_enabled` = `true` (or a well-formed `{"at":"HH:MM"}`, the older value,
   still read as on; its time is no longer used). No row, a malformed value or a failed read = off. Read on the replica.
