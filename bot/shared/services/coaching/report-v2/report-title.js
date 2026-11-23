@@ -60,7 +60,8 @@ function roleKey(role) {
  * @returns {{text:string, teacher:string|null, school:string|null, line:string|null, observer:string|null, rubric:string|null}}
  */
 function buildReportTitle(f = {}, lang = 'en') {
-  const W = WORDS[lang === 'ur' ? 'ur' : 'en'];
+  const { clampLanguage } = require('../../../config/ux-strings');
+  const W = WORDS[clampLanguage(lang, ['en', 'ur'])];
   const grade = f.grade == null ? null : text(String(f.grade));
   const line = [grade ? W.grade(grade) : null, text(f.subject), text(f.topic), titleDate(f.at, lang)].filter(Boolean).join(' · ') || null;
   const rk = roleKey(f.observerRole);

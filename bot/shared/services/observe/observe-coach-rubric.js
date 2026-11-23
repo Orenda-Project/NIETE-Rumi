@@ -105,7 +105,8 @@ function hasRawKey(s) {
 function keysToWords(s, lang) {
   if (typeof s !== 'string' || !hasRawKey(s)) return s;
   const bare = /^\s*[a-z][a-z0-9]*(?:_[a-z0-9]+)+\s*$/.test(s);
-  const l = bare ? (lang === 'ur' ? 'ur' : 'en') : (URDU_SCRIPT.test(s) ? 'ur' : 'en');
+  const { clampLanguage } = require('../../config/ux-strings');
+  const l = bare ? clampLanguage(lang, ['en', 'ur']) : (URDU_SCRIPT.test(s) ? 'ur' : 'en');
   const names = rubricNames(l);
   const words = (k) => (Object.prototype.hasOwnProperty.call(names, k) ? names[k] : k.replace(/_/g, ' '));
   return bare ? words(s.trim()) : s.replace(SNAKE, words);
