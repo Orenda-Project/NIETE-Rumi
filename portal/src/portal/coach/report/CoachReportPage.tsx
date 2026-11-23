@@ -12,6 +12,7 @@ import { useBack } from "../../lib/useBack";
 import { takeBoot } from "@/lib/bootReads";
 import { COACH_REPORT, type CoachReportCopy } from "./copy";
 import { getCoachReport, markOpened, problemOf, type Both, type CoachReport, type ReportProblem } from "./api";
+import { LessonPlanBlock } from "./LessonPlan";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 
@@ -284,6 +285,7 @@ export function ReportBodyView({ report: r, C, lang, v7 = false, principal = fal
         </section>
       ) : null}
 
+      {r.lessonPlan ? <LessonPlanBlock lp={r.lessonPlan} C={C} lang={lang} /> : null}
       <Foot C={C} />
     </div>
   );
@@ -449,6 +451,8 @@ function ReportBodyV7({ r, C, W, lang, meta, principal, marked, goTo }: {
         </section>
       ) : null}
 
+      {/* The lesson plan discussion: the report's last block, never scored (only reports whose notes carried the check). */}
+      {r.lessonPlan ? <LessonPlanBlock lp={r.lessonPlan} C={C} lang={lang} /> : null}
       <Foot C={C} text={principal ? W.principalFoot : undefined} />
     </div>
   );

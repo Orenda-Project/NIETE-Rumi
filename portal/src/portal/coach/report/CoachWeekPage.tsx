@@ -14,6 +14,7 @@ import { weekSpan } from "./weekSpan";
 import { LABEL, LanguagePill, PILL, ReportOutline, SECTION, Spark, Tick, pick } from "./CoachReportPage";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { WeekBodyV7 } from "./WeekV7";
+import { LessonPlanWeekBlock } from "./LessonPlan";
 
 /**
  * Coach reports in the app, phase 3 — her WEEK as a page (/portal/coach/week/:monday), in the same app look as the debrief
@@ -217,6 +218,8 @@ export function WeekBody({ w, C, lang }: { w: CoachWeek; C: CoachReportCopy; lan
           ) : null}
         </section>
       ) : null}
+
+      {w.lessonPlan ? <LessonPlanWeekBlock lp={w.lessonPlan} C={C} lang={lang} /> : null}
 
       <div className="flex items-center justify-between gap-3 px-1 pt-1.5 text-[13px] text-[#6b7280]">
         <span className="flex shrink-0 items-center gap-2 font-bold text-[#33374a]">
