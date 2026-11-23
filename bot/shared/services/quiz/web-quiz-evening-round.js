@@ -36,6 +36,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const Flags = require('./web-quiz-evening-round-flags');
 const Recall = require('./web-quiz-evening-round-recall');
 const Canary = require('./web-quiz-class-link-canary');
+const { dropFormatBracket } = require('./quiz-child-title');
 const { clampLanguage } = require('../../config/ux-strings');
 
 const ROUND_SOURCE = 'evening_round';
@@ -294,7 +295,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
     quiz_source: LP_V8,
     coaching_session_id: null,
     lesson_plan_id: null,
-    topic: (first && first.topic) || 'Lesson',
+    topic: dropFormatBracket(first && first.topic) || 'Lesson',
     grade: choice.grade == null ? null : String(choice.grade),
     subject: choice.subject || null,
     status: 'generating',
@@ -596,8 +597,15 @@ async function blindSolveHeld(rows, meta) {
  */
 async function afterGenerate({ quiz, quizId, meta: metaIn = null } = {}, deps = {}) {
   const T = require('./web-quiz-token');
-  const { data: fresh } = await supabase.from('quizzes').select('id, teacher_id, subject, grade, language, status, meta').eq('id', quizId).maybeSingle();
+  const { data: fresh } = await supabase.from('quizzes').select('id, teacher_id, topic, subject, grade, language, status, meta').eq('id', quizId).maybeSingle();
   const row = fresh || quiz || {};
+  // The child-facing title, before the share code copies it (mintCode reads quizzes.topic). The generate step has just
+  // replaced the title the writer set (the donor's or the lesson digest's), so it is cleaned again here.
+  const title = dropFormatBracket(row.topic || (quiz && quiz.topic));
+  if (title && title !== row.topic) {
+    await supabase.from('quizzes').update({ topic: title }).eq('id', quizId);
+    if (fresh) fresh.topic = title;
+  }
   let meta = { ...(row.meta || {}), ...(metaIn || {}) };
   meta.source = ROUND_SOURCE;
   // The registry's clamp decides a missing or unserved language (NIETE: en | ur).
