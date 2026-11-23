@@ -17,6 +17,7 @@
 
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Week = require('../../bot/shared/services/observe/coach-week');
+const LpCheck = require('../../bot/shared/services/observe/lp-check');
 
 /** The card shows the week from Friday 16:00 for this long, if she neither opens nor closes it. */
 const CARD_DAYS = 3;
@@ -27,7 +28,8 @@ const SQL = {
   DEBRIEFS: `
     SELECT c.id, c.created_at,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
-           c.analysis_data->'observer_debrief'->'feedback'->'rubric' AS rubric
+           c.analysis_data->'observer_debrief'->'feedback'->'rubric' AS rubric,
+           c.analysis_data->'observer_debrief'->'feedback'->'lp_discussion' AS lp
     FROM coaching_sessions c
     WHERE c.observer_user_id = $1
       AND c.observation_type = 'leader_observation'
@@ -65,7 +67,7 @@ const both = (field, key) => ({ en: (EN[field] || {})[key] || null, ur: (UR[fiel
 async function readDebriefs(query, coachId, untilIso) {
   const { rows } = await query(SQL.DEBRIEFS, [coachId, untilIso]);
   return (rows || [])
-    .map((r) => ({ id: r.id, at: r.feedback_at || r.created_at, rubric: r.rubric }))
+    .map((r) => ({ id: r.id, at: r.feedback_at || r.created_at, rubric: r.rubric, lp: r.lp || null }))
     .filter((d) => d.at && d.rubric && typeof d.rubric === 'object')
     .map((d) => ({ ...d, week: Week.weekOfDebrief(d.at) }));
 }
@@ -103,6 +105,17 @@ function shapeWeek(summary) {
 }
 
 /**
+ * The week's lesson plan discussions, its last block (the ICT HITL owner's spec, 23 Nov 2026), or null when no debrief this
+ * week carries the check: full discussions (5 of 5) this week against last, the part missed most often (named in both
+ * languages), and debriefs with no plan linked, never counted as a miss. Counted by the bot's lp-check, from the judge's parts.
+ */
+function lessonPlanWeek(thisWeek, lastWeek) {
+  const s = LpCheck.summariseWeek(thisWeek.map((d) => d.lp), lastWeek.map((d) => d.lp));
+  if (!s) return null;
+  return { ...s, mostMissed: s.mostMissed ? { ...s.mostMissed, name: both('lp_part_names', s.mostMissed.key) } : null };
+}
+
+/**
  * Her week, or why not.
  * @returns {Promise<{status:'ok', week:object}|{status:'not_found'|'not_ready'}>}
  */
@@ -112,7 +125,10 @@ async function getCoachWeek(query, coachId, monday, now = new Date()) {
   const b = Week.weekBounds(monday);
   const debriefs = await readDebriefs(query, coachId, new Date(Date.parse(b.toIso) + 86400000).toISOString());
   const { thisWeek, lastWeek, before } = splitWeeks(debriefs, monday);
-  return { status: 'ok', week: shapeWeek(Week.summariseWeek({ monday, thisWeek, lastWeek, before })) };
+  return {
+    status: 'ok',
+    week: { ...shapeWeek(Week.summariseWeek({ monday, thisWeek, lastWeek, before })), lessonPlan: lessonPlanWeek(thisWeek, lastWeek) },
+  };
 }
 
 /** She opened the week, or closed its card: the week's one row, first writer wins. True when written. */
