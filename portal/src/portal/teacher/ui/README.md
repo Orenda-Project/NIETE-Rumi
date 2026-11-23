@@ -477,6 +477,8 @@ button (a green ring; green filled with pause while it plays). With `src` it pla
 `controls` (bd-o15qnr.39): the full player under the card: a bar to drag anywhere (its length read up front, preload metadata; a recorder's
 webm that says Infinity is read to its end once), the time and the length, back / forward 10 s, and the speed chip (1× → 1.5× → 2×, VoiceNote's
 steps, kept on the phone for every player: `SPEED_KEY`). `testId?` names the whole card. The visit's class and debrief recordings, and the Debrief.
+`compact` (with `controls`, bd-o15qnr.47): one row (72px) until she plays it, its second line the recording's length when no `sub` is given; the
+bar, ±10 s and the speed open under it on her first tap and stay (`data-open`). The visit's class and debrief recordings.
 
 ### `RecordUploadPair`
 `recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
