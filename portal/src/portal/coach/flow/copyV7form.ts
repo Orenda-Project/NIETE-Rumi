@@ -17,6 +17,11 @@
  * screens, no longer "NIETE Teaching Assistant"; the legend reads "You · Digital Coach"; the six combined indicators'
  * box: "The Digital Coach can't count this one. You decide.", "Nothing for this in the recording", "You add: …", the
  * note optional. Urdu MACHINE-DRAFTED: NATIVE-CHECK.
+ *
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov) — ONE box, "Digital Coach's evidence" (Urdu ڈیجیٹل کوچ کے شواہد, the
+ * operator's words), on every indicator where the Digital Coach gave evidence: it replaces "From the recording", the
+ * evidence box's "Evidence" label and its "Digital Coach heard" line. Heard nothing: no box, so "Nothing for this in the
+ * recording" goes; the six's "You add: …" goes too (how to fill it is now in the line under the name, the bot's data).
  */
 import { bilingual, type Bilingual, type Words } from "../../teacher/i18n";
 
@@ -41,12 +46,10 @@ export const FORM_V7_COPY = {
   whyChanged: "Why you changed it",
   /* bd-o15qnr.36: one of the six — the Digital Coach can't count it */
   cantCount: "The Digital Coach can't count this one. You decide.",
-  nothingInRecording: "Nothing for this in the recording",
   recIe: "The recording couldn't show this.",
   recNa: "The recording didn't find this in the lesson.",
   recStarred: "★ Starred: the Digital Coach doesn't listen for this one.",
   d2Turns: (a: number, b: number) => `${a} student turns in the first half and ${b} in the second. It can't tell how many different children spoke.`,
-  youAdd: (t: string) => `You add: ${t}`,
   noteOptional: "Your note (optional)",
 
   /* the Save tray */
@@ -76,8 +79,8 @@ export const FORM_V7_COPY = {
   agreeNext: "Agree and next",
   /* bd-o15qnr.37: under the indicator's line, opens it in the "?" guide (#217) once the guide has it */
   examples: "Examples",
-  /* evidence option B with editing */
-  assistantHeard: "Digital Coach heard",
+  /* evidence option B with editing; bd-o15qnr.39.1: the box's one title, on the eleven and the six alike */
+  dcEvidence: "Digital Coach’s evidence",
   editSummary: "Edit the summary",
   done: "Done",
   more: "More: edit or remove",
@@ -103,7 +106,7 @@ export const FORM_V7_COPY = {
 
 export type FormV7Copy = Words<typeof FORM_V7_COPY>;
 
-// NATIVE-CHECK (bd-o15qnr.28 + bd-o15qnr.31 + bd-o15qnr.36, machine-drafted; the m9-ff-v6-ur and ff-*-ur boards' words where they had them)
+// NATIVE-CHECK (bd-o15qnr.28 + bd-o15qnr.31 + bd-o15qnr.36, machine-drafted; dcEvidence is the operator's own (bd-o15qnr.39.1); the m9-ff-v6-ur and ff-*-ur boards' words where they had them)
 export const FORM_V7_COPY_UR: FormV7Copy = {
   yourLevel: "آپ کی سطح",
   rumisLevel: "ڈیجیٹل کوچ کی سطح",
@@ -116,12 +119,10 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   whyLevelMin: (n: number) => `یہ سطح کیوں (کم از کم ${n} حروف)`,
   whyChanged: "آپ نے کیوں بدلا",
   cantCount: "ڈیجیٹل کوچ اسے نہیں گن سکتا۔ آپ طے کریں۔",
-  nothingInRecording: "ریکارڈنگ میں اس کے لیے کچھ نہیں",
   recIe: "ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔",
   recNa: "ریکارڈنگ کو سبق میں یہ نہیں ملا۔",
   recStarred: "★ ستارے والا: ڈیجیٹل کوچ اسے نہیں سنتا۔",
   d2Turns: (a: number, b: number) => `پہلے آدھے حصے میں طلبہ ${a} بار بولے اور دوسرے میں ${b} بار۔ ریکارڈنگ یہ نہیں بتا سکتی کہ کتنے مختلف بچے بولے۔`,
-  youAdd: (t: string) => `آپ شامل کریں: ${t}`,
   noteOptional: "آپ کا نوٹ (اختیاری)",
 
   ratings: (n: number) => `${n} ریٹنگ`,
@@ -147,7 +148,7 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   nextIndicator: "اگلا",
   agreeNext: "متفق، اگلا",
   examples: "مثالیں",
-  assistantHeard: "ڈیجیٹل کوچ نے یہ سنا",
+  dcEvidence: "ڈیجیٹل کوچ کے شواہد",
   editSummary: "خلاصہ بدلیں",
   done: "مکمل",
   more: "مزید: بدلیں یا ہٹائیں",
@@ -176,7 +177,7 @@ export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
 const LONG_OK: readonly string[] = [
   "whyLevelMin", "changedSummary", "savedPartByPart", "noRumiLevels",
   "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "pauseAt", "needLevel", "needAnswer", "toCheck",
-  "cantCount", "nothingInRecording", "recIe", "recNa", "recStarred", "d2Turns", "youAdd",
+  "cantCount", "recIe", "recNa", "recStarred", "d2Turns",
 ];
 const SAME: readonly string[] = [];
 

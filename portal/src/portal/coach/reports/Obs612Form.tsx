@@ -16,7 +16,7 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
-import { AboutLine, AutoText, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, useFormToast, v7Crumb } from "./FormV7";
+import { AboutLine, AutoText, DcEvidenceBox, DcQuoteRow, DockV7, FormChips, FormToast, PartNote, PartTitle, focusField, urduOf, useFormToast, v7Crumb } from "./FormV7";
 
 /**
  * bd-ra8xu.40 — an FDE (obs612) visit's form, on the portal: what the coach fills on WhatsApp in FDE's Flow, here, on
@@ -44,6 +44,11 @@ import { AboutLine, AutoText, DockV7, FormChips, FormToast, PartNote, PartTitle,
  * bd-o15qnr.31 (#188, 21 Nov) — on the switch every text box is sized to its text (AutoText), and moving on with gaps
  * ("Next part", or a refused Submit) shows a short counted toast ("2 items still need a level") AND scrolls to and
  * focuses the first unfilled item; the inline marks stay.
+ *
+ * bd-o15qnr.39.1 (#204, the operator 22 Nov) — on the switch, a FICO-S indicator the Digital Coach gave evidence for
+ * (the bot's `dcEvidence`) shows it once, read only, in the "Digital Coach's evidence" box after its levels: its line
+ * and each quote as an evidence row (time + quote). None: no box. Its N/A (C2, C3 on v1.2) is already a 5th radio row.
+ * The Evidence box below stays the observer's own field, saved as before.
  */
 type Values = Record<string, string>;
 type Errors = Record<string, Obs612ErrorCode>;
@@ -311,8 +316,18 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
         </div>
       );
     }
+    const dcEv = v7 && f.dcEvidence && (f.dcEvidence.because || f.dcEvidence.items.length) ? f.dcEvidence : null;
+    const dcBox = dcEv ? (
+      <DcEvidenceBox boxId="dc-box">
+        {dcEv.because ? (
+          <p data-testid="dc-summary" className="m-0 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(dcEv.because)}>{dcEv.because}</p>
+        ) : null}
+        {dcEv.items.map((q, n) => <DcQuoteRow key={`${q.time ?? ""}-${n}`} time={q.time} quote={q.quote} first={n === 0 && !dcEv.because} />)}
+      </DcEvidenceBox>
+    ) : null;
     return (
-      <section key={f.name} data-testid="fde-item" id={v7 ? `fde-item-${f.name}` : undefined} className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
+      <Fragment key={f.name}>
+      <section data-testid="fde-item" id={v7 ? `fde-item-${f.name}` : undefined} className={cn(LIST_CARD, "flex flex-col gap-2.5 p-3.5", bad && BAD)}>
         {v7 && f.about ? (
           // bd-o15qnr.37: a FICO-S indicator says what it looks at once, under its name (AboutLine after the heading);
           // the card keeps the rest of its words: the scoring note, the N/A note, "How: …".
@@ -335,6 +350,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
         {choices}
         {errorLine(f)}
       </section>
+      {dcBox}
+      </Fragment>
     );
   };
 

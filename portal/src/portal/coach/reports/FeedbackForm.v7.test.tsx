@@ -19,6 +19,7 @@ import { scanCopy, scanStyle } from "../../newui/checks/source";
  *                 principal's "Your level"); Rumi's level ringed purple with a "Rumi" tag; Evidence; To improve;
  *                 "Changed from <level name>" above the levels; the six: "From the recording" read only, the level,
  *                 N/A / Couldn't tell as pills, "Your note (optional)"; ONE amber "Why you changed it"
+ *                 (bd-o15qnr.39.1: the box is now "Digital Coach's evidence", N/A a 5th level card)
  *                 per part; the dock Back · Next part (1 : 2)
  *   Save tray     "Save Feedback Form", "17 ratings · 2 levels and 3 notes changed from Rumi's", Save and continue,
  *                 Keep checking, "Next: Record the debrief"
@@ -316,24 +317,26 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", ()
     expect(await screen.findAllByText("At least 20 letters")).not.toHaveLength(0);
   });
 
-  it("one of the six: From the recording read only, the level, N/A and Couldn't tell as pills, Why this level", async () => {
+  it("one of the six: the Digital Coach's evidence read only, the level, N/A as a 5th card and Couldn't tell as a pill, Why this level", async () => {
     renderPage();
     await openIndicator("C", "C3");
     const c3 = within(screen.getByTestId("ff-indicator"));
-    expect(c3.getByText("From the recording")).toBeInTheDocument();
-    expect(c3.getByText("12 children answered, mostly from the front rows.")).toBeInTheDocument();
+    expect(c3.getByText("Digital Coach’s evidence")).toBeInTheDocument(); // bd-o15qnr.39.1 (was "From the recording")
+    expect(c3.getByText((t) => t.includes("12 children answered, mostly from the front rows."))).toBeInTheDocument();
     expect(c3.queryAllByRole("textbox")).toHaveLength(1); // only Why this level: the recording's words are read only
     const levels = group("Who got to answer");
     expect(levels.getAllByRole("radio").every((r) => r.getAttribute("aria-checked") === "false")).toBe(true);
     expect(levels.queryByText("Digital Coach")).toBeNull();
+    // bd-o15qnr.39.1: N/A is a regular 5th level card; an old review's Couldn't tell stays a pill
+    expect(levels.getByRole("radio", { name: "N/A · No question asked" }).querySelector("[data-dot]")).not.toBeNull();
     const pills = levels.getAllByTestId("level-aside");
-    expect(pills.map((p) => p.textContent)).toEqual(["N/A · No question asked", "Couldn't tell"]);
+    expect(pills.map((p) => p.textContent)).toEqual(["Couldn't tell"]);
     expect(pills[0]).toHaveAttribute("role", "radio");
     expect(c3.getByLabelText("Your note (optional)")).toBeInTheDocument();
     agree();
     expect(await screen.findByText("Choose a level")).toBeInTheDocument();
-    fireEvent.click(pills[1]);
-    expect(pills[1]).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(pills[0]);
+    expect(pills[0]).toHaveAttribute("aria-checked", "true");
     fireEvent.change(c3.getByLabelText("Your note (optional)"), { target: { value: WHY } });
     agree();
     expect(await screen.findByText("Lubna Arif · C · 1 of 3")).toBeInTheDocument(); // on to the next yellow row
@@ -431,9 +434,10 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", ()
     fireEvent.click(within(screen.getByTestId("ff-indicator")).getByRole("button", { name: "اگلا" }));
     fireEvent.click(within(screen.getByTestId("ff-indicator")).getByRole("button", { name: "اگلا" }));
     await screen.findByText("Who got to answer");
-    expect(within(screen.getByTestId("ff-indicator")).getByText("ریکارڈنگ سے")).toBeInTheDocument();
+    expect(within(screen.getByTestId("ff-indicator")).getByText("ڈیجیٹل کوچ کے شواہد")).toBeInTheDocument(); // bd-o15qnr.39.1
     expect(within(screen.getByTestId("ff-indicator")).getByLabelText("آپ کا نوٹ (اختیاری)")).toBeInTheDocument();
-    expect(group("Who got to answer").getAllByTestId("level-aside").map((p) => p.textContent)).toEqual(["لاگو نہیں · No question asked", "پتا نہیں چل سکا"]);
+    expect(group("Who got to answer").getByRole("radio", { name: "لاگو نہیں · No question asked" })).toBeInTheDocument(); // a 5th card
+    expect(group("Who got to answer").getAllByTestId("level-aside").map((p) => p.textContent)).toEqual(["پتا نہیں چل سکا"]);
   });
 
   it("an older FICO review keeps the paged look: the Digital Coach's level tagged as the assistant's until saved", async () => {

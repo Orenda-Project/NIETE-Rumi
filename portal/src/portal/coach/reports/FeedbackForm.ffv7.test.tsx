@@ -210,7 +210,7 @@ describe("one indicator alone", () => {
     expect(rumi).toHaveAttribute("aria-checked", "true");
     expect(within(rumi).getByText("Digital Coach")).toBeInTheDocument();
     const ev = within(screen.getByTestId("ff-evidence"));
-    expect(ev.getByText("Digital Coach heard")).toBeInTheDocument();
+    expect(within(screen.getByTestId("dc-evidence")).getByText("Digital Coach’s evidence")).toBeInTheDocument(); // bd-o15qnr.39.1
     expect(ev.getByTestId("ff-summary")).toHaveTextContent(BECAUSE);
     const rows = quoteRows();
     expect(rows).toHaveLength(3);
@@ -533,7 +533,7 @@ describe("the principal, Urdu and the rest", () => {
     expect(screen.getByText("3 میں سے 0 دیکھ لیے")).toBeInTheDocument();
     openRow("C1");
     await screen.findByTestId("ff-indicator");
-    expect(screen.getByText((t) => unisolated(t) === "ڈیجیٹل کوچ نے یہ سنا")).toBeInTheDocument();
+    expect(screen.getByText((t) => unisolated(t) === "ڈیجیٹل کوچ کے شواہد")).toBeInTheDocument(); // bd-o15qnr.39.1
     expect(screen.getByRole("button", { name: "شواہد شامل کریں" })).toBeInTheDocument();
     expect(dock().getByRole("button", { name: "متفق، اگلا" })).toBeInTheDocument();
     expect(within(quoteRows()[0]).getByText(`“${Q1}”`)).toHaveAttribute("data-urdu");
