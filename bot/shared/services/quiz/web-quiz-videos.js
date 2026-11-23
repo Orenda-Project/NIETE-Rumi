@@ -270,12 +270,13 @@ async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
     r = data;
   }
   if (!r) fail(404, 'not_found');
+  const topic = await topicFor({ video, vq, vid, lang });
   const { randomCode } = require('./video-quiz-share.service');
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const { data, error } = await supabase.from('quiz_share_codes').insert({
       code: randomCode(), quiz_id: vq.id, video_id: vid,
       teacher_user_id: r.teacher_user_id, teacher_name: r.teacher_name,
-      topic: video.clean_title || vq.topic || null, language: lang,
+      topic, language: lang,
       parent_share_code_id: rootId, invited_by_student_id: null, active: true,
       expires_at: new Date(Date.now() + CODE_DAYS * 86400000).toISOString(),
     }).select('id, code').single();
@@ -343,12 +344,13 @@ async function watchCodeFor({ rootId, vq, video, vid, lang, studentId, fail }) {
   }
   const { data: r } = await supabase.from('quiz_share_codes').select('id, teacher_user_id, teacher_name').eq('id', rootId).maybeSingle();
   if (!r) fail(409, 'no_class');
+  const topic = await topicFor({ video, vq, vid, lang });
   const { randomCode } = require('./video-quiz-share.service');
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const { data, error } = await supabase.from('quiz_share_codes').insert({
       code: randomCode(), quiz_id: vq.id, video_id: vid,
       teacher_user_id: r.teacher_user_id, teacher_name: r.teacher_name,
-      topic: video.clean_title || vq.topic || null, language: lang,
+      topic, language: lang,
       parent_share_code_id: rootId, invited_by_student_id: null, active: true,
       expires_at: new Date(Date.now() + CODE_DAYS * 86400000).toISOString(),
     }).select('id, code').single();
@@ -459,6 +461,20 @@ async function urTitleOf(vid) {
   const of = await require('./web-quiz-bank').urTitles();
   const u = of && of.get(vid);
   return u && u.t ? { title_ur: u.t } : {};
+}
+
+/** An Urdu code's lesson name in Urdu script (urTitleOf), or null; a code in any other language reads nothing. */
+async function urTitleFor(vid, lang) {
+  if (lang !== 'ur') return null;
+  return (await urTitleOf(vid)).title_ur || null;
+}
+
+/**
+ * A new code's topic (the name its report, class picture and page print): an Urdu lesson's Urdu-script name when
+ * urTitleFor has one (web_quiz_videos_ur_titles), else the lesson's title, else its quiz's.
+ */
+async function topicFor({ video, vq, vid, lang }) {
+  return (await urTitleFor(vid, lang)) || video.clean_title || vq.topic || null;
 }
 
 /**
