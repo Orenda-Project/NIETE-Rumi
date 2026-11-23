@@ -15,6 +15,7 @@
  */
 const { returnLineText } = require('./teacher-home.copy');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 
 const SENT = new Set(['sent', 'report_sent']);
 const REMAKE = new Set(['none', 'offered', 'failed']);
@@ -164,25 +165,36 @@ const TITLE_WAIT_MS = 400;
 const TITLE_MAX = 200; // code points; catalog names are far shorter
 
 /**
- * The name of the lesson PLAN a one-lesson page opened for (?lesson=, A74), read by its provider's own get(teacher, ref):
- * for lp_v8 the delivery row behind the key, only when it is this teacher's, sent and makeable, named from the K-5 catalog
- * (the name the home's list and the 15:00 offer print, in the lesson's own language). → the name, or null for anything
- * else: a key no provider parses, another teacher's lesson, no catalog name, a failed read, a read slower than `ms`.
- * Never throws; a failed or slow read is logged and the page opens as today.
+ * The name of the lesson PLAN a one-lesson page opened for (?lesson=, A74), read by its provider's nameOf(teacher, ref) when
+ * it has one, else its get: for lp_v8 the delivery or app open behind the key, only when it is this teacher's (and sent),
+ * named from the K-5 catalog (the name the home's list and the 15:00 offer print, in the lesson's own language). → the name,
+ * or null for anything else: a key no provider parses, another teacher's lesson, no catalog name, a failed read, a read
+ * slower than `ms`. Never throws; a failed or slow read is logged and the page opens as today. Every read is logged with
+ * its time, named or not (`teacher_home.lesson_title`), so the wait is measured where it runs (QF-F5).
  */
 async function lessonTitleOf(uid, key, deps, { ms = TITLE_WAIT_MS } = {}) {
   const parsed = uid && lessonKeyOf(key, deps) ? providersOf(deps).parseLessonKey(key) : null;
-  if (!parsed || typeof parsed.provider.get !== 'function') return null;
+  const p = parsed && parsed.provider;
+  const ask = p && ['nameOf', 'get'].find((f) => typeof p[f] === 'function');
+  if (!ask) return null;
+  const t0 = Date.now();
+  const said = (named, more) => {
+    const reads = ask === 'nameOf' ? p.nameReads || null : null;
+    try { logEvent('teacher_home.lesson_title', { w: 's', ev_v: 1, named, source: p.source || null, reads, ...more }); } catch (_) { /* never decides */ }
+  };
   let timer = null;
   const late = new Promise((r) => { timer = setTimeout(() => r({ late: true }), ms); if (timer.unref) timer.unref(); });
-  const read = Promise.resolve().then(() => parsed.provider.get(uid, parsed.lessonRef)).then((item) => ({ item }), (err) => ({ err }));
+  const read = Promise.resolve().then(() => p[ask](uid, parsed.lessonRef)).then((item) => ({ item }), (err) => ({ err }));
   const got = await Promise.race([read, late]);
   clearTimeout(timer);
   if (got.late || got.err) {
-    logToFile('⚠️ teacher home: the one-lesson page opened without its lesson name', { reason: got.late ? 'slow' : 'read_failed', ms, error: got.err && got.err.message }, 'warn');
+    const reason = got.late ? 'slow' : 'read_failed';
+    logToFile('⚠️ teacher home: the one-lesson page opened without its lesson name', { reason, ms, error: got.err && got.err.message }, 'warn');
+    said(false, { reason, ms: got.late ? ms : Date.now() - t0 });
     return null;
   }
   const name = got.item && typeof got.item.topic === 'string' ? got.item.topic.trim() : '';
+  said(!!name, { ms: Date.now() - t0, ...(name ? {} : { reason: 'unnamed' }) });
   return name ? [...name].slice(0, TITLE_MAX).join('') : null;
 }
 
