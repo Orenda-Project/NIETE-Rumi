@@ -1,2 +1,3 @@
 {"ts":"2026-11-23T18:48:51Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching,observe spec_sync=true","sha":"2844b2c930a1","branch":"bd-s192t.12-58615","user":""}
 {"ts":"2026-11-23T18:48:54Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching,observe owe their Gherkin","sha":"2844b2c930a1","branch":"bd-s192t.12-58615","user":""}
+{"ts":"2026-11-23T18:48:56Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-s192t.12-58615: coaching spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"2844b2c930a1","branch":"bd-s192t.12-58615","user":""}
