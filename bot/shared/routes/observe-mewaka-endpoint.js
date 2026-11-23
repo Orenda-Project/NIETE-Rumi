@@ -144,6 +144,11 @@ async function tellCoachRefused(userId, sessionId, message) {
  *
  * Total by construction: any failure returns undefined, and the line is then simply
  * skipped rather than served in the wrong language or as "undefined".
+ *
+ * A FICO17 v6 visit does not come here: its request has already read the coach's language
+ * for the v6 screens, so Section B gets it too, and each move's mandatory / optional mark
+ * (bd-r2uzg1.21.1) is in her language. On an older visit the mark is English unless this
+ * read happens.
  */
 async function coachLanguageIfNeeded(session) {
   const mods = ((session || {}).analysis_data || {}).lp_fidelity
@@ -274,7 +279,9 @@ async function handleObserveMewakaRequest(decrypted) {
         const edits = await answers(extra);
         const d = ObserveV6.screenData(session.analysis_data, scr, { lang: await coachLang(), ...extra, edits });
         if (d) return { screen: scr, data: d };
-        const data = fill(scr, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(scr, session), await coachLanguageIfNeeded(session)));
+        // bd-r2uzg1.21.1: Section B's per-move mark (mandatory / optional) is in the coach's language, which this
+        // request has already read for the line above (coachLang is memoised), so it costs no further read.
+        const data = fill(scr, ObserveDraft.buildScreenPrefill(session.analysis_data, domainKeyForScreen(scr, session), await coachLang()));
         return { screen: scr, data: ObserveV6.withSectionBAnswers(data, edits) };
       }
       return {
