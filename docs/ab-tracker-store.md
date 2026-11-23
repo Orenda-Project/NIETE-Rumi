@@ -27,6 +27,10 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   (`bba06868-b76a-4ff5-8d96-b41fd522b427`), service `ab-tracker-cron`, built from this repo with config
   `railway.ab-tracker-cron.json`. Railway starts `bot/scripts/ab-tracker-cron.js` every 15 minutes (`*/15 * * * *`);
   each start runs one tick, closes Redis and exits. Exit 1 (run shows red) on refused, partial, error, or no Redis.
+- **Build (bd-3kshar.6.5.3):** the config installs `bot/` (`npm ci --prefix bot --omit=dev`); the root install has no
+  `pino`, so the first deploys died on MODULE_NOT_FOUND. Node 22 is the service variable `RAILPACK_NODE_VERSION=22`
+  (Supabase realtime needs native WebSocket; Node 18 threw) and the variable `RAILWAY_CONFIG_FILE` names this config;
+  neither can live in the config file, so a recreated service needs both set again.
 - **Cadence (operator, 23 Nov 2026):** a refresh every 15 minutes in school hours, every 2 hours outside them
   (`ab-tracker-cadence.js`). School hours are the quiz scheduler's rule: Mon–Sat 08:00–16:00 Pakistan time, Friday
   until 12:00, Sunday off. A slot is `YYYY-MM-DDTHH:MM` (Pakistan), floored to 15 minutes or to the even hour; the
@@ -34,9 +38,11 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   read, no database read). Load: this is far more replica reads than the one nightly run `TEAM/load_budget.md`
   measured, including in school hours; the budget should be re-measured on the first school day it runs.
 - **Env the service needs:** `NIETE_SUPABASE_REPLICA_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`
-  (the bot's Redis, so the slot marker is shared). Its Railway environment is `production`, so the replica rule holds.
-- The older hourly tick on the bot's worker (`bot/workers/ab-tracker-schedule.js`) is retired when the cron goes live;
-  until then the shared Redis slot marker keeps the two from running the same slot twice.
+  (the project's own Redis: NIETE prod Redis is internal-only, so the slot marker is NOT shared with the bot). Its
+  Railway environment is `production`, so the replica rule holds.
+- The older hourly tick on the bot's worker (`bot/workers/ab-tracker-schedule.js`) is retired when the cron goes live
+  (bd-3kshar.6.5.1). Until then both can run a slot; the writes are upserts, so a second run repeats work but does not
+  double rows.
 
 - **Switch:** `app_settings` `ab_tracker_rollup_enabled` = `true` (or a well-formed `{"at":"HH:MM"}`, the older value,
   still read as on; its time is no longer used). No row, a malformed value or a failed read = off. Read on the replica.

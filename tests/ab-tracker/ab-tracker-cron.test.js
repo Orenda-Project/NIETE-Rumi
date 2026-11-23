@@ -89,4 +89,12 @@ describe('railway.ab-tracker-cron.json (config as code for the cron service)', (
   it('never restarts: a cron run that ends is done until the next night', () => {
     expect(cfg.deploy.restartPolicyType).toBe('NEVER');
   });
+
+  // 23 Nov 2026: the root install has no pino, so the first runs died on MODULE_NOT_FOUND until this was set by hand
+  // in the dashboard (bd-3kshar.6.5.3). Kept here so a reset service still installs the bot's own dependencies.
+  it('installs the bot package, where the entry point and its dependencies (pino) live', () => {
+    expect(cfg.build.buildCommand).toBe('npm ci --prefix bot --omit=dev');
+    const botPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'bot/package.json'), 'utf8'));
+    expect(botPkg.dependencies.pino).toBeDefined();
+  });
 });
