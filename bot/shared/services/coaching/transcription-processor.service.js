@@ -190,7 +190,9 @@ class TranscriptionProcessorService {
         // cost of a throw here would be a lost session.
         let handled = false;
         try {
-          const { updateIfNotTerminal } = require('./session-terminal');
+          // bd-c5reix: her own portal recording is followed in the app — nothing about it goes to WhatsApp.
+          const quiet = require('./portal-coaching.service').isPortalTeacherSession(session);
+          const dcDeps = TranscriptionProcessorService.dcDuplicateDeps(session, from);
 
           const duplicate = await findRecentDuplicateSession(supabase, {
             userId: session.user_id,
@@ -200,26 +202,18 @@ class TranscriptionProcessorService {
 
           if (duplicate) {
             handled = await resolveDuplicateSubmission(
-              // bd-c5reix: her own portal recording is followed in the app — nothing about it goes to WhatsApp.
               {
-                coachingSessionId, from, userId: session.user_id, audioHash, duplicate,
-                quiet: require('./portal-coaching.service').isPortalTeacherSession(session),
+                coachingSessionId, from, userId: session.user_id, audioHash, duplicate, quiet,
               },
-              {
-                updateIfNotTerminal,
-                sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
-                // bd-5tgzv — the stored report is a PNG on this deployment, so the
-                // resend needs the image sender too; without it the branch would
-                // hit `undefined` at runtime.
-                sendImageFromUrl: (to, url, caption) =>
-                  WhatsAppService.sendImageFromUrl(to, url, caption),
-                sendDocumentFromUrl: (to, url, filename) =>
-                  WhatsAppService.sendDocumentFromUrl(to, url, filename),
-                getMessage: getCoachingMessage,
-                getLanguage: (uid) => getUserLanguage(uid),
-                log: logToFile,
-                warn: logWarn,
-              },
+              dcDeps,
+            );
+          } else {
+            // bd-r2uzg1.18.15 — an EARLIER copy of the same bytes still in flight (at the photo / lesson-plan step,
+            // analysing, waiting for her reflection; recent, not failed): this copy is closed as its duplicate and she
+            // is told once that the earlier one is being checked. Before the upload and the transcription.
+            handled = await require('./audio-hash-cache').yieldToEarlierCopy(
+              { id: coachingSessionId, user_id: session.user_id, created_at: session.created_at },
+              { ...dcDeps, audioHash, quiet },
             );
           }
         } catch (dedupeErr) {
@@ -250,26 +244,9 @@ class TranscriptionProcessorService {
             excludeSessionId: coachingSessionId,
           });
           if (prior) {
-            const { updateIfNotTerminal } = require('./session-terminal');
-            const { observeStrings } = require('../observe/observe-strings');
             refused = await refuseDuplicateObservation(
               { coachingSessionId, from, observerUserId: session.observer_user_id, audioHash, prior },
-              {
-                updateIfNotTerminal,
-                sendMessage: TranscriptionProcessorService.coachNotice(
-                  session, (to, body) => WhatsAppService.sendMessage(to, body)),
-                getLanguage: (uid) => getUserLanguage(uid),
-                getStrings: observeStrings,
-                log: logToFile,
-                // /observe2: the refused recording had already joined the visit's form; give it back
-                // so the right recording can attach, and tell the coach it is still waiting.
-                afterApplied: async (lang) => {
-                  const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
-                  const out = await releaseRefusedRecording(coachingSessionId);
-                  if (!out.released) return null;
-                  return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
-                },
-              },
+              TranscriptionProcessorService.observeRefusalDeps(session, coachingSessionId),
             );
           }
         } catch (dedupeErr) {
@@ -694,8 +671,11 @@ class TranscriptionProcessorService {
     // /observe2: a recording linked to a field form goes to its own moments step. The coach took
     // the photos and answered the lesson-plan question in the form, and the classic FICO draft is
     // not what /observe2 sends, so the gates and the analysis below are skipped for it.
+    // Queue #184: a FICO 6-12 visit for the Digital Coach is not an /observe2 visit, though its form row is in the same
+    // store (observe2's moments step would claim it as 'obs612' and nothing would queue the analysis; staging walk,
+    // 19 Nov). It goes on to the portal step / the gates / the analysis below, as a v6 visit does.
     const observe2 = deps.observe2 || require('../observe/observe2/moments');
-    const o2 = await observe2.runForSession(coachingSessionId, from);
+    const o2 = o612 && o612.dc ? null : await observe2.runForSession(coachingSessionId, from);
     if (o2 && o2.handled) {
       logToFile('✅ Transcription complete (observe2 path — moments step ran)', { coachingSessionId, action: o2.action });
       return { action: 'observe2', result: o2 };
@@ -761,6 +741,59 @@ class TranscriptionProcessorService {
     const { isPortalSession } = require('./portal-coaching.service');
     if (isPortalSession(session)) return async () => true;
     return send;
+  }
+
+  /**
+   * What audio-hash-cache needs to handle a teacher's (DC) recording of bytes she sent before: reuse a completed copy's
+   * report (bd-7beiz), or close this copy behind one still in flight (bd-r2uzg1.18.15). One wiring for both places the
+   * check runs: here, right after the audio is hashed, and in analysis-processor just before the analysis starts
+   * (audio-hash-cache.refuseIfAlreadyAnalysed). `quiet` (her page recording: nothing to WhatsApp) is set by the caller.
+   * @param {object} session the coaching_sessions row
+   * @param {string} from her number
+   */
+  static dcDuplicateDeps(session, from) {
+    const Cache = () => require('./audio-hash-cache');
+    return {
+      from,
+      findDone: (opts) => Cache().findRecentDuplicateSession(supabase, opts),
+      findInFlight: (opts) => Cache().findInFlightCopies(supabase, opts),
+      updateIfNotTerminal: require('./session-terminal').updateIfNotTerminal,
+      sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),
+      // bd-5tgzv — the stored report is a PNG on this deployment, so the
+      // resend needs the image sender too; without it the branch would
+      // hit `undefined` at runtime.
+      sendImageFromUrl: (to, url, caption) => WhatsAppService.sendImageFromUrl(to, url, caption),
+      sendDocumentFromUrl: (to, url, filename) => WhatsAppService.sendDocumentFromUrl(to, url, filename),
+      getMessage: getCoachingMessage,
+      getLanguage: (uid) => getUserLanguage(uid),
+      log: logToFile,
+      warn: logWarn,
+    };
+  }
+
+  /**
+   * What audio-hash-cache.refuseDuplicateObservation needs to close a coach's repeated recording and tell her.
+   * One wiring for both places the check runs: here, right after the audio is hashed (bd-erpvf), and in
+   * analysis-processor just before the analysis starts (bd-r2uzg1.18.9).
+   * @param {object} session the coaching_sessions row
+   * @param {string} coachingSessionId
+   */
+  static observeRefusalDeps(session, coachingSessionId) {
+    return {
+      updateIfNotTerminal: require('./session-terminal').updateIfNotTerminal,
+      sendMessage: TranscriptionProcessorService.coachNotice(session, (to, body) => WhatsAppService.sendMessage(to, body)),
+      getLanguage: (uid) => getUserLanguage(uid),
+      getStrings: require('../observe/observe-strings').observeStrings,
+      log: logToFile,
+      // /observe2: the refused recording had already joined the visit's form; give it back
+      // so the right recording can attach, and tell the coach it is still waiting.
+      afterApplied: async (lang) => {
+        const { releaseRefusedRecording } = require('../observe/observe2/capture-link');
+        const out = await releaseRefusedRecording(coachingSessionId);
+        if (!out.released) return null;
+        return require('../observe/observe2/strings').observe2Strings(lang).duplicate_form_waiting;
+      },
+    };
   }
 
   /**

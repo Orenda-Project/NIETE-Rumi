@@ -1773,6 +1773,36 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
   } catch (error) {
     logToFile('Error scheduling the quiz retest sweep (non-fatal)', { error: error && error.message }, 'error');
   }
+  try {
+    // The class evening round (16:00-19:59 PKT school days); a no-op until app_settings web_quiz_evening_round is on.
+    require('./evening-round-schedule').scheduleEveningRound({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the evening round writer (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
+    // The twice-a-day teacher activity count (Home numbers, My journey, team view); a no-op until teacher_activity_slots.
+    require('./teacher-activity-schedule').scheduleTeacherActivity({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the teacher activity job (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
+    // The A/B tracker's nightly rollup into its own ab_ tables; a no-op until ab_tracker_rollup_enabled is set.
+    require('./ab-tracker-schedule').scheduleAbTracker({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the A/B tracker rollup (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
+    // The daily web quiz voice alarm (share of sittings that lost a clip) on the ops stream; a no-op until its env is set.
+    require('./web-quiz-voice-watch-schedule').scheduleWebQuizVoiceWatch({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the web quiz voice alarm (non-fatal)', { error: error && error.message }, 'error');
+  }
+  try {
+    // The nightly answer-key review flag into quiz_item_reviews; a no-op until app_settings quiz_key_review_job is set.
+    require('./quiz-key-review-schedule').scheduleQuizKeyReview({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
+  } catch (error) {
+    logToFile('Error scheduling the answer-key review flag (non-fatal)', { error: error && error.message }, 'error');
+  }
 }
 
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {

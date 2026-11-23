@@ -96,9 +96,10 @@ function brokenBlob(quality) {
  * Runs the v6 prompt through the production DC call (same model and settings as V3), validates, adds up. The gate
  * runs first (quality may be passed in when the caller already has it).
  */
-async function scoreV6(transcript, metadata, quality = assessQuality(transcript, metadata)) {
+async function scoreV6(transcript, metadata, quality = assessQuality(transcript, metadata), framework = null) {
   const GPT5MiniService = require('../../../gpt5-mini.service');
-  const fw = require('../fico17-v6-framework');
+  // Queue #184: the starred variant when the teacher's fico_v6_starred is on (start() decides), else today's.
+  const fw = framework || require('../fico17-v6-framework');
   const meta = shadowMetadata(metadata);
   const transcript_quality = storedQuality(quality);
   if (quality.status === 'broken') {
@@ -130,8 +131,9 @@ async function scoreV6(transcript, metadata, quality = assessQuality(transcript,
   return {
     status: 'ok',
     ...stampNow(),
+    ...(fw.starredMode ? { prompt_version: fw.promptVersion, starred: scored.starred } : {}),
     levels: scored.levels,
-    combined_evidence: scored.combined_evidence,
+    ...(scored.combined_evidence ? { combined_evidence: scored.combined_evidence } : {}),
     transcript_quality,
     scores: { ...scored.scores, overall_max_possible: fw.maxMarks },
     dropped_evidence: check.dropped,
@@ -169,7 +171,15 @@ function start({ session, metadata, frameworkKey, transcript }) {
     }
     try {
       state.quality = assessQuality(transcript, metadata);
-      return { ...(await scoreV6(transcript, metadata, state.quality)), mode };
+      let framework = null;
+      try {
+        const sw = require('../../fico-rubric-switch');
+        if (session && session.user_id && typeof sw.v6Starred === 'function'
+          && (await sw.v6Starred({ userId: session.user_id, region: (session.users && session.users.region) || undefined }))) {
+          framework = require('../fico17-v6-framework').starredVariant();
+        }
+      } catch (_) { framework = null; }
+      return { ...(await scoreV6(transcript, metadata, state.quality, framework)), mode };
     } catch (err) {
       logToFile('[fico17-v6 shadow] failed — V3 unaffected', { coachingSessionId: session && session.id, error: err.message }, 'error');
       return { status: 'failed', ...stampNow(), ...knownOf(state), error: String(err.message || err).slice(0, 300) };
@@ -215,6 +225,12 @@ function teacherFacing(blob, v3Analysis, transcript) {
   const fw = require('../fico17-v6-framework');
   const base = {};
   for (const k of LESSON_FACTS) if (v3Analysis && v3Analysis[k] !== undefined) base[k] = v3Analysis[k];
+  // Queue #184: a blob scored in starred mode keeps nothing for the six; re-adding it up must not count D2 again.
+  if (Array.isArray(blob.starred) && blob.starred.length) {
+    const copyS = JSON.parse(JSON.stringify({ levels: blob.levels }));
+    const s = fw.starredVariant().computeScores({ ...base, ...copyS }, false);
+    return { ...s, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
+  }
   const copy = JSON.parse(JSON.stringify({ levels: blob.levels, combined_evidence: blob.combined_evidence || {} }));
   const a = fw.computeScores({ ...base, ...copy }, false, transcript);
   return { ...a, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
@@ -240,7 +256,10 @@ async function storeLate(task, stored, sessionId, opts = {}) {
   if (!blob) return { started: true, ok: false, why: 'no result' };
   const LateWrite = require('./late-write');
   const key = Object.keys(patch(blob))[0];
-  const res = await LateWrite.patchSession(sessionId, LateWrite.dcFico17V6(key, stored, { ...blob, late: true }), { ...opts, label: 'DC v6 after the grace' });
+  // The on-time read goes through the analysis write's Urdu-script guard; the late one is written here.
+  const { urduScriptOnly } = require('../../urdu-script-only');
+  const late = urduScriptOnly({ ...blob, late: true }, 'fico17_v6_late', { coachingSessionId: sessionId });
+  const res = await LateWrite.patchSession(sessionId, LateWrite.dcFico17V6(key, stored, late), { ...opts, label: 'DC v6 after the grace' });
   logToFile('[fico17-v6 shadow] the read that timed out has landed', { coachingSessionId: sessionId, status: blob.status, key, ...res }, res.ok ? 'info' : 'warn');
   return { started: true, ...res };
 }

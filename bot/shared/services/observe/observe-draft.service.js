@@ -237,6 +237,15 @@ function rescoreFidelityFromEdits(lp, edits) {
   // prescribed move (move_id/text/phase/bucket/selection) AND the verdict
   // fields — so the edited rows feed back in as moves and verdicts alike.
   const rescored = scoreFidelity(rows, rows);
+  // bd-r2uzg1.18.2 (ICT sheet HITL 191): the grader's moderators ride through the coach's edit. The scorer
+  // returns `moderators: null` when none is passed in (since 3dfb573fc, 15 Sep), and spreading that over `lp`
+  // wiped the grader's `note`, so any edit, even an evidence-only one, turned a lesson_mismatch report into an
+  // unflagged one for every reader (Section B row, narrative, voice note, subject resolution). The block is
+  // not passed INTO the scorer on purpose: its truncation check is the grader contradicting its own verdicts,
+  // and these verdicts are now the coach's, so that finding stays false after an edit, as before.
+  if (lp.moderators) {
+    rescored.moderators = { ...lp.moderators, truncation_inconsistent: rescored.truncation_inconsistent };
+  }
   out.lp = { ...lp, ...rescored, observer_edited: true };
   return out;
 }
@@ -419,6 +428,13 @@ async function onAnalysisReady(sessionId, from) {
     return;
   }
 
+  // Queue #184: a FICO 6-12 visit for the Digital Coach is reviewed on its own FICO 6-12 form, pre-filled from this
+  // analysis (obs612/fico-s-dc.js), never on the v3/v6 review Flow.
+  if (require('./obs612/fico-s-dc').isDcVisit(session)) {
+    await require('./obs612/fico-s-dc').onAnalysisReady(session, { from });
+    return;
+  }
+
   const update = { status: 'awaiting_observer_review', debrief_status: session.debrief_status || 'pending' };
   if (!session.autofill_analysis_data) {
     update.autofill_analysis_data = session.analysis_data; // freeze v1 exactly once
@@ -439,6 +455,11 @@ async function onAnalysisReady(sessionId, from) {
     logToFile('🚫 observe: observation went terminal while the analysis ran — not re-armed', { sessionId });
     return;
   }
+
+  // bd-ra8xu.60: a v6 visit whose coach typed Observation Notes: the informed DC scoring (notes + transcript), stored
+  // under analysis_data.dc_informed only. The review below is pre-filled from the blind analysis frozen above, as
+  // before. Not awaited (the form must not wait for it); it checks notes, the switch and the blind analysis itself.
+  if (require('./observe-fico17-v6').visitFramework(session)) require('./observation-notes').runInformedSoon(sessionId);
 
   // bd-5rz1v.6: an observation started in the PORTAL is reviewed there (operator:
   // "the flow should be complete from the portal"). The draft is stored above
@@ -618,6 +639,9 @@ async function applyObserverEdits(sessionId, edits) {
     .select('analysis_data').eq('id', sessionId).single();
   const freshDebrief = freshRow && freshRow.analysis_data && freshRow.analysis_data.observer_debrief;
   if (freshDebrief) v2.observer_debrief = freshDebrief;
+  // bd-ra8xu.60: Observation Notes, the review-opened stamp and the informed scoring are written beside the form
+  // (observation-notes.js); a note saved while the form was open must not be lost to this whole-blob write.
+  Object.assign(v2, require('./observation-notes').carry(freshRow && freshRow.analysis_data));
 
   const patch = { analysis_data: v2, status: 'observer_review_complete' };
 

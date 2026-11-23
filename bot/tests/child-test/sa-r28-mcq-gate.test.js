@@ -284,6 +284,17 @@ describe('sa_r28_mcq OFF: nothing changes', () => {
     const got = await score.__internals.passagesOf(SID, db);
     expect([...got.entries()]).toEqual([['ur.story_w3', { stopped: false, pending: true, attempted: null }]]);
   });
+  test('OFF: no tapped row ever carries the comprehension stop (marked from the phone at sync, never parked for the floor)', async () => {
+    const results = [mcqResult(6), mcqResult(0), mcqResult(2, { asked: QS.slice(0, 3), unavailable: 3, unrated: true })];
+    for (const res of results) {
+      memDb.rows.length = 0;
+      await store.putResults(SID, [res], 'ur', { mcq: false });
+      const r = memDb.rows.find((x) => x.block === 'ur.story_mcq_w3');
+      expect(r).toMatchObject({ response_mode: 'tap', ai_status: 'scored' });
+      expect(r.ai_reason).not.toBe('final:sa_score_later');
+      expect((r.ai_marks && r.ai_marks.detail && r.ai_marks.detail.stop_detail) || null).not.toBe('comprehension');
+    }
+  });
   test('the switch module: a test\'s mcq wins; only JSON true is on', async () => {
     expect(mcqSwitch.KEY).toBe('sa_r28_mcq');
     expect(await mcqSwitch.enabled({ mcq: true })).toBe(true);

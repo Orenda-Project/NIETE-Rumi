@@ -5,6 +5,8 @@ import type { CoachReport } from "../types";
 import { obs612Line } from "../../lib/obs612";
 import { REPORTS, type ReportsCopy } from "./copy";
 import { pkTime, stepIndex, type DayGroup } from "./data";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { STATUS_STEPS, StatusLine } from "../flow/StatusLine";
 
 /**
  * bd-4404s7.5 — the Reports lists, on the kit's coach rows (HistoryRow lead="person": the round 48px avatar, the
@@ -44,6 +46,12 @@ export function reportGroups(
 export function ReportSegments({ step }: { step: string }) {
   const C = useCopy(REPORTS);
   const current = Math.min(stepIndex(step) + 1, C.segments.length);
+  // bd-o15qnr.28 (v7, the v6/v7 switch): the status line, option A, on every list card too (#188's LOCK round).
+  const v7 = useFlowV6() === true;
+  if (v7) {
+    const at = step === "sent" ? STATUS_STEPS : Math.max(0, stepIndex(step));
+    return <div className="px-3.5 pb-3 pt-1" data-testid="report-segments"><StatusLine at={at} /></div>;
+  }
   return (
     <div className="px-2.5 pb-3 pt-1" data-testid="report-segments">
       <StepBar total={C.segments.length} current={current} labels={C.segments} />

@@ -1,7 +1,7 @@
 [
   {
     "file": "bot/shared/services/bandit.service.js",
-    "reason": "Thompson-sampling multi-armed bandit. Documented in .claude/skills/ab-testing as an opt-in customization pattern; no live caller in OSS. A cloner enabling A/B testing wires it themselves."
+    "reason": "Thompson-sampling multi-armed bandit. Documented in .claude/skills/ab-bandit as an opt-in customization pattern; no live caller in OSS. A cloner enabling A/B testing wires it themselves."
   },
   {
     "file": "bot/shared/config/system-messages.js",

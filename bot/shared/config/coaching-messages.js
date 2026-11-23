@@ -103,6 +103,13 @@ const COACHING_MESSAGES = {
     ...en("This observation's review has already been submitted, so I can't change its lesson plan."),
     ur: 'اس مشاہدے کا جائزہ پہلے ہی جمع ہو چکا ہے، اس لیے اب اس کا سبق کا منصوبہ تبدیل نہیں کیا جا سکتا۔',
   },
+  // Lesson-plan branch: the pick was confirmed but the database could not link it, even after retries
+  // (bd-r2uzg1.18.6). The step stops instead of going on without the plan; the "Yes" button is still in the
+  // chat, so the ask is to tap it again. «ہاں» is the Urdu button title (lessonPlan_confirm_yes).
+  lessonPlan_link_failed: {
+    ...en("Sorry, I couldn't attach that lesson plan just now. Please wait a minute, then tap *Yes* again."),
+    ur: 'معذرت، یہ سبق کا منصوبہ ابھی منسلک نہیں ہو سکا۔ ایک منٹ بعد دوبارہ *ہاں* دبائیں۔',
+  },
   // Lesson-plan branch: document received, queued for processing
   lessonPlan_received: {
     ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
@@ -320,6 +327,14 @@ const COACHING_MESSAGES = {
   duplicateRecording: {
     ...en("📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.\n\nSend a *new* recording whenever you'd like fresh feedback."),
     ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔\n\nجب بھی نئی رائے چاہیے ہو، *نئی* ریکارڈنگ بھیج دیجیے۔',
+  },
+
+  // bd-r2uzg1.18.15 — the same recording sent again while the first copy is still being checked
+  // (audio-hash-cache.closeInFlightDuplicate): this copy is closed, the first one's report is on its way.
+  // Body message, no field cap. Urdu is impersonal («موصول ہو چکی ہے», «جانچ جاری ہے»): no gender for her or the bot. Machine-drafted, for review.
+  duplicateRecordingInFlight: {
+    ...en('📋 You sent me this recording a little earlier and it is already being checked. Its report will come here soon, no need to send it again.'),
+    ur: '📋 یہ ریکارڈنگ کچھ دیر پہلے بھی موصول ہو چکی ہے اور اس کی جانچ جاری ہے۔ اس کی رپورٹ جلد یہیں آ جائے گی، دوبارہ بھیجنے کی ضرورت نہیں۔',
   },
 
   // ── The classroom-audio confirmation ──────────────────────────────────────

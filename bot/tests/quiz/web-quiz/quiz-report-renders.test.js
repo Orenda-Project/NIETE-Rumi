@@ -12,12 +12,17 @@ const renders = require('./quiz-report-renders.golden');
 const page = require('../../../shared/templates/teacher-report.page');
 
 const FILE = path.join(__dirname, '__golden__', 'quiz-report-renders.json');
-const hashes = (out) => out.split('\n=====\n').map((r) => crypto.createHash('sha256').update(r).digest('hex'));
+// Each sha256 is kept as eight 8-character groups split by spaces. Raw hex can hold a phone-shaped digit run by
+// chance (the public-repo fixture rule, tests/setup/phone-shaped-fixtures, needs 11 digits in a row); a group never can.
+const GROUPED = /^[0-9a-f]{8}( [0-9a-f]{8}){7}$/;
+const sha = (r) => crypto.createHash('sha256').update(r).digest('hex').match(/.{8}/g).join(' ');
+const hashes = (out) => out.split('\n=====\n').map(sha);
 
 test('every quiz report render matches the golden, byte for byte', () => {
   const got = hashes(renders(page));
   if (process.env.GOLDEN_WRITE === '1') fs.writeFileSync(FILE, `${JSON.stringify(got, null, 1)}\n`);
   const want = JSON.parse(fs.readFileSync(FILE, 'utf8'));
   expect(got.length).toBeGreaterThan(70);
+  expect(want.every((h) => GROUPED.test(h))).toBe(true);
   expect(got).toEqual(want);
 });

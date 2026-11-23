@@ -42,7 +42,8 @@ function bootWorker(kept, net) {
     open: () => Promise.resolve({ put: (u, r) => { store.set(abs(u), r.body); return Promise.resolve(); } }),
   };
   const fetch = (u) => { fetched.push(abs(u)); return Promise.resolve().then(() => net(abs(u))); };
-  vm.runInNewContext(SRC, { self, caches, URL, Promise, fetch, setTimeout: (fn) => setTimeout(fn, 0), console });
+  // the retry pause runs at once; the worker's 20 s stall limit stays a real (cleared) timer
+  vm.runInNewContext(SRC, { self, caches, URL, Promise, fetch, setTimeout: (fn, ms) => setTimeout(fn, ms >= 10000 ? ms : 0), clearTimeout, setInterval, clearInterval, console });
   function send(msg) {
     return new Promise((ok) => {
       let wait;

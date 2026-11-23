@@ -1,7 +1,7 @@
 # flows — Checked-in WhatsApp Flow JSON for every Flow the bot publishes, plus rollbacks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=docs/flows kg=89183c47c801 gen=e275632c2217 overflow=43 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=docs/flows kg=d4791131ed9a gen=d8d766fc3e1e overflow=45 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `registration-flow-v5.1.json` — current registration Flow
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `child-test-review.json` | Flow JSON v7.3: single REVIEW screen for the coach to check a child's test result |
 | `quiz-multi-select-flow.json` | Static Flow JSON v6.3: select-all-that-apply answer screen for transcript-quiz questions |
 | `pakistan-lp-flow.v*.json` | 3 versions — v3 imported; v3: Flow JSON v7.0: Pakistan lesson-plan picker with chapter and lesson paging and language choice |
-| … | 26 more → `CLAUDE.index.md` |
+| … | 28 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/lp-v8/flow-response-telemetry.test.js` (pakistan-lp-flow-v3.json)
 - `bot/tests/observe/bd-88krt-school-admin.test.js` (observe-visit-v2.json)
-- … 25 more → `CLAUDE.index.md`
+- … 28 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `registration`?

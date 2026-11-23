@@ -20,6 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `exam-checker-confirm-students-flow.json` | Flow JSON v6.2: Exam Checker screen to confirm detected students before grading |
 | `homework-request-flow.json` | Flow JSON v6.3: Homework request, pick grade and subject then multi-select chapters |
 | `observe-visit-v2.json` | Flow JSON v7.0, 32 screens: coach /observe visit (menu, debriefs, work form, schedule, school and teacher pick) |
+| `observe2-evidence-check-v6.json` | (unmapped) |
 | `observe2-evidence-check.json` | Flow JSON v7.3: observation evidence check (heard ask/wrong/work/explain, fidelity, added, priority) |
 | `observe2-field-form.json` | Flow JSON v7.3: observation field form parts one and two, lesson-plan evidence and photo capture screens |
 | `pakistan-lp-flow-v1.json` | Historical Flow JSON v6.3: first Pakistan lesson-plan picker (spec, grade, subject, topic) |
@@ -31,6 +32,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `registration-flow-v3.json` | Superseded Flow JSON v6.3: registration (personal, region, professional, organisation details) |
 | `registration-flow-v5.1.json` | Flow JSON v7.0: NIETE registration v5.1 (bd-x7aprz.9, 2026-10-19), same screens as v5 with copy changes |
 | `registration-flow-v5.json` | Flow JSON v7.0: NIETE registration v5 (bd-x7aprz.2): personal, role and school, school pick, teaching, success |
+| `registration-flow-v6.json` | (unmapped) |
 | `remark-flow.json` | Flow JSON v7.0: /remark rubric for a coach (pick teacher, rubric, summary, success) |
 | `roster-flow-v1.json` | Flow JSON v7.0, 14 screens: /roster for coaches and principals to view and edit a school's roster and class teachers |
 | `settings-flow.json` | Flow JSON v6.3: user settings endpoint Flow (settings main, success) |
@@ -47,12 +49,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Tests (all, generated)
-- `assessment-gen-flow.json` ← `tests/assessment/assessment-answer-key-always.test.js`
+- `assessment-gen-flow.json` ← `tests/assessment/assessment-answer-key-always.test.js` · `tests/assessment/save-paper-threading.test.js`
 - `attendance-marking-flow.json` ← `tests/attendance/absent-then-leave.test.js` · `tests/attendance/empty-roster-dead-end.test.js` · `tests/attendance/empty-roster-renders.test.js` · `tests/attendance/flow-preamble.test.js` · `tests/attendance/principal-teachers-only.test.js` · `tests/attendance/student-flow-four-asks.test.js`
 - `attendance-setup-flow.json` ← `tests/attendance/class-setup-endpoint.test.js`
 - `child-test-review.json` ← `tests/child-test/L39/review-v3-flow-contract.test.js`
 - `class-manager-flow.json` ← `tests/classes/class-manager-endpoint.test.js` · `tests/classes/one-edit-screen.test.js` · `tests/classes/roster-add-failure-named.test.js` · `tests/classes/roster-empty-class.test.js`
-- `observe-visit-v2.json` ← `bot/tests/observe/bd-88krt-school-admin.test.js` · `bot/tests/observe/bd-88krt-visit-actions.test.js` · `bot/tests/observe/bd-gndeg-remove-search.test.js` · `bot/tests/observe/bd-jrxo3-no-bare-capture.test.js` · `bot/tests/observe/bd-qy7dm-remove-school.test.js` · `bot/tests/observe/bd-rkofm-lang-toggle-dedup.test.js` (+3: `python3 kg/kg.py who-reads docs/flows/observe-visit-v2.json`)
+- `observe-visit-v2.json` ← `bot/tests/observe/bd-88krt-school-admin.test.js` · `bot/tests/observe/bd-88krt-visit-actions.test.js` · `bot/tests/observe/bd-97daxo.30-gb-saturday.test.js` · `bot/tests/observe/bd-gndeg-remove-search.test.js` · `bot/tests/observe/bd-jrxo3-no-bare-capture.test.js` · `bot/tests/observe/bd-qy7dm-remove-school.test.js` (+5: `python3 kg/kg.py who-reads docs/flows/observe-visit-v2.json`)
 - `pakistan-lp-flow-v3.json` ← `bot/tests/lp-v8/flow-response-telemetry.test.js`
 - `quiz-multi-select-flow.json` ← `tests/quiz/transcript-quiz-multi.test.js`
 - `roster-flow-v1.json` ← `tests/roster/roster-shift-endpoint.test.js`

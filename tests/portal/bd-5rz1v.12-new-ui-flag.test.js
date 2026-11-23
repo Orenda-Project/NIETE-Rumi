@@ -178,14 +178,27 @@ describe('GET /config — features.newUi', () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
-      'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm', 'helpVideos', 'loginIntlNumbers',
+      // bd-o15qnr.26 — the coach visit flow v2, a real false unless portal_coach_flow_v2 (with v2 and the full app) names her.
+      'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm', 'helpVideos', 'loginIntlNumbers',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
-      'lpMakeOwn', 'lpOwnReviewer', 'lpOwnShelf',
+      // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
+      'lpFeedbackBar', 'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',
+      // bd-snkn32.59 (queue #165) — A whole unit: real false unless portal_lp_own_unit names her (with Make my own on).
+      'lpOwnUnit',
+      // The plan screen's slim layout, a real false unless portal_lp_viewer_slim (and the teacher app) name her.
+      'lpViewerSlim',
+      // Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off.
+      'lpWhatsappSend',
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',
       // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
-      'principalApp', 'roleSwitch', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherV2',
+      'principalApp',
+      // bd-o15qnr.27 (v6) — the flow switch for a principal on the principal app, a real false unless both name her.
+      'principalFlowV2',
+      'roleSwitch', 'schoolCard', 'selfObservation',
+      // The activity Home and My journey: real false unless portal_teacher_home_activity / portal_teacher_journey name her.
+      'teacherHomeActivity', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherJourney', 'teacherV2',
     ]);
   });
 });

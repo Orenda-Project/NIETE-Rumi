@@ -12,11 +12,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `_fln-http-get.js` | Test helper: fetch-shaped GET over plain http with Connection: close so FLN route suites leave no open sockets |
 | `account-school-name.test.js` | Pins GET /dashboard user.schoolName (users.school_id to schools.name, legacy fallback) in dashboard/routes/portal.routes |
 | `analytics-account-not-in-broadcast.test.js` | Pins that the analytics-only account made by create-analytics-user is never swept into an all-users broadcast |
+| `analytics-areas.test.js` | (unmapped) |
 | `analytics-coaching-route.test.js` | Pins GET /analytics/coaching (bd-97x22y.1): analytics-viewer gate, date window, six ICT regions, in portal.routes |
 | `analytics-date-filter.test.js` | Pins the Analytics page ?from=&to= window reaching every dated query in Pakistan time; blank means all time |
 | `analytics-framework-scores.test.js` | (unmapped) |
 | `analytics-lists-v8.test.js` | Pins schools-analytics v8 lists (FDE schools, RDF teacher and coach rosters) in lib/analytics-lists, fail-closed |
 | `analytics-lp-engagement-route.test.js` | Pins GET /analytics/lp-engagement: Active/Non-Active teacher split, viewer gate, window and region rules |
+| `analytics-moawin-areas.test.js` | (unmapped) |
 | `analytics-observations-route.test.js` | Pins GET /analytics/observations (bd-97x22y.5): Human/Digital Coach FICO section breakdown behind the analytics gate |
 | `analytics-organization-scope.test.js` | (unmapped) |
 | `analytics-schools-route.test.js` | Pins the portal_analytics_only access gate, GET /analytics/schools and the analyticsOnly flag on the user payload |
@@ -38,6 +40,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-multi-chapter-create.test.js` | Pins bd-ix9uhr: bot internal-api assessment/create accepts chapterNumbers for a multi-chapter portal paper |
 | `assessment-paper-file.test.js` | Pins GET /assessment/paper/:id/file: portal streams the paper PDF/answer key for the signed-in owner, else 404 |
 | `assessment-portal-every-option.test.js` | Pins bd-fmf24g.6: assessment/create passes seenCount, per-type questionTypes and totalMarks like the WhatsApp Flow |
+| `assessment-portal-seen-types.test.js` | (unmapped) |
 | `assessment-via-internal-api.test.js` | Pins bd-60067: the portal owns no assessment logic or assessment_papers/textbook reads; it relays to the bot |
 | `assessments-run-in-portal.test.js` | Pins bd-2673: assessment routes run in the portal (no blanket WhatsApp redirect) gated by eligibility and answer floor |
 | `auth-flow-contracts.test.js` | Source-level guards for bd-2509..2513 portal auth fixes: placeholders, phone format, OTP field, single phone prompt |
@@ -45,6 +48,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-15y1pc-one-step-model.test.js` | Pins bd-15y1pc: coach v2 five-step view agrees with the bot's observe step; unsent report is not shown as sent |
 | `bd-2676-allow-navigation.test.js` | Pins bd-2676: Capacitor allowNavigation derives the portal host from VITE_API_BASE_URL so navigation stays in-app |
 | `bd-2676-certificate-view-and-download.test.js` | Pins bd-2676: certificates offer View (hidden in native app) and Download (saves in place, never opens a tab) |
+| `bd-31ziu8-principal-schedules.test.js` | (unmapped) |
+| `bd-33wxxi.1-principal-app-switch.test.js` | (unmapped) |
+| `bd-33wxxi.10-staff-attendance-route.test.js` | (unmapped) |
+| `bd-33wxxi.2-principal-school-route.test.js` | (unmapped) |
+| `bd-33wxxi.4-principal-observation-reads.test.js` | (unmapped) |
+| `bd-33wxxi.4-principal-observe-gate.test.js` | (unmapped) |
+| `bd-33wxxi.9.1-principal-home-card.test.js` | (unmapped) |
 | `bd-4ryvw-android-certificate-file.test.js` | Pins bd-4ryvw: CertificateFile Capacitor plugin saves a certificate via MediaStore off the main thread, https only |
 | `bd-4ryvw-android-ci-sdk-licenses.test.js` | Pins bd-4ryvw: Android workflows avoid setup-android@v3, accept SDK licenses non-interactively, run Node 22+ |
 | `bd-5gyspy.12-selected-tab-contrast.test.js` | Pins bd-5gyspy.12: child hub selected-tab label meets 4.5:1 contrast, read from the shipped wq stylesheets |
@@ -55,6 +65,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-5rz1v.6-coach-observation-routes.test.js` | Pins bd-5rz1v.6: coach /observe portal routes are leader-only, session-user-only, dark behind a flag |
 | `bd-5rz1v.6.4-teacher-sees-observation.test.js` | Pins bd-5rz1v.6.4: a coach's sent observation appears in the teacher's coaching list and report routes |
 | `bd-5rz1v.6.5-my-analytics-sent-observations.test.js` | Pins bd-5rz1v.6.5: teacher /my-analytics counts a coach observation only once the coach has sent it |
+| `bd-644bcx-share-paper-id.test.js` | (unmapped) |
+| `bd-97daxo.22-gb-school-without-emis.test.js` | (unmapped) |
+| `bd-9br45q-share-transient-retry.test.js` | (unmapped) |
 | `bd-aqotzx-class-check-history.test.js` | Pins bd-aqotzx: teacher DC history shows not-a-class recordings as Needs your answer / stopped, outside the numbers |
 | `bd-bmc9a0.2-save-recording-route.test.js` | Pins bd-bmc9a0.2: /coaching-upload/start forwards saveForLater only as a real boolean true to the bot |
 | `bd-c5reix-pending-portal-routes.test.js` | Pins bd-c5reix: /coaching-upload/pending and /check-duplicate relay to the bot, dark when off, 502 when bot is down |
@@ -91,13 +104,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-o15qnr.21-pending.test.js` | Pins bd-o15qnr.21: coach-v2 pending banner counts Feedback Form and Debrief observations with ids, behind the v2 gate |
 | `bd-o15qnr.22-visit-moved-any-timezone.test.js` | Pins bd-o15qnr.22: did-the-visit-move comparison is timezone-independent (Asia/Karachi server DATE handling) |
 | `bd-o15qnr.23-today-in-karachi.test.js` | Pins bd-o15qnr.23: today for visit booking is the Asia/Karachi day, so past-date checks and notices are right 00-05 PKT |
+| `bd-o15qnr.26-coach-flow-v2.test.js` | (unmapped) |
+| `bd-o15qnr.27-coach-flow-v6.test.js` | (unmapped) |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-o15qnr.9-visit-last.test.js` | Pins bd-o15qnr.9: coach-v2 Visit page Last visit row (id, observer, step, link) via TEACHER_FACTS |
 | `bd-pw1ccr.26-held-topic-nudge.test.js` | (unmapped) |
 | `bd-pw1ccr.26-topic-paper-routes.test.js` | (unmapped) |
+| `bd-pw1ccr.39-skip-held-topic-nudge.test.js` | (unmapped) |
 | `bd-q4g7s-android-mic-camera.test.js` | Pins bd-q4g7s: Android manifest declares only mic and network, optional mic, and the KeepScreen plugin keeps screen on |
+| `bd-rj6w0n.14.2-teacher-region.test.js` | (unmapped) |
+| `bd-rlxkkt.9-coach-training-progress.test.js` | (unmapped) |
 | `bd-s42dye-1-training-library.test.js` | Pins bd-s42dye.1 coach-only read-only Training Library API: role re-read each request, catalogue, module, readings |
 | `bd-sex15q.49-assets-no-db.test.js` | (unmapped) |
+| `bd-sf8ioj-booking-not-yourself.test.js` | (unmapped) |
+| `bd-sy4kcv-reflection-chip-history.test.js` | (unmapped) |
 | `bd-tacnwy-role-switch.test.js` | (unmapped) |
 | `bd-tbprit.1-coach-disagreements-routes.test.js` | Pins bd-tbprit.1 coach-disagreements API: list and card for the logged-in coach, 404 when the flag is off |
 | `bd-tbprit.1-coach-disagreements-wiring.test.js` | Pins bd-tbprit.1: coach_disagreement_card flag surfaces as features.coachDisagreements; router mounts the API |
@@ -114,16 +134,24 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-v0toag.8-thing-to-try-step.test.js` | Pins bd-v0toag.8 PR3: thing-to-try.service carries the lesson-plan step so the teacher app opens at that heading |
 | `bd-v0toag.8-thing-to-try.test.js` | Pins bd-v0toag.8 PR2: GET /teacher/thing-to-try and POST /tap routes, switch and school-draw gates |
 | `bd-v0toag.80-cancel-keeps-reasons.test.js` | Pins bd-v0toag.80: Cancel on the C/D tell-my-coach page keeps ticked reasons as user_feedback and asks no coach |
+| `bd-w0zbbe-holding-without-school.test.js` | (unmapped) |
+| `bd-w0zbbe-principal-observe-config.test.js` | (unmapped) |
 | `bd-xorfy-portal-visit-notice.test.js` | Pins bd-xorfy: portal visit booking/cancel asks the bot (observe-notice.service) to WhatsApp the teacher; outage-safe |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
 | `capstone-submit-budget.test.js` | Pins bd-te5lae: written capstone submit gets a 120s+ route budget in middleware/timeout, marking deadline inside it |
 | `certificates-client.test.js` | Pins certificates.service client as a wire: posts session userId to bot, throws on outage or success:false |
 | `child-test-portal-routes.test.js` | Pins bd-s1oo0.7 /leader/child-test/* relay: 401/403/404 gates, portal_child_test flag, no child-test logic in portal |
+| `coach-handoff-route.test.js` | (unmapped) |
+| `coach-report-app.test.js` | (unmapped) |
+| `coach-report-link.test.js` | (unmapped) |
+| `coach-report-template.test.js` | (unmapped) |
 | `coach-school-admin.routes.test.js` | Pins coach school/teacher admin routes: behind coach v2 gate, session coach, EMIS from URL, malformed EMIS 404 |
 | `coach-school-admin.test.js` | Pins coach-school-admin.service: school must be one of the coach's own (EMIS), writes go to the bot internal API |
+| `coach-school-card-gb-ids.test.js` | (unmapped) |
 | `coach-school-card-period.test.js` | Pins school-card-period: Today / This week / This month buckets in Pakistan time with future and partial slots |
 | `coach-school-card-routes.test.js` | Pins portal_coach_school_card flag and School Card routes: behind coach v2 chain, 404 when off, input validation |
 | `coach-school-card-service.test.js` | Pins coach-school-card.service reads (lesson plans, DC observations, rosters) against an in-memory tagged-query fake |
+| `coach-week-app.test.js` | (unmapped) |
 | `coaching-analytics.service.test.js` | Pins coaching-analytics.service summariser/loader behind /analytics/coaching: six regions, coaches, visits, schools |
 | `coaching-overall-denominator.test.js` | Pins coaching-frameworks getOverall: the score max equals the sum of domain maxes, not scores.max_marks |
 | `coaching-reads-the-real-fields.test.js` | Pins bd-60077: coaching routes read the session's real framework keys, no OECD goal keys, breakdown asked of the bot |
@@ -136,6 +164,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `feature-flags-cache.test.js` | Pins lib/feature-flags cache: 100 concurrent /config requests read each of 13 app_settings keys once per TTL |
 | `feature-flags-user-parity.test.js` | (unmapped) |
 | `fln-ab-isolation.test.js` | Pins FLN isolation from the ch3-10 A/B: no lp-ab-ch310 load, niete_lp_opens readers filter plan_kind k5 |
+| `fln-access-gb.test.js` | (unmapped) |
 | `fln-access.test.js` | Pins lib/fln-access: lessons/share access rule from role and portal_fln_* flags, requireFln no-store 401/404 |
 | `fln-corpus.test.js` | Pins fln-corpus.service: loads the FLN bundle from the mirror by app_settings version, gunzip, version check, in memory |
 | `fln-link-scope.test.js` | Pins portal-link.routes portalLinkScope: a lessons-scoped link session reaches the FLN API and nothing else |
@@ -148,6 +177,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fln-routes.test.js` | Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
 | `fln-send-routes.test.js` | Pins GET /fln/teachers and POST /fln/send: portal route to in-process bot fln-send route, patch-scoped, keyed ids |
 | `fln-userkey-helper.test.js` | Pins that the portal userKeyOf and the bot fln-keys userKey both use web-quiz-kid tk and load without the bot logger |
+| `help-videos-config-flag.test.js` | (unmapped) |
+| `help-videos-route.test.js` | (unmapped) |
+| `help-videos-service.test.js` | (unmapped) |
 | `leader-overview-feature-totals.test.js` | Pins bd-60174: leader-overview patch summary totals every feature (attendance, training) and counts engaged teachers |
 | `leader-patch-feature-engagement.test.js` | Pins bd-60174: leader-patch SQL and rows carry per-feature engagement, shared by coach and principal views |
 | `leader-patch-nameless-teacher.test.js` | Pins leader-patch.service: a teacher with empty first_name still gets a readable findable label, not a blank row |
@@ -155,18 +187,41 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lesson-plan-file-proxy.test.js` | Pins bd-5rz1v.10 lib/lesson-plan-file: portal proxies lesson plan PDFs from its configured storage host only |
 | `load-analytics-lists.test.js` | Pins scripts/load-analytics-lists: builds the v8 RDF Primary and 6-12 populations as ids only, no phone stored |
 | `local-dev.test.js` | Pins bd-hnhlgn.1 lib/local-dev: loopback DB hosts drop SSL, remote hosts keep it, for running the portal API locally |
+| `lp-app-switches-config.test.js` | (unmapped) |
+| `lp-app-switches.test.js` | (unmapped) |
 | `lp-catalogue-via-internal-api.test.js` | Pins bd-60063: portal LP catalogue routes delegate to the bot catalogue client, no lesson-plan table reads |
+| `lp-engagement-gb-ids.test.js` | (unmapped) |
 | `lp-engagement.service.test.js` | Pins lp-engagement.service: Active/Non-Active teachers per band and sector from RDF populations (analytics v8) |
+| `lp-feedback-bar-open-survey.test.js` | (unmapped) |
+| `lp-feedback-route.test.js` | (unmapped) |
 | `lp-leader-bot-calls.test.js` | Pins bd-4joiqz: lp-catalogue and lp612 services tell the bot reader:leader for a coach, teacher calls unchanged |
 | `lp-leader-open.test.js` | Pins bd-4joiqz: a leader's lesson-plan open is not logged as a teacher's use, for K-5, 6-12 and FLN plans |
 | `lp-open-logging.test.js` | Pins bd-5rz1v.15: viewer open of a lesson plan writes one deduped niete_lp_opens row; 404 records none |
 | `lp-open-survey-trigger.test.js` | Pins bd-qvevax.2: a recorded viewer open asks the bot's internal API for the lesson-plan survey with only the open id |
 | `lp-render-endpoint-retired.test.js` | Pins bd-60063: POST /curriculum/lp/:uuid/render stays retired; portal enqueues no render and never requires bot queue |
+| `lp-viewer-slim-switch.test.js` | (unmapped) |
+| `lp-whatsapp-send-config.test.js` | (unmapped) |
+| `lp612-own-config-flag.test.js` | (unmapped) |
+| `lp612-own-goal-config-flag.test.js` | (unmapped) |
+| `lp612-own-goal-route.test.js` | (unmapped) |
+| `lp612-own-make-logged.test.js` | (unmapped) |
+| `lp612-own-mine-route.test.js` | (unmapped) |
+| `lp612-own-pages-route.test.js` | (unmapped) |
+| `lp612-own-rating-route.test.js` | (unmapped) |
+| `lp612-own-recent-route.test.js` | (unmapped) |
+| `lp612-own-route.test.js` | (unmapped) |
+| `lp612-own-shelf-config-flag.test.js` | (unmapped) |
+| `lp612-own-slo-route.test.js` | (unmapped) |
+| `lp612-shelf-route.test.js` | (unmapped) |
 | `lp612-via-internal-api.test.js` | Pins bd-60082: portal grades 6-12 lesson plans come from the bot via lp612.service, no lp612 table reads |
 | `my-attendance.test.js` | Pins GET /my-attendance: the principal attendance page scoped to the signed-in teacher only, ignoring request teacherId |
 | `no-local-grading-in-portal-routes.test.js` | Tripwire (bd-2673): portal.routes holds no marking, answer-correctness or pass-bar logic; the bot decides |
+| `obs612-portal.test.js` | (unmapped) |
 | `observations-analytics.service.test.js` | Pins observations-analytics.service (bd-97x22y.5): Human and DC FICO sections B/C/D, pooled percentages, never a fake 0 |
+| `observer-analytics.service.test.js` | (unmapped) |
 | `open-file-page.test.js` | Pins bd-fmf24g.61 portal/public/open-file.html: forwards to allowed hosts, delayed fallback link, NIETE branding |
+| `own-plan-open-logged.test.js` | (unmapped) |
+| `portal-analytics-journey.routes.test.js` | (unmapped) |
 | `portal-assessment-editing-flag.test.js` | Pins bd-6faz8m: portal_assessment_editing_enabled truth table falls back to the old key; failed read is off |
 | `portal-auth-log-quiet.test.js` | Pins requirePortalAuth logging: silent when signed in, one single-line entry on a refusal (log-rate cap) |
 | `portal-auth-retired-user.test.js` | (unmapped) |
@@ -178,6 +233,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `portal-config-bot-number.test.js` | Pins GET /config bot field: this tier's bot number from WHATSAPP_BOT_NUMBER or REFERRAL_BOT_NUMBER, else null |
 | `portal-language-endpoint.test.js` | Pins GET /me/language and the language write: session user only, one writer, value clamped to the en/ur offer |
 | `portal-language-offer.test.js` | Pins portal i18n offers exactly Urdu and English, with no off-market locale bundles or files |
+| `portal-link-frame-me.test.js` | (unmapped) |
 | `portal-login-account-name.test.js` | Pins bd-s6qbts.5: analytics-only accounts sign in with an account name (analytics-account-name rules), not a phone |
 | `portal-login-no-password.test.js` | Pins POST /login for an activated account with no password hash: 4xx set-password message, no bcrypt crash, Axiom event |
 | `portal-name-once.test.js` | Pins that the dashboard payload, /validate-token and PortalInviteService render a user's name once (users.name only) |
@@ -185,28 +241,40 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `portal-self-observation-flag.test.js` | Pins bd-3bvfj: portal_self_observation flag is fail-closed in isFlagEnabledForUser; self-observation ships dark |
 | `portal-session-user-id.test.js` | Pins that requirePortalAuth routes read the session id, not req.portalUser, which only the leader gate sets |
 | `portal-setup-no-password.test.js` | Pins /validate-token and /setup letting an activated-but-passwordless account set a password from the invite link |
+| `portal-teacher-home.activity.test.js` | (unmapped) |
 | `portal-teacher-home.quiz-tile.test.js` | Pins GET /me/home quizTile: on only with portal_teacher_home_quiz_tile for the session user and a bot quiz home |
 | `portal-teacher-home.routes.test.js` | Pins GET /me/home and POST /me/home/tap: gates, card ladder, bot-down fallback, tap logging |
+| `portal-teacher-journey.routes.test.js` | (unmapped) |
 | `portal-ui-contracts.test.js` | Source-level guards for bd-2465..2467: WhatsApp CTAs use the tier's bot number from lib/whatsapp.ts, no hardcoded wa.me |
 | `principal-school-scope.test.js` | Pins principal school-analytics scope: roster from the session user and role, outside-school teacher 404 |
 | `progress-counts.db.test.js` | Pins bd-5rz1v.17/.15 Home count rules as real SQL in a rolled-back transaction (progress.service, lp-activity.service) |
 | `progress-range.test.js` | Pins bd-5rz1v.17 pk-range: Home date presets resolved as calendar periods in Asia/Karachi, default this month |
 | `progress-routes.test.js` | Pins GET /progress and /progress/:metric: five counts per range, one statement, items behind each count |
 | `r2-presign-content-disposition.test.js` | Pins bd-2492 generatePresignedUrl: inline disposition and inferred content type for PDF, video, audio, image |
+| `r2-schools-analytics.test.js` | (unmapped) |
 | `resolve-media-url-disposition.test.js` | Pins bd-2492 _resolveMediaUrl in portal.routes: forwards disposition options, passes non-R2 public URLs through |
+| `rubric-label-api.test.js` | (unmapped) |
 | `school-analytics-observations.test.js` | Pins school-analytics.service: Human vs Digital Coach observation counts, ratings and progress line from Human only |
+| `schools-analytics-k5-app-opens.test.js` | (unmapped) |
 | `schools-analytics.service.test.js` | Pins schools-analytics.service (FDE/AEO view): overview, regions, schools key sets, counts only, no teacher-level data |
 | `score-bands.test.js` | Pins bot score-bands scoreBandFor: observation scores show as Excellent..Poor brackets at 20/40/60/80, never a number |
 | `session-rolling.test.js` | Pins bd-x7aprz.3: portal session cookie is 30 days rolling from last visit, flags unchanged (lib/local-dev) |
+| `share-whatsapp-pdf-off.test.js` | (unmapped) |
 | `steps-removed.test.js` | Pins removal of GET /leader/steps and the STEPS grid builder; attendance with no window is all time |
+| `teacher-activity-store.test.js` | (unmapped) |
 | `teacher-analytics.test.js` | Pins a teacher's own Analytics page: exams generated count, remarks received, Digital Coach rating on her page |
+| `teacher-home-activity.test.js` | (unmapped) |
 | `teacher-home-order.service.test.js` | Pins teacher-home-order.service: per-teacher tile ranking (28-day, 14-day half-life) and the Home card ladder |
+| `teacher-journey-view.service.test.js` | (unmapped) |
 | `training-levels-analytics.service.test.js` | Pins the v8 Trainings tab service: RDF primary population, certificate-wins level rule, band/region filters, snapshot |
 | `training-rules-client.test.js` | Pins bd-2480/2481 training-rules.service: portal asks the bot for training decisions, verbatim, with timeout |
 | `video-reco-api.test.js` | Pins bd-gzfdu9 coaching-session video_recommendation: absent when VIDEO_RECO_ENABLED is off, null or clip when on |
 | `video-reco-choice.test.js` | Pins bd-9dbhh0.1 /v/:token Not now / Stop clips / resume form posts via clip-pref, token ids only |
 | `video-reco-player-events.test.js` | Pins bd-gzfdu9 /v player script: play row written on the media playing event once, not on play() alone |
 | `video-reco-routes.test.js` | Pins bd-gzfdu9 /v/:token tracked clip page, /v/:token/e beacons and thumbnail route in video-reco.routes |
+| `where-to-coach-engine.test.js` | (unmapped) |
+| `where-to-coach-library.test.js` | (unmapped) |
+| `where-to-coach-service.test.js` | (unmapped) |
 
 ## Who reads this (all, generated)
 - (none)

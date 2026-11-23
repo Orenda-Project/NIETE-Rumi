@@ -309,7 +309,8 @@ describe.each(Object.keys(CALLERS))('%s, switch on (JSON true)', (caller) => {
     await CALLERS[caller]();
     expect(teacherTexts()).not.toContain(NO_REPORT_YET_EN);
     expect(teacherTexts()).not.toContain(NOT_THROUGH_NO_LINK_EN);
-    expect(db.quiz_share_codes[0].report_sent_at).not.toBeNull();
+    // the ask is answered without the automatic report's stamp: the 12 h report still goes after it
+    expect(db.quiz_share_codes[0].report_sent_at).toBeNull();
   });
 
   test('an Urdu teacher gets the Urdu line', async () => {

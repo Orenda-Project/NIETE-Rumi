@@ -70,17 +70,29 @@ function canObserve(user) {
 }
 
 /**
- * Does this leader observe in THEIR OWN school, at once, with no booked visit?
+ * Does this leader observe in THEIR OWN school (its teachers listed, users.school_id counted as one of their schools)?
  *
- * A principal: operator, 15 Nov, "for the principal, there is no need to schedule anything. You will just directly go
- * and observe a teacher, unlike a coach who has to schedule it first", and "a principal linked to a school
- * (users.school_id or any leader_schools row) sees ALL teachers of that school". Everyone else who observes (a coach,
- * or anyone whose role was never set but who holds schools) books a visit first and sees only their leader_schools
- * holdings, exactly as before. Pure, like the rest of this module.
+ * A principal: operator, 15 Nov, "a principal linked to a school (users.school_id or any leader_schools row) sees ALL
+ * teachers of that school". Everyone else who observes (a coach, or anyone whose role was never set but who holds
+ * schools) sees only their leader_schools holdings, exactly as before. Pure, like the rest of this module.
  */
-function observesOwnSchoolAtOnce(user) {
+function observesOwnSchool(user) {
   return isPrincipalRole(user && user.role);
 }
+
+/**
+ * Does this leader observe at once, with no booked visit? NOBODY, since 18 Nov (bd-31ziu8): the operator, ~16:40, "the
+ * principal does not do scheduling? If that is the case, drop it. It has to be the same as coach." (This reverses 15
+ * Nov's "for the principal, there is no need to schedule anything".) Kept as a function so every caller reads one rule.
+ */
+// eslint-disable-next-line no-unused-vars
+function observesAtOnce(user) {
+  return false;
+}
+
+// The old name meant both rules above; it now means the school rule only (its callers that meant "at once" moved to
+// observesAtOnce). Kept so code on other branches that still imports it keeps the school link.
+const observesOwnSchoolAtOnce = observesOwnSchool;
 
 /** Is this users.role value a principal? Case and spaces ignored; anything that is not a string is not. Pure. */
 function isPrincipalRole(role) {
@@ -233,6 +245,8 @@ module.exports = {
   canSelfCoach,
   canObserve,
   observesOwnSchoolAtOnce,
+  observesOwnSchool,
+  observesAtOnce,
   isPrincipalRole,
   layoutFor,
   featureMenuRows,

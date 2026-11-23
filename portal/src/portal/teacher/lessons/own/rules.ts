@@ -115,13 +115,13 @@ export function waysFor({ grade, subject }: { grade: number; subject: string }):
   return PRIMARY_WAYS.filter((w) => (w === 'cpa' ? isMath(subject) : w === 'phonics' ? isLanguage(subject) : true));
 }
 
-/** What a lesson can be for in this grade, in order (none for grades 1–5; exam practice from Grade 8). */
+/** What a lesson can be for in this grade, in order (grades 1–5 since bd-snkn32.63, never exam; exam practice from Grade 8). */
 export function purposesFor(grade: number): Purpose[] {
-  if (!isSecondary(grade)) return [];
+  if (!isSecondary(grade)) return ['new', 'revise', 'reteach'];
   return ['new', 'revise', 'reteach', ...(hasExam(grade) ? ['board' as const] : [])];
 }
 
 /** Every answer in: Make my plan can be offered. The textbook is always assumed, so no resource is required. */
 export function isComplete(a: OwnAnswers): boolean {
-  return !!a.segment && a.size != null && a.level != null && a.way != null && (!isSecondary(a.grade) || a.purpose != null);
+  return !!a.segment && a.size != null && a.level != null && a.way != null && a.purpose != null;
 }

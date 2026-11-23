@@ -99,11 +99,34 @@ async function _activeRow(leaderUserId, schoolExtId, teacherExtId) {
 }
 
 /**
+ * bd-sf8ioj (queue #199) — is this teacher the leader herself? teacher_ext_id is the phone (980 of 992 rows), so it
+ * is compared with her own users.phone_number. The Flow's lists never offer her (leader-source `_teachers`, 15 Sep);
+ * this stops a Flow screen opened before that, or a hand-built payload. A failed read answers no: the lists already
+ * leave her out, and a lookup miss must never block a booking.
+ */
+async function _isLeaderHerself(leaderUserId, teacherExtId) {
+  if (!leaderUserId || !teacherExtId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('users').select('phone_number').eq('id', leaderUserId).maybeSingle();
+    if (error || !data || !data.phone_number) return false;
+    return String(data.phone_number) === String(teacherExtId);
+  } catch (err) {
+    logToFile('observe-schedule: own-number read failed (non-blocking)', { leaderUserId, error: err.message });
+    return false;
+  }
+}
+
+/**
  * Create or update THE active schedule for a coach×school×teacher.
  * @returns the saved row.
  */
 async function saveSchedule(leaderUserId, { school_ext_id, teacher_ext_id, teacher_name, school_name, date, slot }) {
   if (!_validDate(date)) throw new Error(`observe-schedule: invalid date "${date}" (want YYYY-MM-DD)`);
+  if (await _isLeaderHerself(leaderUserId, teacher_ext_id)) {
+    logToFile('❌ observe-schedule: refused a visit with the leader herself', { leaderUserId }, 'error');
+    throw new Error('observe-schedule: you cannot book a visit with yourself');
+  }
   const existing = await _activeRow(leaderUserId, school_ext_id, teacher_ext_id);
   if (existing) {
     const patch = {

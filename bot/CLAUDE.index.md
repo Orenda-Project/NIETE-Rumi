@@ -8,7 +8,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `.github/` | → (no door; 1 files) |
 | `06_MMS_Inference_Service/` | Standalone Python ASR service for Balochi, Sindhi, Pashto speech (bot calls it over HTTP) → `06_MMS_Inference_Service/CLAUDE.md` |
-| `assets/` | → (no door; 133 files) |
+| `assets/` | → (no door; 144 files) |
 | `dashboard/` | Legacy Express admin dashboard: login, users, conversations, stats → `dashboard/CLAUDE.md` |
 | `data/` | → (no door; 2 files) |
 | `database/` | Legacy v3.0 schema, guides and ad-hoc SQL migrations from the main-bot era → `database/CLAUDE.md` |
@@ -32,28 +32,28 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `whatsapp-bot.js` | Express entry point of the NIETE bot: Meta webhook (signature-checked), button/message routing to handlers, health |
 
 ## Who reads this (all, generated)
-- `package.json` ← imported by `bot/whatsapp-bot.js:2776:056c465a`
+- `package.json` ← imported by `bot/whatsapp-bot.js:2842:056c465a`
 - column `reading_assessments.comprehension_answers` (written by `whatsapp-bot.js`) ← read by `bot/shared/services/redis-comprehension.service.js:85:64fad2d6`
-- column `reading_assessments.comprehension_score` (written by `whatsapp-bot.js`) ← read by `dashboard/routes/portal.routes.js:8450:6033d135`
-- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8525:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:147:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
-- table `broadcast_logs` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1750:d5d1db20`? · `bot/shared/services/fa-video/broadcast.js:96:bb1c0a61`?
-- table `broadcast_messages` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1868:5e6ab800`? · `bot/shared/services/fa-video/broadcast.js:101:2d012da7`?
-- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:748:4337985e`? · `dashboard/routes/portal.routes.js:8449:4337985e`? · `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1752:4337985e`? (+10: `python3 kg/kg.py who-reads reading_assessments`)
+- column `reading_assessments.comprehension_score` (written by `whatsapp-bot.js`) ← read by `dashboard/routes/portal.routes.js:8794:6033d135`
+- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:8869:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
+- table `broadcast_logs` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1755:d5d1db20`? · `bot/shared/services/fa-video/broadcast.js:96:bb1c0a61`?
+- table `broadcast_messages` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1873:5e6ab800`? · `bot/shared/services/fa-video/broadcast.js:101:2d012da7`?
+- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:8793:4337985e`? · `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1796:4337985e`? (+10: `python3 kg/kg.py who-reads reading_assessments`)
 - env `CALLS_REPLICA_COUNT` read at `bot/calls-server.js:65:3b9b933c`
-- env `INTERNAL_API_KEY` read at `bot/whatsapp-bot.js:2810:1b3e4b05`
-- env `NGROK_AUTHTOKEN` read at `bot/whatsapp-bot.js:2936:7dd66fc8`
-- env `NODE_ENV` read at `bot/whatsapp-bot.js:2796:3d55fed5`
+- env `INTERNAL_API_KEY` read at `bot/whatsapp-bot.js:2876:1b3e4b05`
+- env `NGROK_AUTHTOKEN` read at `bot/whatsapp-bot.js:3002:7dd66fc8`
+- env `NODE_ENV` read at `bot/whatsapp-bot.js:2862:3d55fed5`
 - env `OPERATOR_WHATSAPP` read at `bot/calls-server.js:86:4705b673`
 - env `PORT` read at `bot/calls-server.js:364:769700c7`
 - env `RAILWAY_REPLICA_COUNT` read at `bot/calls-server.js:65:3b9b933c`
 
 ## Tests (all, generated)
 - `jest.config.js` ← `tests/jest.config.js`?
-- `whatsapp-bot.js` ← `bot/tests/coaching/bd-uwpohl-lesson-file-goes-to-app.test.js` · `bot/tests/first-touch/maker-fallback.webhook.test.js` · `bot/tests/first-touch/one-door-webhook.test.js` · `bot/tests/identity/system-message.webhook.test.js` · `bot/tests/observe/bd-n9832-cancelled-stays-cancelled-taps.test.js` · `bot/tests/quiz/child-quiz-home.test.js` (+33: `python3 kg/kg.py who-reads bot/whatsapp-bot.js`)
+- `whatsapp-bot.js` ← `bot/tests/coaching/bd-uwpohl-lesson-file-goes-to-app.test.js` · `bot/tests/first-touch/maker-fallback.webhook.test.js` · `bot/tests/first-touch/one-door-webhook.test.js` · `bot/tests/identity/system-message.webhook.test.js` · `bot/tests/observe/bd-n9832-cancelled-stays-cancelled-taps.test.js` · `bot/tests/quiz/child-quiz-home.test.js` (+36: `python3 kg/kg.py who-reads bot/whatsapp-bot.js`)
 
 ## Related (all, generated)
 - skills: `coaching`? · `video-generation`? · `whatsapp-flows`?
-- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`? · `todo.md`?
+- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v10/SYNC.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`? · `todo.md`?
 - service: `railway.json` · `web`
 
 ## Previous notes (human, unverified — moved here from the old CLAUDE.md)

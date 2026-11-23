@@ -11,6 +11,7 @@ import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
 import { noticeTracker } from "../notices/tracker";
 import { RemindCard } from "../notices/RemindCard";
+import { ClassLinkCard } from "../notices/ClassLinkCard";
 import { TopicPaperCard } from "../notices/TopicPaperCard";
 import { LanguageTabs } from "../LanguageTabs";
 import { NextCard, FULL_KINDS } from "../home/NextCard";
@@ -19,10 +20,13 @@ import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 import { LookHome } from "../home/look/LookHome";
 import { QuizFeatureTile } from "../home/QuizTile";
+import { HomeActivity } from "../home/activity/HomeActivity";
 import { StatusChip } from "../ui";
 import { PEOPLE } from "../../coach/people/copy";
 import { usePrincipalApp } from "../principal/usePrincipalApp";
 import { SchoolHomeCard } from "../principal/SchoolHomeCard";
+import { PrincipalHomeV6 } from "../principal/HomeV6";
+import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -72,6 +76,10 @@ export default function Home() {
   // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew.
   const principalApp = usePrincipalApp(user);
   const P = useCopy(PEOPLE);
+  // bd-o15qnr.28 (queue #204) — a principal on the principal app whom the v6/v7 switch names: her Home in the coach
+  // flow's look (principal/HomeV6.tsx, #188's board p9-home). Everyone else: the trees below, unchanged.
+  const flowV6 = useFlowV6();
+  if (principalApp && flowV6 === true) return <PrincipalHomeV6 />;
   // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
   if (sw.card && sw.look) {
     return (
@@ -114,11 +122,17 @@ export default function Home() {
     // whole above the fold; else under the full card, or under the band when there is no card.
     const chipsInGrid = !!slim && !!data && !!(data.scores.coach || data.scores.observation);
     if (chipsInGrid) drawn.splice(3, 0, <div key="home-scores" className="col-span-2"><ScoresRow scores={data.scores} cardKind={null} onGo={go} /></div>);
+    // The "Last 30 days" block and the My journey row (portal_teacher_home_activity / portal_teacher_journey) come right
+    // after the card: above the grid with the full card, inside it after the slim card (row 1 stays whole, R6).
+    // HomeActivity draws nothing when it has nothing to show, so the grid is unchanged on those days.
+    const activity = data ? <HomeActivity activity={data.activity} quizHome={data.quizHome} onGo={go} /> : null;
+    if (slim && data) drawn.splice(3, 0, <HomeActivity key="home-activity" className="col-span-2" activity={data.activity} quizHome={data.quizHome} onGo={go} />);
 
     return (
       <TeacherPage testId="teacher-home" hero={greeting}>
         {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
+        {slim ? null : activity}
         {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
@@ -129,6 +143,7 @@ export default function Home() {
         {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
         <TopicPaperCard />
         <RemindCard />
+        <ClassLinkCard />
       </TeacherPage>
     );
   }
@@ -164,6 +179,7 @@ export default function Home() {
       {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
       <TopicPaperCard />
       <RemindCard />
+      <ClassLinkCard />
     </TeacherPage>
   );
 }

@@ -3,10 +3,12 @@
  * The teacher's web quiz report — /r/<token>, opened in WhatsApp's in-app
  * browser, and its PDF.
  *
- *   renderPage({ quiz | class }, { lang, print, tab, tokens, scope, now })
+ *   renderPage({ quiz | class }, { lang, print, tab, tokens, scope, now, late })
  *     quiz   teacher-report.data quizReport(): who played, who has NOT played
  *            (greyed, when the quiz's one class is known), scores, every
- *            question's difficulty, the stored reteach guidance, the reminder
+ *            question's difficulty, the stored reteach guidance, the reminder;
+ *            with `late` (quiz_teacher_home_reports on), who finished after
+ *            the 12 h report went: a counts line and a tag on their rows
  *     class  teacher-report.data classReport(): grade × subject, 8 weeks, quizzes
  *   renderMessagePage({ kind: 'expired'|'incomplete'|'missing'|'error', lang })
  *
@@ -38,6 +40,7 @@ const { PALETTE, FONTS, TYPE_FLOOR, scriptOf, dirOf, diamondSvg } = require('./n
 const V21 = require('./teacher-report-v21.parts');
 // Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
+const { resolveUx, digitsFor } = require('../config/ux-strings');
 
 const RTL_LANGS = new Set(['ur']);
 // The portal path of the report. Not /t: that is the training-template login link.
@@ -97,7 +100,8 @@ const SUBJECTS = {
 
 // A slash command is one left-to-right atom: in Urdu prose a bare "/" would
 // otherwise settle on the far side of the word ("quiz/").
-const CMD = (c) => `<span class="ltr">${c}</span>`;
+// a command is one atom: never broken between "/" and its name at the end of a line (a teacher types what they see)
+const CMD = (c) => `<span class="ltr nb">${c}</span>`;
 
 const SOURCES = { lp_v8: 'lp', lp612: 'lp', lp: 'lp', lp_v9: 'lp', transcript: 'coaching', video: 'video' };
 
@@ -337,7 +341,13 @@ const qs = (pairs) => {
   return s ? `?${s}` : '';
 };
 
-/** Fonts + the whole stylesheet. Variables carry the screen/print and LTR/RTL differences. */
+/**
+ * Fonts + the whole stylesheet. Variables carry the screen/print and LTR/RTL differences.
+ * Tap targets (A86): every button, the Copy-message summary and the language toggle are at least 48 px tall. A button
+ * stays display:block (a flex box would split "PDF ڈاؤن لوڈ" at its Latin isolate and drop the space): its vertical
+ * padding grows just enough for one line to reach 48 px, so the label stays centred. The toggle's box is 48 px with
+ * negative margins and draws today's pill in ::before, so the header looks exactly as before.
+ */
 function styles({ rtl, print, needUrdu, extraCss = '' }) {
   const a = assets();
   const P = PALETTE;
@@ -367,6 +377,7 @@ html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:${print ? '#FFFFFF' : 'var(--paper)'};color:var(--ink);font-family:${body};line-height:var(--lead)${rtl ? ';word-spacing:.12em' : ''}}
 a{color:inherit}
 .ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:${FONTS.bodyLatin};word-spacing:normal}
+.nb{white-space:nowrap}
 .c-rtl{font-family:${FONTS.bodyUrdu};line-height:${leadUr}}
 .c-ltr{font-family:${FONTS.bodyLatin}}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 32px}
@@ -374,7 +385,8 @@ header.top{background:var(--slate);color:#fff;padding:18px 16px 22px}
 header.top .in{max-width:760px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:8px;font-size:.8rem;color:${P.greenPale};margin-bottom:10px;line-height:var(--lead-ui)}
 .brand .sp{flex:1}
-.brand a{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 12px;font-size:.85rem}
+.brand a{--pill:calc(var(--lead-ui)*1em + 6px);position:relative;display:inline-flex;align-items:center;min-height:48px;margin:calc((var(--pill) - 48px)/2) 0;color:#fff;text-decoration:none;padding:0 13px;font-size:.85rem}
+.brand a::before{content:'';position:absolute;left:0;right:0;top:50%;height:var(--pill);transform:translateY(-50%);border:1px solid rgba(255,255,255,.35);border-radius:999px}
 h1{font-size:1.5rem;line-height:${rtl ? leadUr : 1.25};margin:0 0 6px;font-weight:700}
 .sub{font-size:.9rem;color:#D7DAE2;line-height:var(--lead-ui)}
 .chip-src{display:inline-block;margin-top:10px;background:rgba(71,186,125,.18);color:${P.greenPale};border-radius:999px;padding:2px 12px;font-size:.8rem;line-height:var(--lead-ui)}
@@ -394,12 +406,12 @@ h2{font-size:1.05rem;margin:0 0 10px;line-height:var(--lead-ui)}
 .np{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:6px}
 .np-chip{background:var(--grey-bg);color:#6B7280;border-radius:999px;padding:3px 12px;font-size:.9rem;line-height:var(--lead-ui);display:inline-flex;gap:6px;align-items:center}
 .np-chip .roll{color:var(--grey);font-size:.78rem}
-.btn{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:12px 14px;font-weight:700;line-height:var(--lead-ui);margin-top:8px}
+.btn{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:12px 14px;padding-block:max(12px,calc(24px - var(--lead-ui)*.5em));min-height:48px;font-weight:700;line-height:var(--lead-ui);margin-top:8px}
 .btn-primary{background:var(--green);color:#fff}
 .btn-ghost{border:1.5px solid var(--line);color:var(--ink);background:var(--card)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 details{margin-top:8px}
-details summary{list-style:none;cursor:pointer;display:block;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-weight:700;line-height:var(--lead-ui)}
+details summary{list-style:none;cursor:pointer;display:block;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;padding-block:max(12px,calc(24px - var(--lead-ui)*.5em));min-height:48px;font-weight:700;line-height:var(--lead-ui)}
 details summary::-webkit-details-marker{display:none}
 details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:.9rem;line-height:var(--lead);resize:vertical;background:var(--paper)}
 .hint{font-size:.78rem;color:var(--muted);margin-top:6px;line-height:var(--lead-ui)}
@@ -438,9 +450,9 @@ details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var
 .wk-col .n{font-size:.72rem;font-weight:700;line-height:1.3}
 .wk-col .d{font-size:.66rem;color:var(--muted);line-height:1.3;white-space:nowrap}
 .ql{list-style:none;margin:0;padding:0}
-.ql a{display:flex;justify-content:space-between;gap:10px;text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);line-height:var(--lead-ui)}
+.ql a{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;column-gap:10px;row-gap:2px;min-height:48px;text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);line-height:var(--lead-ui)}
 .ql li:last-child a{border-bottom:0}
-.ql .tp{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ql .tp{flex:1 1 12em;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .ql .m{font-size:.8rem;color:var(--muted);white-space:nowrap}
 .msg{max-width:480px;margin:18vh auto 0;text-align:center;padding:0 16px}
 .msg .dia{margin-bottom:12px}
@@ -512,7 +524,7 @@ function topBar({ C, L, langHref, print }) {
   return `<div class="brand">${diamondSvg({ size: 10, fill: PALETTE.green, stroke: PALETTE.green })}<span>${L(C.title)}</span><span class="sp"></span>${print ? '' : `<a class="act" href="${langHref}" lang="${C.switchLang}">${esc(C.switchTo)}</a>`}</div>`;
 }
 
-function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null }) {
+function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null, late = false }) {
   const { rtl, C: quizChrome, T, L, K, M } = kit(lang);
   const C = chromeOf(quizChrome, lang, r);
   const self = encodeURIComponent(tokens.self || '');
@@ -524,6 +536,14 @@ function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind =
   const playedN = num(summary.played) != null ? num(summary.played) : played.length;
   const of = num(summary.of);
   const avg = num(summary.avg);
+  // ── late finishers (quiz_teacher_home_reports, bd-5j1zaf): children whose counted finish came after the 12 h
+  // report (teacher-report.data marks played[i].late, counts summary.late). `late` is passed only while the switch is
+  // on, never for a story send; off, nothing below changes a byte. Western digits on both pages, as the report's other numbers. ──
+  const lateOn = Boolean(late) && !r.story;
+  const lateN = lateOn ? num(summary.late) || 0 : 0;
+  const lateLine = lateN >= 1 ? `<div class="sub late-line">${L(esc(resolveUx('qfix_report_page_line', { language: lang, params: { n: playedN, late: lateN } })))}</div>` : '';
+  const lateTag = (p) => (lateOn && p.late === true ? `<span class="late tag">${L(esc(resolveUx('qfix_report_page_tag', { language: lang })))}</span>` : '');
+  // ── end late finishers ──
 
   // 1. header
   const src = SOURCES[quiz.source];
@@ -536,7 +556,7 @@ function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind =
   const header = `<header class="top"><div class="in">
 ${topBar({ C, L, langHref: `${base}${qs([['lang', C.switchLang]])}`, print })}
 ${K(quiz.topic || C.title, 'h1')}
-<div class="sub">${bits.join(' · ')}</div>
+<div class="sub">${bits.join(' · ')}</div>${lateLine}
 ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
 </div></header>`;
 
@@ -628,7 +648,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
   const offList = (p) => known && p.onList === false;
   const rows = played.map((p) => {
     const pc = num(p.pct) || 0;
-    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
+    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}${V21.triesTag(p.attempts, lang)}${lateTag(p)}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
   }).join('');
   const scores = `<section class="card" id="scores"><h2>${L(C.scores)}</h2>${played.length ? `<ul class="sc">${rows}</ul>` : `<p class="muted">${L(C.noPlayers)}</p>`}</section>`;
 
@@ -657,7 +677,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
  * The aggregate tab. M3c's renderClassTab fragment (teacher-report-class.page.js)
  * replaces this body when that module lands — wired by whichever PR lands second.
  */
-function classSections(r, { lang, print, tokens }) {
+function classSections(r, { lang, print, tokens, late = false }) {
   const { C, T, L, K } = kit(lang);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
@@ -700,11 +720,17 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
     if (!p) return L(W.noOne);
     return num(q.of) ? L(W.playedOf(p, num(q.of))) : L(W.quizLine(p));
   };
+  // ── late finishers (quiz_teacher_home_reports): a reported quiz's row carries "+{late} after the report" (the teacher
+  // home's chip words; Urdu digits on the Urdu page, as its dates) as its own item, so the row wraps it under the date
+  // line when there is no room, and its link says it came from here. `late` is passed only while the switch is on;
+  // off, nothing below changes a byte. ──
+  const lateChip = (q) => (late && q.reported && num(q.late) > 0
+    ? `<span class="late tag">${L(esc(resolveUx('qfix_report_home_late', { language: lang, params: { late: digitsFor(num(q.late), lang) } })))}</span>` : '');
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
     const a = num(q.avg);
-    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>`;
-    return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs([['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
+    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>${lateChip(q)}`;
+    return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs(late ? [['lang', lang], ['from', 'class']] : [['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
 ${weeks.length ? `<section class="card"><h2>${L(C.trend)}</h2><div class="wk">${wk}</div></section>` : ''}
@@ -715,7 +741,7 @@ ${quizzes.length ? `<section class="card"><h2>${L(RC.yourQuizzes)}</h2><ul class
 /**
  * @param {{quiz?: object, class?: object}} data
  * @param {{lang?: 'en'|'ur', print?: boolean, tab?: 'quiz'|'class', scope?: 'quiz'|'all',
- *          tokens: {self: string, quiz?: Object<string,string>}, now?: number}} opts
+ *          tokens: {self: string, quiz?: Object<string,string>}, now?: number, late?: boolean}} opts
  * @returns {string} the whole HTML document
  */
 function renderPage(data, opts = {}) {
@@ -735,8 +761,8 @@ function renderPage(data, opts = {}) {
   }
   // ── end Jugnu tab ──
   const parts = tab === 'quiz'
-    ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice, ok: opts.ok })
-    : classSections((data && data.class) || {}, { lang, print, tokens });
+    ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice, ok: opts.ok, late: opts.late })
+    : classSections((data && data.class) || {}, { lang, print, tokens, late: opts.late });
   const foot = print ? '' : `<div class="foot act">
 <div class="row2"><a class="btn btn-ghost" href="${base}/pdf${qs(tab === 'class' ? [['tab', 'class'], ['lang', lang]] : [['lang', lang]])}">${L(C.exportPdf)}</a>${
   tab === 'quiz'

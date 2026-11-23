@@ -6,14 +6,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `fidelity/` | → (no door; 27 tests) |
+| `fidelity/` | → (no door; 28 tests) |
 | `live-moves/` | → (no door; 9 files: 8 test + 1 support) |
-| `report-transformers/` | → (no door; 3 tests) |
+| `report-transformers/` | → (no door; 5 tests) |
 | `video-reco/` | Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B → `video-reco/CLAUDE.md` |
 | `ab-v10-arms.test.js` | Pins which v10 A/B group (A-D) a teacher's school falls in via niete_coaching_ab_assignment; null when off (ab-v10-arms) |
 | `ab-v10-switch.test.js` | Pins the v10 coaching test master switch app_settings.ab_v10_enabled: fail-closed on missing row, junk or read error |
 | `analysis-output-language.test.js` | Analysis prompt and reflective extraction run in the teacher's stored language, not the transcriber's label |
 | `analysis-processor-prior-action.test.js` | Scoring call gets the teacher's prior action record only when the uptake loop is on (analysis-processor.service) |
+| `analysis-unreadable-reply-retried.test.js` | (unmapped) |
 | `analyze-pedagogy-framework-dispatch.test.js` | Conformance: the framework argument to analyzePedagogy drives prompts; default stays inline OECD (gpt5-mini.service) |
 | `angle-ladder-without-reflection.test.js` | The angle ladder ask works on the no-reflection path, with real cue and model line (commitment-card, uptake-loop) |
 | `assistant-recording-minimum.test.js` | Every assistant prompt variant states the recording minimum derived from the routing constant (classroom-audio.config) |
@@ -33,6 +34,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-2c1gj-lp-select-confirm.test.js` | bd-2c1gj: tapping a recent lesson plan asks Yes/Cancel first, nothing linked until confirmed; Urdu copy, 20-char buttons |
 | `bd-3ipd2-photo-capture-routing.test.js` | bd-3ipd2: pure routing helpers deciding when an image document counts as a classroom photo (photo-capture-routing) |
 | `bd-47vud-caption-no-dangling-cut.test.js` | bd-47vud: over-cap (110 char) photo captions end on a whole phrase, not a dangling word (photo-note) |
+| `bd-4alcjx-own-plan-time.test.js` | (unmapped) |
 | `bd-59840-honest-wait-no-ack.test.js` | bd-59840: step 1/5 wait copy states minutes for long recordings; post-transcription acknowledgement removed |
 | `bd-5lrgh-lp-mismatch-reason.test.js` | bd-5lrgh: a lesson-plan mismatch is explained with a catalogue line in en/ur, only for flagged mismatches scoring 0 |
 | `bd-5lrgh-mismatch-line-only.test.js` | bd-5lrgh follow-up: Section B mismatch line is the catalogue sentence only; narrative never asked to explain it |
@@ -52,11 +54,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-7beiz-dedupe-call-site.test.js` | bd-7beiz: the dedupe branch as wired in transcription-processor skips upload and transcription on a resubmission |
 | `bd-7kc2z-reflection-silent-mode.test.js` | bd-7kc2z: reflective debrief in silent (portal) mode returns the question and sends nothing to WhatsApp |
 | `bd-809g50-portal-plan-race.test.js` | bd-809g50: a portal analysis waits for the teacher's lesson-plan read to finish before grading (analysis-processor) |
+| `bd-8bdr8r.1-portal-ffmpeg.test.js` | (unmapped) |
 | `bd-8s2xb-photo-prompt-modes.test.js` | bd-8s2xb T1-T3: FICO prompt photo channel per mode (text, off, image, both) in fico-framework |
 | `bd-8s2xb-photo-surfaces.test.js` | bd-8s2xb T10-T12: photo note reaches the hero report caption and the coach draft keeps its Photo: prefix |
 | `bd-8s2xb-processor-photo-channel.test.js` | bd-8s2xb T5-T9: analysis processor downloads and describes photos, persists photo_mode and counts (analysis-processor) |
 | `bd-8s2xb-scorer-image-encode.test.js` | bd-8s2xb T8: encodeForScorer rotates, downsizes to 768 and base64-encodes; library failure rejects (scorer-image) |
 | `bd-8s2xb-scoring-call-images.test.js` | bd-8s2xb T4: image modes attach photos to the scoring call only, via real analyzePedagogy with the FICO module |
+| `bd-9bppaz-principal-role-rubric.test.js` | (unmapped) |
 | `bd-9h2mm-processor-marks-section-b.test.js` | bd-9h2mm: processor marks Section B not-assessed when no lesson plan or fidelity engine failed (analysis-processor) |
 | `bd-9h2mm-section-b-not-assessed.test.js` | bd-9h2mm: Section B leaves the FICO total when no fidelity was measured and every surface says so |
 | `bd-9h2mm-voice-not-assessed.test.js` | bd-9h2mm: voice-note payload hands the model no lesson-plan fidelity figure for an unassessed section |
@@ -90,6 +94,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-gr48y-photo-into-analysis.test.js` | bd-gr48y: metadata.photoAnalysis reaches framework.buildAnalysisPrompt as its 4th arg (gpt5-mini.service) |
 | `bd-gr48y-processor-vision.test.js` | bd-gr48y: processAnalysis runs the vision pass when photos exist and feeds analyzePedagogy photoAnalysis |
 | `bd-h9gnk-midflight-watchdog.test.js` | bd-h9gnk: watchdog classifies sessions stuck mid-flight past a 45-minute grace and recovers them (stale-recovery) |
+| `bd-hk2jm3-fde-ict-only.test.js` | (unmapped) |
 | `bd-hr97y-dc-dedupe-no-window.test.js` | bd-hr97y: DC duplicate-recording lookup has no time window; an old identical recording is reused, not rescored |
 | `bd-j3j4b-photo-gate-sweep.test.js` | bd-j3j4b/bd-5knlj: shouldAutoAdvancePhotoGate and gateThresholdFor advance sessions stranded at the photo/LP gate |
 | `bd-jbjrx-step-language.test.js` | bd-jbjrx/bd-8ctnq: the five DC step messages follow the chosen language and the step counter uses digits |
@@ -97,13 +102,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-lfzoz-internal-coaching-routes.test.js` | bd-lfzoz: bot internal API /api/internal/coaching/* for portal-uploaded recordings; refuses requests without userId |
 | `bd-lfzoz-portal-coaching.test.js` | bd-lfzoz: portal-coaching.service presigns audio PUTs and starts a session from a portal-uploaded recording |
 | `bd-lfzoz-portal-pipeline.test.js` | bd-lfzoz: the three places a portal row (R2 key portal_<id>) differs from WhatsApp: hand-off, handlers, stale recovery |
+| `bd-pdliko-coach-flag-removed.test.js` | (unmapped) |
 | `bd-pv2tl-classroom-photo-vm.test.js` | bd-pv2tl: report photo strip builder caps at 2, returns base64 data URIs, skips a failed download (classroom-photo-vm) |
 | `bd-pw1ccr.11-recording-books-topic-nudge.test.js` | (unmapped) |
 | `bd-pzs9a-photo-add-another.test.js` | bd-pzs9a: Add another keeps the session on the photo step; a redelivered tap is not counted twice (add-another) |
+| `bd-r2uzg1-18-10-voice-example-grounded.test.js` | (unmapped) |
+| `bd-r2uzg1-18-4-analysis-write-no-devanagari.test.js` | (unmapped) |
+| `bd-r2uzg1-18-4-no-devanagari-in-model-text.test.js` | (unmapped) |
+| `bd-r2uzg1-18-4-report-no-devanagari.test.js` | (unmapped) |
+| `bd-r2uzg1.12-mismatch-soft-line.test.js` | (unmapped) |
+| `bd-r2uzg1.18.15-dc-in-flight-duplicate.test.js` | (unmapped) |
+| `bd-r2uzg1.18.6-confirmed-lp-not-lost.test.js` | (unmapped) |
+| `bd-r2uzg1.18.7-document-door.webhook.test.js` | (unmapped) |
+| `bd-r2uzg1.18.7-media-after-app-recording.test.js` | (unmapped) |
+| `bd-r2uzg1.18.9-duplicate-at-analysis.test.js` | (unmapped) |
+| `bd-ra8xu.53-v6-linked-no-moves.test.js` | (unmapped) |
+| `bd-ra8xu.53-v9-lesson-id.test.js` | (unmapped) |
 | `bd-s192t-fallback-copy.test.js` | bd-s192t.4: Section B fallback copy states the true cause per failure state (observe-draft.service) |
 | `bd-s192t-roles-threading.test.js` | bd-s192t.1: regression for the 44fe3ae roles ReferenceError; runs the real transcription chain (audio.service) |
 | `bd-s7c31y-portal-report-no-step-messages.test.js` | bd-s7c31y: a teacher's portal DC recording gets no Step 4/5 or 5/5 WhatsApp text from the report job |
 | `bd-sk206-step5-single-voice-message.test.js` | bd-sk206: Step 5 sends one text before the voice note, not two; retired caption is not sent in either language |
+| `bd-snkn32.45-whatsapp-own-plans.test.js` | (unmapped) |
 | `bd-tbprit.1-coach-disagreement-evidence.test.js` | bd-tbprit.1: pure evidence a coach sees per reason behind a teacher's Not accurate (coach-disagreement-evidence) |
 | `bd-tbprit.1-coach-disagreements-service.test.js` | bd-tbprit.1: coach disagreements list in the portal, To do vs Done ordering and row shape (coach-disagreements.service) |
 | `bd-tbprit.10-coach-pattern-card.test.js` | bd-tbprit.10: coach card carries the Is this a pattern data (last 12 lessons, missed step) (coach-disagreements.service) |
@@ -138,7 +157,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-we73k-pasted-lesson-plan.test.js` | bd-we73k: a lesson plan pasted as chat text at the coaching LP step is attached to the waiting session |
 | `bd-x3k1q-session-complete-boundary.test.js` | bd-x3k1q (DC:133): coaching session announces it is complete, in the teacher's language, before the next feature speaks |
 | `bd-xc6jv-narrative-applicable.test.js` | bd-xc6jv: non-applicable indicators (maths for an Urdu lesson) are never named as weaknesses in the narrative |
+| `bd-xuoj2p-voice-debrief-retry.test.js` | (unmapped) |
 | `bd-yy4l2-hots-scorecard-derive.test.js` | bd-yy4l2: HOTS scorecard re-derives per-area scores from scrambled goalN_* slots instead of rendering 0/N (hots-adapter) |
+| `bd-zswkx-section-f-applicable.test.js` | (unmapped) |
 | `bd1sddt-skip-reflection.test.js` | bd-1sddt: skipReflection flag queues a report-only recovery for sessions stranded at the photo/LP gate |
 | `bd2413-output-language.test.js` | bd-2413 (FEAT-106): coaching output language follows preferred/locked language; off-market languages rejected |
 | `bd2414-contextual-voice-closer.test.js` | bd-2414 (FEAT-106): reflection closing voice note is a contextual acknowledgement in the teacher's language |
@@ -167,6 +188,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `devanagari-guard.test.js` | bd-bfy69: devanagari-guard detects Devanagari in real prod-derived strings and guarantees none is rendered |
 | `devanagari-transcribe-recovery.test.js` | bd-bfy69: source assertions on audio.service for the three layers: no Hindi hint, forced-Urdu retry, guard |
 | `document-audio-routing.test.js` | WhatsApp documents with an audio MIME route to the coaching audio pipeline; PDFs fall through; 100 MB cap |
+| `duplicate-check-switch.test.js` | (unmapped) |
 | `elevenlabs-lazy-openai.test.js` | Regression: ElevenLabsService builds its OpenAI TTS-fallback client lazily, so requiring the module never needs a key |
 | `enhance-carries-first-pass-keys.test.js` | The reflection-enhancement pass carries every first-pass key (focus_area, uptake) and framework scores still win |
 | `fallback-card-skips-non-applicable.test.js` | Rule-based fallback card never names a non-applicable indicator and reads the scale from the framework |
@@ -183,14 +205,43 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `feat106-whisper-chunking.test.js` | FEAT-106 #1 (bd-2377): planWhisperChunks splits audio over the 25 MB Whisper cap for the last-resort transcriber |
 | `fico-framework-ict.test.js` | bd-2039: FICO framework carries the canonical ICT rubric (sections B/C/D/F, B1-B7), registry and region-config |
 | `fico-framework.test.js` | FICO framework module-interface contract and max-marks consistency (fico-framework) |
+| `fico-rubric-switch.test.js` | (unmapped) |
+| `fico-s-dc-prompt.test.js` | (unmapped) |
+| `fico-s-routing.test.js` | (unmapped) |
+| `fico-s-starred.test.js` | (unmapped) |
+| `fico-s-v1-1-rubric.test.js` | (unmapped) |
 | `fico-subject-conditional-rule.test.js` | Section F subject rule flips with subject confidence: high confidence scores only the matching subject row |
+| `fico17-v6-d2-wording.test.js` | (unmapped) |
+| `fico17-v6-dc-evidence.test.js` | (unmapped) |
+| `fico17-v6-dc-report-enhance.test.js` | (unmapped) |
+| `fico17-v6-dc-report-on-v6.test.js` | (unmapped) |
+| `fico17-v6-framework.test.js` | (unmapped) |
+| `fico17-v6-gate.test.js` | (unmapped) |
+| `fico17-v6-grade-gate.test.js` | (unmapped) |
+| `fico17-v6-hitl-report-evidence.test.js` | (unmapped) |
+| `fico17-v6-informed.test.js` | (unmapped) |
+| `fico17-v6-na-per-indicator.test.js` | (unmapped) |
+| `fico17-v6-never-averaged.test.js` | (unmapped) |
+| `fico17-v6-observe-report.test.js` | (unmapped) |
+| `fico17-v6-report-narrative.test.js` | (unmapped) |
+| `fico17-v6-report-pins.test.js` | (unmapped) |
+| `fico17-v6-report-target.test.js` | (unmapped) |
+| `fico17-v6-rubric.test.js` | (unmapped) |
+| `fico17-v6-shadow-late.test.js` | (unmapped) |
+| `fico17-v6-shadow.test.js` | (unmapped) |
+| `fico17-v6-sheet.test.js` | (unmapped) |
+| `fico17-v6-six-never-dc-graded.test.js` | (unmapped) |
+| `fico17-v6-starred-mode.test.js` | (unmapped) |
+| `fico17-v6-teacher-report.test.js` | (unmapped) |
 | `fidelity-phase-loop.test.js` | choosePhaseTarget and derivePhaseUptake coach the lesson phase a teacher repeatedly fails (uptake-loop.service) |
 | `fidelity-phase-wiring.test.js` | Wiring for the phase loop: loadRecentFidelity feeds the carry step, which computes a phase target for graded lessons |
 | `first-use-intro-one-message.test.js` | First-use AI coach intro film arrives as one message with the intro line as caption (feature-intro.service) |
+| `fix-misc-hero-headline.test.js` | (unmapped) |
 | `framework-prompt-heard-language.test.js` | Framework prompts keep output language and heard (spoken) language as two separate values (fico-framework) |
 | `framework-registry.test.js` | bd-596: framework-registry getFramework and framework-selector return the right module per framework name |
 | `framework-selection-reason.test.js` | FEAT-060 (bd-2105): selectFrameworkWithReason returns the framework plus why (user preference, region map, default) |
 | `framework-wiring.test.js` | bd-609: region to framework is env-driven (REGION_FRAMEWORK_MAP) with default fallback, wired into analysis (registry) |
+| `gb-library-pick.test.js` | (unmapped) |
 | `gender-neutral-urdu-address.test.js` | bd-gr4fy.5.12: Urdu reflective question and commitment card never put the teacher in a gendered verb form |
 | `guide-previous-focus.test.js` | Coach debrief guide opens with the previous-visit block: ask, attempt number, last lesson, hand-over (debrief-guide) |
 | `hero-narrative-corpus.test.js` | bd-1842/1843: reflective_corpus flows into the hero narrative prompt and output guards (narrative.service) |
@@ -220,6 +271,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `meta-bill-wamid-wiring.test.js` | Meta bill: the webhook and image handler hand the inbound wamid down so card, photo and Yes taps can react |
 | `multi-framework-report-integration.test.js` | bd-610: end-to-end pipeline from analysis data to reportData per framework (OECD 5 goals + debrief, HOTS 5 goals) |
 | `next-step.test.js` | bd-v0toag.1.5: selectNextStep picks ONE step per report and focusPatch stores it (next-step, next-step-store) |
+| `obs612-grade-override.test.js` | (unmapped) |
+| `obs612-never-averaged.test.js` | (unmapped) |
+| `obs612-rubric.test.js` | (unmapped) |
+| `observation-notes-analysis.test.js` | (unmapped) |
 | `observation-score-bands.test.js` | Observation score bands stay portal-only: coaching report image and card keep numbers, no band word replaces a score |
 | `observe-draft-uptake-record.test.js` | /observe writes the uptake loop record in the same update as observer_review_complete when the loop is on |
 | `observe-form-fidelity-why-line.test.js` | Coach's editable Section B form shows the grader's rationale for every move verdict (observe-draft.service) |
@@ -228,6 +283,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `practice-tag.test.js` | bd-v0toag.22: practiceTag maps each plan move to a high-leverage practice (FICO section C code) by rule order |
 | `practice-why.test.js` | bd-v0toag.55: every practice tag has an English and Urdu one-line why, distinct per practice (practice-why) |
 | `prompt-uptake-block.test.js` | Phase 2 uptake loop: the PRIOR ACTION block rides in the existing scoring call and never moves a score (fico-framework) |
+| `q184-starred-e3-checklist.test.js` | (unmapped) |
+| `r2-dc.test.js` | (unmapped) |
+| `r2-hero-v6.test.js` | (unmapped) |
 | `reflection-language-anchor.test.js` | Reflection language is anchored to the teacher's stored preference, not the recogniser's per-turn label |
 | `reflective-conversation-v12-wiring.test.js` | Source-level guard: reflective-conversation.service calls the v12 question generator and reads the stored corpus |
 | `reflective-corpus-extraction.test.js` | v12 extractReflectiveCorpus shape and fallback profile, plus the enhance-LLM corpus re-attach landmine regression |
@@ -246,6 +304,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `report-tracking.test.js` | bd-v0toag.12: each report part logs coaching.report.sent or .failed with Meta wamid and the school's group |
 | `report-view-model.test.js` | bd-v0toag.55: pure view model for the /cr report page shaped to the ICT-3 template (coaching-report-view) |
 | `report-voicenote-gateway.test.js` | Report voice note speaks via the voice gateway (Soniox) and stores its real audio duration (report-generator.service) |
+| `rubric-label.test.js` | (unmapped) |
 | `score-adapters.test.js` | Per-framework score adapter conformance: normalised groups, scores and percentages (score-adapter dispatch) |
 | `section-b-mode-history.test.js` | loadRecentSectionBModes feeds uptake-loop target choice: prefer C/D/F when the teacher usually attaches a plan |
 | `section-b-proxy-target.test.js` | Section B is a coachable loop target only in proxy mode, never derived mode; C, D and F always eligible |
@@ -253,6 +312,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `short-recording-tiers.test.js` | Which short recordings get length guidance (declared intent, sounds like a lesson) vs none (short-recording-guidance) |
 | `stale-sweep-single-send.test.js` | The stale-session sweep messages a teacher once even with several worker copies running (stale-session.worker) |
 | `subject-reaches-analyser.test.js` | The resolved subject reaches the analyser for uploaded and corpus LP paths and is persisted (analysis-processor) |
+| `subject-resolution-gb-ids.test.js` | (unmapped) |
 | `subject-resolution.test.js` | Pure subject resolution: canonicalSubject for prod spellings and parseCorpusLessonId grade/subject (subject-resolution) |
 | `subject-unconfirmed-render.test.js` | The subject-not-confirmed note renders inside the Section F why line in English and in RTL Urdu (hero report) |
 | `subject-unconfirmed-report-line.test.js` | When subject cannot be established the report says so: catalogue line in en/ur and attachSubjectNote on Section F |
@@ -278,4 +338,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `dashboard/services/CLAUDE.md`? · `docs/customization.md`? · `tests/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `dashboard/services/CLAUDE.md`? · `docs/customization.md`? · `docs/fico17-v6.md`? · `tests/CLAUDE.md`?

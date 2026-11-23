@@ -21,6 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-wpupy-followup-context.test.js` | Pins a deictic 'this' in a follow-up reaches the lesson just delivered, using the real production failures (bd-wpupy) |
 | `bd-wssa3-no-lp-keyword-nudge.test.js` | Pins that the feature-intro keyword nudge no longer fires on 'lesson plan' (detectAndOfferVideo scorer) (bd-wssa3) |
 | `catalog-builder.test.js` | Tests LP catalog builder: pure normalisation to Meta NavigationList caps, dedupeTopic and merging (FEAT-059, bd-82qs3) |
+| `catalog-splits.test.js` | (unmapped) |
 | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |
 | `elective-catalog-merge.test.js` | Pins that G1-5 electives (Islamiat etc.) merge into lp_catalog.json without changing the core books (bd-6640j.1.8) |
 | `elective-menu-names.test.js` | Pins elective menu names per medium (Urdu vs English), unique subject keys and 30-code-point title cap (bd-6640j.1.3) |
@@ -31,6 +32,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `flow-response-telemetry.test.js` | Pins lp612.flow.response telemetry: each data_exchange, INIT, BACK logs outcome, items, bytes, duration (bd-oak77.26) |
 | `history-cache-hygiene.test.js` | Pins that the conversation-history cache never carries system prompts or flushed feature context (bd-njn7u Phase 2.0) |
 | `ingest-lp-v9-html.test.js` | Pins ingest-lp-v9-html: an HTML is ingested only when its PDF sha1 matches a served asset, never overwriting a script |
+| `lesson-items-lead.test.js` | (unmapped) |
 | `live-schema-limits.test.js` | Pins PostgREST db-max-rows 1000 limit: availableLessonIds and downloadedLessonIds page through whole corpus (FEAT-059) |
 | `lp-coaching-ask-worker-wiring.test.js` | Pins that the coaching_after_lp handler is registered on the sweeping main-queue worker only, not video workers |
 | `lp-context-app-opens.test.js` | Pins that chat grounding includes lessons a teacher opened only in the app viewer (niete_lp_opens), narrow and capped |
@@ -52,11 +54,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `unsupported-message.test.js` | Pins unsupported-message contract: reactions silent, video gets contextual line, gender-neutral fallback (bd-fbih0) |
 | `upload-writes-slide-script.test.js` | Pins that the uploader writes the slide script with the same asset row and hash in one run (PLAN R8 2.2 lane S) |
 | `uploader-card-kind.test.js` | Pins uploader --kind card: v10 coaching cards become their own asset kind, own R2 key, no answer key (bd-v0toag.50.1) |
+| `uploader-empty-pdf-guard.test.js` | (unmapped) |
 | `uploader-r2-only.test.js` | Pins uploader --r2-only: uploads bytes and prepares superseding SQL without writing rows before migration 018 (FEAT-059) |
 | `uploader-resumable.test.js` | Pins the uploader's PDF compression is byte-deterministic so re-runs after interruption give the same sha1 (FEAT-059) |
 | `uploader.test.js` | Tests the v8 uploader: lp-cache/v8 R2 key shape, idempotency, old-cache guard (FEAT-059, bd-9s1ie, bd-9dmq2) |
 | `voice-reply-quality.test.js` | Pins the Urdu LP Q&A voice prompt: no mandated filler words, no male first person, feminine self-reference (bd-z5olm) |
 | `voicenote-delivery.test.js` | Pins v8 voicenote delivery after the PDF as an .ogg voice message and the survey only when audio arrived (bd-vw0aj) |
+| `voicenote-off.test.js` | (unmapped) |
 | `voicenote-survey.test.js` | Pins the voicenote survey: thumbs-up asks whether the teacher taught it, silent with no voice note (bd-vw0aj) |
 
 ## Who reads this (all, generated)
@@ -66,4 +70,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `docs/flows/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `docs/flows/CLAUDE.md`?

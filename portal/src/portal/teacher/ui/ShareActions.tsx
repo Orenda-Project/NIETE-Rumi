@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, ExternalLink, Link2, Lock, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { browserEnv, type BrowserEnv } from '@/lib/runtime';
+import { type BrowserEnv } from '@/lib/runtime';
 import { FOCUS } from './styles';
 import { useKitCopy } from './useKitCopy';
 import type { ShareCopy } from './copy';
+import { useOpenTarget, type OpenTarget } from './useOpenTarget';
+
+// The open logic lives in useOpenTarget (ActionStrip's Download cell uses the same); these stay importable from here.
+export { copyText, handoffIntentUrl, HANDOFF_HOST, type OpenTarget } from './useOpenTarget';
 
 /**
  * bd-fmf24g.30 — ShareActions: THE pair of buttons for anything she can take out of the app (Blueprint: ShareActions).
@@ -24,6 +28,7 @@ import type { ShareCopy } from './copy';
  *                           Chrome, Safari, a desktop      hidden for a page; for a FILE it opens the file
  *                           the NIETE app                  hidden for a page; for a FILE it opens it in the system browser
  *
+ * The open logic is useOpenTarget's (one logic, two looks: this button and ActionStrip's Download cell).
  * Both are 64px tall in every state and language, so nothing moves when a state changes. Put it in TeacherPage's `dock`.
  * `onSend` omitted = no Send button; `open` omitted = no Open button. Words: the kit's `share` (a screen may override).
  *
@@ -34,10 +39,6 @@ import type { ShareCopy } from './copy';
 export const PAGE_HANDOFF = false;
 
 export type ShareResult = { status: 'sent'; at?: string } | { status: 'failed' } | { status: 'unavailable' };
-export type OpenTarget =
-  | { page: true }
-  | { fileUrl: string | (() => Promise<string | null>) };
-
 export interface ShareActionsProps {
   /** Sends the item as a WhatsApp template; resolves with the REAL result. Omit for no Send button. */
   onSend?: () => Promise<ShareResult>;
@@ -54,7 +55,6 @@ export interface ShareActionsProps {
 }
 
 type SendState = 'default' | 'sending' | 'sent' | 'failed' | 'locked';
-type OpenState = 'default' | 'opening' | 'copy' | 'copied' | 'failed';
 
 const WA_GREEN = '#09883F';
 const BASE = 'relative flex min-h-[64px] w-full items-center justify-center gap-3 rounded-2xl border-2 px-[18px] py-1 text-[18px] font-bold leading-tight rtl:leading-[1.9]';
@@ -70,46 +70,6 @@ export function clockOf(iso: string | undefined, am: string, pm: string): string
   return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h >= 12 ? pm : am}`;
 }
 
-/**
- * bd-fmf24g.60 — the hosts public/open-file.html forwards to (keep the two in step). A file anywhere else is not handed off:
- * its link is copied instead, so the page can never be used to send someone elsewhere.
- */
-export const HANDOFF_HOST = /(^|\.)(r2\.cloudflarestorage\.com|r2\.dev|niete\.edu\.pk|up\.railway\.app)$/i;
-
-function b64url(text: string): string {
-  let bin = '';
-  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-/**
- * bd-fmf24g.60 — Android, WhatsApp's browser: "open this file in the phone's browser". WhatsApp's in-app browser sends any
- * link whose path ends in .pdf — even inside intent:// — to its own PDF viewer, which throws "unknown protocol: intent"
- * and takes WhatsApp down (adb, the operator's phone). So the browser gets OUR page, public/open-file.html, which has no
- * .pdf in its link and forwards to the file. No S.browser_fallback_url: nothing ever loads inside WhatsApp
- * (bd-fmf24g.53). Null when the file's host is not one that page forwards to.
- */
-export function handoffIntentUrl(fileUrl: string, pageOrigin: string): string | null {
-  let f: URL;
-  try { f = new URL(fileUrl); } catch { return null; }
-  if (f.protocol !== 'https:' || !HANDOFF_HOST.test(f.hostname)) return null;
-  return `intent://${new URL(pageOrigin).host}/open-file.html?f=${b64url(f.href)}#Intent;scheme=https;end`;
-}
-
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
-  } catch { /* fall through to the old way */ }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta); ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  } catch { return false; }
-}
-
 function Label({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <span className="flex min-w-0 flex-col items-center gap-px text-center">
@@ -122,12 +82,9 @@ function Label({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
 export function ShareActions({ onSend, available = true, sendTo, open, copy, testId, env: envProp, pageHandoff = PAGE_HANDOFF }: ShareActionsProps) {
   const words = { ...useKitCopy().share, ...copy } as ShareCopy;
   const kit = useKitCopy();
-  const env = envProp ?? browserEnv();
   const locked = available !== true;
   const [send, setSend] = useState<SendState>('default');
   const [at, setAt] = useState<string | undefined>(undefined);
-  const [openState, setOpenState] = useState<OpenState>('default');
-  const [copyState, setCopyState] = useState<'copy' | 'copied' | 'failed'>('copy');
   const alive = useRef(true);
   const sending = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -144,53 +101,10 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
     else setSend('failed');
   }, [onSend]);
 
-  // ---- Open in another app
-  const fileUrl = open && 'fileUrl' in open ? open.fileUrl : null;
-  const isPage = !!open && 'page' in open;
-  const showOpen = !!open && (isPage
-    ? pageHandoff && (env === 'android-iab' || env === 'ios-iab')
-    : true);
-  // Android, WhatsApp's browser, a FILE: hand it to the phone's app (bd-fmf24g.59), with Copy link underneath.
-  const handOff = env === 'android-iab' && showOpen && !!fileUrl;
-  // Anywhere else inside WhatsApp's browser the button only copies: nothing it can navigate to leaves WhatsApp.
-  const copyMode = (env === 'ios-iab' || env === 'android-iab') && showOpen && !handOff;
-
-  const targetUrl = useCallback(async (): Promise<string | null> => {
-    if (fileUrl) return typeof fileUrl === 'string' ? fileUrl : fileUrl();
-    return typeof window !== 'undefined' ? window.location.href : null;
-  }, [fileUrl]);
-
-  const doCopy = useCallback(async () => {
-    const url = await targetUrl();
-    const ok = url ? await copyText(url) : false;
-    if (alive.current) setOpenState(ok ? 'copied' : 'failed');
-  }, [targetUrl]);
-
-  const pressCopy = useCallback(async () => {
-    let url: string | null = null;
-    try { url = await targetUrl(); } catch { url = null; }
-    const ok = url ? await copyText(url) : false;
-    if (alive.current) setCopyState(ok ? 'copied' : 'failed');
-  }, [targetUrl]);
-
-  const pressOpen = useCallback(async () => {
-    if (openState === 'opening') return;
-    if (copyMode || openState === 'copy' || openState === 'failed') { await doCopy(); return; }
-    setOpenState('opening');
-    let url: string | null = null;
-    try { url = await targetUrl(); } catch { url = null; }
-    if (!url) { if (alive.current) setOpenState(handOff ? 'default' : 'copy'); return; }
-    if (handOff) {
-      const to = handoffIntentUrl(url, new URL(window.location.href).origin);
-      if (alive.current) setOpenState('default');
-      if (to) window.location.href = to;
-      else await pressCopy(); // a host our page does not forward to: copy its link instead of handing it off
-      return;
-    }
-    // A file in Chrome, Safari or the app: open it normally (the app hands another host to the system browser).
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setOpenState('default');
-  }, [copyMode, doCopy, handOff, openState, pressCopy, targetUrl]);
+  // ---- Open in another app (useOpenTarget)
+  const opener = useOpenTarget(open, { env: envProp, pageHandoff });
+  const { show: showOpen, handOff, copyState, pressCopy } = opener;
+  const { env } = opener;
 
   if (!onSend && !showOpen) return null;
 
@@ -242,9 +156,9 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
 
   let openButton: ReactNode = null;
   if (showOpen) {
-    const mode: OpenState = copyMode && openState === 'default' ? 'copy' : openState;
+    const mode = opener.mode;
     const outline = 'border-[#33374a] bg-white text-[#33374a]';
-    const common = { type: 'button' as const, onClick: pressOpen, 'data-testid': 'share-open' };
+    const common = { type: 'button' as const, onClick: opener.press, 'data-testid': 'share-open' };
     if (mode === 'opening') {
       openButton = (
         <button {...common} aria-busy="true" className={cn(BASE, 'cursor-progress border-[#33374a] bg-[#f3f4f6] text-[#33374a]', FOCUS)}>

@@ -865,6 +865,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # One ask per teacher per PKT day, whichever surface came first: the teacher_nudges UNIQUE
     # (user_id, nudge_date, kind). External-link opens and Grades 6–12 opens never book.
 
+  # ADDED 2026-11-22 (bd-pdwwk4.2). @no-mock-driver: the mock lane cannot age the teacher's last message past
+  # 24 hours. Executed through the real sweeper in tests/qfix-offers/held-path.test.js.
+  @e2e @config-gated @no-mock-driver @lp-ask @negative @P2 @COA141
+  Scenario: A coaching ask held back because my window closed says so on its row
+    Given I took a lesson plan before 14:00 PKT and the coaching ask was booked
+    And my last message to the bot was more than 24 hours before the sweep that would send it
+    When the sweep runs
+    Then no coaching ask reaches me
+    And with app_settings "quiz_offer_closed_window" set to trace, today's ask row is skipped for window_closed
+    And its context says nothing reached me (held_path "none"), so the funnel can count it
+    # lp-coaching-ask send(): skip(row, 'window_closed', {held_path: 'none'}) when the switch's trace is on; off =
+    # today's skip with no context. No message, string or button changes.
+
   @e2e @wip @draft @lp-ask @P1 @COA43
   Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
     Given the coaching ask is on screen
@@ -1243,6 +1256,24 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And it does not carry "You did not reflect on this lesson"
     # A lesson recorded on WhatsApp keeps 12 hours and today's line whether the switch is on or off.
 
+  # ── The report template with a "Make a quiz" button (ADDED 2026-11-22, bd-pdwwk4.2) ──
+  # With the window closed the report goes as the approved share template. Behind app_settings
+  # "quiz_offer_closed_window".report_template it goes as that template's quiz sibling instead: the same header
+  # and body, plus one quick-reply button. training.feature T1240–T1243 cover the tap and the quiz.
+  # @no-mock-driver: the mock lane cannot age the teacher's last message past 24 hours, and the sibling template is
+  # not approved on any WABA yet. Executed with Meta mocked in tests/qfix-offers/closed-window-offer.test.js.
+  @e2e @wip @draft @config-gated @no-mock-driver @P1 @COA140
+  Scenario: With my window closed, my report arrives once, with the same picture and words, plus "Make a quiz"
+    Given I have not written to the bot for more than 24 hours and my coaching report is ready
+    And app_settings "quiz_offer_closed_window" names a report quiz template
+    When the report is sent
+    Then I get one report message with the same picture and words as today's report template, and one "Make a quiz" button
+    But if WhatsApp refuses that template, I get today's report template instead, once
+    And a report that carries my lesson clip keeps its own template and button, with no quiz button
+    # report-window-send: !button && sendQuizTemplate → 'template'; events coaching.report.quiz_template_sent /
+    # _not_sent. share-send kind dc, quiz option: the plain template's components + one QUICK_REPLY (payload
+    # tqr_<session>). Switch off: the session is never read for a button.
+
 
   # ── A coach's observation of her lesson, in her portal (bd-5rz1v.6.4) ──────
   # The row is the teacher's (observation_type leader_observation), so it is
@@ -1319,6 +1350,73 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Given VIDEO_RECO_ENABLED is not set
     When my coaching report arrives
     Then no "watch this" message, no clip on the image, and no clip card on my report page
+
+  # R9 (bd-tp4w7n.1, COS 20261119T115204 §R9.3): behind VIDEO_RECO_ALIGNED (unset = the picks above, unchanged). Only a
+  # chapter that SHOWS a teacher doing what the report asked (lib's catalogue v2: demonstration / modelled, the shown move
+  # and its sub-ask), never one already shown and never from a video already shown; else no clip. Units:
+  # tests/coaching/video-reco/r9-aligned.test.js; matcher calibration outputs/lanes/eng-rec/calib/ (VIDREC team folder).
+  @e2e @wip @draft @config-gated @P1 @COA104
+  Scenario: A wait-time card gets the clip that shows a teacher holding the silence, and says so
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my report says to wait a few seconds in silence after asking a question
+    When the clip arrives
+    Then it is the chapter where a trainer asks a question and gives everyone time to think alone first
+    And the reason says "Your report asked you to wait a few seconds after a question before anyone answers" and what the clip shows
+    And the clip plays only the part that shows it, not the whole chapter
+
+  @e2e @wip @draft @config-gated @P1 @COA105
+  Scenario: A teacher who has already watched the best clip gets the next one from a different video
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And I was already shown a think-pair-share clip
+    When my next report asks me again to let students talk in pairs first
+    Then the clip is a think-pair-share chapter from a different video
+    And it is never the clip I already got
+
+  @e2e @wip @draft @config-gated @negative @P1 @COA106
+  Scenario: A card no clip shows stays silent rather than getting a near-miss
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    When my report asks me to replace "Do you understand?" with "explain it in your own words"
+    Or it asks for two versions of the task for students to choose from
+    Or I have already been shown every clip that shows what it asks
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  # R9c (bd-tp4w7n.5, COS 20261119T174101 / 174509): six second clips behind the same flag and the env allowlist (the 9
+  # first clips keep their place), and a recorded skip for an own report the engine cannot read. Units: the R9c blocks
+  # of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA107
+  Scenario: A teacher who already watched the wait-time clip gets no second one until a second clip has cleared
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown the wait-time clip
+    When my next report asks me again to wait a few seconds after a question
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_uncleared
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA108
+  Scenario: My own report on an observation form the clips cannot read gets no clip, and the skip is recorded
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot
+    And my own recording was scored on a form other than FICO
+    When my coaching report arrives
+    Then it has no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says framework_unsupported with the form's name
+
+  # R9d route (a) (bd-tp4w7n.6, COS 20261119T215752 / 233941; ped-align r9a, r10): a later visit (a teacher already
+  # shown a clip) gets a clip only for the card's main step, within the clip's subject and grade, only from the clips
+  # cleared on later picks (today 804-s2, a think-pair-share with children), and
+  # VIDEO_RECO_LATER_VISITS=false stops later-visit clips. Units: the R9d block of tests/coaching/video-reco/r9-aligned.test.js.
+  @e2e @wip @draft @config-gated @negative @P1 @COA109
+  Scenario: After my first clip, a wait tacked onto another step gets no wait-time clip
+    Given VIDEO_RECO_ALIGNED is on for the NIETE sandbox bot with the second clips on the allowlist
+    And I was already shown a clip
+    When my next report asks me to ask "why?" and then wait a few seconds
+    Then my report arrives with no clip message, no clip on the image and no clip card
+
+  @e2e @wip @draft @config-gated @negative @P2 @COA110
+  Scenario: With later visits switched off, a teacher who already got a clip gets no other
+    Given VIDEO_RECO_ALIGNED is on and VIDEO_RECO_LATER_VISITS is false for the NIETE sandbox bot
+    And I was already shown a clip
+    When my next report asks me to wait a few seconds after a question
+    Then my report arrives with no clip message, no clip on the image and no clip card
+    And the video recommendation row for that session says aligned:later_off
 
   # v10 A/B groups C and D only (ab_v10_enabled on; A, B and teachers outside the draw: today's caption and
   # reminder). bd-v0toag.100.8, from Quratulain's week-1 review: a G2 English ask was checked on a G5 lesson,

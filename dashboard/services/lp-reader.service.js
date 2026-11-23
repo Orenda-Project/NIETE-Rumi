@@ -113,15 +113,17 @@ async function readerOf(userId, known = {}, { timeoutMs = READ_TIMEOUT_MS } = {}
  * @param {{leader: boolean, role: string|null}} reader  readerOf's answer
  * @param {(sql: string, params: any[]) => Promise<{rows: any[]}>} query
  * @param {{userId: string, kind: 'k5'|'g612'|'fln', ref: string, lang?: string|null, source: 'viewer'|'external'}} open
- * @param {{ survey?: boolean, renderId?: string|null, activity?: object }} [opts]
- *   survey    a teacher's open asks for the "was this useful?" survey (k5, g612; never FLN)
+ * @param {{ survey?: boolean|'in_app', renderId?: string|null, activity?: object }} [opts]
+ *   survey    a teacher's open asks for the "was this useful?" survey (k5, g612; never FLN); 'in_app' when the app's
+ *             own survey bar asks her instead (the bot then skips the WhatsApp survey for this open)
  *   renderId  a grades 6-12 open: the request a leader's open marks opened
  *   activity  the open writer (FLN's router injects its own)
  */
 function recordOpen(reader, query, open, { survey = true, renderId = null, activity = LpActivity } = {}) {
   if (!reader || !reader.leader) {
     const pending = activity.logOpen(query, open);
-    return survey ? pending.then((result) => surveyClient().afterOpen(result)) : pending;
+    if (!survey) return pending;
+    return pending.then((result) => surveyClient().afterOpen(result, { inApp: survey === 'in_app' }));
   }
   try {
     telemetry.logEvent(EVENT, {

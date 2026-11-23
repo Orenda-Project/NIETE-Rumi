@@ -15,6 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `attendance-tap-routing.test.js` | Source-reads whatsapp-bot.js: att_method_/att_class_ taps are consumed in both button_reply and list_reply branches |
 | `attendance-write.test.js` | attendance-write.service, the single write path: mark by exception, leave distinct from absent, shared with portal |
 | `attendance-writes-no-rosters.test.js` | Static guard that attendance code mutates only register tables and never writes the class/roster tables owned by /class |
+| `bd-33wxxi.10-staff-register.test.js` | (unmapped) |
 | `bd-fmf24g.7-attendance-portal.test.js` | bd-fmf24g.7: attendance-portal.service for the teacher portal: class selector, day status, marking window, write rule |
 | `bigquery-export-worker.test.js` | attendance-bigquery-export.worker pure helpers: parseArgs, yesterdayInKarachi and aggregatePresence |
 | `bigquery-sync.test.js` | attendance/bigquery-sync.service: BigQuery config validation (required env fails loud, defaults) and the sync behaviour |

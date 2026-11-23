@@ -18,6 +18,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `child-flow-token.test.js` | bd-2475: ChildFlowToken build/parse round-trip of the phone-keyed flow token for anonymous quiz children |
 | `child-quiz-home.test.js` | Pins child /quiz opening a Home hub cta_url (flag web_quiz_child_quiz_home) via the real webhook; teacher never gets it |
 | `class-report-layout.test.js` | Prints the class-results report through real Chromium and checks page count and packing, Urdu and English |
+| `digest-failure-detail.test.js` | (unmapped) |
 | `handout-class-binding.test.js` | Pins deliverClassLink: known class mints a bound share code, ambiguous sends unbound then asks, none unchanged |
 | `handout-class-real-resolver.test.js` | Runs hand-out class binding through the real resolveQuizClass for one, two-section and out-of-grade class cases |
 | `latin-runs-rtl.test.js` | Pins that an English phrase with "&" or middle dot in an Urdu teacher PDF is one LTR isolate (wrapLatin) |
@@ -30,9 +31,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `old-link-redirect.test.js` | Pins the QUIZ-<code> old-link redirect to ONE web-quiz cta_url under web_quiz_old_link_redirect, with guards |
 | `old-link-reoffer.test.js` | Pins re-offering the Start quiz button once to a child who types after the redirect, plus redirect wamid logging |
 | `one-voice-missing-keys.test.js` | Pins read-only pre-flip check one-voice-missing-keys.js for web_quiz_one_voice: lists missing clips by id |
+| `presign-public-r2-dev.test.js` | (unmapped) |
 | `quiz-column-sum-katex.test.js` | Real-KaTeX check that a textbook column sum is valid TeX and typeset as an array on the card and teacher PDF |
 | `quiz-equation-runs-katex.test.js` | Real-KaTeX check that an Urdu stem's Latin-x equation renders as one LTR expression on card and teacher PDF |
 | `quiz-picture-words.test.js` | Pins pointsAtPicture (quiz-picture-words): which stem wordings, English and Urdu, mean the stem refers to a picture |
+| `quiz-session-feedback-language.test.js` | (unmapped) |
 | `quiz-sources.test.js` | R8 lane D 3.1: pins quiz-sources constants and isLessonQuiz/isPlanQuiz predicates for transcript, lp_v8, lp612 quizzes |
 | `quiz-stacked-fractions-katex.test.js` | Real-KaTeX check that flat $2/3$ fractions render stacked (mfrac) on the child card and teacher PDF |
 | `quiz-start-via-home.test.js` | Pins that a quiz started from teacher home is credited home: Funnel.metaSourceOf, teacher_home channel, failure copy |
@@ -60,6 +63,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `teacher-pdf-footer.test.js` | Sweeps the last question's length through real renderPdf and Chromium so the footer never sits alone on a page |
 | `teacher-pdf-summary-quoted-title.test.js` | Pins the "What you planned" first-sentence split on the teacher PDF so a quoted title with ! or ? stays whole |
 | `teacher-self-test.test.js` | PLAN_R5 D8: isSelfTest marks a session whose user_id equals the share-code owner, nothing else |
+| `transcript-quiz-digest-grade.test.js` | (unmapped) |
 | `transcript-quiz-flow-action-empty.test.js` | Pins /quiz Flow fix for empty tq_action submits and undeclared error_message: bare Continue acts or refuses loudly |
 | `transcript-quiz-flow-class-labels.test.js` | Pins the /quiz lesson screen writing each child's class one way (named once or per line) in the teacher's language |
 | `transcript-quiz-flow-endpoint.test.js` | R6 lane M: /quiz as one WhatsApp Flow; paging stays in-Flow, lesson tap shows results, actions end on DONE |
@@ -90,6 +94,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `video-quiz-post-quiz-telemetry.test.js` | TQ-R5 lane H: uniform video_quiz.offer_shown / scorecard_sent funnel events for every post-quiz offer |
 | `video-quiz-question-cascade.test.js` | bd-2477 #1: a 131056 rate-limit storm backs off instead of burning through every remaining question |
 | `video-quiz-rate-limiter.test.js` | bd-2666: per-recipient sliding-window self-throttle in front of every video-quiz WhatsApp send |
+| `video-quiz-render-language.test.js` | (unmapped) |
 | `video-quiz-render.test.js` | bd-2306: three-phase render contract (phase order and operator FEEDBACK_RULES) for video quiz messages |
 | `video-quiz-report-attribution.test.js` | bd-2472: an invited friend's session never reaches the teacher's class report roster or counts |
 | `video-quiz-report-dual-language.test.js` | bd-mg9c7.27: class report chrome follows the teacher's language while quoted questions follow the quiz's |

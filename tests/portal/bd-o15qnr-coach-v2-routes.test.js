@@ -54,7 +54,10 @@ function findRoute(router, method, path) {
  * she made, so its gate is requireCoachV2OrPrincipalApp — a coach still needs portal_coach_v2, a principal needs
  * portal_principal_app (pinned below).
  */
-const GATE_OF = (path) => (path === '/coach/reports' ? 'requireCoachV2OrPrincipalApp' : 'requireCoachV2');
+// bd-31ziu8 (operator 18 Nov: principals book visits as coaches do): /coach/schedule is the principal app's My schedule
+// too, so it has the same gate as /coach/reports.
+const OBSERVER_READS = ['/coach/reports', '/coach/schedule'];
+const GATE_OF = (path) => (OBSERVER_READS.includes(path) ? 'requireCoachV2OrPrincipalApp' : 'requireCoachV2');
 
 /** Run the route from its v2 gate onward (auth + leader role are the shared, tested middlewares). */
 async function call(path, { params = {}, query = {}, userId = 'coach-1', role = 'coach' } = {}) {
@@ -110,6 +113,13 @@ describe('every /coach route is behind portal_coach_v2', () => {
 
   // bd-33wxxi.8 — the principal app's side of /coach/reports' gate: her switch, never the coach's.
   // (Her side when the switch names her is pinned in tests/portal/bd-33wxxi.4-principal-observation-reads.test.js.)
+  test('/coach/schedule for a principal the principal app does not name: 404 even with portal_coach_v2 on, no query', async () => {
+    settings.portal_coach_v2 = true;
+    const off = await call('/coach/schedule', { userId: 'principal-1', role: 'principal' });
+    expect(off.statusCode).toBe(404);
+    expect(poolQuery).not.toHaveBeenCalled();
+  });
+
   test('/coach/reports for a principal the principal app does not name: 404 even with portal_coach_v2 on, no query', async () => {
     settings.portal_coach_v2 = true;
     const off = await call('/coach/reports', { userId: 'principal-1', role: 'principal' });

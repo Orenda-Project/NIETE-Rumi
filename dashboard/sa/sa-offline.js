@@ -7,7 +7,9 @@
  *   SAE.offline.lineUrls(battery, lang, base) → the clips of the engine's own lines (battery.lines), asked for first
  *   SAE.offline.images(battery, lang) → the picture URLs the session shows (option_images, script.demo_image)
  *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, images,
- *     images_missing, why? }>
+ *     images_missing, why?, sw, held }>
+ *     sw = the VERSION of each worker that answered (sa-42+, round 28; names()); held = Promise<the sa-session-* cache the
+ *     clips are in, or null>, asked once after the last clip step and capped at 2 s: ready and clips never wait on it.
  *     ready = the engine files, the battery and its pictures are on the phone (a picture task offline has nothing to
  *     tap without them); a clip not on the phone is spoken by the phone's own voice instead (clips_missing counts
  *     them), so it never blocks "ready".
@@ -15,6 +17,10 @@
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
+ *     The answer also carries prep_ms, prep_bytes, prep_gaveup_stage and prep_missing. Each clip stage waits while its
+ *     clips keep arriving and gives up only after 20 s with nothing new (then the phone's own cache is counted).
+ *     It carries sw (the VERSION of each worker that answered) and held (a Promise of the session cache, above) too.
+ *   SAE.offline.version(worker) → Promise<its VERSION or null> (2 s cap): worker_swap's "to" (sa-page.js swapWatch)
  *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
  *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
@@ -25,6 +31,9 @@
  *     chunk while it says true (a background download giving the line to the Start gate).
  *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
  *     only (nothing fetched).
+ *   SAE.offline.timingUrls(clipUrls, index?) → the timing files of those clips worth asking for (see below); prepare and
+ *     prepVisit ask for sa/v5/prompt_timings.json on its own before any clip, and for the v4 word timings last, only
+ *     those dashboard/sa/timings.index.json lists (none when it cannot be read).
  *
  * UMD: window.SAE.offline (and SAE.prepare) in the browser, module.exports under Node.
  */
@@ -64,17 +73,48 @@
   }
 
   /**
-   * timingUrls(clipUrls) → the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json, round 8 item 32: the screens
-   * light the words as Jugnu says them), and once, beside the v5 clips, sa/v5/prompt_timings.json (round 28: each picker
-   * prompt's speech end, which starts the tap clock). Best effort: not every clip has one, and a missing one is never
-   * "not ready". Both go into the session cache with the clips, so a SESSION bump renews them together.
+   * timingUrls(clipUrls, index) → once, beside the v5 clips, sa/v5/prompt_timings.json (round 28: each picker prompt's
+   * speech end, which starts the tap clock), first; then the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json,
+   * round 8 item 32: the screens light the words as Jugnu says them) that the timing index lists (index = { ur: [keys],
+   * en: [keys] }, dashboard/sa/timings.index.json). Most v4 clips have no timing file, so without the index no v4 timing
+   * is named at all (never one beside every clip: each would be a failed fetch). Best effort: a missing one is never
+   * "not ready". They go into the session cache with the clips, so a SESSION bump renews them together.
    */
-  function timingUrls(list) {
+  function timingUrls(list, index) {
     list = list || [];
-    var out = list.filter(function (u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }).map(function (u) { return u.replace(/\.mp3$/, '.json'); });
+    var out = [];
     var v5 = list.filter(function (u) { return /\/sa\/v5\/(ur|en)\/[^/]+\.mp3$/.test(u); })[0];
     if (v5) out.push(v5.replace(/\/(ur|en)\/[^/]+\.mp3$/, '/prompt_timings.json'));
+    if (!index || typeof index !== 'object') return out;
+    var has = {};
+    ['ur', 'en'].forEach(function (l) { has[l] = {}; (Array.isArray(index[l]) ? index[l] : []).forEach(function (k) { if (typeof k === 'string') has[l][k] = true; }); });
+    list.forEach(function (u) {
+      var m = /\/sa\/v4\/(ur|en)\/([^/]+)\.mp3$/.exec(u);
+      if (m && has[m[1]][m[2]]) out.push(u.replace(/\.mp3$/, '.json'));
+    });
     return out;
+  }
+
+  function isV4(u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }
+
+  var INDEX_WAIT_MS = 10000;
+  /**
+   * loadIndex(base) → Promise<{ ur, en } | null>: dashboard/sa/timings.index.json (the v4 clips that have a timing file),
+   * read once per call with a time limit; null when it cannot be read (offline, refused, malformed). Never rejects.
+   */
+  function loadIndex(base) {
+    var f = typeof root.fetch === 'function' ? root.fetch.bind(root) : null;
+    if (!f) return Promise.resolve(null);
+    var u = (base == null ? '/' : base).replace(/\/?$/, '/') + 'sa/timings.index.json';
+    return new Promise(function (ok) {
+      var t = setTimeout(function () { ok(null); }, INDEX_WAIT_MS);
+      Promise.resolve().then(function () { return f(u, { credentials: 'same-origin' }); }).then(function (r) {
+        return r && r.ok ? r.json() : null;
+      }).then(function (d) {
+        clearTimeout(t);
+        ok(d && typeof d === 'object' && (Array.isArray(d.ur) || Array.isArray(d.en)) ? d : null);
+      }, function () { clearTimeout(t); ok(null); });
+    });
   }
 
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
@@ -115,6 +155,49 @@
       ch.port1.onmessage = function (e) { clearTimeout(t); ok(e.data); };
       sw.postMessage(msg, [ch.port2]);
     });
+  }
+
+  // A stage of the Start gate waits while the worker reports progress, and gives up only after STALL_MS with no file kept
+  // and no byte received (a slow link is waited for, a dead one is not). There is no total limit. A worker that never
+  // reports progress (the previous one, still active while the new one installs) keeps the old fixed window.
+  var STALL_MS = 20000;
+  var LEGACY_WAIT_MS = 60000;
+
+  /**
+   * watch(sw, msg, stat) → Promise<reply | null>: ask with { progress: true }; null when the stage stalled. stat.bytes
+   * keeps the most body bytes the stage reported (its answer's, or its last progress when it gave up).
+   */
+  function watch(sw, msg, stat) {
+    return new Promise(function (ok) {
+      var ch = new root.MessageChannel();
+      var t = null;
+      var heard = false;
+      var last = { done: 0, bytes: 0, link: null };
+      function arm(ms) { clearTimeout(t); t = setTimeout(function () { ok(null); }, ms); }
+      arm(LEGACY_WAIT_MS);
+      ch.port1.onmessage = function (e) {
+        var d = e.data || {};
+        if (d.type !== 'progress') { clearTimeout(t); if (stat && d.bytes > (stat.bytes || 0)) stat.bytes = d.bytes; ok(d); return; }
+        var moved = (d.done || 0) > last.done || (d.bytes || 0) > last.bytes || (last.link != null && (d.link || 0) > last.link);
+        if (!heard || moved) arm(STALL_MS);
+        heard = true;
+        last = { done: Math.max(last.done, d.done || 0), bytes: Math.max(last.bytes, d.bytes || 0), link: Math.max(last.link || 0, d.link || 0) };
+        if (stat && last.bytes > (stat.bytes || 0)) stat.bytes = last.bytes;
+      };
+      var m = {};
+      for (var k in msg) if (Object.prototype.hasOwnProperty.call(msg, k)) m[k] = msg[k];
+      m.progress = true;
+      sw.postMessage(m, [ch.port2]);
+    });
+  }
+
+  /** After a stage gave up: which of its urls are really on the phone (caches.match), never "all missing". */
+  function kept(list) {
+    var c = root.caches;
+    if (!c || typeof c.match !== 'function') return Promise.resolve({ missing: list.slice() });
+    return Promise.all(list.map(function (u) {
+      return Promise.resolve().then(function () { return c.match(u, { ignoreSearch: true }); }).then(function (hit) { return hit ? null : u; }, function () { return u; });
+    })).then(function (r) { return { missing: r.filter(Boolean) }; });
   }
 
   var UPDATE_WAIT_MS = 10000;
@@ -184,6 +267,24 @@
     });
   }
 
+  // round 28 (device_ready, worker_swap): the page never waits longer than this on a worker's 'held' answer
+  var HELD_WAIT_MS = 2000;
+
+  /** Distinct names in order, joined with '+' (two at most, then '+…', never a name cut short); null when there are none. */
+  function names(list) {
+    var out = [];
+    (list || []).forEach(function (n) { if (typeof n === 'string' && n && out.indexOf(n) < 0) out.push(n); });
+    if (!out.length) return null;
+    return out.length > 2 ? out.slice(0, 2).join('+') + '+…' : out.join('+');
+  }
+
+  /** The VERSION of worker w ({ type: 'held' } with no urls), or null: no worker, a build before round 28, or 2 s gone. */
+  function version(w) {
+    if (!w || typeof w.postMessage !== 'function' || !root.MessageChannel) return Promise.resolve(null);
+    return Promise.resolve().then(function () { return ask(w, { type: 'held', urls: [] }, HELD_WAIT_MS); })
+      .then(function (r) { return r && typeof r.sw === 'string' ? r.sw : null; }, function () { return null; });
+  }
+
   function prepare(o) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
@@ -201,22 +302,47 @@
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
         var none = { ok: true, missing: [] };
-        var opened = open.length ? ask(sw, { type: 'prepare', urls: open }) : Promise.resolve(none);
+        // the picker's prompt timings (its tap clock) first, on their own: before any clip, never counted as one
+        var early = timingUrls(clips);
+        if (early.length) ask(sw, { type: 'prepare', urls: early }).then(null, function () {});
+        // the timing index, read meanwhile; the v4 word timings it lists go behind everything else
+        var index = clips.some(isV4) ? (o.loadIndex || loadIndex)(o.base) : Promise.resolve(null);
+        // each clip stage waits while its clips keep arriving (watch); a stage that stalled is counted on the phone (kept)
+        var stat = { opening: {}, lines: {}, rest: {}, battery: {}, images: {} };
+        var gaveUp = [];
+        function stage(name, list) {
+          return watch(sw, { type: 'prepare', urls: list }, stat[name]).then(function (r) {
+            if (r) return r;
+            gaveUp.push(name);
+            return kept(list);
+          });
+        }
+        var opened = open.length ? stage('opening', open) : Promise.resolve(none);
         // The opening is on the phone (or given up on): the page may speak it now (o.onLines, RULING W3-18).
         if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
-        var said = opened.then(function () { return first.length ? ask(sw, { type: 'prepare', urls: first }) : none; });
-        var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
-        // the v4 clips' word timings, behind everything else and never waited on
-        var timings = timingUrls(clips);
-        if (timings.length) then.then(function () { return ask(sw, { type: 'prepare', urls: timings }); }).then(null, function () {});
-        return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics }), opened]).then(function (r) {
+        var said = opened.then(function () { return first.length ? stage('lines', first) : none; });
+        var then = said.then(function () { return stage('rest', rest); });
+        // where the clips are (device_ready.session): one ask after the last clip step, its own 2 s cap; nothing waits on it
+        var held = then.then(function () { return ask(sw, { type: 'held', urls: clips }, HELD_WAIT_MS); })
+          .then(function (r) { return r && typeof r.session === 'string' ? r.session : null; }, function () { return null; });
+        // the v4 clips' word timings the index lists, behind everything else and never waited on (no index: none)
+        Promise.all([then, index]).then(function (r) {
+          var timings = timingUrls(clips, r[1]).filter(function (u) { return early.indexOf(u) < 0; });
+          return timings.length ? ask(sw, { type: 'prepare', urls: timings }) : null;
+        }).then(null, function () {});
+        return Promise.all([said, watch(sw, { type: 'prepare', urls: list }, stat.battery), then, watch(sw, { type: 'prepare', urls: pics }, stat.images), opened]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
           var audio = { missing: (r[4] || { missing: open }).missing.concat((r[0] || { missing: first }).missing, (r[2] || { missing: rest }).missing) };
           var img = r[3] || { ok: false, missing: pics };
           var ready = !!core.ok && img.missing.length === 0;
+          var order = ['opening', 'lines', 'rest'];
           return { ready: ready, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length,
             images: pics.length - img.missing.length, images_missing: img.missing.length,
-            why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached') };
+            bytes: Object.keys(stat).reduce(function (n, k) { return n + (stat[k].bytes || 0); }, 0),
+            gaveup_stage: order.filter(function (k) { return gaveUp.indexOf(k) >= 0; })[0] || null,
+            why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached'),
+
+            sw: names([r[4], r[0], r[2], r[1], r[3]].map(function (x) { return x && x.sw; })), held: held };
         });
       })
       .catch(function (e) { return { ready: false, why: String(e && e.message || e) }; });
@@ -253,6 +379,8 @@
     var storage = pick(o, 'storage', nav && nav.storage || null);
     var ls = pick(o, 'localStorage', (function () { try { return root.localStorage; } catch (_) { return null; } }()));
     var total = urls(battery, lang, o.base).length;
+    var now = function () { return Date.now(); };
+    var t0 = now();
     return Promise.all([
       Promise.resolve().then(function () { return off({ battery_url: o.battery_url, battery: battery, lang: lang, base: o.base, onLines: o.onLines }); }).then(null, function () { return null; }),
       hasVoice(speech, lang).then(null, function () { return false; }),
@@ -262,7 +390,12 @@
       var cached = typeof c.clips === 'number' ? Math.min(c.clips, total) : 0;
       var voice = total > 0 && cached === total ? 'clips' : (r[1] ? 'tts' : 'none');
       if (ls) { try { ls.setItem('sa:voice', voice); ls.setItem('sa:persisted', String(r[2])); } catch (_) { /* a full or blocked store: the batch says null */ } }
-      return { clips_total: total, clips_cached: cached, voice: voice, persisted: r[2], ready: !!c.ready, battery: !!c.battery, why: c.why };
+      // the phone's own timing of the preparation (device fields): how long, how many bytes came, the first clip stage that
+      // stalled (null: none did), and how many of the session's clips are not on the phone
+      return { clips_total: total, clips_cached: cached, voice: voice, persisted: r[2], ready: !!c.ready, battery: !!c.battery, why: c.why,
+        prep_ms: now() - t0, prep_bytes: typeof c.bytes === 'number' ? c.bytes : null,
+        prep_gaveup_stage: c.gaveup_stage || null, prep_missing: total - cached,
+        sw: c.sw || null, held: c.held || Promise.resolve(null) };
     });
   }
 
@@ -493,6 +626,10 @@
       var total = bats.length + all.length;
       var done = bats.length;
       progress({ done: done, total: total, bytes: bytes });
+      // the picker's prompt timings (its tap clock) before any clip, best effort and not a file of the count
+      var early = timingUrls(all);
+      var index = all.some(isV4) ? (o.loadIndex || loadIndex)('/') : Promise.resolve(null);
+      var first = early.length ? q({ type: 'prepare', urls: early }).then(null, function (e) { if (e && e.turn) throw e; }) : Promise.resolve();
       var chunks = [];
       for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
       // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
@@ -510,9 +647,9 @@
           done += c.length;
           progress({ done: done, total: total, bytes: bytes });
         });
-      }, Promise.resolve()).then(function () {
-        // the v4 clips' word timings, best effort: what the server has not got is not counted
-        var timings = timingUrls(all);
+      }, first).then(function () { return index; }).then(function (idx) {
+        // the v4 clips' word timings the index lists, best effort: what the server has not got is not counted
+        var timings = timingUrls(all, idx).filter(function (u) { return early.indexOf(u) < 0; });
         return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function (e) { if (e && e.turn) throw e; }) : null;
       }).then(function () {
         var missing = Object.keys(missingSet).length;
@@ -564,6 +701,6 @@
       });
   }
 
-  return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls };
+  return { STALL_MS: STALL_MS, names: names, version: version, urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls, loadIndex: loadIndex };
 }));

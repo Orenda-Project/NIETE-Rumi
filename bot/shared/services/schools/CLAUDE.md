@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=c4209c2d9931 gen=c549add2aa41 overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=9f8eac9be83e gen=859f4e8afc67 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id
@@ -16,8 +16,8 @@
 | `school-migration.transform.js` | Pure transforms for the legacy Postgres to Supabase schools/principals migration, run by scripts/migrate-schools.py |
 
 ## Who reads this (generated)
-- `school-card-door.js` ← imported by `bot/shared/handlers/text-message.handler.js:234:ea91fd53` · `bot/shared/services/app-redirect.service.js:656:7104e6a8`
-- `school-search.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:95:1fc82996` · `bot/shared/services/schools/school-card-door.js:102:cc6600ce`
+- `school-card-door.js` ← imported by `bot/shared/handlers/text-message.handler.js:246:ea91fd53` · `bot/shared/services/app-redirect.service.js:798:7104e6a8`
+- `school-search.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:96:1fc82996` · `bot/shared/services/schools/school-card-door.js:102:cc6600ce`
 - `school-resolver.service.js` ← imported by `bot/shared/routes/registration-endpoint.js:47:32923e9e`
 
 ## Never (human)
@@ -31,6 +31,7 @@
 - `tests/registration/bd-97daxo6-organization-from-region.test.js` (school-search.service.js)
 - `tests/registration/bd-x7aprz2-registration-v5.test.js` (school-search.service.js)
 - `tests/registration/bd-x7aprz9-finish-closes-flow.test.js` (school-search.service.js)
+- `tests/registration/n3-is-this-you-endpoint.test.js` (school-search.service.js)
 
 ## Related (generated)
 - skills: `registration`?

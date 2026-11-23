@@ -35,7 +35,7 @@ folder with a `SKILL.md` (+ optional reference files).
 | [database-analysis](skills/database-analysis/SKILL.md) | Read-only analyst guide: connection, query patterns, anti-sprawl |
 | [qa-testing](skills/qa-testing/SKILL.md) | Test runner, conformance guards, the route-contract pattern |
 | [video-generation](skills/video-generation/SKILL.md) | The educational-video pipeline, presigned-URL gotcha, checkpoint/resume |
-| [ab-testing](skills/ab-testing/SKILL.md) | Thompson-sampling multi-armed bandit (ab_tests tables) |
+| [ab-bandit](skills/ab-bandit/SKILL.md) | Thompson-sampling multi-armed bandit (ab_tests tables) |
 | [logging](skills/logging/SKILL.md) | Structured console logs, correlation IDs, semantic events, optional external backend |
 | [feature-tracer](skills/feature-tracer/SKILL.md) | Trace any feature end to end — the map of handler/service/worker/table per feature |
 | [gherkin-spec-sync](skills/gherkin-spec-sync/SKILL.md) | Phase 1 of the auto-run: sync the specs to a commit from the brief — add/update/tag `@obsolete`, never delete, then gate |

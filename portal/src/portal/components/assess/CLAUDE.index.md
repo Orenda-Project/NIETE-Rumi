@@ -7,16 +7,21 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `AssessActions.tsx` | Learning-assessment fixed action bar and useAboveTabBar hook giving bottom offsets per tab-bar variant |
+| `AssessDrain.test.tsx` | (unmapped) |
 | `AssessDrain.tsx` | Hidden same-origin frame on the SA engine's drain mode that sends sessions the phone still holds after hand-back |
+| `AssessEngineSlot.lastrec.test.tsx` | (unmapped) |
+| `AssessEngineSlot.r20.test.tsx` | (unmapped) |
 | `AssessEngineSlot.r7b.test.tsx` | Round 7b: End test and End section are taps opening an End/Keep going question (sa_end_test_restart, sa_end_section) |
 | `AssessEngineSlot.test.tsx` | Pins AssessEngineSlot: child done on sa:done/hand-back/offline, coach 3 s hold, hand-back v2 and voice gate v2 |
 | `AssessEngineSlot.tsx` | Full-screen same-origin iframe running the SA engine play page for one child, reporting why the test finished |
 | `AssessOfflineCard.tsx` | "Get ready for offline" card (sa_r8_offline_prep): coach pre-keeps schools' child lists and test files on the phone |
 | `AssessOtherPhone.tsx` | Opens a child's test on another phone via a one-hour server token shown as a QR code, never carrying a child name |
+| `AssessPreflight.floor.test.tsx` | (unmapped) |
 | `AssessPreflight.ios.test.tsx` | (unmapped) |
 | `AssessPreflight.test.tsx` | Pins AssessPreflight: with sa_mic_required Ready waits for a working mic or explicit continue; off = today's card |
 | `AssessPreflight.tsx` | Pre-flight card once per visit: airplane mode, headphone beep and microphone level/playback check |
-| `AssessVisitBar.tsx` | Sticky visit bar: children done of the list, the visit timer (45 min, or list size × 20 min under sa_per_visit), and per-child sync state (phone/sending/sent) |
+| `AssessVisitBar.test.tsx` | (unmapped) |
+| `AssessVisitBar.tsx` | Sticky visit bar: children done of five, 45-minute timer, and per-child sync state (phone/sending/sent) |
 | `assessSw.test.ts` | Round 8: tests the assess-sw.js service worker (network-first online, kept page/files/reads offline) |
 | `offlineCopy.ts` | English and Urdu copy for the round-8 offline-prep pieces (OFFLINE_COPY), digits kept 0-9 |
 | `offlineReady.test.ts` | Round 8: pageUrls lists the page, reads, prepared lists and engine offline helper that Get ready must keep |
@@ -34,8 +39,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `offlineReady.ts` ← imported by `portal/src/portal/pages/LeaderAssess.tsx:15:98df4fd3` · `portal/src/portal/components/assess/AssessOfflineCard.tsx:10:28426d80`
 
 ## Tests (all, generated)
-- `AssessEngineSlot.tsx` ← `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx`
-- `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx`
+- `AssessDrain.tsx` ← `portal/src/portal/components/assess/AssessDrain.test.tsx`
+- `AssessEngineSlot.tsx` ← `portal/src/portal/components/assess/AssessEngineSlot.lastrec.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.r20.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx`
+- `AssessPreflight.tsx` ← `portal/src/portal/components/assess/AssessPreflight.floor.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.ios.test.tsx` · `portal/src/portal/components/assess/AssessPreflight.test.tsx`
+- `AssessVisitBar.tsx` ← `portal/src/portal/components/assess/AssessVisitBar.test.tsx`
 - `offlineReady.ts` ← `portal/src/portal/components/assess/offlineReady.test.ts` · `portal/src/portal/pages/LeaderAssess.r11report.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx`
 
 ## Related (all, generated)

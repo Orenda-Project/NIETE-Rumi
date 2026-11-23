@@ -106,6 +106,14 @@ function resolveFidelitySources(session) {
  * @returns {Promise<null | {status:'ok'|'lp_absent'|'fidelity_unavailable', ...}>}
  */
 async function computeLpFidelity(input = {}, deps = {}) {
+  // The blob (moves, verdict evidence, narrative) comes back in Urdu script. The grader and the
+  // uploaded-plan extractor can write a Hindi-script word, and this blob reaches the coach's form and the report from
+  // three callers (the analysis, the late-plan recompute, /observe2), so it is converted once, here.
+  const { urduScriptOnly } = require('../urdu-script-only');
+  return urduScriptOnly(await gradeLpFidelity(input, deps), 'lp_fidelity');
+}
+
+async function gradeLpFidelity(input = {}, deps = {}) {
   const resolveMoveList = deps.resolveMoveList || require('./lp-fidelity-store').resolveMoveList;
   const extractUploadedLp = deps.extractUploadedLp || require('./lp-upload-extractor').extractUploadedLp;
   const analyzeFidelity = deps.analyzeFidelity || require('./fidelity-analyzer').analyzeFidelity;

@@ -564,3 +564,39 @@ describe("the rules", () => {
     expect(tapProblems(document.body)).toEqual([]);
   });
 });
+
+/**
+ * bd-bsc0ox (queue #200) — the Android app lost files she picked: a recording she picks is read the moment she picks it
+ * (useSendFlow.chooseAudio, shared with the teacher v2 send page), and a file the phone will not open says so, never
+ * "Not a recording" at the pick nor "No internet" at Send.
+ */
+describe("a file the phone will not open (bd-bsc0ox)", () => {
+  const notReadable = () => Object.assign(new Error("The requested file could not be read"), { name: "NotReadableError" });
+  function neverOpens(name: string, type: string) {
+    const f = new File([new Uint8Array([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70])], name, { type });
+    Object.defineProperty(f, "arrayBuffer", { value: () => Promise.reject(notReadable()) });
+    return f;
+  }
+
+  it("Upload recording with a file that will not open: File will not open, not Not a recording", async () => {
+    getUserMedia.mockRejectedValue(new Error("denied"));
+    renderPage({ start: "record" });
+    await screen.findByText("Microphone blocked");
+    fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [neverOpens("lesson.m4a", "audio/mp4")] } });
+    expect(await screen.findByText("File will not open", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("Not a recording")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send to Digital Coach" })).toBeNull();
+  }, 15_000);
+
+  it("her plan file would not open at Send: File will not open, not No internet; Change lesson plan opens the sheet", async () => {
+    await toCheck();
+    const sheet = await openPlanSheet();
+    fireEvent.change(within(sheet).getByTestId("plan-file-input"), { target: { files: [neverOpens("my plan.pdf", "application/pdf")] } });
+    fireEvent.click(await screen.findByRole("button", { name: "Send to Digital Coach" }));
+    expect(await screen.findByText("File will not open", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("No internet")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Change lesson plan" }));
+    expect(await screen.findByRole("dialog", { name: "Lesson plan" })).toBeInTheDocument();
+    expect(screen.getByTestId("check-plan")).not.toHaveTextContent("my plan.pdf");
+  }, 15_000);
+});

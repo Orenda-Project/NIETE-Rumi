@@ -23,7 +23,8 @@ describe("assess copy", () => {
   });
 
   it("titles", () => {
-    expect(COPY.en.title).toBe("Learning assessment");
+    expect(COPY.en.title).toBe("Learning Assessment"); // bd-39qx8x — operator, 18 Nov: capital A
+    expect(COPY.en.notAvailable).toBe("Learning Assessment is not on for your account yet.");
     expect(COPY.ur.title).toBe("تعلیمی جائزہ");
   });
 

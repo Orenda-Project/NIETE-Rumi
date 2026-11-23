@@ -268,6 +268,31 @@ describe("a failure: in the app only", () => {
   });
 });
 
+/**
+ * bd-tymy1n (queue #179) — a coach's observation that stopped because this phone could not read one of its files (a
+ * photo, her plan, an uploaded recording). Sending the same files again only fails again, so the banner names the part
+ * and its button opens the Sending page, where Send without it is; it never re-sends by itself.
+ */
+describe("an observation a file of which this phone could not read", () => {
+  it("the banner names the photo, and its button opens the Sending page instead of sending the same files again", async () => {
+    const retried = vi.fn(async () => ({ ok: true as const }));
+    noticeTracker.registerRetry("observation", retried);
+    noticeTracker.track({
+      kind: "observation", ref: "v1", title: "Ayesha Bibi", grade: null, subject: null, questions: null,
+      waitHref: "/portal/coach/visit/v1/sending", visitId: "v1", visitDay: "2026-10-06", durationMs: 60_000,
+    } as NewNotice);
+    noticeTracker.update(itemId("observation", "v1"), { state: "failed", errorCode: "unreadable_photo_1" });
+    mount("/portal/coach/reports");
+    await tick(100);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Photo 1 could not be read on this phone. Send without it.");
+    expect(alert).not.toHaveTextContent(/internet/i);
+    await act(async () => { fireEvent.click(within(alert).getByRole("button", { name: /Try again/ })); });
+    expect(retried).not.toHaveBeenCalled();
+    expect(screen.getByTestId("at")).toHaveTextContent("/portal/coach/visit/v1/sending");
+  });
+});
+
 describe("Urdu", () => {
   it("the strip and the banner follow her language", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });

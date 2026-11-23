@@ -446,6 +446,10 @@ describe("LeaderAssess", () => {
 
     it("no drain frame when nothing is waiting, or while a child's test is open", async () => {
       await openList();
+      // the page's first drain (anything the phone holds) answers nothing held
+      await screen.findByTestId("assess-drain-frame");
+      drained();
+      await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
       await act(async () => { window.dispatchEvent(new Event("online")); });
       expect(screen.queryByTestId("assess-drain-frame")).toBeNull();
       const s = await startChild();
@@ -840,6 +844,8 @@ describe("LeaderAssess", () => {
       await openList();
       const s = await startChild("d1");
       act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin })); });
+      // Next child waits for the last recording's upload
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:audio_saved", s, pending_audio: 0, state: "synced" }, origin: window.location.origin })); });
       const hold = await screen.findByRole("button", { name: /Next child \(coach\)/ });
       vi.useFakeTimers();
       fireEvent.pointerDown(hold);

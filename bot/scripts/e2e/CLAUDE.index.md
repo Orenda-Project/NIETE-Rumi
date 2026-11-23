@@ -41,6 +41,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `refresh-views.test.sh` | Tests local-db.sh refresh-views populates materialized views wherever Postgres lives; dev-portal uses it (bd-hnhlgn.3) |
 | `sandbox-copy-finish.sql` | Post-load step for local-db sandbox-copy: advances sequences past copied ids, including text codes built from sequences… |
 | `sandbox-copy.test.sh` | Tests local-db.sh sandbox-copy: refuses non-sandbox source, copies by column name, sequences advanced (bd-hnhlgn.2) |
+| `sandbox-env.sh` | (unmapped) |
+| `sandbox-env.test.sh` | (unmapped) |
 | `seed-rows-used.js` | Finds which reference-table rows the tests actually read from queries.log, to size the minimal committed seed (bd-z3ze4… |
 | `sweep.js` | Runs one worker periodic sweep (teacher-nudges, resume, stale, quiz-offer-prepare) now against the local stack |
 

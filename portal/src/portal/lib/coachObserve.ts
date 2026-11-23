@@ -10,7 +10,7 @@
  */
 
 import { leader, portal } from "../services/api";
-import type { CoachObservationView, ObserveLesson, ObserveStep } from "../services/api";
+import type { CoachObservationView, ObserveLesson, ObserveNote, ObserveStep } from "../services/api";
 import { sendLesson, SendError, type PlanChoice } from "./coachingSend";
 
 type EntryCopy = {
@@ -117,6 +117,13 @@ export const STEP_CHIP: Record<ObserveStep, string> = {
 type ObserveApi = Pick<typeof leader, "presignObserveUpload" | "startObservation" | "startTalk">;
 type UploadApi = Pick<typeof portal, "uploadToR2">;
 
+/**
+ * bd-tfya0m (queue #205) — an unanswered start is asked again after these waits. Production 19 Nov: a coach's recording
+ * reached R2 and no start ever reached the server. The bot answers a repeated start of the same recording with the same
+ * observation, so asking again never starts a second one.
+ */
+export const START_RETRY_MS = [2_000, 6_000];
+
 /** Send her lesson: the teacher's sendLesson, through the coach's endpoints, for this teacher. */
 export function sendObservation(
   args: {
@@ -127,16 +134,24 @@ export function sendObservation(
     photos: File[];
     /** bd-ra8xu.40 — the class she named on Check and send; absent when it was not asked. */
     lesson?: ObserveLesson | null;
+    /** bd-ra8xu.60 — her Observation Notes (Record and Check and send); the start carries them only when there is one. */
+    notes?: ObserveNote[] | null;
+    /** bd-tymy1n — what already arrived, by file (coachingSend's map): a second send sends only the rest. */
+    uploaded?: WeakMap<Blob, string>;
+    /** bd-tfya0m — waits before each extra ask of an unanswered start (START_RETRY_MS; tests pass zeros). */
+    startRetryMs?: number[];
   },
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos, lesson } = args;
-  return sendLesson({ audio, plan, photos }, {
+  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded, startRetryMs = START_RETRY_MS } = args;
+  return sendLesson({ audio, plan, photos, startRetryMs, ...(uploaded ? { uploaded } : {}) }, {
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
-    startCoachingUpload: (start) => api.startObservation({ ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}) }),
+    startCoachingUpload: (start) => api.startObservation({
+      ...start, teacherExtId, schoolExtId: schoolExtId || null, ...(lesson ? { lesson } : {}), ...(notes && notes.length ? { notes } : {}),
+    }),
   }, onProgress);
 }
 

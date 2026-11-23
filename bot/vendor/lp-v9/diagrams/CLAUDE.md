@@ -1,7 +1,7 @@
 # diagrams — Diagram-as-code engine turning specs into deterministic SVG for LPs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=3d9abef32c91 gen=3f19f04843de overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=8f06df3244b3 gen=a46c444117dc overflow=7 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and the contract render_lp.js uses
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | `types_manifest.json` | Machine-readable roster of 32 diagram kinds, aliases and spec conventions, verified against the live registry by a test |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` · `bot/shared/services/quiz/transcript-quiz-figure.js:32:ac38be60` (+2)
-- `types_manifest.json` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:34:0cde44c6` · `bot/vendor/lp-v9/lint_lp.js:2209:be119a43`
+- `index.js` ← imported by `bot/shared/services/assessment/paper-diagram.js:19:67435837` · `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` (+3)
+- `types_manifest.json` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:34:0cde44c6` · `bot/vendor/lp-v9/lint_lp.js:2236:be119a43`
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._

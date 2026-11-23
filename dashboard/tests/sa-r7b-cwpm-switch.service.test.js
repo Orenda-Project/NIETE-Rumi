@@ -1,4 +1,6 @@
 'use strict';
+// the flag cache off: each test reads its own app_settings rows (an ON row cached for 30 s would answer the OFF test)
+process.env.FLAG_CACHE_TTL_MS = '0';
 /** Round 7b item 14: GET /sa/switches carries `cwpm` (app_settings sa_cwpm: true or a list of user ids; off when absent). */
 const express = require('express');
 

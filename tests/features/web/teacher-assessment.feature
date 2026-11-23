@@ -152,6 +152,34 @@ Feature: Teacher assessment
     When she scrolls to the end, ticks Simple Writing and taps Done
     Then the drawer closes and Simple Writing is on the page at 1
 
+  # Seen (book) questions by type (bd-e5n2jf, Mubashar Zia 20 Nov): the single "as in the book" box stays until she adds
+  # a book type; the first type takes that count, each type then steps on its own, and removing the last brings the
+  # single box back. Test ids: count-seen, add-seen-type, seen-types-tray, seen-type-count-<Type>, questions-total.
+  @TA20
+  Scenario: Teacher splits her book questions by type and the paper's total holds
+    Given a Grade 4 Science teacher is on Questions with 5 book questions and 4 MCQs
+    When she taps Add a book type and ticks MCQs
+    Then the single book box is gone, book MCQs shows 5, and the total still reads 9 questions
+    When she adds True/False from the book and taps its plus
+    Then book True/False shows 2 and the total reads 11 questions
+    When she removes both book types
+    Then the single "as in the book" box is back
+    When she adds MCQs and True/False again and taps the True/False plus
+    Then Check and make lists the book types as "MCQs 5 · True/False 2" and the request carries them as seenTypes
+
+  @TA21
+  Scenario: The stem choice offers "NIETE Teaching Assistant chooses", never "Rumi chooses"
+    Given a Grade 1 English teacher has picked topics whose MCQs carry question stems
+    When she opens Questions
+    Then the stem chips start on "NIETE Teaching Assistant chooses"
+    And the word Rumi appears nowhere on the screen
+
+  @TA22
+  Scenario: Paper ready asks the teacher to check the answers before she uses them
+    Given a plain Grade 4 Science paper with an answer key is ready
+    When she opens the paper
+    Then under the paper it says "Please check the answers before you use them. Some may be wrong."
+
   @TA15
   Scenario: The old Question types and Marks and lines links land on Questions
     Given a plain New paper is under way for a Grade 4 Science class
@@ -221,3 +249,68 @@ Feature: Teacher assessment
     When she starts a new paper from the paper maker's own door and makes it
     Then that request carries no report mark
     And a request whose grade has no such subject keeps her on Class, still marked as from the report
+
+  @sandbox @real-paper
+  # bd-zrdvmi.24 — ICT Feedback sheet, Assessment Generator rows 6-7 (an RM asked to see Bloom's levels while choosing).
+  Scenario: Edit paper shows each question's Bloom's level and a summary that follows Remove
+    Given a plain paper whose questions carry Bloom's levels is open in Edit paper
+    Then each question shows its level, such as "Remember" or "Apply", beside its marks
+    And above the questions a summary shows each level's share of the paper, such as "Remember 50%", and each question type's count, such as "MCQs 2"
+    When the teacher removes a question
+    Then the summary's shares and counts change to match the questions still on the paper
+    And in Urdu the levels and headings show in Urdu
+    And the printed paper and answer key show no levels and no summary
+    And a paper whose questions carry no level shows no summary, as before
+
+  @sandbox @real-paper
+  # bd-zrdvmi.50.2 — ICT Feedback sheet, Assessment Generator row 7 point 7 (Amena 21 Nov): FDE's expected mix to compare.
+  Scenario: Edit paper shows FDE's target thinking-level mix for Grades 1-5 beside the paper's own mix by marks
+    Given a Grade 5 Maths paper whose questions carry Bloom's levels is open in Edit paper
+    Then the summary shows "FDE target" with "Remember 10%", "Understand 50%" and "Apply 40%"
+    And it shows "This paper, by marks" with the paper's own shares in the same three bands
+    When the teacher removes a question
+    Then "This paper, by marks" changes and the FDE target stays the same
+    And a Grade 1-4 paper shows FDE's target for its grade and subject from FDE's 2023-24 tables
+    And a Grade 6-12 paper, or a subject FDE gives no table for, shows no FDE target
+    And nothing stops the teacher keeping a paper that differs from the target
+
+  @sandbox
+  # bd-zrdvmi.50.3 — ICT Feedback sheet, Assessment Generator row 12 (Saba Kokab; Amena 21 Nov): a group of MCQs or
+  # blanks under one heading counts as one question toward the 50.
+  Scenario: A group of MCQs, blanks or true/false counts as one question toward the 50
+    Given a teacher on Questions for a Grade 5 Science paper
+    When she asks for 20 MCQs, 10 Fill in the Blanks, 10 True/False and 25 Short Questions
+    Then the total reads 28 questions and Next is open
+    And she can still add more MCQs while the paper prints fewer than 100 items
+    When she asks for 51 Short Questions
+    Then Next is held with "Questions: 1 to 50"
+    When her types add up to more than 100 printed items
+    Then Next is held with "Printed items: up to 100"
+    And on WhatsApp the same paper is accepted on the counts screen, and 51 written questions are refused naming 50
+
+  @sandbox @real-paper
+  # bd-zrdvmi.50.4 — ICT Feedback sheet, Assessment Generator row 21 (Hafsa; Amena 21 Nov: a tick-list): after
+  # choosing a chapter she sees that chapter's own questions and picks the ones she wants. Behind
+  # app_settings assessment_book_picker_enabled.
+  Scenario: Teacher ticks the chapter's own book questions and the paper prints exactly those
+    Given the book picker is on
+    And a teacher on Questions for a Grade 4 Science paper on one chapter
+    When she taps "Select from the book"
+    Then a list opens with that chapter's exercise questions, grouped under the book's exercise headings
+    And every question in the list is printed on that chapter's pages
+    When she ticks 3 questions and taps "Done"
+    Then the seen card reads "Book · 3 selected" with "Change" and "Clear selection"
+    And the total counts those 3 as seen questions
+    And Check shows "Book · 3 selected"
+    When she makes the paper
+    Then the paper's seen questions are those 3, word for word, each with marks and an answer
+
+  @sandbox
+  Scenario: Select from the book follows the chapters on the paper and the switch
+    Given the book picker is on
+    And a teacher on Questions for a Grade 4 Urdu paper on two chapters
+    When she taps "Select from the book"
+    Then both chapters' questions are listed, each under its chapter, in Urdu right to left
+    When the book picker is switched off
+    Then Questions shows no "Select from the book" and the seen card is today's
+    And a paper by pages, or a board-pattern paper, never shows "Select from the book"

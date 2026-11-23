@@ -75,7 +75,8 @@ function shaped(locked) {
 // JSON for an inline script: nothing may close the tag.
 const js = (v) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-// hub.js deviceRef() + hubFor(null), in the same steps: a storage that cannot keep the ref asks nothing early.
+// hub.js deviceRef() + hubFor(null), in the same steps (device_ref, lang, src: the same body, key for key): a storage
+// that cannot keep the ref asks nothing early.
 const SCRIPT = `(function(w,d,t){try{
 var R=/^[A-Za-z0-9_-]{22}$/,S=w.localStorage,v=null,q=String(w.location.search||""),m;
 if(/[?&]lang=(en|ur)(&|$)/.test(q)&&/[?&]keep=1(&|$)/.test(q))return;
@@ -84,7 +85,8 @@ if(typeof v!=="string"||!R.test(v)){m=/(?:^|;\\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|
 if(m)v=m[1];else{var A="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",a=new Uint8Array(22);w.crypto.getRandomValues(a);v="";for(var i=0;i<22;i++)v+=A.charAt(a[i]&63)}
 S.setItem("wq_d",JSON.stringify(v));if(JSON.parse(S.getItem("wq_d"))!==v)return}
 d.cookie="wq_dv="+v+"; path=/; max-age=2592000; samesite=lax"+(w.location.protocol==="https:"?"; secure":"");
-var b={device_ref:v},l=(/[?&]lang=(en|ur)(&|$)/.exec(q)||[])[1];if(l)b.lang=l;b=JSON.stringify(b);
+var b={device_ref:v},l=(/[?&]lang=(en|ur)(&|$)/.exec(q)||[])[1];if(l)b.lang=l;
+l=(/[?&]from=(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join|push)(&|$)/.exec(q)||[])[1];if(l)b.src=l;b=JSON.stringify(b);
 var r=w.fetch("/api/wq/hub/"+encodeURIComponent(t),{method:"POST",headers:{accept:"application/json","content-type":"application/json"},body:b});
 r.then(null,function(){});w.WQHUB0={t:t,b:b,r:r}
 }catch(x){}})(window,document,__T__);`;

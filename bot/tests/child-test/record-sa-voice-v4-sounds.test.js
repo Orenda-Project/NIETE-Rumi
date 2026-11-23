@@ -32,7 +32,7 @@ test('withSounds, Urdu: the practice sounds are held, a first-sound letter is it
   expect(P.withSounds('م', 'ur')).toBe('[slowly] mmmmm');
   expect(P.withSounds('لفظ "مدد" کی ابتدائی آواز م ہے۔', 'ur')).toBe('لفظ "مدد" کی ابتدائی آواز [slowly] mmmmm ہے۔');
   expect(P.withSounds('شاباش! لفظ "انار" کی ابتدائی آواز ا ہے۔', 'ur')).toBe('شاباش! لفظ "انار" کی ابتدائی آواز [slowly] اَ ہے۔');
-  expect(P.withSounds('اب آپ کی باری! ہر حرف کی آواز تیز آواز بولیں۔', 'ur')).toBe('اب آپ کی باری! ہر حرف کی آواز تیز آواز بولیں۔');
+  expect(P.withSounds('اب آپ کی باری! ہر حرف کی آواز زور سے بولیں۔', 'ur')).toBe('اب آپ کی باری! ہر حرف کی آواز زور سے بولیں۔');
   expect(P.withSounds('آم', 'ur')).toBe('آم');
 });
 

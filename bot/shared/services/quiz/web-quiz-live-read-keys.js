@@ -14,6 +14,11 @@
  * Soniox refusing the key ⇒ 503 and nothing counted (the key is minted before the row). Two keys asked at once at one
  * below the cap: the day's first `cap` rows keep their keys, a later row is deleted and rests (429).
  * → { api_key, expires_at, ws, model, lang, run }. Never logs a key. A table that cannot be read or written ⇒ no key (503).
+ *
+ * A teacher's "Try it as a student" preview (no child; app_settings `web_quiz_practice_your_turn` on, bd-21q0kr): the
+ * same key, the same page rule, the same repeats and the same day's read budget, but counted against the TEACHER with
+ * the preview's own day cap (web-quiz-live-read-preview.js, in Redis), never in web_quiz_live_read_keys and never
+ * against any child. Off, a preview token meets the read-aloud's entry rule as before (401).
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -25,6 +30,9 @@ const Budget = require('./web-quiz-challenge-budget');
 const LR = require('./web-quiz-live-read-v3');
 // the read-aloud's entry rule, and (loaded with it) the Challenge's story-key count in the day's read budget
 const Ch = require('./web-quiz-challenge');
+// a teacher's preview: is this token one (pure), and its own switch, cap and count (bd-21q0kr)
+const Practice = require('./web-quiz-practice-play');
+const Preview = require('./web-quiz-live-read-preview');
 
 const CAP_KEY = 'web_quiz_live_read_story_keys_per_day';
 const STORIES_FLAG_KEY = 'web_quiz_stories';
@@ -105,8 +113,12 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
     fail(503, 'live_unavailable');
   }
   if (!ok) fail(404, 'not_found');
-  const entry = await Ch.entryOf(st, kid, device);
   const l = clampLanguage(lang, ['en', 'ur']);
+  // web_quiz_practice_your_turn: a teacher's preview reads the page too, counted against the teacher (off ⇒ null, and
+  // the token meets the entry rule below exactly as before)
+  const preview = Practice.isPractice(st) ? await Preview.entryOf(st) : null;
+  if (preview) return previewKey(preview.teacherId, book, p, l);
+  const entry = await Ch.entryOf(st, kid, device);
   let mine;
   try { mine = await keysToday(entry.studentId); } catch (e) {
     logError('web_quiz.lr_keys_count_failed', { error: String((e && e.message) || e).slice(0, 120) });
@@ -150,6 +162,57 @@ async function storyKey({ st, kid, book, page, lang, device } = {}) {
   if (!repeat) Budget.noteStarted(LR.STORY_KEY_WEIGHT);
   // n = this child's counted story keys today, this one included: the cap is set from that spread, not a guess
   logEvent('web_quiz.lr_key', { src: 'story_page', lang: l, run, n: repeat ? mine : mine + 1, cap, ...(repeat ? { repeat: true } : {}) });
+  return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };
+}
+
+/**
+ * A teacher's preview key (bd-21q0kr): as a child's, but counted in the teacher's own day (web-quiz-live-read-preview.js)
+ * with the preview's cap, and in the same day's read budget. Redis that cannot count ⇒ no key (503), before Soniox is
+ * asked. No row anywhere, nothing that names a child; the log line says practice and never the teacher's id.
+ */
+async function previewKey(teacherId, book, p, l) {
+  const mine = await Preview.countToday(teacherId);
+  if (mine === null) {
+    logError('web_quiz.lr_preview_count_failed', { src: 'story_page' });
+    fail(503, 'live_unavailable');
+  }
+  const cap = await Preview.cap();
+  const pk = `pv:${teacherId}|${book}|${p}`;
+  const seen = counted.get(pk);
+  const repeat = !!(seen && Date.now() - seen.at < REPEAT_MS && seen.free < REPEAT_MAX);
+  if (!repeat && (mine >= cap || !(await Budget.readOpen()))) {
+    logEvent('web_quiz.lr_key_rest', { src: 'story_page', practice: 1, n: mine, cap });
+    fail(429, 'enough_for_today');
+  }
+  const Live = require('./web-quiz-soniox-live');
+  if (!Live.configured()) fail(503, 'live_unavailable');
+  const run = crypto.randomUUID();
+  // the key first: a key Soniox refuses costs the teacher nothing (no count, no budget)
+  const minted = await Live.mintTempKey(run);
+  if (!minted.ok) {
+    logError('web_quiz.lr_key_failed', { status: minted.status, reason: minted.reason, practice: 1 });
+    fail(503, 'live_unavailable');
+  }
+  let n = mine;
+  if (!repeat) {
+    // then the count, before the key is handed out: one script adds and checks, so two at once never both take the last
+    const got = await Preview.claim(teacherId, run, cap);
+    if (got === null) {
+      logError('web_quiz.lr_preview_count_failed', { src: 'story_page', at: 'claim' });
+      fail(503, 'live_unavailable');
+    }
+    if (got < 0) {
+      logEvent('web_quiz.lr_key_rest', { src: 'story_page', practice: 1, n: -got, cap });
+      fail(429, 'enough_for_today');
+    }
+    n = got;
+    if (counted.size > 5000) counted.clear();
+    counted.set(pk, { at: Date.now(), free: 0 });
+    Budget.noteStarted(LR.STORY_KEY_WEIGHT);
+  } else {
+    seen.free += 1;
+  }
+  logEvent('web_quiz.lr_key', { src: 'story_page', practice: 1, lang: l, run, n, cap, ...(repeat ? { repeat: true } : {}) });
   return { api_key: minted.api_key, expires_at: minted.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: l, run };
 }
 

@@ -18,7 +18,7 @@
  * only lines.coach_will_instruct. Both lists are the same ids: the variant changes who instructs, never the measure.
  */
 
-const { COMMON, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, CHAINS, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 const { PLAN: COUNTS_PLAN } = require('./counts');
 
 const W3_TASKS = [
@@ -130,7 +130,7 @@ const COACH = {
     'core_egma:p.6 Task 4A script (rwp2026 blfluency blfl1: + and −), one at a time'),
 };
 // "Then go on" models for a practice item: the carrier in the page's language, then the answer in the item's own
-// language (RULING #31a: no clip says an item of the other language inside a sentence).
+// language (no clip says an item of the other language inside a sentence).
 const MODEL = {
   letter_names: L('The name of this letter is:', 'اس حرف کا نام ہے:', 'egra_tk2016:Annex H p.189 practice ("The name of this letter is …")'),
   letter_sounds: L('The sound of this letter is:', 'اس حرف کی آواز ہے:', 'egra_tk2016:Annex H p.187 practice ("The sound of this letter is …")'),
@@ -351,7 +351,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     task: id, lang: null, w3: true, kind: 'oral', legacy_block: null, family: 'egma', subtask: extra2.subtask, title: TITLE[id.split('.')[1]],
     response: 'record', present: 'one_at_a_time', items, practice,
     time_limit_s: extra2.time_limit_s || null, advance_after_s: extra2.advance_after_s || null, ...(extra2.next_at_s ? { next_at_s: extra2.next_at_s } : {}),
-    // A sum is shown; Jugnu says it only on the replay tile (RULING #17), so reading it stays the child's.
+    // A sum is shown; Jugnu says it only on the replay tile, so reading it stays the child's.
     ...(items.some((it) => it.say) ? { say_on: 'replay' } : {}),
     stop: extra2.stop || null, ...(extra2.practice_note ? { practice_note: extra2.practice_note } : {}), ...(extra2.chip ? { chip: extra2.chip } : {}),
     script: mScript(kind), coach_text: coachText(kind, null),
@@ -459,8 +459,13 @@ function runtimeW3Task(t, lang, H) {
 //   accept (word_accept)   on the EN familiar words' items: the local forms that keep the same word, for the scorer only
 //                          (the task carries r28_accept; the route strips both from every served battery, OFF and ON)
 const R28_LINES = {
-  lp_intro: L('Now a listening game. Jugnu will say a sound like /ba/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
-    'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the sound as a CV syllable)'),
+  // The picker intro by the TASK's language (its example: Urdu «بَ», English isolated /b/), in the battery's language.
+  // On the other language's battery the example keeps its own script, and its clip splices the shipped token there
+  // (the two A08 exemptions in sa-tester-fixes.test.js).
+  lp_intro_ur: L('Now a listening game. Jugnu will say an Urdu sound, like «بَ». Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
+    'اب ایک سننے کا کھیل۔ جگنو ایک آواز بولے گا، جیسے «بَ»۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the Urdu sound as a CV syllable)'),
+  lp_intro_en: L('Now a listening game. Jugnu will say a sound, like /b/. Tap the letter for the first sound you hear. Tap the speaker to hear it again.',
+    'اب ایک سننے کا کھیل۔ جگنو انگریزی کی ایک آواز بولے گا، جیسے b کی آواز۔ جس حرف کی یہ آواز ہے اُس پر ٹیپ کریں۔ دوبارہ سننے کے لیے اسپیکر پر ٹیپ کریں۔', 'r28 letter-sound picker (Tangerine SA hear-then-tap; the English sound isolated)'),
   mcq_intro: L('Now some questions about the story. Jugnu will ask a question and read four answers. Each answer lights up as Jugnu reads it. When Jugnu has finished, tap the answer you think is right.',
     'اب کہانی کے بارے میں کچھ سوال۔ جگنو ایک سوال پوچھے گا اور چار جواب پڑھے گا۔ ہر جواب پڑھتے وقت روشن ہوگا۔ جب جگنو پڑھ چکے تو جو جواب ٹھیک لگے اُس پر ٹیپ کریں۔', 'r28 spoken MCQ (Tangerine SA read-aloud options)'),
 };
@@ -502,7 +507,9 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     if (!t) continue;
     if (t.items.length !== spec.base_n) throw new Error(`${id}: ${t.items.length} items, the r28 bank extends ${spec.base_n}`);
     const forForm = spec.ext.filter((x) => !x.grades || x.grades.some((g) => f.grades.includes(g)));
-    const ext = forForm.map((x, i) => ({ id: `${id}.${pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
+    // An entry may name its own id suffix: one id means one numeral on every form (the G1-3 number-ID cells past 42 are
+    // .c43-.c60, never the .43-.50 that G4-5 give the P6 cells).
+    const ext = forForm.map((x, i) => ({ id: `${id}.${x.id || pad(spec.base_n + i + 1)}`, ...extItem(id, x, t.lang), src: x.src, ext: true }));
     // base_n and ext_stop only ever ride an extension: the route strips them with ext_items (withoutR28).
     if (!ext.length) throw new Error(`${id}: the r28 bank lists no extension for this form`);
     Object.assign(t, { base_n: spec.base_n, ext_items: ext, ...(spec.ext_stop ? { ext_stop: spec.ext_stop } : {}) });
@@ -525,15 +532,19 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     const lp = r28.letter_pick[lang];
     if (lp) {
       const id = `${lang}.letter_pick10`;
+      const sound = (x) => ({ text: x.say, lang, audio: v5(said, lang, x.say) });
+      const LS = CHAINS['en.letter_sounds'];
       const row = (x, rid) => ({ id: rid, show: x.target, target: x.target, options: x.options, prompt_text: x.say, prompt_audio: v5(said, lang, x.say), src: x.src });
       out.push({
         task: id, lang, w3: true, r28: 'letter_pick', replaces: `${lang}.letter_sounds5`, kind: 'pick', legacy_block: null, family: 'egra',
         subtask: 'letter_sound_identification', title: R28_TITLE.letter_pick, response: 'tap', replay_at_s: 10, next_at_s: 15, stop: null,
         items: lp.items.map((x, i) => row(x, `${id}.${pad(i + 1)}`)),
-        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role,
-          model: [spoken(MODEL.letter_sounds), { text: x.say, lang, audio: v5(said, lang, x.say) }] })),
-        script: script(R28_LINES.lp_intro), coach_text: coach('letter_pick'),
-        source: { items: 'r28:letter_pick', script: R28_LINES.lp_intro.from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
+        // The second wrong tap names the sound: the letter-sounds carrier, then the item's own clip. A right tap keeps the
+        // engine's right line (the child has linked sound and shape; repeating the sound only lengthens the practice).
+        practice: lp.practice.map((x, i) => ({ ...row(x, `${id}.p${i + 1}`), role: x.role, model: [spoken(MODEL.letter_sounds), sound(x)],
+          feedback: { wrong: [spoken(LS.wrong[0]), sound(x)] } })),
+        script: script(R28_LINES[`lp_intro_${lang}`]), coach_text: coach('letter_pick'),
+        source: { items: 'r28:letter_pick', script: R28_LINES[`lp_intro_${lang}`].from, sa_adaptation: 'recognition: the child hears the sound and taps the letter, scored on the phone' },
         deviation: 'recognition, not production: the published EGRA letter-sound task asks the child to say each sound',
       });
     }
@@ -570,7 +581,8 @@ function runtimeR28Task(t, lang, H) {
     script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach, source: t.source };
   if (t.kind === 'pick') {
     return { ...head, deviation: t.deviation, direction: t.lang === 'ur' ? 'rtl' : 'ltr',
-      items: t.items, practice: t.practice.map(({ model, ...p }) => ({ ...p, model: chainIn(model, lang) })) };
+      items: t.items, practice: t.practice.map(({ model, feedback, ...p }) => ({ ...p, model: chainIn(model, lang),
+        ...(feedback ? { feedback: { wrong: chainIn(feedback.wrong, lang) } } : {}) })) };
   }
   const r = runtimeTask({ ...t, kind: 'questions' }, lang);
   const withOpts = (items, src) => items.map((q, i) => {

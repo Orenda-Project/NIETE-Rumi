@@ -41,6 +41,7 @@ const HomePre = require('./web-quiz-home-preload');
 const Pack = require('./web-quiz-pack');
 const { urDigits } = require('../public/wq/wq-digits');
 const { createStoryAssetHandler } = require('./web-quiz-story-assets');
+const { createClipMp3Handler } = require('./web-quiz-clip-mp3');
 const Stream = require('./web-quiz-stream');
 // The one tap back to WhatsApp on a dead-end page (web_quiz_closed_way_back ON): the bot's signed words and its href rule.
 const ChatTap = require('../../bot/shared/services/first-touch/chat-tap');
@@ -79,7 +80,7 @@ const VID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PS_RX = /^[a-z0-9]{8,16}$/;
 // hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
 // the edge cannot load the bot's modules, so keep the two lists the same.
-const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join)$/;
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join|push)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -938,10 +939,15 @@ ${packed ? '' : `<script src="/wq/wq-tel.js?v=${assetV}" defer></script>\n`}${ta
   };
 }
 
+// Written with the install manifest, before it: Chrome offers the install (beforeinstallprompt) once, ~10 ms after
+// `load`, before the hub has rendered and hub-play.js wired its card, so the head keeps the event for it. Store only:
+// it changes nothing the browser does. No manifest (web_quiz_install_prompt off): not written, the page is today's.
+const BIP_CAPTURE = 'addEventListener("beforeinstallprompt",function(e){window.__wqBip=e})';
+
 function renderHubPage(args) {
   const p = hubPageParts(args);
   return `${p.head}
-${p.manifest ? `<link rel="manifest" href="${p.manifest}">\n` : ''}</head>
+${p.manifest ? `<script>${BIP_CAPTURE}</script>\n<link rel="manifest" href="${p.manifest}">\n` : ''}</head>
 <body>
 ${p.frame}
 ${p.tail}`;
@@ -982,7 +988,7 @@ function renderHubFlushTail({ guess, payload, token, origin, assetV }) {
   // the tail asks for the home's files in the form the head preloaded them (guess.headPack, web_quiz_pack)
   const p = hubPageParts({ payload, token, origin, assetV, headPack: guess.headPack });
   const fix = flushFixes(guess, p);
-  if (p.manifest) fix.push(`var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
+  if (p.manifest) fix.push(`${BIP_CAPTURE};var m=document.createElement("link");m.rel="manifest";m.href=${jsStr(p.manifest)};document.head.appendChild(m)`);
   // web_quiz_wait_ux on, but this portal process flushed the frame before it learnt so (each process learns from its own
   // last hub answer): the piece rides the tail instead, still before the page's scripts, so it is on the page once
   // (with web_quiz_wait_hops, the frame's piece is the hop one: either piece in the frame counts).
@@ -1525,6 +1531,34 @@ function createWebQuizRouter(opts = {}) {
       }
     });
   }
+  // A page opened from the child reminder (the push's url carries ?from=push): the funnel's landed step, counts only.
+  // The reminder opens the class's standing link (/j/, its class-named text), a quiz (/q/) or the phone's own hub (/h/).
+  // A tap that lands from a reminder: the page, and the phone's device hash when the page has its wq_dv cookie (the bot's
+  // deviceHash, web-quiz-telemetry.js: sha256('wqd|' + ref), 16 hex), never the ref itself.
+  // The hub's landing also counts the children it marked "Quiz ready" (ready_n: the bot's kids[].round, set by the /h/
+  // route below in res.locals.wqReadyN), known only once the bot answers: logged once, when the response ends.
+  const pushLanded = (pg) => (req, res, next) => {
+    if (req.query.from === 'push' && !Preview.isPreviewFetch(req)) {
+      const dv = DEVICE_COOKIE_RX.exec(String(req.headers.cookie || ''));
+      // dh and ready_n ride inside data_json (a new top-level log field can collide with a downstream pull's aliases)
+      const data = dv ? { dh: crypto.createHash('sha256').update(`wqd|${dv[1]}`).digest('hex').slice(0, 16) } : {};
+      const landed = () => logEvent('web_quiz.push_landed', { page: pg, kind: 'quiz_reminder', reason: 'quiz_reminder', ...(Object.keys(data).length ? { data_json: JSON.stringify(data) } : {}) });
+      if (pg !== 'hub') landed();
+      else {
+        let sent = false;
+        const once = () => {
+          if (sent) return;
+          sent = true;
+          if (Number.isInteger(res.locals.wqReadyN)) data.ready_n = res.locals.wqReadyN;
+          landed();
+        };
+        res.once('finish', once);
+        res.once('close', once);
+      }
+    }
+    next();
+  };
+  router.get('/j/:code', pushLanded('class_link'));
   // ── standing class link /j/<code> (web_quiz_class_link, decided by the bot): web-quiz-class-link.js ──
   let clV = null;
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
@@ -1677,7 +1711,7 @@ function createWebQuizRouter(opts = {}) {
     return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(closedHtml(req, { lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
-  router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
+  router.get('/q/:code', limiters.read, unknownCode, pushLanded('quiz'), (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
   // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
   // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).
@@ -1690,7 +1724,7 @@ function createWebQuizRouter(opts = {}) {
     res.set('Cache-Control', 'private, max-age=300');
     return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
   });
-  router.get('/h/:token', limiters.read, async (req, res) => {
+  router.get('/h/:token', limiters.read, pushLanded('hub'), async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
     const token = String(req.params.token || '');
@@ -1731,6 +1765,8 @@ function createWebQuizRouter(opts = {}) {
     if (flush && flush.guess.early && out.status === 200 && out.body && out.body.locked === true) out = { ...out, body: EarlyUnlock.shaped(out.body) };
     if (flush && !(out.status === 200 && out.body && Array.isArray(out.body.kids))) return failedAgain(wire, req, out, inlineClosed(req, { lang: out.status === 401 ? langOf(out.body && out.body.lang) || phoneLang : away(), kind: out.status === 401 ? 'hub' : 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
+      // a reminder's landing: how many children the bot marked "Quiz ready" (pushLanded logs it as ready_n)
+      if (req.query.from === 'push' && !out.body.locked && out.body.kids.length) res.locals.wqReadyN = out.body.kids.filter((k) => k && k.round === true).length;
       if (edge) edge.taught(); // a payload wins over an edge-learn answer still on its way
       edgeKey(out.body);
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
@@ -1835,6 +1871,10 @@ function createWebQuizRouter(opts = {}) {
     mp3On: opts.storyMp3On, transcode: opts.storyTranscode,
     limiter: rateLimit({ ...common, max: 1200, keyGenerator: (req) => `sa:${clientIp(req)}` }),
   }));
+
+  // A per-quiz voice clip as mp3 for a phone that cannot play Ogg Opus (web-quiz-clip-mp3.js; web_quiz_voice_v2, off:
+  // the path is not ours and the request goes on exactly as today).
+  router.get(/^\/wq\/clip\/(.+)$/, limiters.read, createClipMp3Handler({ on: opts.clipMp3On, object: opts.clipObject, transcode: opts.clipTranscode, now }));
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
   // is the kind the path names, so a link can never ask for one picture under another's name or cache life.

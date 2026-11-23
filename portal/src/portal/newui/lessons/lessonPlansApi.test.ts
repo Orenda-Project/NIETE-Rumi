@@ -215,6 +215,17 @@ describe("status — a ready own plan says how many changes are left (bd-snkn32.
   });
 });
 
+// bd-96f69c.16 — a shelf plan (another teacher's) is marked so the plan page draws no survey bar.
+describe("status — a ready shelf plan says so", () => {
+  it("shelf: true only when the server says exactly true", async () => {
+    const lp = createLessonPlansApi();
+    routes["/lp612/status/S1"] = () => ({ success: true, state: "ready", shelf: true, ownBand: "g612" });
+    expect(await lp.status("S1")).toEqual({ state: "ready", source: { lane: "g612", renderId: "S1" }, shelf: true });
+    routes["/lp612/status/S1"] = () => ({ success: true, state: "ready", shelf: "yes" });
+    expect((await lp.status("S1")) as object).not.toHaveProperty("shelf");
+  });
+});
+
 describe("status — the poll while a plan is written", () => {
   it("ready, still preparing, or failed; never marked as an open", async () => {
     const lp = createLessonPlansApi();

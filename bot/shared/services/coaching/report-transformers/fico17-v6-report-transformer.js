@@ -5,7 +5,9 @@
  * record; the hero PNG reads its own score view model via report-v2/score-adapters/fico17-v6-adapter.js):
  *   - three goals, one per v6 section (C what the teacher does, D what the children do, F subject knowledge), each
  *     criterion named "<code> <v6 name>: <level title>" so trainers can cross-reference the rubric;
- *   - N/A and never-set levels are left out; couldn't-tell (IE) is one line with no number, never 0/4;
+ *   - an N/A indicator stays in its place with its own words ("N/A: No child was wrong in this lesson.", 19 Nov)
+ *     and no number, outside the totals; never-set levels are left out; couldn't-tell (IE) is one line with no number,
+ *     never 0/4;
  *   - a level the coach set says so ("Set by your coach: <their reason>"), with setBy 'coach';
  *   - lesson-plan fidelity is its own section (extractFidelity), outside the v6 total: it is not one of the 17;
  *   - totals are the v6 ones (scores.overall_*), never V3's 148.
@@ -28,10 +30,19 @@ function levelOf(ind) {
 function criterionFor(code, ind) {
   const def = v6.indicator(code);
   const lv = levelOf(ind);
-  if (lv === null || lv === 'NA') return null;
+  if (lv === null) return null;
   const coach = ind && ind.set_by === 'coach';
   const because = ind && typeof ind.because === 'string' ? ind.because.trim() : '';
   const coachLine = coach && because ? `Set by your coach: ${because}` : null;
+  if (lv === 'NA') {
+    // Per-indicator N/A (19 Nov): the row stays, in its place, with that indicator's own N/A words (coach wording: the coach saw the
+    // lesson). No score, so it is outside the section and overall totals; it is not a low mark.
+    return {
+      name: `${code} ${def.name}`, score: null, max: 4, na: true,
+      evidence: `N/A: ${v6.naSentence(code, 'en')}`,
+      photoEvidence: null, timestamp: null, setBy: coach ? 'coach' : 'rumi',
+    };
+  }
   if (lv === 'IE') {
     return {
       name: `${code} ${def.name}`, score: null, max: 4,

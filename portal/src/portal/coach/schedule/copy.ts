@@ -34,7 +34,7 @@ export const SCHEDULE_COPY = {
   done: 'Done',
   next: 'Next',
   noVisits: 'No visits',
-  daysLate: (n: number) => `${n} days late`,
+  daysLate: (n: number) => (n === 1 ? '1 day late' : `${n} days late`),
   week: 'Week',
   /** "Wed 7": a day's short name and its number. */
   dayShort: (weekday: string, n: number) => `${weekday} ${n}`,
@@ -54,6 +54,29 @@ export const SCHEDULE_COPY = {
   visitsN: (n: number) => `${n} visits`,
   showAllN: (n: number) => `Show all ${n}`,
   showFewer: 'Show fewer',
+
+  /* bd-o15qnr.26 — Schedule as the one open list (portal_coach_flow_v2): Overdue · Today · Coming up · Earlier */
+  comingUp: 'Coming up',
+  earlier: 'Earlier',
+
+  /* bd-o15qnr.26 — Concept 1, "Today and Needs you" (#188 canvas, the operator 19 Nov): the Observe screen and Booked visits */
+  startObservation: 'Start an observation',
+  startSub: 'Pick the school and the teacher, then record',
+  bookedToday: 'Booked for today',
+  record: 'Record',
+  needsYou: 'Needs you',
+  seeAllN: (n: number) => `See all ${n}`,
+  nothingWaiting: 'Nothing waiting',
+  /** How long an observation has waited on her: 0 = today, 1 = since yesterday. */
+  waitingSince: (n: number) => (n <= 0 ? 'Since today' : n === 1 ? 'Since yesterday' : `${n} days waiting`),
+  bookedVisits: 'Booked visits',
+  lateN: (n: number) => `${n} late`,
+  history: 'History',
+  inAllN: (n: number) => `${n} in all`,
+  late: 'Late',
+  ahead: 'Ahead',
+  bookAhead: 'Book ahead',
+  stepOfN: (n: number, total: number) => `Step ${n} of ${total}`,
 
   /* New visit */
   crumb: 'Schedule',
@@ -134,6 +157,28 @@ export const SCHEDULE_COPY_UR: ScheduleCopy = {
   visitsN: (n: number) => `${n} دورے`,
   showAllN: (n: number) => `تمام ${n} دکھائیں`,
   showFewer: 'کم دکھائیں',
+
+  // NATIVE-CHECK (bd-o15qnr.26, machine-drafted): Coming up. Earlier is Observe's word (observe/copy.ts).
+  comingUp: 'آنے والے',
+  earlier: 'پہلے',
+
+  // NATIVE-CHECK (bd-o15qnr.26, machine-drafted; #188's words where it had them): Concept 1
+  startObservation: 'مشاہدہ شروع کریں',
+  startSub: 'اسکول اور ٹیچر چنیں، پھر ریکارڈ کریں',
+  bookedToday: 'آج کے دورے',
+  record: 'ریکارڈ کریں',
+  needsYou: 'آپ کے منتظر',
+  seeAllN: (n: number) => `تمام ${n} دیکھیں`,
+  nothingWaiting: 'کچھ منتظر نہیں',
+  waitingSince: (n: number) => (n <= 0 ? 'آج سے' : n === 1 ? 'کل سے' : `${n} دن سے منتظر`),
+  bookedVisits: 'بک شدہ دورے',
+  lateN: (n: number) => `${n} تاخیر`,
+  history: 'سابقہ مشاہدات',
+  inAllN: (n: number) => `کل ${n}`,
+  late: 'تاخیر',
+  ahead: 'آنے والے',
+  bookAhead: 'آگے کے لیے بک کریں',
+  stepOfN: (n: number, total: number) => `مرحلہ ${n} از ${total}`,
 
   crumb: 'شیڈول',
   reschedule: 'دوبارہ شیڈول کریں',

@@ -7,7 +7,9 @@
 const SA = require('../sa/sa-store');
 
 let fakeIdb = null;
-try { fakeIdb = require('fake-indexeddb'); } catch (_) { /* not installed here: the IndexedDB leg is skipped */ }
+try { fakeIdb = require('fake-indexeddb'); } catch (_) {
+  try { fakeIdb = require(require('path').join(__dirname, '../../portal/node_modules/fake-indexeddb')); } catch (__) { /* not installed here: the IndexedDB leg is skipped */ }
+}
 
 const backends = [['memory', () => SA.open({ idb: null })]];
 if (fakeIdb) backends.push(['indexeddb', () => SA.open({ idb: fakeIdb.indexedDB })]);

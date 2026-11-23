@@ -10,7 +10,8 @@
  * v10 coaching A/B test is read on V3 on 7 Dec). Switching means calling this from the report path for sessions
  * whose analysis is stamped rubric 'fico17_v6' — never for a V3 session.
  *
- * Rules: NA is left out (the thing never came up; it is not a low mark). IE ("couldn't tell") is one line, never a
+ * Rules: NA (C2 only, 19 Nov) is a row with its own words ("No child was wrong in this transcript.") and no level;
+ * it is not a low mark. IE ("couldn't tell") is one line, never a
  * level (spec §9.3). A broken transcript (the quality gate's status) gives no level at all, only the one line saying
  * so (spec §6.3). The two lines are the /observe2 report strings (CONTRACTS §6.5) when they exist. Level titles and the v6 level text are English rubric data (fico17_v6.rubric.json); the rubric has no Urdu
  * yet, so an Urdu report frames them in Urdu and keeps the indicator names and level text in English inline (the
@@ -29,7 +30,7 @@ const STRINGS = {
     none: 'The Digital Coach could not set any level from this recording.',
     sixHead: 'Combined indicators: what the recording showed (your coach sets these levels in the room; no level here):',
     nothing: 'nothing in the recording for this.',
-    noTalk: 'no child-to-child talk was found in the recording.',
+    na: (sentence) => `N/A: ${sentence}`,
     turns: (a, b) => `${a} student turns in the first half, ${b} in the second.`,
     sixCoach: (names) => `Combined indicators, set by your coach in the room: ${names}.`,
   },
@@ -42,7 +43,7 @@ const STRINGS = {
     none: 'اس ریکارڈنگ سے ڈیجیٹل کوچ کوئی درجہ نہیں دے سکا۔',
     sixHead: 'Combined indicators: ریکارڈنگ میں کیا ملا (ان کے درجے کوچ کلاس میں دیتے ہیں؛ یہاں کوئی درجہ نہیں):',
     nothing: 'ریکارڈنگ میں اس کے لیے کچھ نہیں ملا۔',
-    noTalk: 'ریکارڈنگ میں بچوں کی آپس میں بات چیت نہیں ملی۔',
+    na: (sentence) => `لاگو نہیں: ${sentence}`,
     turns: (a, b) => `پہلے نصف میں بچوں کی ${a} باریاں، دوسرے میں ${b}۔`,
     sixCoach: (names) => `Combined indicators، جن کے درجے کوچ کلاس میں دیتے ہیں: ${names}۔`,
   },
@@ -76,7 +77,7 @@ function evidenceRow(code, ev, S) {
     .map((i) => ({ time: i.time || '', quote: clipQuote(i.quote), kind: i.kind || null }));
   let line;
   if (result === 'IE') line = S.ie;
-  else if (result === 'NA') line = S.noTalk;
+  else if (result === 'NA') line = v6.naAllowed(code) ? v6.naSentence(code, S.lang, { by: 'dc' }) : S.nothing;
   else if (!items.length) line = S.nothing;
   else line = items.map((i) => `${i.time} "${i.quote}"`).join(' · ');
   return { code, name, line: `${name}: ${line}`, items: result === 'IE' || result === 'NA' ? [] : items };
@@ -90,13 +91,18 @@ function evidenceRow(code, ev, S) {
 function buildTeacherReport(levels = {}, { language = 'en', transcriptQuality = null, combinedEvidence = null } = {}) {
   const lang = STRINGS[language] ? language : 'en';
   const O = observe2Strings(lang);
-  const S = { ...STRINGS[lang], ie: O.v6_report_ie || STRINGS[lang].ie, broken: O.v6_report_broken || STRINGS[lang].broken };
+  const S = { ...STRINGS[lang], lang, ie: O.v6_report_ie || STRINGS[lang].ie, broken: O.v6_report_broken || STRINGS[lang].broken };
   const broken = Boolean(transcriptQuality && transcriptQuality.status === 'broken');
   const rows = [];
   for (const code of broken ? [] : v6.DC_CODES) {
-    const result = v6.normLevel(resultOf(levels[code]));
-    if (result === null || result === 'NA') continue; // NA (and nothing) is left out
+    let result = v6.normLevel(resultOf(levels[code]));
+    if (result === 'NA' && !v6.DC_NA_LEVEL_CODES.includes(code)) result = null; // an N/A the DC may not give: no level
+    if (result === null) continue; // nothing is left out
     const ind = v6.indicator(code);
+    if (result === 'NA') {
+      rows.push({ code, name: ind.name, result: 'NA', line: `${ind.name}: ${S.na(v6.naSentence(code, lang, { by: 'dc' }))}` });
+      continue;
+    }
     if (result === 'IE') {
       rows.push({ code, name: ind.name, result: 'IE', line: `${ind.name}: ${S.ie}` });
       continue;

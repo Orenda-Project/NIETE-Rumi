@@ -6,7 +6,7 @@ import { deleteRecording } from '../../lib/recordingStore';
 import { itemId } from '../../teacher/notices/model';
 import { noticeTracker } from '../../teacher/notices/tracker';
 import { clearDraft } from '../observeDraft';
-import type { ObserveLesson } from '../../services/api';
+import type { ObserveLesson, ObserveNote } from '../../services/api';
 
 /**
  * bd-4404s7.4 — the coach's observation, sent IN THE BACKGROUND.
@@ -64,6 +64,8 @@ export interface SendArgs {
   photos: File[];
   /** bd-ra8xu.40 — the class she named on Check and send (asked only while FDE's tools are on for her). */
   lesson?: ObserveLesson | null;
+  /** bd-ra8xu.60 — her Observation Notes (typed on Record and on Check and send); absent or empty: the start has no notes. */
+  notes?: ObserveNote[];
   /** bd-33wxxi.4 — the principal app's Sending page and observation page; absent, the coach's (sendingPath, the coach's observation page). */
   waitHref?: string;
   observationHref?: (observationId: string) => string;
@@ -72,7 +74,11 @@ export interface SendArgs {
 /** Where the Sending page for a visit is (the strip's tap, and the page the banner is quiet on). */
 export const sendingPath = (visitId: string) => `/portal/coach/visit/${visitId}/sending`;
 
-type Held = { job: SendJob; args: SendArgs };
+/**
+ * bd-tymy1n — `uploaded`: what already arrived, by the file the sender holds (coachingSend's map). Try again, and Send
+ * without it, send only the rest: a 33-minute recording that went up is not sent again because photo 1 would not open.
+ */
+type Held = { job: SendJob; args: SendArgs; uploaded: WeakMap<Blob, string> };
 
 const held = new Map<string, Held>();
 const listeners = new Set<() => void>();
@@ -91,8 +97,28 @@ function change(visitId: string, patch: Partial<SendJob>): SendJob | null {
   return h.job;
 }
 
+/**
+ * bd-tfya0m (queue #205) — every file arrived and the start still got no answer (after its own tries): say that, not
+ * "The internet stopped" (the files are safe on the server; Try again only asks for the start). Offline stays "network":
+ * no internet is then the true reason. Anything else: errorCodeOf's answer.
+ */
+export function startCodeOf(err: unknown): string | null {
+  if (!(err instanceof SendError) || err.kind !== 'network' || !err.detail) return null;
+  const { part, offline, unreadable } = err.detail;
+  if (part === null && !offline && !unreadable) return 'start_failed';
+  return 'network';
+}
+
 const errorCodeOf = (err: unknown): string => {
-  if (err instanceof SendError) return err.message && err.message !== err.kind && err.kind === 'refused' ? err.message : err.kind;
+  const started = startCodeOf(err);
+  if (started === 'start_failed') return started;
+  if (err instanceof SendError) {
+    // bd-tymy1n (queue #179): this phone could not read a file she picked. Not the internet: say which part
+    // (format.ts unreadablePart) so the page can name it and offer the way on.
+    const part = err.kind === 'network' && err.detail?.unreadable ? err.detail.part : null;
+    if (part) return part.kind === 'photo' ? `unreadable_photo_${part.photo}` : `unreadable_${part.kind}`;
+    return err.message && err.message !== err.kind && err.kind === 'refused' ? err.message : err.kind;
+  }
   return 'network';
 };
 
@@ -115,7 +141,7 @@ function track(job: SendJob) {
 async function run(visitId: string): Promise<void> {
   const h = held.get(visitId);
   if (!h) return;
-  const { args } = h;
+  const { args, uploaded } = h;
   const id = itemId('observation', visitId);
   let last = -1;
   try {
@@ -123,6 +149,8 @@ async function run(visitId: string): Promise<void> {
       {
         teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, audio: args.audio, plan: args.plan, photos: args.photos,
         ...(args.lesson ? { lesson: args.lesson } : {}),
+        ...(args.notes && args.notes.length ? { notes: args.notes } : {}),
+        uploaded,
       },
       undefined, undefined,
       (pct) => {
@@ -138,7 +166,7 @@ async function run(visitId: string): Promise<void> {
       try { await deleteRecording(args.recordingId); } catch { /* already gone */ }
       forgetRecording(args.recordingId);
     }
-    clearDraft(visitId);
+    clearDraft(visitId); // the recording and (bd-ra8xu.60) its notes
     change(visitId, { state: 'sent', pct: 100, observationId: out.coachingSessionId, errorCode: null });
     noticeTracker.update(id, {
       state: 'ready', progress: 1, readyAt: Date.now(), observationId: out.coachingSessionId,
@@ -165,17 +193,32 @@ export function startSend(args: SendArgs): SendJob {
     state: 'sending', pct: 0, observationId: null, errorCode: null,
     ...(args.waitHref ? { waitHref: args.waitHref } : {}),
   };
-  held.set(args.visitId, { job, args });
+  held.set(args.visitId, { job, args, uploaded: new WeakMap() });
   emit();
   track(job);
   void run(args.visitId);
   return job;
 }
 
-/** Send the same observation again (Try again): the same files, the same visit. */
-export function retrySend(visitId: string): boolean {
+/**
+ * bd-tymy1n — what Send without it leaves out: photo n (1-based, as in `unreadable_photo_<n>`) or her plan file. Only a
+ * part the phone could not read is ever left out, and only when she taps it.
+ */
+export type Without = { photo: number } | 'lesson_plan';
+
+/**
+ * Send the same observation again (Try again): the same files, the same visit; what already arrived is not sent again.
+ * `without` (bd-tymy1n, Send without it): the same, less the photo or plan this phone could not read.
+ */
+export function retrySend(visitId: string, without?: Without): boolean {
   const h = held.get(visitId);
   if (!h || h.job.state !== 'failed') return false;
+  if (without === 'lesson_plan') {
+    h.args = { ...h.args, plan: h.args.plan && h.args.plan.kind === 'file' ? null : h.args.plan };
+    h.job = { ...h.job, planKind: null };
+  } else if (without) {
+    h.args = { ...h.args, photos: h.args.photos.filter((_, i) => i !== without.photo - 1) };
+  }
   const job = change(visitId, { state: 'sending', pct: 0, errorCode: null });
   if (job) track(job);
   void run(visitId);

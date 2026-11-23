@@ -150,7 +150,9 @@ describe('coachRubric: the role is read from users only when a role key exists',
     mockSettings.fico_coach_rubric = JSON.stringify({ [`user:${COACH}`]: 'v6' });
     await expect(Switch.coachRubric({ userId: COACH, region: 'Sihala' })).resolves.toBe('v6');
     await expect(Switch.coachRubric({ userId: PRINCIPAL, region: 'Sihala' })).resolves.toBe('current');
-    expect(mockUserReads).toEqual([]);
+    // Queue #191: a coach is v6 whatever the rows say, so an account the rows do not put on v6 has its role read once
+    // (to know it is not a coach); an account whose own row already says v6 is never read.
+    expect(mockUserReads).toEqual([[PRINCIPAL, 'role']]);
   });
 
   test('with "role:principal": a principal is v6 (role read from users), a teacher is not, a coach keeps their own key', async () => {

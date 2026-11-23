@@ -1,7 +1,10 @@
+import type { LucideIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
-import { GRID } from './styles';
+import { CHEVRON, FOCUS, GRID, ROW_SUB } from './styles';
 import { FeatureArt } from '../icons/FeatureArt';
 import { FEATURE_HUE, type AnyFeature } from '../icons/features';
 
@@ -21,6 +24,13 @@ import { FEATURE_HUE, type AnyFeature } from '../icons/features';
  * bd-fmf24g.27 — `feature` on an item gives that tile the Home-tile look, CENTRED (Analytics, operator 2026-10-10): the
  * feature's art on its light tint, the number (44px) in the feature's colour, the change pill, then the label. It is
  * information, so it carries no chevron and no pressed look. Without `feature` the tile is the plain white one.
+ *
+ * `dense` (Home's "Last 30 days" block): min-h 88px; the first line is an optional neutral 24px `icon`, the number
+ * 28px/700 and the pill, and the › at the end; the label 16px/600 under it across the tile's full width (never cut; the
+ * design review found it squeezed to 3 Urdu lines beside the icon and ›); an optional `note`, a 13px muted third line.
+ * The pill draws its words ("▲ 5 more", "▼ 2 less") and never wraps away from the number. `parts` (dense only) puts
+ * each number beside its own word, one per line ("4 Quizzes" / "1 Paper"), in place of the number and label, with no pill (bd-96f69c.18). A dense item with `to` / `onPress` is ONE link/button (the card edge, › mirrored, FOCUS, a pressed
+ * tint) named like the group ("14 Plans opened, up 5"). Without them it is information, as above.
  */
 
 export interface KpiItem {
@@ -32,19 +42,32 @@ export interface KpiItem {
   better?: 'up' | 'down';
   /** The feature this number measures: its art and colour on the tile. */
   feature?: AnyFeature;
+  /** `dense` only: a neutral icon at the tile's start. */
+  icon?: LucideIcon;
+  /** `dense` only: a 13px muted third line ("You told us"). */
+  note?: string;
+  /** `dense` only: the tile opens this (a link) or calls this (a button). */
+  to?: string;
+  onPress?: () => void;
+  /** `dense` only: several numbers, each beside its own word, in place of value + label. */
+  parts?: readonly { value: number; label: string }[];
 }
 
 export interface KpiTilesProps {
   items: readonly KpiItem[];
   columns?: number;
   compareLabel?: string;
-  copy?: Partial<Pick<TeacherUiCopy, 'same' | 'sameAsBefore' | 'upBy' | 'downBy' | 'noValue'>>;
+  copy?: Partial<Pick<TeacherUiCopy, 'same' | 'sameAsBefore' | 'upBy' | 'downBy' | 'moreBy' | 'lessBy' | 'noValue'>>;
   className?: string;
+  /** Home's compact tiles: see the header. */
+  dense?: boolean;
 }
 
 const TONE = { good: 'bg-[#eaf6ef] text-[#2f7a52]', bad: 'bg-[#fef3c7] text-[#b45309]', same: 'bg-[#f3f4f6] text-[#374151]' };
 
-export function KpiTiles({ items, columns, compareLabel, copy, className }: KpiTilesProps) {
+const DENSE_TILE = 'flex min-h-[88px] min-w-0 flex-col items-stretch justify-center gap-0.5 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-start shadow-[0_1px_2px_rgba(16,24,40,0.05)]';
+
+export function KpiTiles({ items, columns, compareLabel, copy, className, dense = false }: KpiTilesProps) {
   const words = { ...useKitCopy(), ...copy };
   const shown = items.slice(0, 4);
   const cols = columns ?? (shown.length === 3 ? 3 : shown.length === 1 ? 1 : 2);
@@ -81,6 +104,48 @@ export function KpiTiles({ items, columns, compareLabel, copy, className }: KpiT
               {t.dir === 0 ? words.same : t.mag}
             </span>
           ) : null;
+          if (dense) {
+            const Icon = t.it.icon;
+            const parts = t.it.parts?.length ? t.it.parts : null;
+            const name = parts ? parts.map((p) => `${p.value.toLocaleString('en-US')} ${p.label}`).join(', ') : `${t.value} ${t.it.label}${t.change}`;
+            const tappable = !!(t.it.to || t.it.onPress);
+            const chevron = tappable ? <ChevronRight className={cn('h-5 w-5 shrink-0', CHEVRON)} strokeWidth={2.4} aria-hidden="true" /> : null;
+            const body = parts ? (
+              <span data-kpi-top className="flex w-full items-center gap-2.5">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  {parts.map((p) => (
+                    <span key={p.label} data-kpi-part className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                      <bdi className="text-[28px] font-bold leading-[1.1] tabular-nums">{p.value.toLocaleString('en-US')}</bdi>{' '}
+                      <span className="text-[16px] font-semibold text-[#4b5563] rtl:leading-[1.8]">{p.label}</span>
+                    </span>
+                  ))}
+                </span>
+                {chevron}
+              </span>
+            ) : (
+              <>
+                <span data-kpi-top className="flex w-full items-center gap-2.5">
+                  {Icon ? <Icon className="h-6 w-6 shrink-0 text-[#6b7280]" strokeWidth={2} aria-hidden="true" /> : null}
+                  <span className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 whitespace-nowrap">
+                    <span dir={typeof t.it.value === 'number' ? 'ltr' : undefined} className="text-[28px] font-bold leading-[1.1] tabular-nums">{t.value}</span>
+                    {t.hasDelta ? (
+                      <span data-delta className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[13px] font-bold tabular-nums', t.tone)}>
+                        <span aria-hidden="true" className="text-[10px]">{t.dir > 0 ? '▲' : t.dir < 0 ? '▼' : '●'}</span>
+                        {t.dir === 0 ? words.same : t.dir > 0 ? words.moreBy(t.mag) : words.lessBy(t.mag)}
+                      </span>
+                    ) : null}
+                  </span>
+                  {chevron}
+                </span>
+                <span className="text-[16px] font-semibold leading-[1.25] text-[#4b5563] rtl:leading-[1.8]">{t.it.label}</span>
+                {t.it.note ? <span className={ROW_SUB}>{t.it.note}</span> : null}
+              </>
+            );
+            const k = `${t.it.label}-${i}`;
+            if (t.it.to) return <Link key={k} to={t.it.to} aria-label={name} className={cn(DENSE_TILE, 'active:bg-[#f4f5f8]', FOCUS)}>{body}</Link>;
+            if (t.it.onPress) return <button key={k} type="button" onClick={t.it.onPress} aria-label={name} className={cn(DENSE_TILE, 'active:bg-[#f4f5f8]', FOCUS)}>{body}</button>;
+            return <div key={k} role="group" aria-label={name} className={DENSE_TILE}>{body}</div>;
+          }
           if (hue && t.it.feature) {
             return (
               <div

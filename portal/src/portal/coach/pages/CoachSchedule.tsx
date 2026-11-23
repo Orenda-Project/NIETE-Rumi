@@ -20,7 +20,7 @@ import { dayShort, daysBetween } from "../schedule/model";
  */
 
 /** One visit as the kit's coach row: a round avatar, the TimeStamp on the first line, the teacher, the school. */
-function visitItem(v: CoachVisit, today: string, c: ScheduleCopy): HistoryItem {
+function visitItem(v: CoachVisit, today: string, c: ScheduleCopy, visitTo: (v: CoachVisit) => string): HistoryItem {
   const done = v.status === "done";
   const next = !done && !!v.current;
   const late = v.overdue && v.scheduledFor ? daysBetween(v.scheduledFor, today) : null;
@@ -33,11 +33,19 @@ function visitItem(v: CoachVisit, today: string, c: ScheduleCopy): HistoryItem {
     timeTone: v.overdue ? "overdue" : undefined,
     state: done ? "done" : next ? "next" : "default",
     chip: done ? { text: c.done, tone: "done" } : late != null ? { text: c.daysLate(late), tone: "waiting" } : next ? { text: c.next, tone: "info" } : null,
-    to: `/portal/coach/visit/${v.id}`,
+    to: visitTo(v),
   };
 }
 
-const CoachSchedule = () => {
+/** bd-31ziu8 — the principal app shows the same schedule (principals book alike), linking to its own screens. */
+export type ScheduleLinks = { visitTo: (v: CoachVisit) => string; newVisit: string; back: string };
+const COACH_SCHEDULE_LINKS: ScheduleLinks = {
+  visitTo: (v) => `/portal/coach/visit/${v.id}`,
+  newVisit: "/portal/coach/new-visit",
+  back: "/portal/coach/scheduling",
+};
+
+const CoachSchedule = ({ links = COACH_SCHEDULE_LINKS }: { links?: ScheduleLinks } = {}) => {
   const c = useCopy(SCHEDULE);
   const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
   // The week asked for with the strip's arrows; none = this week, as the server counts it.
@@ -63,8 +71,8 @@ const CoachSchedule = () => {
 
   return (
     <CoachPage title={c.mySchedule} crumb={data ? c.weekCrumb(dayNo(data.from), dayNo(data.to)) : c.title}
-      backTo="/portal/coach/scheduling"
-      dock={<BottomLink to="/portal/coach/new-visit"><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>}>
+      backTo={links.back}
+      dock={<BottomLink to={links.newVisit}><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && (
@@ -80,14 +88,14 @@ const CoachSchedule = () => {
 
           {data.overdue.length > 0 && (
             <div data-testid="overdue">
-              <HistoryList showMore={false} groups={[{ day: c.overdue, items: data.overdue.map((v) => visitItem(v, today, c)) }]} />
+              <HistoryList showMore={false} groups={[{ day: c.overdue, items: data.overdue.map((v) => visitItem(v, today, c, links.visitTo)) }]} />
             </div>
           )}
 
           {shownDays.length > 0 && (
             <HistoryList showMore={false} groups={shownDays.map((d): HistoryGroup => ({
               day: d === today ? `${c.today} · ${dayShort(d, c)}` : dayShort(d, c),
-              items: (byDay.get(d) || []).map((v) => visitItem(v, today, c)),
+              items: (byDay.get(d) || []).map((v) => visitItem(v, today, c, links.visitTo)),
             }))} />
           )}
           {shownDays.length === 0 && data.overdue.length === 0 && <Card className="p-4 text-[15px] text-[#6b7280]">{c.noVisits}</Card>}

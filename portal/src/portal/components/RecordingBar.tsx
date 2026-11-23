@@ -2,6 +2,7 @@ import { ChevronRight, Mic, Pause } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRecordingClock, type RecordingSession } from '../lib/recordingSession';
 import { clockText } from '../lib/clockText';
+import { bilingual, useCopy } from '../teacher/i18n';
 
 /**
  * bd-5rz1v.10 — the bar that follows the teacher round the portal while her
@@ -26,6 +27,8 @@ export const BAR_STYLE = {
   /** Where it sits: above the phone menu, or in the desktop corner. */
   dock: 'fixed inset-x-0 z-40 px-2.5 md:inset-x-auto md:bottom-6 md:end-6 md:w-[360px] md:px-0',
   dockAboveMenu: 'bottom-[72px]',
+  /** bd-o15qnr.27 — above the teacher/coach v2 menu (TeacherNavigation: 78px + the safe area), not 6px into it. */
+  dockAboveV2Menu: 'bottom-[calc(84px+env(safe-area-inset-bottom))]',
   dockNoMenu: 'bottom-3',
   bar: 'flex min-h-[56px] w-full items-center gap-3 rounded-[14px] bg-[#1f2429] py-2 pe-2 ps-4 text-start text-white shadow-[0_6px_16px_rgba(0,0,0,0.22)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-[#ffd54f]',
   dotLive: 'h-3 w-3 shrink-0 rounded-full bg-[#e53935] motion-safe:animate-pulse',
@@ -70,23 +73,33 @@ export const CHIP_STYLE = {
   dot: 'h-2 w-2 shrink-0 rounded-full bg-[#e53935] motion-safe:animate-pulse',
 };
 
-const COPY = {
-  recording: 'Recording',
-  paused: 'Paused',
-  ret: 'Return',
-  continues: 'Recording continues',
-};
-
-/** "● Recording continues" — said, not explained, wherever she leaves the record screen. */
-export const RecordingContinuesChip = () => (
-  <span className={CHIP_STYLE.chip}>
-    <span aria-hidden="true" className={CHIP_STYLE.dot} />
-    {COPY.continues}
-  </span>
+/**
+ * bd-o15qnr.27 — the bar's words in the page's language (it followed a coach in Urdu in English). The Urdu reuses the
+ * Observe words (ریکارڈنگ, رکی ہوئی); NATIVE-CHECK for واپس and ریکارڈنگ جاری ہے.
+ */
+const BAR_COPY = bilingual(
+  { recording: 'Recording', paused: 'Paused', ret: 'Return', continues: 'Recording continues' },
+  { recording: 'ریکارڈنگ', paused: 'رکی ہوئی', ret: 'واپس', continues: 'ریکارڈنگ جاری ہے' },
 );
 
-const RecordingBar = ({ session, aboveMenu = true, newMenu = false }: { session: RecordingSession; aboveMenu?: boolean; newMenu?: boolean }) => {
+/** "● Recording continues" — said, not explained, wherever she leaves the record screen. */
+export const RecordingContinuesChip = () => {
+  const COPY = useCopy(BAR_COPY);
+  return (
+    <span className={CHIP_STYLE.chip}>
+      <span aria-hidden="true" className={CHIP_STYLE.dot} />
+      {COPY.continues}
+    </span>
+  );
+};
+
+const RecordingBar = ({ session, aboveMenu = true, newMenu = false, v2Menu = false }: {
+  session: RecordingSession; aboveMenu?: boolean; newMenu?: boolean;
+  /** bd-o15qnr.27 — the page stands in the teacher/coach v2 frame: the bar sits above its taller menu. */
+  v2Menu?: boolean;
+}) => {
   const navigate = useNavigate();
+  const COPY = useCopy(BAR_COPY);
   const ms = useRecordingClock(session);
   const back = () => { if (session.returnTo) navigate(session.returnTo); };
 
@@ -108,7 +121,7 @@ const RecordingBar = ({ session, aboveMenu = true, newMenu = false }: { session:
   }
 
   return (
-    <div className={`${BAR_STYLE.dock} ${aboveMenu ? BAR_STYLE.dockAboveMenu : BAR_STYLE.dockNoMenu}`}>
+    <div className={`${BAR_STYLE.dock} ${aboveMenu ? (v2Menu ? BAR_STYLE.dockAboveV2Menu : BAR_STYLE.dockAboveMenu) : BAR_STYLE.dockNoMenu}`}>
       <button
         type="button"
         data-testid="recording-bar"

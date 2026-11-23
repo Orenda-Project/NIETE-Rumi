@@ -64,6 +64,10 @@ export type Picks = {
   seen: number;
   /** The unseen types on the page, type id → how many, in the order she added them. A 0 is a row she emptied. */
   typeCounts: Record<string, number>;
+  /** bd-e5n2jf: the seen types, type id → how many (Mubashar Zia, 20 Nov). Absent/empty = the single \`seen\` box. */
+  seenTypeCounts?: Record<string, number>;
+  /** AG row 21: the book questions she ticked (Pick from the book), in her order. Absent/empty = none. */
+  seenPicked?: BookPick[];
   /** The first visit to Questions for this class has filled in the default mix (a class change clears it). */
   typesSeeded: boolean;
   /** null = no limit. */
@@ -88,6 +92,18 @@ export type Picks = {
   /** bd-6clakk.12 — a topic paper's ticked stem ids per type, in the order ticked; none = Rumi chooses. */
   typeStems?: Record<string, string[]>;
 };
+
+/** AG row 21: one book exercise question she ticked: its chapter, the book's own label, its words, its type id. */
+export type BookPick = { chapter: number; ref: string; text: string; type: string };
+
+type SeenParts = Pick<Picks, 'seen' | 'seenTypeCounts' | 'seenPicked' | 'chapters' | 'coverBy'>;
+
+/** Her ticked book questions that are on this paper (a chapter she has since unticked drops its questions). */
+export function livePicks(p: Partial<SeenParts>): BookPick[] {
+  if (p.coverBy !== 'chapters' || !p.seenPicked?.length) return [];
+  const chapters = p.chapters ?? [];
+  return p.seenPicked.filter((x) => chapters.includes(x.chapter));
+}
 
 export function newPicks(defaultCount: number): Picks {
   return {
@@ -123,16 +139,51 @@ export function unseenTotal(p: Pick<Picks, 'typeCounts'>): number {
   return chosenTypes(p).reduce((s, [, n]) => s + n, 0);
 }
 
+/** The seen types with a count, in her order (bd-e5n2jf); with ticked book questions (AG row 21), their types counted. */
+export function chosenSeenTypes(p: Partial<SeenParts>): Array<[string, number]> {
+  const ticked = livePicks(p);
+  if (ticked.length) {
+    const counts = new Map<string, number>();
+    ticked.forEach((x) => counts.set(x.type, (counts.get(x.type) ?? 0) + 1));
+    return [...counts.entries()];
+  }
+  return Object.entries(p.seenTypeCounts ?? {}).filter(([, n]) => n > 0);
+}
+
+/** Whether she is counting seen questions by type (any seen type row on the page, or ticked book questions). */
+export function seenByType(p: Partial<SeenParts>): boolean {
+  return livePicks(p).length > 0 || Object.keys(p.seenTypeCounts ?? {}).length > 0;
+}
+
+/** How many seen questions: her seen types added up, or the single seen box. */
+export function seenTotal(p: Pick<Picks, 'seen'> & Partial<SeenParts>): number {
+  return seenByType(p) ? chosenSeenTypes(p).reduce((s, [, n]) => s + n, 0) : Math.max(0, p.seen);
+}
+
+/**
+ * AG row 12 (Amena 21 Nov 2026): how many questions the paper counts toward the cap. A type the bot groups under one
+ * heading (its /assessment/options `groupedTypes`) is one; any other type, and a single seen number, one each.
+ */
+export function limitTotal(p: Pick<Picks, 'seen' | 'typeCounts'> & Partial<SeenParts>, grouped: readonly string[]): number {
+  const part = (rows: Array<[string, number]>) => rows.reduce((s, [id, n]) => s + (grouped.includes(id) ? 1 : n), 0);
+  const seen = seenByType(p) ? part(chosenSeenTypes(p)) : Math.max(0, p.seen);
+  return seen + part(chosenTypes(p));
+}
+
+/** The bot's counting rule for the cap, from /assessment/options (AG row 12). */
+export type Limits = { grouped: readonly string[]; maxItems: number };
+
 /** How many questions on the paper: the seen ones and the unseen ones. */
-export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts'>): number {
-  return Math.max(0, p.seen) + unseenTotal(p);
+export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts'> & Partial<SeenParts>): number {
+  return seenTotal(p) + unseenTotal(p);
 }
 
 /** Where the paper's questions come from, as the bot names it. */
-export function sourceOf(p: Pick<Picks, 'seen' | 'typeCounts'>): Source {
+export function sourceOf(p: Pick<Picks, 'seen' | 'typeCounts'> & Partial<SeenParts>): Source {
   const unseen = unseenTotal(p);
-  if (p.seen > 0 && unseen > 0) return 'both';
-  return p.seen > 0 ? 'seen' : 'unseen';
+  const seen = seenTotal(p);
+  if (seen > 0 && unseen > 0) return 'both';
+  return seen > 0 ? 'seen' : 'unseen';
 }
 
 /** The kinds a first visit starts with, in this order: the objective ones a teacher marks fastest (the bot's DEFAULT_MIX). */
@@ -166,6 +217,7 @@ export type Why =
   | { code: 'ranges' }
   | { code: 'none' }
   | { code: 'count'; max: number }
+  | { code: 'items'; max: number }
   | { code: 'marks'; max: number }
   | { code: 'marksLow'; total: number }
   | { code: 'earlier'; step: Step }
@@ -180,7 +232,9 @@ export type Why =
  * and a marks total under the question count is held here, because the generator drops whole questions to fit a
  * budget it cannot meet. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
  */
-export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolean; offerFde?: boolean } = {}): Why | null {
+export function stepWhy(
+  step: Step, p: Picks, max: number, opts: { busy?: boolean; offerFde?: boolean; limits?: Limits } = {},
+): Why | null {
   if (isFde(p)) {
     // The board pattern: the class, and the FDE syllabus or at least one of its units; the rest the pattern fixes.
     if (step === 'class' || step === 'check') {
@@ -203,7 +257,9 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
     case 'questions': {
       const total = questionTotal(p);
       if (total === 0) return { code: 'none' };
-      if (total > max) return { code: 'count', max };
+      // AG row 12: with the bot's limits a group under one heading counts as one; without them, every item counts.
+      if ((opts.limits ? limitTotal(p, opts.limits.grouped) : total) > max) return { code: 'count', max };
+      if (opts.limits && total > opts.limits.maxItems) return { code: 'items', max: opts.limits.maxItems };
       if (p.marks !== null) {
         if (!intIn(p.marks, 1, MAX_TOTAL_MARKS)) return { code: 'marks', max: MAX_TOTAL_MARKS };
         if (p.marks < total) return { code: 'marksLow', total };
@@ -211,7 +267,7 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
       return null;
     }
     case 'check': {
-      const first = TOPIC_STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
+      const first = TOPIC_STEPS.slice(0, -1).find((s) => stepWhy(s, p, max, { limits: opts.limits }) !== null);
       return first ? { code: 'earlier', step: first } : null;
     }
     default:
@@ -255,6 +311,10 @@ export type V2Spec = {
   contentSource: Source;
   seenCount: number | null;
   questionTypes: Array<{ id: string; count: number; stems?: string[] }>;
+  /** bd-e5n2jf: her per-type seen counts; absent = the single seen total (today's request). */
+  seenTypes?: Array<{ id: string; count: number }>;
+  /** AG row 21: the book questions she ticked; absent = none (today's request). */
+  seenPicked?: BookPick[];
   totalMarks: number | null;
   answerLines: boolean;
   outputFormat: 'pdf';
@@ -312,9 +372,12 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     pageRanges: byChapters ? null : rangesText(p.ranges),
     questionCount: questionTotal(p),
     contentSource: source,
-    seenCount: source === 'both' ? p.seen : null,
+    seenCount: source === 'both' ? seenTotal(p) : null,
     // A seen-only paper sends none: the server holds any types it is sent to the paper's whole count.
     questionTypes: source === 'seen' ? [] : chosenTypes(p).map(([id, count]) => ({ id, count, ...stemsOf(id) })),
+    ...(source !== 'unseen' && chosenSeenTypes(p).length
+      ? { seenTypes: chosenSeenTypes(p).map(([id, count]) => ({ id, count })) } : {}),
+    ...(source !== 'unseen' && livePicks(p).length ? { seenPicked: livePicks(p).map((x) => ({ ...x })) } : {}),
     totalMarks: p.marks,
     answerLines: p.answerLines,
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
@@ -336,6 +399,8 @@ export type AnySpec = {
   contentSource?: Source;
   seenCount?: number | null;
   questionTypes?: Array<string | { id: string; count: number }>;
+  seenTypes?: Array<{ id: string; count: number }> | null;
+  seenPicked?: BookPick[] | null;
   totalMarks?: number | null;
   answerLines?: boolean;
   compact?: boolean;
@@ -373,6 +438,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
   const pattern = spec.pattern ?? null;
   // An older request with no per-type counts (the auto mix) comes back without types: Questions fills in the default mix.
   const typed = source !== 'seen' && counted.length > 0;
+  const seenTyped = source !== 'unseen' ? (spec.seenTypes ?? []).filter((t) => t && t.count > 0) : [];
   return {
     ...newPicks(spec.questionCount),
     grade: spec.grade,
@@ -384,6 +450,11 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     seen: source === 'both' ? (spec.seenCount ?? 0) : source === 'seen' ? spec.questionCount : 0,
     typeCounts: typed ? Object.fromEntries(counted.map((t) => [t.id, t.count])) : {},
     typesSeeded: typed || source === 'seen',
+    ...(seenTyped.length ? {
+      seen: seenTyped.reduce((s, t) => s + t.count, 0),
+      seenTypeCounts: Object.fromEntries(seenTyped.map((t) => [t.id, t.count])),
+    } : {}),
+    ...(source !== 'unseen' && spec.seenPicked?.length ? { seenPicked: spec.seenPicked.map((x) => ({ ...x })) } : {}),
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
     ...(spec.compact === true ? { compact: true } : {}),

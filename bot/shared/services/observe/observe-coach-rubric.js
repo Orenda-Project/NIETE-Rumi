@@ -8,12 +8,11 @@
  *    marks, never a made-up miss.
  *  - Respect is not a mark: it is a standing rule (the harm gate, disparaged_teacher), shown on its own line.
  *  - the next focus is the behaviour the judge says the "try" targets, if it is one it judged false; else the first
- *    miss in rubric order; with nothing missed, the full debrief. Its Coach Training module is the card's one link.
+ *    miss in rubric order; with nothing missed, none. No Coach Training module after a debrief (queue #186): the one
+ *    training recommendation is the Weekly Report's (coach-week.js `training`).
  *
  * Pure: no I/O. The words (names, why-it-matters lines, labels) are in observe-strings.js.
  */
-
-const { moduleFor, moduleByNumber, moduleUrl, FULL_DEBRIEF_MODULE } = require('../../config/coach-training-modules');
 
 /** The eight behaviours, in the rubric's (and the report's) order. */
 const BEHAVIOUR_KEYS = Object.freeze([
@@ -58,22 +57,9 @@ function nextFocusKey(fb) {
   return validFocus(fb) || missedBehaviours(fb && fb.rubric)[0] || null;
 }
 
-/** The Coach Training module the card links: the next focus's, or the full debrief when nothing was missed. */
-function focusModule(fb) {
-  const key = nextFocusKey(fb);
-  return key ? moduleFor(key) : moduleByNumber(FULL_DEBRIEF_MODULE);
-}
-
 /** "★★★★★☆☆☆" — one star per mark, filled when done. */
 function stars(m) {
   return '★'.repeat(m.done) + '☆'.repeat(m.total - m.done);
-}
-
-/** The module line in the coach's words: "Coach Training, Module 8: Rehearse it aloud". */
-function moduleLine(mod, S, lang) {
-  if (!mod || !S.coach_card_module_line) return '';
-  const title = (mod.title && (mod.title[lang] || mod.title.en)) || '';
-  return S.coach_card_module_line.replace('{n}', String(mod.n)).replace('{title}', title);
 }
 
 /**
@@ -90,5 +76,5 @@ function winName(behaviour, S) {
 
 module.exports = {
   winName,
-  BEHAVIOUR_KEYS, rubricMarks, missedBehaviours, validFocus, nextFocusKey, focusModule, stars, moduleLine, moduleUrl,
+  BEHAVIOUR_KEYS, rubricMarks, missedBehaviours, validFocus, nextFocusKey, stars,
 };

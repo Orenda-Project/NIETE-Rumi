@@ -30,6 +30,9 @@
  *   quizHome     the bot's signed quiz-home path, relative, as it gave it; null for a coach / principal
  *   quizTile     true only when portal_teacher_home_quiz_tile is on for the teacher AND quizHome is a path: the Home draws
  *                its "Quizzes" tile (one tap into the quiz home, logged as kind quiz_tile). Off or no quiz home: no key.
+ *   activity     the "Last 30 days" block (services/teacher-home-activity.js), only when portal_teacher_home_activity is
+ *                on for the teacher. Read from the activity store, Redis ONLY: never a database read on open. Off, a
+ *                miss, a failed read or every number 0: no key (Home as today).
  *
  * Logged (R11), PII-free, never awaited, never thrown: app_funnel.action { action:'home_card.shown' | 'home_card.tap',
  * feature:'home', kind, orderOn, lang } with the session's userId, as app-funnel.routes.js logs every action.
@@ -45,6 +48,9 @@ const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
 const Order = require('../services/teacher-home-order.service');
+const LpAppSwitches = require('../lib/lp-app-switches');
+const ActivityStore = require('../services/teacher-activity-store');
+const { shapeActivity } = require('../services/teacher-home-activity');
 
 /** The bot's portal-home route (bot first-touch/teacher-home.portal.routes.js). ONE place to change it. */
 const BOT_PORTAL_HOME_PATH = '/api/internal/thportal/portal-home';
@@ -52,7 +58,9 @@ const BOT_TIMEOUT_MS = 8000;
 
 const CARD_KINDS = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
 // "Quiz this lesson" on the plan page / on a Digital Coach report; quiz_tile: the Home's "Quizzes" tile
-const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs', 'lp_quiz', 'coach_quiz', 'quiz_tile'];
+// act_*: the "Last 30 days" block's tiles, Rating over time and Try next class; journey: the My journey row
+const ACTIVITY_TAPS = ['act_opened', 'act_taught', 'act_coached', 'act_quiz_papers', 'act_trend', 'act_tip', 'journey'];
+const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs', 'lp_quiz', 'coach_quiz', 'quiz_tile', ...ACTIVITY_TAPS];
 /** The scores slice of analysis_data, never the whole column (~30 KB a row), and the card's title words. */
 const SESSION_SLICE = 'id, created_at, scores:analysis_data->scores, topic:analysis_data->>topic, subject:analysis_data->>subject';
 
@@ -157,8 +165,11 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY, userId).catch(() => false),
       // bd-33wxxi.9.1 — a principal on the principal app: no first-plan card (a failed read = as for anyone else)
       isPrincipalAppUser(supabase, userId).catch(() => false),
+      // the "Last 30 days" block: the store (Redis only) is asked only with its switch on; any failure = no block
+      Promise.resolve().then(() => LpAppSwitches.isTeacherHomeActivityOn(supabase, userId))
+        .then((on) => (on === true ? ActivityStore.readTeacherActivity(userId) : null)),
     ]);
-    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation, quizTileOn, principalApp] = settled.map(valueOf);
+    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation, quizTileOn, principalApp, stored] = settled.map(valueOf);
 
     const isCoach = Order.isCoachRole(user && user.role);
     const lang = langOf(user && user.preferred_language);
@@ -174,6 +185,9 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       try { order = Order.rankFeatures(counts, nowMs); } catch (_) { order = fixed; }
     }
 
+    let activity = null;
+    try { activity = shapeActivity(stored); } catch (_) { activity = null; }
+
     emit('home_card.shown', { userId, kind: card ? card.kind : 'none', orderOn: orderOn === true, lang });
     return res.json({
       success: true,
@@ -185,6 +199,8 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       quizHome,
       // the "Quizzes" tile: only with its switch on for this teacher AND a quiz home to open; off, the key is absent
       ...(quizTileOn === true && quizHome ? { quizTile: true } : {}),
+      // the "Last 30 days" block: only with its switch on and numbers to show; off, the key is absent
+      ...(activity ? { activity } : {}),
     });
   } catch (error) {
     // Nothing above should throw; if it does, the Home still opens as today's.

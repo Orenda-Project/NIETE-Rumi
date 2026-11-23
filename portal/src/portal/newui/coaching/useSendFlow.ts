@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { RecordStart } from '../../components/coaching/CoachingHome';
 import { checkAudioFile, checkFile, MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
+import { holdFile, isFileRefused, tellUnreadablePick } from '../../lib/pickedRead';
 import { sendLesson, SendError, type LibraryPick, type TeacherClass } from '../../lib/coachingSend';
 import { takeHandedOffRecording } from '../../lib/lessonHandoff';
 import { lessonFilename } from '../../lib/recordFlow';
@@ -51,7 +52,8 @@ export type Plan =
   | { kind: 'library'; pick: LibraryPick; title: string; chips: string[] }
   | { kind: 'file'; file: File; asPhoto: boolean };
 
-export type FileProblem = 'not_audio' | 'too_large' | 'video' | null;
+/** bd-bsc0ox: 'wont_open' — the phone would not read the recording she picked (the page says "File will not open"). */
+export type FileProblem = 'not_audio' | 'too_large' | 'video' | 'wont_open' | null;
 export type PlanProblem = 'not_a_plan' | null;
 export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
 
@@ -111,20 +113,33 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
     setStage(result === 'recording' ? 'recording' : 'micBlocked');
   };
 
-  /** A recording file she picked; false when it is not one (and why, in fileProblem). */
-  const chooseAudio = async (file: File | undefined): Promise<boolean> => {
+  /**
+   * A recording file she picked; false when it is not one (and why, in fileProblem).
+   *
+   * bd-bsc0ox (queue #200): it is read the moment she picks it and the page keeps those bytes (lib/pickedRead
+   * holdFile), as the coach's files are since bd-tymy1n: in the Android app the WebView let go of a picked recording
+   * before Send, and Send stopped on reading it. One the phone will not open is refused here, with its reason logged.
+   */
+  const chooseAudio = async (picked: File | undefined): Promise<boolean> => {
     setFileProblem(null);
-    if (!file) return false;
+    if (!picked) return false;
     // bd-i0u6n2: a video is refused on its own line; a file the phone marks as audio is taken whatever its name.
-    const checked = await checkAudioFile(file);
+    const checked = await checkAudioFile(picked);
     if (checked.problem) {
       setFileProblem(checked.problem === 'too_large' ? 'too_large' : checked.problem === 'video' ? 'video' : 'not_audio');
       return false;
     }
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) {
+      tellUnreadablePick('audio', picked, out.errName);
+      setFileProblem('wont_open');
+      return false;
+    }
+    const file = out.file;
     const seconds = await readAudioDuration(file);
     setAudio({
-      blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
-      recordingId: null, source: 'file', size: file.size, startedAt: null,
+      blob: file, filename: checked.filename || picked.name, durationMs: seconds != null ? seconds * 1000 : null,
+      recordingId: null, source: 'file', size: picked.size, startedAt: null,
     });
     setStage('check');
     return true;

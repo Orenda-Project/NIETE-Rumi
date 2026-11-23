@@ -182,9 +182,9 @@ describe('a video quiz sent to the class: the forwarded message is in the quiz l
     expect(rest).toEqual([]);
     const [promise, intro] = introWithPromise.split('\n\n');
     expect(intro).toBe('یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:');
-    expect(forwarded.startsWith(`${RLM}📚 *Quiz کا وقت!*`)).toBe(true);
+    expect(forwarded.startsWith(`${RLM}📚 *کوئز کا وقت!*`)).toBe(true);
     // The teacher's Latin name opens its line; the line stays right to left.
-    expect(forwarded).toContain(`${RLM}${FSI}Miss Ayesha${PDI} نے آپ کو *واحد اور جمع* پر quiz بھیجا ہے۔`);
+    expect(forwarded).toContain(`${RLM}${FSI}Miss Ayesha${PDI} نے آپ کو *واحد اور جمع* پر کوئز بھیجا ہے۔`);
     expect(forwarded).toContain('https://wa.me/15550001111?text=QUIZ-ZX7Q2P');
     expect(forwarded.split('\n')).toContain('https://wa.me/15550001111?text=QUIZ-ZX7Q2P');
     expect(promise).toContain('رپورٹ');

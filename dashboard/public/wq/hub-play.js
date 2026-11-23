@@ -191,10 +191,18 @@
   // The install card (web_quiz_install_prompt; copy jg.install.*): its slot sits after the shelf, never above the Jugnu
   // card. It fills only once the browser offered the install (beforeinstallprompt), never in the day's first hub view,
   // and not for 7 days after "Not now".
+  // Chrome fires beforeinstallprompt once per page and never again for a listener added later. On real phones it comes
+  // after the hub has rendered, which the card's own listener hears; when it comes first (about 10 ms after `load`), the
+  // page head (web-quiz.routes.js BIP_CAPTURE, written with the manifest link) keeps it as window.__wqBip and install()
+  // takes it from there.
+  // install_prompt {step, src, reason} is the card's own meter: it rides the event relay's general props, so it is
+  // logged whatever web_quiz_events_v2 says (door_shown{install} below counts only with that switch on). Its hub{reason}
+  // is logged at render, before the offer, so each hub view also logs ONE outcome (outcome() below).
   var DAY_KEY = 'wqp_hv_day';
   var LATER_KEY = 'wqp_inst_later';
   var LATER_MS = 7 * 24 * 60 * 60 * 1000;
   var deferred = null;     // the browser's install event, kept for "Add"
+  var bipWhen = null;      // the offer came before the hub rendered (the old wiring lost those) or after
   var firstView = true;    // the day's first hub view (decided once per page load; storage trouble keeps it true)
   var dayChecked = false;
   var installWired = false;
@@ -230,12 +238,78 @@
     return at < 0 ? 0 : (html.slice(0, at).match(/class="(?:wq-card|wq-htile|wqp-tile)\b/g) || []).length + 1;
   }
   function installed() { tap(IEV, 'install', { door: 'install', surface: 'hub' }); }
+  var stepped = {};
+  // The card's meter: each step once per page load. src = where the page runs (browser / app / iab); reason = why.
+  function step(name, reason) {
+    if (!IEV || stepped[name]) return;
+    stepped[name] = true;
+    var p = { step: name, src: WHERE === 'none' ? 'iab' : WHERE || 'browser' };
+    if (reason) p.reason = reason;
+    try { IEV('install_prompt', p); } catch (e) {}
+  }
+  // The first-run tour (wq-welcome.js, WQW) dims the home and takes every tap: the card waits until it is done or skipped.
+  // The hub answer's `welcome` says a tour is coming (its script loads after the home paints); one that never draws (its
+  // script failed) stops being waited for after 30 s. The offer is kept meanwhile.
+  var TOUR_WAIT_MS = 30000;
+  var tourSeen = false;
+  var tourFrom = 0;
+  var tourTimer = false;
+  function tourUp() { try { return Boolean(window.WQW && typeof window.WQW.up === 'function' && window.WQW.up()); } catch (e) { return false; } }
+  function tourPending() {
+    if (tourUp()) { tourSeen = true; return true; }
+    return Boolean(IB && IB.welcome && !tourSeen && Date.now() - tourFrom < TOUR_WAIT_MS);
+  }
+  // Why the card is not showing now (null: it may show).
+  function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : tourPending() ? 'tour' : null; }
+  // The view's one outcome, install_prompt{step:'outcome', reason, when}, so hub views partition: decided at render when
+  // it cannot change (app, iab, first_view, snoozed), when the card is drawn (shown; held:'tour' when the tour held it
+  // first), or when the page is hidden: tour (offered, held under the tour), no_slot (offered while the card's slot was
+  // off the page: the child had moved on from the home), no_bip (Chrome never offered).
+  var outcomeSent = false;
+  var heldBy = null;
+  function outcome(reason, when) {
+    if (outcomeSent || !IEV) return;
+    outcomeSent = true;
+    var p = { step: 'outcome', src: WHERE === 'none' ? 'iab' : WHERE || 'browser', reason: reason, when: when };
+    if (reason === 'shown' && heldBy) p.held = heldBy;
+    try { IEV('install_prompt', p); } catch (e) {}
+  }
+  // Hidden (a tap away, the app switcher, closing) comes before pagehide, while the page-session queue still takes
+  // events; it is sent at once so the outcome is not left in it.
+  function onHide() {
+    if (outcomeSent || !IEV) return;
+    outcome(withheld() || (deferred ? 'no_slot' : 'no_bip'), 'hide');
+    try { if (window.WQT && typeof window.WQT.flush === 'function') window.WQT.flush(true); } catch (e) {}
+  }
+  // own: this script's listener heard it, so it may still hold Chrome's own banner back for the card (as it always did);
+  // the head's store only keeps the event and changes nothing the browser does.
+  function adopt(e, own) {
+    if (!e || deferred === e) return;
+    try { if (own && e.preventDefault) e.preventDefault(); } catch (x) {}
+    deferred = e; bipWhen = own ? 'after_render' : 'before_render';
+    if (own) { step('bip_fired', bipWhen); fillInstall(); }
+  }
+  // The card's slot can be off the page when Chrome offers (the home drawn again, or not yet): the offer is kept and the
+  // slot looked for every second, for up to a minute; the card is drawn when it is back (no_slot otherwise).
+  var SLOT_WAIT_MS = 60000;
+  var slotFrom = 0;
+  var slotTimer = false;
   // Fill the card's slot when every condition holds; empty it otherwise.
   function fillInstall() {
     var box = IROOT && IROOT.querySelector('#wqp-inst');
-    if (!box) return;
+    if (!box) {
+      if (deferred && !outcomeSent && !slotTimer) {
+        if (!slotFrom) slotFrom = Date.now();
+        if (Date.now() - slotFrom < SLOT_WAIT_MS) { slotTimer = true; setTimeout(function () { slotTimer = false; fillInstall(); }, 1000); }
+      }
+      return;
+    }
+    slotFrom = 0;
     var L = T[IB.lang === 'ur' ? 'ur' : 'en'];
-    if (!deferred || firstView || snoozed()) { box.innerHTML = ''; return; }
+    var why = withheld();
+    if (why === 'tour') heldBy = 'tour';
+    if (why === 'tour' && !tourTimer) { tourTimer = true; setTimeout(function () { tourTimer = false; fillInstall(); }, 1000); }
+    if (why) { box.innerHTML = ''; return; }
     box.innerHTML = H3
       ? '<div class="wq-icard"><div class="wq-ihead"><img class="wq-iicon" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48"><b>' + esc(L.installTitle) + '</b></div><div class="wq-ibtns">' +
         '<button type="button" class="wq-btn wq-soft wq-itint wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
@@ -243,6 +317,8 @@
       : '<div class="wqp-inst"><b>' + esc(L.installTitle) + '</b><div>' +
         '<button type="button" class="wqp-add" data-inst="add">' + esc(L.installBtn) + '</button>' +
         '<button type="button" class="wqp-later" data-inst="later">' + esc(L.installLater) + '</button></div></div>';
+    step('card_shown');
+    outcome('shown', heldBy ? 'tour_end' : bipWhen === 'after_render' ? 'offer' : 'render');
     if (!shown.install && door(IB, 'install')) {
       shown.install = true;
       IEV('door_shown', { door: 'install', surface: 'hub', slot: installSlot(IROOT.innerHTML || '') });
@@ -256,13 +332,21 @@
         if (what === 'later') {
           try { localStorage.setItem(LATER_KEY, String(Date.now())); } catch (x) {}
           box.innerHTML = '';
+          step('later');
         } else if (what === 'add' && deferred) {
           var d = deferred; deferred = null;
           box.innerHTML = '';
+          step('add');
           try {
             d.prompt();
-            if (d.userChoice && d.userChoice.then) d.userChoice.then(function (c) { if (c && c.outcome === 'accepted' && door(IB, 'install')) installed(); });
-          } catch (x) {}
+            if (d.userChoice && d.userChoice.then) {
+              d.userChoice.then(function (c) {
+                var ok = Boolean(c && c.outcome === 'accepted');
+                step(ok ? 'accepted' : 'dismissed');
+                if (ok && door(IB, 'install')) installed();
+              });
+            }
+          } catch (x) { step('prompt_failed'); }
         }
       });
     }
@@ -271,19 +355,23 @@
     if (!B || !B.play || !B.play.install) return;
     IB = B; IEV = ev; IROOT = ROOT;
     if (WHERE === null) WHERE = where();
-    if (WHERE === 'app' || WHERE === 'none') return;
+    if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); outcome(WHERE === 'app' ? 'app' : 'iab', 'render'); return; }
     checkDay();
     if (!installWired) {
       installWired = true;
+      tourFrom = Date.now();
+      // the offer that came before the hub rendered, kept by the head
+      try { if (window.__wqBip) adopt(window.__wqBip, false); } catch (e) {}
+      step('hub', withheld() || 'ready');
+      if (firstView || snoozed()) outcome(firstView ? 'first_view' : 'snoozed', 'render');
+      if (deferred) step('bip_fired', bipWhen);
       try {
-        window.addEventListener('beforeinstallprompt', function (e) {
-          // Our card offers it (when it may show); keep the event for "Add".
-          try { if (e && e.preventDefault) e.preventDefault(); } catch (x) {}
-          deferred = e;
-          fillInstall();
-        });
-        window.addEventListener('appinstalled', function () { deferred = null; if (door(IB, 'install')) installed(); });
+        // Our card offers it (when it may show); keep the event for "Add".
+        window.addEventListener('beforeinstallprompt', function (e) { adopt(e, true); });
+        window.addEventListener('appinstalled', function () { deferred = null; step('installed'); if (door(IB, 'install')) installed(); });
+        window.addEventListener('pagehide', onHide);
       } catch (e) {}
+      try { document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') onHide(); }); } catch (e) {}
     }
     setTimeout(fillInstall, 0);
   }

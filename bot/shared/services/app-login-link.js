@@ -11,8 +11,8 @@
  *   - Encrypted, not merely signed: the user id (and so the phone) is not in the URL in the clear,
  *     not even as base64. Any change to any byte fails the GCM tag.
  *   - Nothing is stored, so there is no table; a tap consumes nothing, so the link is re-tappable
- *     until exp (24 h). The price: a link cannot be revoked before it expires. Whoever holds a
- *     forwarded link is her for those 24 h — the same exposure as the portal links.
+ *     until exp (7 days; 24 h before bd-zrdvmi.28). The price: a link cannot be revoked before it expires. Whoever
+ *     holds a forwarded link is her for those 7 days.
  *   - KEY: derived from INTERNAL_API_KEY (the bot and the portal both read it) under its OWN label,
  *     so no other token family (web quiz, portal links) can pass as, or be forged from, this one.
  *     Read at call time. No key → sign returns null (the caller keeps the WhatsApp flow) and every
@@ -29,7 +29,8 @@ const { isJourneyId } = require('./app-journey');
 
 const DERIVE_LABEL = 'app-login-link-v2';
 const KIND = 'app';
-const TTL_S = 24 * 60 * 60;
+// bd-zrdvmi.28 — 7 days (operator, 19 Nov): at 24 h, 10-15% of evening and weekend taps met an expired link.
+const TTL_S = 7 * 24 * 60 * 60;
 const IV_LEN = 12;
 const TAG_LEN = 16;
 const MAX_LEN = 1024;
@@ -53,6 +54,10 @@ const LANDINGS = Object.freeze({
   assessment_topic_nudge: '/portal/teacher/assessment/new/class',
   // bd-iceyyu — not a command: the "Make my own" row on the lesson-plan Flow. Opens Make my own on that 6-12 chapter.
   lp_make_own: '/portal/teacher/lessons/own',
+  // bd-eqkr0n — not a command of hers: a principal on the principal app asking to observe (app-redirect 2g). Her
+  // Observations page (My own lesson, One of my teachers, what she sent); /go lands it because the teacher app is on for
+  // her (dashboard/lib/teacher-app teacherAppOnFor), else the legacy landing, like every teacher page.
+  principal_observe: '/portal/teacher/observations',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';

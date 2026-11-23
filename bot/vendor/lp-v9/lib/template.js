@@ -83,6 +83,11 @@ const DIAGRAM_LABELS = {
   photo_labels:       { en: "Labelled figure", ur: "نشان زد تصویر" },
   mindmap:            { en: "Mind map",        ur: "ذہنی نقشہ" },
   concept_map:        { en: "Concept map",     ur: "تصوراتی نقشہ" },
+  // VENDOR DIVERGENCE (bd-zrdvmi.51) — SYNC.md §3.43.
+  cycle:              { en: "Cycle",           ur: "چکر" },
+  ring:               { en: "Cycle",           ur: "چکر" },
+  cyclic_process:     { en: "Cycle",           ur: "چکر" },
+  life_cycle:         { en: "Life cycle",      ur: "دورِ حیات" },
   molecule:           { en: "Molecule",        ur: "سالمہ" },
   smiles:             { en: "Molecule",        ur: "سالمہ" },
   structure:          { en: "Structure",       ur: "ساخت" },

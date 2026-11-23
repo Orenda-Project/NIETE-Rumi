@@ -21,6 +21,7 @@ vi.mock("../../components/coaching/coach/CoachRecorder", () => ({
 }));
 import { leader, portal } from "../../services/api";
 import Debrief, { GUIDE_RETRY_MS } from "./Debrief";
+import { isHeld } from "../../lib/pickedRead";
 
 /**
  * bd-4404s7.5 — Debrief (Blueprint Coach_Debrief), step 3 of 4: the guide for her talk with the teacher (what went well,
@@ -99,6 +100,26 @@ describe("Debrief — a slow guide is asked for again, not given up on", () => {
     for (const ms of GUIDE_RETRY_MS) await act(async () => { await vi.advanceTimersByTimeAsync(ms + 100); });
     expect(await screen.findByText("Guide did not load")).toBeInTheDocument();
     expect(L.getTalkGuide).toHaveBeenCalledTimes(GUIDE_RETRY_MS.length + 1);
+  });
+
+  /**
+   * bd-tfya0m (queue #205) — production 19 Nov: a coach's guide ask came back 502 at 10 s while the bot restarted for a
+   * deploy; the coach left, and the teacher's report was never sent. "Guide did not load" now carries Try again, which asks
+   * once more (the guide is kept on the observation once written, so it comes back at once).
+   */
+  it("'did not load' has Try again, which asks again and shows the guide", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    L.getTalkGuide.mockRejectedValue(fail(502));
+    renderPage();
+    await waitFor(() => expect(L.getTalkGuide).toHaveBeenCalledTimes(1));
+    for (const ms of GUIDE_RETRY_MS) await act(async () => { await vi.advanceTimersByTimeAsync(ms + 100); });
+    const note = await screen.findByText("Guide did not load");
+    L.getTalkGuide.mockResolvedValueOnce({ guide: GUIDE });
+    const again = within(note.closest("[data-testid='guide-failed']") as HTMLElement).getByRole("button", { name: "Try again" });
+    fireEvent.click(again);
+    expect(await screen.findByTestId("talk-guide")).toBeInTheDocument();
+    expect(L.getTalkGuide).toHaveBeenCalledTimes(GUIDE_RETRY_MS.length + 2);
+    expect(screen.queryByText("Guide did not load")).toBeNull();
   });
 
   it("409 (the form is not saved yet): said at once, no second ask", async () => {
@@ -244,6 +265,44 @@ describe("Debrief", () => {
     expect(screen.getByText("The recording is safe")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(L.startTalk).toHaveBeenCalledTimes(1));
+  });
+
+  /**
+   * bd-tymy1n (queue #179) — the Android app lets go of a file it picked a little later (production 18 Nov: a coach's
+   * photo would not open by Send). An uploaded talk is read the moment she picks it; what goes up, and what Try again
+   * sends again, is that copy, never the picked file.
+   */
+  it("an uploaded talk is read when she picks it: the upload and Try again send that copy", async () => {
+    P.uploadToR2.mockRejectedValueOnce(new Error("offline"));
+    renderPage();
+    await screen.findByTestId("talk-guide");
+    const bytes = [0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70];
+    const f = new File([new Uint8Array(bytes)], "talk.m4a", { type: "audio/mp4" });
+    let open = true;
+    Object.defineProperty(f, "arrayBuffer", {
+      value: () => (open ? Promise.resolve(new Uint8Array(bytes).buffer) : Promise.reject(Object.assign(new Error("x"), { name: "NotReadableError" }))),
+    });
+    chooseFile(f);
+    expect(await screen.findByText("The internet stopped")).toBeInTheDocument();
+    open = false;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(L.startTalk).toHaveBeenCalledTimes(1));
+    expect(P.uploadToR2).toHaveBeenCalledTimes(2);
+    for (const call of P.uploadToR2.mock.calls) {
+      expect(call[1]).not.toBe(f);
+      expect(isHeld(call[1])).toBe(true);
+    }
+  });
+
+  it("a talk file the phone will not open is refused where she is, never 'The internet stopped'", async () => {
+    renderPage();
+    await screen.findByTestId("talk-guide");
+    const f = new File(["x"], "talk.m4a", { type: "audio/mp4" });
+    Object.defineProperty(f, "arrayBuffer", { value: () => Promise.reject(Object.assign(new Error("x"), { name: "NotReadableError" })) });
+    chooseFile(f);
+    expect(await screen.findByText("File will not open", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(P.uploadToR2).not.toHaveBeenCalled();
+    expect(screen.queryByText("The internet stopped")).toBeNull();
   });
 
   it("the form not saved yet (409): says so and offers no recording", async () => {

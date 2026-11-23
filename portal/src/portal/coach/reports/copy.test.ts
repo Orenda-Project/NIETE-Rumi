@@ -36,6 +36,12 @@ describe("coach reports copy", () => {
     expect(en).not.toMatch(/\bTalk\b|Check draft|Record live/);
   });
 
+  // bd-ra8xu.60 — the heading over her Observation Notes on each FICO17 v6 part (the Urdu a draft for native review).
+  it("the Observation Notes heading, in both languages", () => {
+    expect(REPORTS.en.notesHeading).toBe("📝 Your Observation Notes");
+    expect(REPORTS.ur.notesHeading).toBe("📝 آپ کے مشاہدے کے نوٹس");
+  });
+
   it("the recorder's Finish sheet, in Urdu, uses the observation's words (one vocabulary, nothing new) — bd-fmf24g.41", () => {
     const r = REPORTS.ur.recorder;
     expect(r.finishTitle).toBe(`${OBSERVE.ur.stopAsk}؟`);

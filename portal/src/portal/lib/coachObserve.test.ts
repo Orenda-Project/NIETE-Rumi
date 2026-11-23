@@ -54,6 +54,24 @@ describe("sendObservation / sendTalk", () => {
     expect(a.startObservation).toHaveBeenCalledWith({ key: "audio-k", photoKeys: [], teacherExtId: "9231", schoolExtId: "niete:7" });
   });
 
+  // bd-ra8xu.60 — her Observation Notes ride with the start, only when there are some: none, and the request is today's.
+  it("Observation Notes go with the start only when there are some", async () => {
+    const notes = [
+      { text: "Board work: fractions as pizzas", rec_time: "12:40", source: "portal_record" as const, typed_at: "2026-10-06T04:30:00.000Z" },
+      { text: "Group 3 stayed quiet", source: "portal_check" as const, typed_at: "2026-10-06T05:10:00.000Z" },
+    ];
+    const a = api();
+    await sendObservation({
+      teacherExtId: "9231", schoolExtId: "niete:7", audio: { blob: new Blob(["a"]), filename: "l.m4a" }, plan: null, photos: [], notes,
+    }, a as any, upload as any);
+    expect(a.startObservation.mock.calls[0][0].notes).toEqual(notes);
+    const b = api();
+    await sendObservation({
+      teacherExtId: "9231", schoolExtId: "niete:7", audio: { blob: new Blob(["a"]), filename: "l.m4a" }, plan: null, photos: [], notes: [],
+    }, b as any, upload as any);
+    expect(b.startObservation.mock.calls[0][0]).not.toHaveProperty("notes");
+  });
+
   it("a talk: one upload, then attached", async () => {
     const a = api();
     await sendTalk("cs-1", { blob: new Blob(["a"]), filename: "t.m4a" }, a as any, upload as any);

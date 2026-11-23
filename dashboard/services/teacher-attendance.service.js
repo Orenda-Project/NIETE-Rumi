@@ -9,6 +9,10 @@
  * reads one from the request. A rule the teacher can act on comes back as { code }
  * (NOT_FOUND, BAD_DATE, BAD_MONTH, EMPTY_ROSTER); a bot that cannot answer THROWS — an empty list
  * would read "you have no classes".
+ *
+ * bd-33wxxi.10 — every function takes an optional last `{ staff: true }`: the route's word that this user may
+ * open the principal's teacher register (listId "staff"). It is sent to the bot only when set, so a teacher's
+ * calls are byte-for-byte what they were.
  */
 
 function botConfig() {
@@ -36,13 +40,16 @@ async function callBot(path, body) {
   return rest;
 }
 
-const classes = (userId, date) => callBot('classes', { userId, date: date || null });
-const roster = (userId, listId) => callBot('roster', { userId, listId });
-const mark = (userId, listId, { date, absentIds, leaveIds }) => callBot('mark', { userId, listId, date, absentIds, leaveIds });
-const day = (userId, listId, date) => callBot('day', { userId, listId, date });
-const month = (userId, listId, m) => callBot('month', { userId, listId, month: m });
-const registerFile = (userId, listId, m) => callBot('register', { userId, listId, month: m });
-const sendRegister = (userId, listId, m) => callBot('register/send', { userId, listId, month: m });
+/** `{ staff: true }` into the body only when the route allowed it. */
+const withStaff = (body, opts) => (opts && opts.staff === true ? { ...body, staff: true } : body);
+
+const classes = (userId, date, opts) => callBot('classes', withStaff({ userId, date: date || null }, opts));
+const roster = (userId, listId, opts) => callBot('roster', withStaff({ userId, listId }, opts));
+const mark = (userId, listId, { date, absentIds, leaveIds }, opts) => callBot('mark', withStaff({ userId, listId, date, absentIds, leaveIds }, opts));
+const day = (userId, listId, date, opts) => callBot('day', withStaff({ userId, listId, date }, opts));
+const month = (userId, listId, m, opts) => callBot('month', withStaff({ userId, listId, month: m }, opts));
+const registerFile = (userId, listId, m, opts) => callBot('register', withStaff({ userId, listId, month: m }, opts));
+const sendRegister = (userId, listId, m, opts) => callBot('register/send', withStaff({ userId, listId, month: m }, opts));
 
 /**
  * Her classes as the selector shows them: the class's grade code → its grade number, and her

@@ -100,9 +100,11 @@ const SAVED = { ...process.env };
 beforeEach(() => {
   process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key', WEB_QUIZ_TOKEN_SECRET: 'door-lang-test-secret', PORTAL_URL: 'https://portal.example.test' };
   jest.clearAllMocks();
-  jest.spyOn(Date, 'now').mockReturnValue(NOW_MS);
+  // The whole clock, not only Date.now: the code's expiry check reads `new Date()`, so a Date.now-only pin let the
+  // fixture's code expire for real once the calendar passed it (29 Oct). Timers stay real.
+  jest.useFakeTimers({ now: NOW_MS, doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask', 'hrtime', 'performance'] });
 });
-afterEach(() => { jest.restoreAllMocks(); });
+afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 afterAll(() => { process.env = SAVED; });
 
 describe('switch on: a friend who joins through an Urdu card stays in Urdu', () => {

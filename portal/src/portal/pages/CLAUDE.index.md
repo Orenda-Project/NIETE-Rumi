@@ -13,14 +13,21 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ClassicAssessment.test.tsx` | bd-4n7p4: pins ClassicAssessment as its own page: heading, tabs, generator form, papers panel gets editing from /config |
 | `ClassicAssessment.tsx` | bd-4n7p4: old-UI Assessment Generator (formerly a Curriculum tab), served at /portal/assessment via PortalAssessment |
 | `LeaderAssess.cwpm.test.tsx` | Round 7b sa_cwpm: pins CWPM labelling and formula across the dashboard, results row and review page |
+| `LeaderAssess.lastrec.test.tsx` | (unmapped) |
+| `LeaderAssess.perVisit.test.tsx` | (unmapped) |
+| `LeaderAssess.r11report.test.tsx` | (unmapped) |
+| `LeaderAssess.r12mic.test.tsx` | (unmapped) |
+| `LeaderAssess.r19practice.test.tsx` | (unmapped) |
 | `LeaderAssess.r7b.test.tsx` | Round 7b sa_end_test_restart: pins Restart test for an ended child (new phone id, restart:true); OFF shows Stopped |
 | `LeaderAssess.r8offline.test.tsx` | Round 8 switches on LeaderAssess (fast start, offline-first, offline prep): slow Present, queued Present, offline resume |
 | `LeaderAssess.test.tsx` | Pins LeaderAssess end to end: flag gate, school picker, server list, absent/present handover, engine frame, queue |
 | `LeaderAssess.tsx` | Coach's Learning assessment at /portal/leader/assess (portal_child_test_sa): pick school, mark five children, run engine |
 | `LeaderAssessDashboard.filters.test.tsx` | Round 7b sa_dash_filters: pins mode, date and coach filters and the Skips and stops view on the live dashboard |
 | `LeaderAssessDashboard.practice.test.tsx` | Round 8 sa_r8_hide_practice: pins practice-school sessions hidden by default with an Include toggle |
+| `LeaderAssessDashboard.r28.test.tsx` | (unmapped) |
 | `LeaderAssessDashboard.test.tsx` | Pins the example results dashboard: off/unreadable switch shows not available; banner, drill-down, filters, cards |
 | `LeaderAssessDashboard.tsx` | Results dashboard at /portal/leader/assess/dashboard: example (sandbox) or live sessions, filters, masked small cells |
+| `LeaderAssessResults.r28.test.tsx` | (unmapped) |
 | `LeaderAssessResults.test.tsx` | Pins LeaderAssessResults: session-id-only path, one card per task, spoken-task wording, Urdu digits, 404 not available |
 | `LeaderAssessResults.tsx` | Read-only results of one assessment session at /portal/leader/assess/results/:sessionId (sa_results_view) |
 | `LeaderAssessReview.test.tsx` | Pins LeaderAssessReview (sa_review_page): switch off, per-child list by short id, task review, reviewer marks saved |
@@ -40,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `LeaderObserve.v2names.test.tsx` | bd-o15qnr.19: pins Draft and Talk titles ("Feedback Form") when reached from coach v2 versus today's titles |
 | `LeaderObserveDraft.test.tsx` | bd-5rz1v.6: pins LeaderObserveDraft's initialValues/countChanges and that the submitted keys match the WhatsApp form |
 | `LeaderObserveDraft.tsx` | bd-5rz1v.6: "Check the draft report" at /portal/leader/observe/:id/draft; WhatsApp review form as a portal page |
+| `LeaderObserveRecord.androidFiles.test.tsx` | (unmapped) |
 | `LeaderObserveRecord.coachV2.test.tsx` | bd-o15qnr: pins LeaderObserveRecord reused by coach v2: prefilled visit, way=record skips the sheet |
 | `LeaderObserveRecord.test.tsx` | bd-5rz1v.6: pins LeaderObserveRecord: teacher pick, two-way sheet, back-camera photo input, dark when flag off |
 | `LeaderObserveRecord.tsx` | bd-5rz1v.6: coach picks a teacher and records or uploads a lesson at /portal/leader/observe/new |
@@ -176,23 +184,23 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalTraining.tsx` ← imported by `portal/src/App.tsx:81:8b507f06`
 - `PortalTrainingPage.tsx` ← imported by `portal/src/App.tsx:82:d7e20fa2`
 - `PortalTrainingV2.tsx` ← imported by `portal/src/portal/pages/PortalTrainingPage.tsx:8:b09c7a87`
-- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:156:380aa3eb`
-- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:158:3a991917`
+- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:171:380aa3eb`
+- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:173:3a991917`
 - `legacyLive.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:31:8621d378`
 - env `PROD` read at `portal/src/portal/pages/PortalReadingAssessments.tsx:66:a940a13e`
 
 ## Tests (all, generated)
 - `ClassicAssessment.tsx` ← `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` · `portal/src/portal/pages/ClassicAssessment.test.tsx`
-- `LeaderAssess.tsx` ← `portal/src/portal/pages/LeaderAssess.r7b.test.tsx` · `portal/src/portal/pages/LeaderAssess.r8offline.test.tsx` · `portal/src/portal/pages/LeaderAssess.test.tsx`
-- `LeaderAssessDashboard.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.filters.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.practice.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.test.tsx`
-- `LeaderAssessResults.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.test.tsx`
+- `LeaderAssess.tsx` ← `portal/src/portal/pages/LeaderAssess.lastrec.test.tsx` · `portal/src/portal/pages/LeaderAssess.perVisit.test.tsx` · `portal/src/portal/pages/LeaderAssess.r11report.test.tsx` · `portal/src/portal/pages/LeaderAssess.r12mic.test.tsx` · `portal/src/portal/pages/LeaderAssess.r19practice.test.tsx` · `portal/src/portal/pages/LeaderAssess.r7b.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/pages/LeaderAssess.tsx`)
+- `LeaderAssessDashboard.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.filters.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.practice.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.r28.test.tsx` · `portal/src/portal/pages/LeaderAssessDashboard.test.tsx`
+- `LeaderAssessResults.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.r28.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.test.tsx`
 - `LeaderAssessReview.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessReview.test.tsx`
 - `LeaderChildTest.tsx` ← `portal/src/portal/pages/LeaderChildTest.test.tsx`
-- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
+- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
 - `LeaderObservation.tsx` ← `portal/src/portal/pages/LeaderObservation.test.tsx` · `portal/src/portal/pages/LeaderObserve.v2names.test.tsx`
 - `LeaderObservations.tsx` ← `portal/src/portal/pages/LeaderObservations.coachObserve.test.tsx` · `portal/src/portal/pages/LeaderObservations.identity.test.tsx` · `portal/src/portal/pages/LeaderObservations.schedule.test.tsx` · `portal/src/portal/pages/LeaderObservations.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx`
 - `LeaderObserveDraft.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveDraft.test.tsx`
-- `LeaderObserveRecord.tsx` ← `portal/src/portal/pages/LeaderObserveRecord.coachV2.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.test.tsx`
+- `LeaderObserveRecord.tsx` ← `portal/src/portal/pages/LeaderObserveRecord.androidFiles.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.coachV2.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.test.tsx`
 - `LeaderObserveTalk.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveTalk.test.tsx`
 - `LeaderTeacherDetail.tsx` ← `portal/src/portal/pages/LeaderTeacherDetail.feedback.test.tsx` · `portal/src/portal/pages/LeaderTeacherDetail.test.tsx` · `portal/src/portal/pages/LeaderTeacherDetail.trend.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
 - `LeaderTeachers.tsx` ← `portal/src/portal/pages/LeaderTeachers.identity.test.tsx` · `portal/src/portal/pages/LeaderTeachers.principal-route.test.tsx` · `portal/src/portal/pages/LeaderTeachers.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`

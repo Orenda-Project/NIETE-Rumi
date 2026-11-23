@@ -72,6 +72,29 @@ shows. The `/observe` review is one indicator per screen (a no-input intro opens
 check's v6 screens are its own Flow (`observe2-evidence-check-v6.json`, `OBSERVE2_CHECK_V6_FLOW_ID`), so the check
 every other visit opens is unchanged.
 
+**D2 in words (bd-ra8xu.61, 20 Nov).** D2's levels say how much of the class spoke (a few children; many, but a large
+part of the class never; most of the class), and chorus answers do not count. No count of children is in its text, its
+short titles or its Urdu. The bot carries this text before the rubric workbook does: the workbook's D2 rows are to be
+updated by its owner, and `fico17_v6.source.csv` holds the new text until then (the sheet test compares the two). An old
+form that still sends D2's two counts has them checked for sense and stored; the level is never checked against them
+(the old "level doesn't match the counts" refusal is gone, on `/observe`, `/observe2` and the portal save). Saved
+reviews keep their level, reason and counts. The DC is unchanged: it is never asked about D2 and still counts student
+turns per half; only the rubric hash in its `prompt_version` moved. The `/observe2` check Flows (retired) were
+published with their level lists inside, so on Meta they show D2's old words until they are republished.
+
+## v6.1 (queue #218, 21 Nov)
+
+FICO17 v6.1 is v6 with per-indicator N/A (C2 C3 C5 D4, each in its own words: `fico17-v6/fico17_v6.na.json`), D2 in
+words, and one refinement: D4 is N/A only when the teacher asked no question at all (asked, then gave the answer, is D4's
+level 1, Not Observed). The 17 indicators and their level meanings do not change, so the key stays `fico17_v6`. Every new
+stamp carries `rubric_version: '6.1'` (`v6.stamp()`, the coach review, the DC analysis) and the small rubric label reads
+"FICO17 v6.1" (`coaching/rubric-label.js`). An observation stored before has no `rubric_version` and keeps "FICO17 v6"
+(`v6.versionOf()` reads it as `'6.0'`). Never rescored, never backfilled. Charts that compare weeks can split on it,
+because N/A rows leave the denominator.
+
+FICO-S v1.2 (grades 6-12) is the same change on the other rubric: see `frameworks/fico-s/index.js` and
+`frameworks/fico-s/fico_s_v1_2.json` (new forms are `fico_s_v1_2`, shown "FICO 6-12 v1.2"; a v1.1 form keeps v1.1).
+
 ## Switches (all off by default)
 
 - `app_settings.fico_coach_rubric`: coach visits on v6, per region / `ict` / `gb` / `user:<id>` / role. Only visits to a
@@ -83,5 +106,33 @@ every other visit opens is unchanged.
   it stays on the DC and `fico_dc_rubric`.
 - `OBSERVE_FICO17_V6_READY`: additionally required for `/observe`.
 - `app_settings.fico_dc_rubric`: the DC on self-recordings (`shadow` stores a v6 score beside V3 and never sends it).
+- `app_settings.observation_notes` (`off` | `on`, same keys): Observation Notes on the coach's `/observe` v6 visits
+  (below). Needs `OBSERVE_NOTES_FLOW_ID` (the published `bot/docs/flows/observe-notes.json`) for the WhatsApp offer.
 
 A visit keeps the rubric it was stamped with when it started.
+
+## Observation Notes (Phase 1: an experiment, stored only)
+
+What the coach saw in the room that a recording can't hear, typed during the visit. Code:
+`bot/shared/services/observe/observation-notes.js` (store, WhatsApp Flow, informed run) and
+`bot/shared/services/coaching/frameworks/fico17-v6/informed.js` (the informed prompt and its validator).
+
+- **Where she types them.** WhatsApp: right after "Got the recording", one message opens the one-screen notes Flow
+  (`observe-notes.json`, token `obsnotes:<session id>`); one note per line. Portal: a notes panel on Record (each note
+  stamped with the recording clock) and a box on Check and send; they ride with the upload.
+- **Where they are kept** (`coaching_sessions.analysis_data`, no new column):
+  `observation_notes` `[{ id, text, typed_at, rec_time, source, typed_before_review, batch }]`;
+  `observation_notes_review_opened_at` (the first opening of the review, WhatsApp INIT or the portal draft);
+  `dc_informed` (below). The whole-blob writers (the analysis write, the review submit) carry these keys over.
+- **What the coach sees.** Her notes, word for word, at the top of every section intro of the review (a Flow whose
+  Section B posts `v6n` declares them; an older published Flow gets today's screens) and of every v6 part on the portal.
+  The pre-fill is still the BLIND analysis; the teacher's report does not change.
+- **Two scorings.** Blind = today's v6 prompt on the transcript (`autofill_analysis_data`, what the coach reviews: the
+  clean coach-vs-DC eval). Informed = the same prompt and transcript plus the notes (`fico17-v6-dc-notes-1+<sha>`),
+  run once both exist, stored only under `analysis_data.dc_informed` (levels, evidence, one label per note:
+  supports / contradicts / not_in_recording, `made_up_note_support`, `note_ids`, `runs` ≤ 3). A note quote must be in
+  that note word for word or it is dropped and counted as made-up support. The six combined indicators still get no
+  level. Notes typed after the review opened (`typed_before_review: false`) are kept but left out of the clean comparison.
+- **The eval** (read-only, run outside the bot from these keys): per indicator, blind = coach vs informed = coach,
+  how often the notes flip Rumi's level and in which direction, made-up support, notes the recording could not show.
+  Phase 2 (the informed pre-fill, the report citing a note) waits on its numbers.

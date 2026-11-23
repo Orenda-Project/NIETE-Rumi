@@ -14,6 +14,16 @@
 // "/observer" does NOT match). Handler passes the trimmed message.
 const OBSERVE_TRIGGER_RX = /^\/observe\b/i;
 
+// bd-eqkr0n — a bare "observe" as the whole message ("observe", "Observe.", "OBSERVE!"), no slash. Only a principal on
+// the principal app is answered by it (text-message.handler asks app-redirect); for anyone else it stays an open
+// message for the classifier. A sentence ("how do I observe a class?") is never it.
+const BARE_OBSERVE_RX = /^[^\p{L}\p{N}/]*observe[^\p{L}\p{N}]*$/iu;
+
+/** Is the whole message the bare word "observe" (punctuation and emoji around it allowed, no leading slash)? Pure. */
+function isBareObserveWord(text) {
+  return BARE_OBSERVE_RX.test(String(text == null ? '' : text).normalize('NFC').trim());
+}
+
 const SCHOOL_LEADER_ROLE = 'school_leader';
 
 // FEAT-093 bd-46 — THE single source of truth for the leader family.
@@ -95,6 +105,7 @@ async function pickObservationFramework(session, { selectFramework, getFramework
 
 module.exports = {
   OBSERVE_TRIGGER_RX,
+  isBareObserveWord,
   SCHOOL_LEADER_ROLE,
   LEADER_ROLES,
   evaluateObserveTrigger,

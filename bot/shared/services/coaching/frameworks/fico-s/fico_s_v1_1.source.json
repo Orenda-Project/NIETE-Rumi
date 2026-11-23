@@ -1,0 +1,1142 @@
+{
+ "_about": "Snapshot of the operator's FICO-S v1.1 sheet (values only), read 2026-11-18 with the Rumi service account. Source of truth is the sheet; regenerate this file from it, then run bot/scripts/build-fico-s-rubric.js. Never hand-edit.",
+ "sheet_id": "1HLMlVbvKZCw8CLuKSzWBd6xiQEPyFc5kRZq7HqqUobg",
+ "sheet_title": "FICO-S v1.1 – Principal Classroom Observation Framework (Grades VI–XII)",
+ "read_on": "2026-11-18",
+ "tabs": {
+  "Framework": {
+   "gid": 673898208,
+   "values": [
+    [
+     "FICO-S v1.1 · Principal Classroom Observation Framework (Grades VI–XII)"
+    ],
+    [
+     "For principals / heads observing in person. Score each indicator 1–4 from what you see and hear in the room. Levels build on each other: level 4 = level 3 met + the extra step. If between two levels, give the lower one. Examples for every level are in the 'Examples' tab."
+    ],
+    [],
+    [
+     "Code",
+     "Indicator",
+     "What to look for",
+     "1 · Below standard",
+     "2 · Developing",
+     "3 · Proficient",
+     "4 · Exemplary",
+     "Aligned: FICO v6",
+     "Aligned: FICO v1"
+    ],
+    [
+     "A.  LESSON PLANNING & STRUCTURE   —   Is the lesson planned around a clear learning objective, opened well and closed well?"
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "Whether the teacher tells students what they will learn today, whether the lesson matches the SOW / syllabus breakdown for this week, and whether the activities serve that objective.\n\nHow: In class + teacher's planner",
+     "No objective is stated, and the lesson does not match the SOW / syllabus breakdown for this week.",
+     "The lesson matches the SOW, but the objective is not shared, or only the topic name is given.",
+     "The teacher states the objective as what students will be able to do, and the main activities serve it.",
+     "Beyond level 3, the teacher returns to the objective at the end and checks with students whether they achieved it.",
+     "–",
+     "B1 Instructional Clarity & Learning Objectives; B3 Activities & Tasks Alignment"
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "How the lesson begins: whether the teacher brings out what students already know and uses it to start the new topic, and whether the opening catches their interest.\n\nHow: In class",
+     "The lesson goes straight into new content with no link to what students already know.",
+     "The teacher mentions the previous lesson in general but does not check what students remember.",
+     "The teacher asks students to recall what they need for today, and uses their answers to start the new topic.",
+     "Beyond level 3, the opening has a hook that students respond to: a puzzle, short story, real object, surprising fact or thought-provoking question.",
+     "F4 Links to real life (earlier-lesson link only)",
+     "B4 Activation of Prior Knowledge"
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "How the lesson ends: whether the key learning is pulled together, and whether homework is linked to the objective and asks for more than copying.\n\nHow: In class + homework diary",
+     "The lesson stops at the bell with no summary, and no homework is set, or homework is unrelated to the lesson.",
+     "The teacher summarises the main points themself, or sets homework copied from the textbook exercise.",
+     "Students answer a closing question or summarise the key learning, and homework linked to the objective is written on the board.",
+     "Beyond level 3, the teacher links today's learning to the next lesson, and the homework includes at least one task that applies the learning beyond copying the book.",
+     "–",
+     "B10 Lesson Closure & Consolidation"
+    ],
+    [
+     "B.  SUBJECT KNOWLEDGE & TEACHING   —   Does the teacher know the subject and teach it so students understand why, not only how?"
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "Whether what the teacher says about the subject is correct, whether they can answer students' content questions, and whether they go beyond the textbook accurately. Count something as wrong only when you are sure.\n\nHow: In class",
+     "The teacher says something wrong and leaves it, so students are left with wrong information.",
+     "Mostly correct, but the teacher makes a slip and does not correct it, or cannot answer a student's content question.",
+     "Everything the teacher says is correct, and they answer students' content questions correctly. When not sure, the teacher says so and checks.",
+     "Beyond level 3, the teacher warns students about a common mistake before they make it, or brings in correct content that is not in the textbook.",
+     "F1 Accuracy of content",
+     "F1 Content Accuracy; F3 Anticipation of Student Misconceptions"
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "Whether the teacher explains why a rule, step or idea works, with a reason, example, diagram or demonstration, or only says what to do and asks students to remember it.\n\nHow: In class",
+     "The teacher only says how to do it, and gives no reason.",
+     "The teacher gives a reason now and then, but mostly asks students to memorise.",
+     "At least two times, the teacher explains why a rule or step works, with a reason, an example, a diagram or a demonstration.",
+     "Beyond level 3, when students are still confused the teacher explains it a different way, or asks students to give the reason themselves.",
+     "F3 Explaining why",
+     "F4 Depth of Explanation; C2 Responsive Re-explanation; C8 Modeling & Scaffolding"
+    ],
+    [
+     "B3",
+     "Subject language",
+     "Whether the teacher uses the subject's own terms correctly and explains them, and whether students are made to use them. In English / Urdu lessons, this also covers the teacher's own grammar, pronunciation and fluency (talaffuz, rawani, qawaid) in the language taught.\n\nHow: In class",
+     "The teacher uses everyday words only and no subject terms. (Language lessons: frequent errors in the language being taught.)",
+     "The teacher uses subject terms but does not explain them, or mixes them up.",
+     "At least two times, the teacher uses a subject term correctly and explains what it means. (Language lessons: the teacher's own grammar and pronunciation are correct.)",
+     "Beyond level 3, the teacher makes students use the terms, and corrects loose words by giving the right one.",
+     "F2 Subject words",
+     "F2 Use of Academic Language; F7 Subject Pedagogy: Literacy/Language"
+    ],
+    [
+     "B4",
+     "Links to real life & other subjects",
+     "Whether the teacher links the lesson to students' daily life, local context, another subject or an earlier lesson, explains the link, and whether students take it further.\n\nHow: In class",
+     "The teacher gives no real-life example, comparison or link to another subject.",
+     "The teacher mentions a link and moves on without explaining it.",
+     "The teacher gives at least one link from students' own context and explains how it fits the idea.",
+     "Beyond level 3, students build on the link: they give their own example, ask about it, or explain it in their own words.",
+     "F4 Links to real life",
+     "B5 Meaningful & Real-World Connections; F8 Cross-Curricular Connections"
+    ],
+    [
+     "B5",
+     "Resources & technology",
+     "Whether books, the board, charts, lab equipment, models, maps or technology (Chromebooks, IT lab, multimedia) are used for learning, and by whom: only shown by the teacher, or used by students.\n\nHow: In class",
+     "Only talk; no book, board, chart, object or device is used.",
+     "The teacher uses the board, book or a device only to show or tell; students do not use it.",
+     "Students use a resource themselves (textbook, lab equipment, map, model, Chromebook) for the task, and the teacher says how it connects to the idea.",
+     "Beyond level 3, a student uses the resource to explain their thinking and the teacher builds on it, or students use technology to create or investigate something (not only to watch).",
+     "C8 Books and materials",
+     "B8 Use of Prescribed Resources; C10 Integration of Technology; D6 Student Use of Learning Materials"
+    ],
+    [
+     "C.  CLASSROOM PRACTICE   —   What does the teacher do to get every student thinking, talking and working?"
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "What kinds of questions the teacher asks and whether they make students think. A closed question needs a one-word answer; an open question needs a longer answer; the strongest questions ask why / compare / apply, and are followed up.\n\nHow: In class",
+     "No questions, or the teacher asks and answers the questions themself without waiting.",
+     "Only closed questions with yes/no or one-word answers.",
+     "At least two open questions, and the teacher waits for students to answer.",
+     "Beyond level 3, at least one why / compare / apply question, followed up on the same student's answer.",
+     "C1 Quality of questions",
+     "C1 Quality Questioning (Bloom's Aligned)"
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "What the teacher does when a student's answer is wrong or incomplete: ignores it, says it is wrong, explains why, or helps the student fix it. Only applies when an answer was actually wrong.\n\nHow: In class",
+     "A student gives a wrong answer and the teacher ignores it, or only repeats the same explanation.",
+     "The teacher says the answer is wrong, or gives the right answer, but gives the reason at most once.",
+     "At least two times, the teacher gives the reason for the correction and says what was right and what to change.",
+     "Beyond level 3, the teacher asks the student or a classmate to fix the answer, and tries a new way if they are still stuck.",
+     "C2 Helping when a child is wrong",
+     "C3 Effective Feedback; C2 Responsive Re-explanation"
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "How the teacher chooses who answers: only students who raise a hand or call out, or deliberate ways of bringing in others, such as naming or pointing to a student who did not raise a hand, pair talk, everyone writing an answer, or picking at random. Watch where the teacher looks and which part of the room answers.\n\nHow: In class",
+     "The teacher takes answers only from students who raise a hand or call out; the same few hands answer all period.",
+     "The teacher uses a way of choosing who answers once, then goes back to volunteers.",
+     "At least two times, the teacher uses a way of choosing who answers (naming or pointing to a student without a raised hand, \"tell your partner\", \"everyone write\", random pick).",
+     "Beyond level 3, the teacher deliberately brings in students who have not spoken, including back benches and (in co-ed classes) both boys and girls.",
+     "C3 Who got to answer",
+     "C4 Equitable Participation; D7 Inclusivity of Engagement"
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "Whether students have a real say in how the lesson goes: a real choice about how to do or show the work, the teacher taking up a student's idea, or a part of the lesson handed to students. Small choices (who goes first, which colour) do not count.\n\nHow: In class",
+     "The teacher decides everything and asks students for no choice or idea.",
+     "Students choose only small things (who goes first, which pen).",
+     "At least one real choice about how to do or show the work, or the teacher takes up a student's idea.",
+     "Beyond level 3, a student or group leads a part of the lesson: presents, explains a solution at the board, or leads a discussion while the teacher facilitates.",
+     "C4 Children's choices",
+     "C5 Student Agency & Voice"
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "How well lesson time is used: whether the lesson starts promptly, and how quickly and smoothly the class moves from one activity to the next after the teacher's signal.\n\nHow: In class (note the clock at each change)",
+     "Changing activity takes more than 3 minutes with no clear signal, or more than 10 minutes of the period is lost (late start, waiting, off-task).",
+     "The teacher gives a signal, but changes still take 2–3 minutes.",
+     "Learning starts within 3 minutes of the bell, and the class changes activity in under 2 minutes of the teacher's signal.",
+     "Beyond level 3, students already know the routine and move to the next activity without being told; the whole period is used for learning.",
+     "C5 Switching activities",
+     "B9 Time on Task / Time on Learning; C6 Classroom Management & Routines; D5 On-Task Behaviour"
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "Whether students feel safe to try and be wrong: how the teacher responds to answers and behaviour, whether praise is for effort and thinking or only for right answers, and whether discipline is calm and respectful. Look at students as well as the teacher: do they raise hands freely, or hesitate, hide their work and look down? Any physical punishment, insult or humiliation is automatically level 1 (Prohibition of Corporal Punishment Act 2021, Annex-P).\n\nHow: In class",
+     "Replies to students are harsh, dismissive or humiliating (words, tone or gestures), or there is any physical punishment or insult. Students look afraid to answer.",
+     "Replies are neutral; praise is only for right answers or for obeying, in general words.",
+     "At least two times, the teacher praises effort, an attempt or thinking, not just a right answer, and handles any misbehaviour calmly and respectfully.",
+     "Beyond level 3, the teacher treats a wrong answer as useful and invites other views, and students try answers even when they are not sure (hands go up for hard questions, students try again after a wrong answer).",
+     "C6 Safe to be wrong; D4 Trying when unsure",
+     "C7 Positive & Supportive Learning Environment; D4 Student Confidence & Risk-Taking"
+    ],
+    [
+     "C7",
+     "Pair & group work",
+     "Whether the teacher sets real pair or group work: a task the group can only finish together, with something to produce, roles and a report back. Sitting together but working alone is not group work.\n\nHow: In class",
+     "No pair or group task; everyone works alone or as one class.",
+     "Students sit in pairs or groups, but each does their own work.",
+     "A task the group can only finish together, the teacher says what the group must produce, and walking around you see most groups actually working together (talking about the task, sharing one sheet), not working alone.",
+     "Beyond level 3, the teacher gives roles or turns inside the group, every member is doing their part, and groups report back.",
+     "C7 Group work",
+     "C9 Collaborative Learning; C12 Classroom Resources & Space for Collaboration"
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "Whether the teacher notices that students are at different levels and adjusts: extra support for students who are behind, and a stretch for those who finish early or are ahead.\n\nHow: In class",
+     "Same task, same pace for everyone; students who are stuck (not writing, looking at a neighbour's copy, head down) are not noticed or helped.",
+     "The teacher helps individual struggling students while others work, but the task is the same for everyone.",
+     "The teacher uses at least two levels of task or support (a hint, a worked step, a simpler version, an extension question) and gives them to the right students.",
+     "Beyond level 3, the teacher uses what they found in the lesson (answers, a quick check) to group or re-teach students, and high achievers get a task that stretches them.",
+     "–",
+     "B6 Differentiation / Catering to Learning Levels"
+    ],
+    [
+     "D.  STUDENT LEARNING & ENGAGEMENT   —   What do the students themselves say and do?"
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "How deep students' answers are: one word, a longer answer that only repeats what was said, or an answer that shows reasoning in the student's own words (says why, compares, applies a rule to a new case, explains a choice, gives their own example).\n\nHow: In class",
+     "Students give only one-word answers or repeat a fact.",
+     "At least one longer answer, but it only repeats what was said or read, or finishes the teacher's sentence.",
+     "At least two answers show reasoning in the student's own words: why, compare, apply to a new case, or justify a choice.",
+     "Beyond level 3, a student gives their own example or links the idea to something the teacher did not say first.",
+     "D1 Children's reasoning",
+     "D2 Cognitive Engagement Level (Bloom's)"
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "How many different students speak to the class during the lesson (answer, read out, present), and whether students silent early on speak later. Keep a tally of different students on a seating sketch as you observe.\n\nHow: In class (tally on a seating sketch)",
+     "No student speaks, or only the same one or two students speak.",
+     "Three to five different students speak.",
+     "Six or more different students speak, spread across the lesson.",
+     "Beyond level 3, at least two students who were silent in the first half speak in the second half.",
+     "D2 How many children spoke",
+     "D1 Active Participation Rate; D7 Inclusivity of Engagement"
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "Whether students talk to each other about the task, not only to the teacher: one student answers, agrees with or adds to what another said. Count whole-class exchanges and what you hear when you stand near pairs and groups. At its strongest they give reasons to agree or disagree and reach one shared answer.\n\nHow: In class",
+     "No student speaks to another student about the task.",
+     "Once, a student agrees with or responds to what another student said.",
+     "At least two times, a student answers, agrees with or adds to what another student just said.",
+     "Beyond level 3, students give reasons to agree or disagree with each other and reach one shared answer.",
+     "D3 Children answering each other",
+     "D3 Student-to-Student Interaction"
+    ],
+    [
+     "D4",
+     "Students' own questions",
+     "Whether students ask questions of their own: only about the task (which page, is this homework), or about the idea itself (how or why something works, what if). Repeating the teacher's question or an unsure answer does not count.\n\nHow: In class",
+     "No student asks a question of their own.",
+     "Students ask only questions about the task: which page, do we write this, is it homework, please repeat.",
+     "At least one student asks a question about the idea itself: how or why something works, or what would happen in a different case.",
+     "Beyond level 3, at least two questions about the idea, and one goes beyond what was taught in this lesson.",
+     "D5 Children's own questions",
+     "– (no separate v1 indicator)"
+    ],
+    [
+     "E.  CHECKING LEARNING   —   Does the teacher (and the principal) know whether students learned?"
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "Whether the teacher checks during the lesson if students are learning, gets answers from most of the class rather than a few volunteers, and changes what they do based on what they find.\n\nHow: In class",
+     "No check, or only \"Everyone understood?\" \"Yes!\"",
+     "The teacher checks understanding with a few students only (usually the same volunteers).",
+     "At least two checks that get answers from most of the class (everyone writes, fingers up 1–4, mini-whiteboards, quick written question), or the teacher walks around and looks at most students' work.",
+     "Beyond level 3, the teacher changes what they do because of what the check showed (re-teaches, gives another example, regroups).",
+     "–",
+     "B10 Lesson Closure (check understanding); C11 Self & Peer Assessment (partly)"
+    ],
+    [
+     "E2",
+     "Student learning check (5 students)",
+     "At the end of the lesson the principal picks 5 students at random (not volunteers, mixed seats) and asks each 1–2 short questions on today's objective. Count how many show good understanding.\n\nHow: Principal asks 5 random students (last 5 minutes or right after)",
+     "0–1 of the 5 students show good understanding of the lesson taught.",
+     "2 of the 5 students show good understanding.",
+     "3–4 of the 5 students show good understanding.",
+     "All 5 students show good understanding of the lesson taught.",
+     "–",
+     "Section E Student Assessment (5 random students)"
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "The principal looks at 3 random notebooks: whether written work for recent lessons is there and checked, whether the teacher's written feedback says what to improve, and whether students act on it.\n\nHow: Principal checks 3 random notebooks",
+     "No written work for most recent lessons, or work is not checked.",
+     "Work for most of the last 5 lessons is present and checked, but only with ticks / signature.",
+     "At least once in the last 5 lessons, the teacher's written feedback says what was right and what to improve.",
+     "Beyond level 3, tasks include application questions beyond copying the book, and students have done their corrections (or peer checking is used).",
+     "–",
+     "–"
+    ]
+   ]
+  },
+  "FICO Alignment": {
+   "gid": 787902000,
+   "values": [
+    [
+     "FICO-S ↔ FICO v6 ↔ FICO v1 alignment"
+    ],
+    [
+     "'FICO v6 + v1' = in both versions · 'FICO v1' = dropped in v6 but present in the first version · 'New (FDE only)' = not in any FICO version."
+    ],
+    [],
+    [
+     "Code",
+     "FICO-S indicator",
+     "Aligned: FICO v6 (current)",
+     "Aligned: FICO v1 (first version)",
+     "Where it comes from",
+     "Note"
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "–",
+     "B1 Instructional Clarity & Learning Objectives; B3 Activities & Tasks Alignment",
+     "FICO v1",
+     "Not in v6; comes back from v1 B1 + FDE SLO/SOW requirement."
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "F4 Links to real life (earlier-lesson link only)",
+     "B4 Activation of Prior Knowledge",
+     "FICO v1 + v6 (partly)",
+     "v1 B4 is the main match; the hook at level 4 comes from FDE MS-2."
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "–",
+     "B10 Lesson Closure & Consolidation",
+     "FICO v1",
+     "Not in v6; homework part comes from FDE (Annex-E, MS-9)."
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "F1 Accuracy of content",
+     "F1 Content Accuracy; F3 Anticipation of Student Misconceptions",
+     "FICO v6 + v1",
+     "Level 4 (warning about a common mistake) = v1 F3."
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "F3 Explaining why",
+     "F4 Depth of Explanation; C2 Responsive Re-explanation; C8 Modeling & Scaffolding",
+     "FICO v6 + v1",
+     "Level 4 (explain a different way) = v1 C2."
+    ],
+    [
+     "B3",
+     "Subject language",
+     "F2 Subject words",
+     "F2 Use of Academic Language; F7 Subject Pedagogy: Literacy/Language",
+     "FICO v6 + v1",
+     "Language-lesson accuracy added from FDE English/Urdu tool."
+    ],
+    [
+     "B4",
+     "Links to real life & other subjects",
+     "F4 Links to real life",
+     "B5 Meaningful & Real-World Connections; F8 Cross-Curricular Connections",
+     "FICO v6 + v1"
+    ],
+    [
+     "B5",
+     "Resources & technology",
+     "C8 Books and materials",
+     "B8 Use of Prescribed Resources; C10 Integration of Technology; D6 Student Use of Learning Materials",
+     "FICO v6 + v1",
+     "Technology (Chromebooks, IT lab) from v1 C10 and FDE Annex-N 6."
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "C1 Quality of questions",
+     "C1 Quality Questioning (Bloom's Aligned)",
+     "FICO v6 + v1"
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "C2 Helping when a child is wrong",
+     "C3 Effective Feedback; C2 Responsive Re-explanation",
+     "FICO v6 + v1"
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "C3 Who got to answer",
+     "C4 Equitable Participation; D7 Inclusivity of Engagement",
+     "FICO v6 + v1",
+     "Boys/girls and back benches at level 4 from v1 D7 and FDE."
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "C4 Children's choices",
+     "C5 Student Agency & Voice",
+     "FICO v6 + v1"
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "C5 Switching activities",
+     "B9 Time on Task / Time on Learning; C6 Classroom Management & Routines; D5 On-Task Behaviour",
+     "FICO v6 + v1",
+     "Use of the whole period comes from v1 B9."
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "C6 Safe to be wrong; D4 Trying when unsure",
+     "C7 Positive & Supportive Learning Environment; D4 Student Confidence & Risk-Taking",
+     "FICO v6 + v1",
+     "v6 D4 / v1 D4 folded into level 4."
+    ],
+    [
+     "C7",
+     "Pair & group work",
+     "C7 Group work",
+     "C9 Collaborative Learning; C12 Classroom Resources & Space for Collaboration",
+     "FICO v6 + v1"
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "–",
+     "B6 Differentiation / Catering to Learning Levels",
+     "FICO v1",
+     "Not in v6; comes back from v1 B6 + FDE (MS-11, EU-6)."
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "D1 Children's reasoning",
+     "D2 Cognitive Engagement Level (Bloom's)",
+     "FICO v6 + v1"
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "D2 How many children spoke",
+     "D1 Active Participation Rate; D7 Inclusivity of Engagement",
+     "FICO v6 + v1"
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "D3 Children answering each other",
+     "D3 Student-to-Student Interaction",
+     "FICO v6 + v1"
+    ],
+    [
+     "D4",
+     "Students' own questions",
+     "D5 Children's own questions",
+     "– (no separate v1 indicator)",
+     "FICO v6"
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "–",
+     "B10 Lesson Closure (check understanding); C11 Self & Peer Assessment (partly)",
+     "FICO v1 (partly)",
+     "Mainly from FDE (MS-8, Annex-G assessment)."
+    ],
+    [
+     "E2",
+     "Student learning check (5 students)",
+     "–",
+     "Section E Student Assessment (5 random students)",
+     "FICO v1",
+     "Same 5-random-student method as v1 Section E, but questions come from today's lesson objective, not ASER/EGRA items."
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "–",
+     "–",
+     "New (FDE only)",
+     "Not in any FICO version; from FDE MS-1, Annex-G, Annex-I/J, Annex-N 7."
+    ],
+    [],
+    [
+     "FICO v1 indicators NOT carried into FICO-S"
+    ],
+    [
+     "",
+     "FICO v1 indicator",
+     "",
+     "Why"
+    ],
+    [
+     "",
+     "B2 Lesson Structure & Sequence (I Do, We Do, You Do)",
+     "",
+     "Partly inside B2 (explaining) and C5 (flow); not a separate indicator."
+    ],
+    [
+     "",
+     "B7 Use of Taleemabad Lesson Plan",
+     "",
+     "Middle/high teachers follow the FDE SOW / syllabus breakdown; covered by A1."
+    ],
+    [
+     "",
+     "F5–F7 Subject-specific pedagogy (Maths CPA, Science hands-on, Literacy)",
+     "",
+     "Could be added later as optional subject add-ons."
+    ],
+    [
+     "",
+     "E1–E11 ASER/EGRA/EGMA items",
+     "",
+     "Primary literacy/numeracy items; replaced by E2 questions on the lesson objective."
+    ]
+   ]
+  },
+  "Examples": {
+   "gid": 1599940242,
+   "values": [
+    [
+     "Examples for each level"
+    ],
+    [
+     "Examples show what a level can look like in a middle/high school class. They are not the only way to reach a level."
+    ],
+    [],
+    [
+     "Code",
+     "Indicator",
+     "Level",
+     "What it can look like in class"
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "1 · Below standard",
+     "Teacher: \"Open page 54.\" (no mention of what will be learned; the planner shows a different chapter)"
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "2 · Developing",
+     "Teacher: \"Today, Chapter 5: Photosynthesis.\""
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "3 · Proficient",
+     "Teacher: \"By the end of this period you will be able to explain why leaves need sunlight to make food.\""
+    ],
+    [
+     "A1",
+     "Lesson objective (SLO)",
+     "4 · Exemplary",
+     "Teacher: \"Look at our objective on the board. Who can now explain it in one sentence?\""
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "1 · Below standard",
+     "Teacher: \"Write down: the area of a triangle is half base times height.\""
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "2 · Developing",
+     "Teacher: \"Yesterday we did rectangles. Today, triangles.\""
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "3 · Proficient",
+     "Teacher: \"What is the area of a rectangle?\" Student: \"Length times width.\" Teacher: \"Good, today we use that to find the area of a triangle.\""
+    ],
+    [
+     "A2",
+     "Opening & prior learning",
+     "4 · Exemplary",
+     "Teacher: \"Why does a heavy steel ship float, but a small steel nail sinks?\" (students give guesses before the lesson starts)"
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "1 · Below standard",
+     "(bell rings mid-activity) Teacher: \"Finish it at home.\""
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "2 · Developing",
+     "Teacher: \"So today we learned three types of rocks. Do Exercise 4.2 at home.\""
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "3 · Proficient",
+     "Teacher: \"Ayesha, in one line, what is the difference between igneous and sedimentary rock?\" ... Homework on the board: Q1–3, page 61."
+    ],
+    [
+     "A3",
+     "Closure & homework",
+     "4 · Exemplary",
+     "Teacher: \"Tomorrow we see how rocks change. For homework, find one rock near your house and decide which type it is, and why.\""
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "1 · Below standard",
+     "Teacher: \"Water boils at 100 degrees everywhere, even on a mountain.\""
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "2 · Developing",
+     "Student: \"Sir, why is the sky blue?\" Teacher: \"That is not in the syllabus. Sit down.\""
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "3 · Proficient",
+     "Teacher: \"I am not sure of the exact date. Let us check the book together.\""
+    ],
+    [
+     "B1",
+     "Accuracy & command of content",
+     "4 · Exemplary",
+     "Teacher: \"Many people think heavier things fall faster. Let us drop these two books and see.\""
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "1 · Below standard",
+     "Teacher: \"Cross-multiply and divide. Just do it this way.\""
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "2 · Developing",
+     "Teacher: \"Just remember: a noun is a naming word. Learn the definition.\""
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "3 · Proficient",
+     "Teacher: \"We flip the second fraction because dividing by a half is the same as asking how many halves fit. Look at this drawing.\""
+    ],
+    [
+     "B2",
+     "Explaining why",
+     "4 · Exemplary",
+     "Teacher: \"Still not clear? Let us try with money instead.\" / \"Who can tell us why we flip it?\""
+    ],
+    [
+     "B3",
+     "Subject language",
+     "1 · Below standard",
+     "Teacher: \"Take away this from that.\" (never \"subtract\")"
+    ],
+    [
+     "B3",
+     "Subject language",
+     "2 · Developing",
+     "Teacher: \"Find the product ... now the total ... now the answer.\" (one idea, three words, none explained)"
+    ],
+    [
+     "B3",
+     "Subject language",
+     "3 · Proficient",
+     "Teacher: \"Photosynthesis: 'photo' means light, 'synthesis' means making. So it means making food with light.\""
+    ],
+    [
+     "B3",
+     "Subject language",
+     "4 · Exemplary",
+     "Student: \"The bottom number.\" Teacher: \"We call it the denominator. Say it in your answer.\""
+    ],
+    [
+     "B4",
+     "Links to real life & other subjects",
+     "2 · Developing",
+     "Teacher: \"This is used in banks. Now back to the exercise.\""
+    ],
+    [
+     "B4",
+     "Links to real life & other subjects",
+     "3 · Proficient",
+     "Teacher: \"If your family borrows 10,000 rupees at 5% a year, after one year they pay back 10,500. That 500 is the interest.\""
+    ],
+    [
+     "B4",
+     "Links to real life & other subjects",
+     "4 · Exemplary",
+     "Student: \"Sir, so when my father buys a motorbike on instalments, he pays more than the price because of this.\""
+    ],
+    [
+     "B5",
+     "Resources & technology",
+     "2 · Developing",
+     "Teacher shows slides on the screen and reads them out."
+    ],
+    [
+     "B5",
+     "Resources & technology",
+     "3 · Proficient",
+     "Teacher: \"In pairs, use the map on page 30 to find the three rivers. See how all the big cities are near rivers?\""
+    ],
+    [
+     "B5",
+     "Resources & technology",
+     "4 · Exemplary",
+     "Student at the board with the circuit kit: \"The bulb did not light because the circuit was open here.\" Teacher: \"Exactly. Now close it and predict what happens.\""
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "1 · Below standard",
+     "Teacher: \"What is the capital of Turkey? Ankara. Write it down.\""
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "2 · Developing",
+     "Teacher: \"Is mercury a metal?\" Students: \"Yes.\""
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "3 · Proficient",
+     "Teacher: \"How did you get 45?\" (waits) Student: \"I multiplied 9 by 5.\""
+    ],
+    [
+     "C1",
+     "Quality of questions",
+     "4 · Exemplary",
+     "Teacher: \"Why did the Mughal empire decline?\" Student: \"Weak rulers.\" Teacher: \"What did weak rulers lead to? Give one example.\""
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "1 · Below standard",
+     "Student: \"Seventeen.\" Teacher: \"Next.\""
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "2 · Developing",
+     "Teacher: \"No, wrong. It is 21.\""
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "3 · Proficient",
+     "Teacher: \"Your method is right, but you added 7 instead of multiplying. So it is 21, not 10.\""
+    ],
+    [
+     "C2",
+     "Responding to wrong answers",
+     "4 · Exemplary",
+     "Teacher: \"Bilal, check your second step again.\" ... \"Still stuck? Let us draw it.\""
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "1 · Below standard",
+     "Teacher: \"Who knows?\" Student: \"Me, sir!\" Teacher: \"Yes, you.\""
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "2 · Developing",
+     "Teacher: \"Sana, your answer?\" ... then \"Who knows?\" for the rest of the lesson."
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "3 · Proficient",
+     "Teacher: \"Everyone, write your answer in your notebook.\" ... later: \"Hamza, what did you write?\""
+    ],
+    [
+     "C3",
+     "Who gets to answer",
+     "4 · Exemplary",
+     "Teacher: \"I have not heard from this back row yet. Fatima, what do you think?\""
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "1 · Below standard",
+     "Teacher: \"Copy the notes from the board. No talking.\""
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "2 · Developing",
+     "Teacher: \"Which group wants to go first?\""
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "3 · Proficient",
+     "Teacher: \"Solve it any way you like: table, graph or equation.\" / Student: \"Can we act out the dialogue?\" Teacher: \"Good idea, let us do that.\""
+    ],
+    [
+     "C4",
+     "Student voice & choice",
+     "4 · Exemplary",
+     "Teacher: \"Group 3, come and teach us how you solved it. Everyone else, ask them one question.\""
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "1 · Below standard",
+     "Teacher: \"Now... wait... everyone listen... take out your... \" (more than 3 minutes pass)"
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "2 · Developing",
+     "Teacher: \"Get into groups.\" (chairs still moving three minutes later)"
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "3 · Proficient",
+     "Teacher: \"Books closed, pens down, face the board.\" (the next activity starts at once)"
+    ],
+    [
+     "C5",
+     "Time & transitions",
+     "4 · Exemplary",
+     "Students move into lab groups and collect the equipment as soon as the teacher finishes the demonstration."
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "1 · Below standard",
+     "Teacher: \"Stupid answer. Stand up on the bench.\""
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "2 · Developing",
+     "Teacher: \"Good.\" / \"Very good.\" (only after right answers)"
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "3 · Proficient",
+     "Teacher: \"Good try, Usman, your first step was right.\" / \"Thank you for having a go.\""
+    ],
+    [
+     "C6",
+     "Respectful & safe climate",
+     "4 · Exemplary",
+     "Teacher: \"That is a useful mistake, it shows us what to check. Does anyone see it differently?\""
+    ],
+    [
+     "C7",
+     "Pair & group work",
+     "2 · Developing",
+     "Teacher: \"Sit in groups. Each of you solve Exercise 3 in your own notebook.\""
+    ],
+    [
+     "C7",
+     "Pair & group work",
+     "3 · Proficient",
+     "Teacher: \"In your group, make one poster comparing the two poems. Everyone's points must be on it.\""
+    ],
+    [
+     "C7",
+     "Pair & group work",
+     "4 · Exemplary",
+     "Teacher: \"One reader, one writer, one timekeeper, one speaker. Speakers will present in 5 minutes.\""
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "1 · Below standard",
+     "Students at the back are not writing; the teacher does not go to them."
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "2 · Developing",
+     "Teacher moves to two students who are stuck and re-explains."
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "3 · Proficient",
+     "Teacher: \"If you are stuck, use the hint card. If you finish, try the challenge question on the board.\""
+    ],
+    [
+     "C8",
+     "Support for different learners",
+     "4 · Exemplary",
+     "Teacher: \"Those who got Q2 wrong, come to the front table with me. Others, start the word problems.\""
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "1 · Below standard",
+     "Student: \"Oxygen.\""
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "2 · Developing",
+     "Teacher: \"Plants make food by...\" Student: \"...photosynthesis.\""
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "3 · Proficient",
+     "Student: \"It must be a mammal, because it feeds its young on milk, even though it lives in water.\""
+    ],
+    [
+     "D1",
+     "Students' reasoning",
+     "4 · Exemplary",
+     "Student: \"Miss, the new metro line near our house is also urbanisation, and the fields there are gone.\""
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "1 · Below standard",
+     "(observer) \"Only two students in the front answered all period.\""
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "2 · Developing",
+     "(observer) \"4 different students answered, all from the front rows.\""
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "3 · Proficient",
+     "(observer) \"About 10 different students spoke, in the opening, the group task and the closing.\""
+    ],
+    [
+     "D2",
+     "Breadth of participation",
+     "4 · Exemplary",
+     "(observer) \"12 students spoke, including 3 from the back who were quiet until the group task.\""
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "1 · Below standard",
+     "All talk goes teacher → student → teacher."
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "2 · Developing",
+     "Student: \"It is a verb.\" Student: \"I agree with her.\""
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "3 · Proficient",
+     "Student: \"The poet is sad.\" Student: \"And also angry, because of the line about the rich man.\""
+    ],
+    [
+     "D3",
+     "Students talking to each other",
+     "4 · Exemplary",
+     "Student: \"It is a chemical change because a new substance forms.\" Student: \"No, melting is physical, you can freeze it back.\" Student: \"OK, so melting is physical, burning is chemical.\""
+    ],
+    [
+     "D4",
+     "Students' own questions",
+     "2 · Developing",
+     "Student: \"Sir, which exercise?\""
+    ],
+    [
+     "D4",
+     "Students' own questions",
+     "3 · Proficient",
+     "Student: \"Why does the ice float if it is the same water?\""
+    ],
+    [
+     "D4",
+     "Students' own questions",
+     "4 · Exemplary",
+     "Student: \"Does the same thing happen on the moon, where there is no air?\""
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "1 · Below standard",
+     "Teacher: \"Understood?\" Class: \"Yes, sir.\" (moves on)"
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "2 · Developing",
+     "Teacher asks two front-row students to solve one question each."
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "3 · Proficient",
+     "Teacher: \"Everyone, write the answer and hold up your notebook.\" (scans the room)"
+    ],
+    [
+     "E1",
+     "Checking understanding during the lesson",
+     "4 · Exemplary",
+     "Teacher: \"Half of you wrote 12. Let us look at why it is 18 before we move on.\""
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "1 · Below standard",
+     "Last checked work is from three weeks ago."
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "2 · Developing",
+     "Pages ticked and signed, no comments."
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "3 · Proficient",
+     "\"Good diagram. Label the arrows and add units to your answer.\""
+    ],
+    [
+     "E3",
+     "Notebooks & written feedback",
+     "4 · Exemplary",
+     "Corrections written under the teacher's comment; a peer-check column signed by a classmate."
+    ]
+   ]
+  },
+  "How to use": {
+   "gid": 296091122,
+   "values": [
+    [
+     "How to use FICO-S"
+    ],
+    [
+     "Built from FICO (v1 and v6) and the FDE 'Guidelines for the New Academic Session 2026-27'."
+    ],
+    [],
+    [
+     "Who observes",
+     "Principal / vice principal / academic coordinator, sitting in the class for a full period (35–40 min)."
+    ],
+    [
+     "During the lesson",
+     "Sit at the back. Note the clock at each change of activity (C5). Keep a tally of students who speak on a seating sketch (D2). Walk around during individual and group work to see students' work and listen to groups."
+    ],
+    [
+     "End of the lesson",
+     "Ask 5 random students (mixed seats, not volunteers) 1–2 short questions on today's objective (E2). Look at 3 random notebooks (E3)."
+    ],
+    [
+     "Scoring",
+     "Score every indicator 1–4 and write what you saw and heard as evidence. Give the lower level if unsure. N/A only if the indicator could not happen (e.g. C2 when no answer was wrong). Any corporal punishment or insult = C6 level 1."
+    ],
+    [
+     "Overall",
+     "Domain score = average of its indicators. Overall % = total ÷ (4 × indicators scored) × 100.   85–100% Exemplary · 65–84% Proficient · 45–64% Developing · below 45% Below standard."
+    ],
+    [
+     "Feedback",
+     "Within 2 working days. Share 1–2 strengths and choose ONE (at most two) indicators to work on, with a concrete action and a date. Follow the monthly observation schedule (Annex-H)."
+    ],
+    [
+     "Not in this tool",
+     "Attendance, training completed, policy compliance and parent meetings stay in the school record / Annex-N (PER/ACR)."
+    ],
+    [],
+    [
+     "Checklist (not scored)"
+    ],
+    [
+     "Classroom environment",
+     "☐ Yes   ☐ No   —   Classroom is well lit and airy"
+    ],
+    [
+     "Classroom environment",
+     "☐ Yes   ☐ No   —   Student strength is appropriate for room size"
+    ],
+    [
+     "Classroom environment",
+     "☐ Yes   ☐ No   —   Seating allows students to see the board and work in pairs/groups"
+    ],
+    [
+     "Classroom environment",
+     "☐ Yes   ☐ No   —   Soft boards / displays are current and linked to concepts being taught"
+    ],
+    [
+     "Classroom environment",
+     "☐ Yes   ☐ No   —   Board is appropriate and used legibly"
+    ],
+    [
+     "Teacher presence",
+     "☐ Yes   ☐ No   —   Voice is clear and audible at the back of the room"
+    ],
+    [
+     "Teacher presence",
+     "☐ Yes   ☐ No   —   Teacher moves around the room and makes eye contact"
+    ],
+    [
+     "Teacher presence",
+     "☐ Yes   ☐ No   —   Instructions are clear and students know what to do"
+    ],
+    [
+     "Medium of instruction",
+     "☐ Yes   ☐ No   —   Medium of instruction is as per subject policy (English / Urdu)"
+    ],
+    [
+     "Records",
+     "☐ Yes   ☐ No   —   Teacher's Planner is available and up to date (profile, timetable, homework schedule)"
+    ],
+    [
+     "Records",
+     "☐ Yes   ☐ No   —   Lesson is at the point the syllabus breakdown says for this week"
+    ],
+    [
+     "Records",
+     "☐ Yes   ☐ No   —   Students' diaries carry homework and parent communication"
+    ]
+   ]
+  }
+ }
+}

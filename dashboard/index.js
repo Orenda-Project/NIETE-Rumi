@@ -2846,12 +2846,20 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-tacnwy — internal testers switch their OWN profile type (POST /me/role); 404 unless on portal_role_switch.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-role-switch.routes'));
+// bd-9652yj (queue #166) — the coach app's "Continue on WhatsApp": a short code for the visit she is on.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/coach-handoff.routes'));
 // bd-pw1ccr.26 — teacher Home's "Make my paper" card while her topic-end nudge is held (window shut).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-topic-paper.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
+// The survey bar at the end of a lesson plan in the teacher app (dark unless portal_lp_feedback_bar); see the route's header.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-feedback.routes'));
 // bd-snkn32 — Make my own lesson plan (dark unless portal_lp_make_own); see the route's header.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own.routes'));
+// bd-snkn32.56 — Make my own from a learning goal or topic (dark unless the list-only portal_lp_own_goal_start).
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own-goal.routes'));
+// bd-snkn32.59 (queue #165): Make my own, a whole unit (grades 1-5). Dark unless portal_lp_own_unit has her (a list, or "teachers"); never GB.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-own-unit.routes'));
 // bd-snkn32.42 — "Made by a teacher" shelf + the human check before a teacher's plan is listed.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-shelf.routes'));
 // bd-ik5e8j.4 — the teacher app's how-to videos (GET /help, POST /help/seen); dark unless portal_help_videos.
@@ -2860,7 +2868,11 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/app-feedback.routes'));
 // Teacher Home card — the teacher Home's one card, scores row and per-teacher order (behind portal_teacher_home_card / _order).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-home.routes'));
+// My journey — her own steps, read from the activity store only (dark unless portal_teacher_journey).
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-journey.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-push.routes'));
+// The class link card on the teacher Home (dark unless web_quiz_class_link, decided by the bot); see the route's header.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-class-link.routes'));
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));

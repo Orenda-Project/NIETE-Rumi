@@ -214,7 +214,7 @@ describe('the DC teacher report (built, not wired: RULINGS R12)', () => {
   });
   test('a partial transcript still reports its levels', () => {
     const r = buildTeacherReport(dc(), { transcriptQuality: { status: 'partial', coverage: 0.7, issues: [] } });
-    expect(r.rows.length).toBe(10);
+    expect(r.rows.length).toBe(11); // per-indicator N/A (19 Nov): C2's N/A is a row with its own words
   });
 });
 

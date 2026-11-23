@@ -1,6 +1,6 @@
 # g5_ch13 — Hosted v9 pages, Grade 5 chapter 13 (10 segs: English 7, Urdu 3)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch13 kg=3f0c87b2c396 gen=99abe4401284 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch13 kg=d4bc824cf318 gen=7c4279f7d81a overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch13_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -15,6 +15,8 @@
 | `g5_ch13_English_seg3.v9.html` | Hosted v9 lesson page G5 English ch13 seg3 (en): Diving Deeper: Team Decoder + Survival Mastermind |
 | `g5_ch13_English_seg4.v9.html` | Hosted v9 lesson page G5 English ch13 seg4 (en): Share and Sparkle: Desert Island Debate + Survival Roundtable (oral) |
 | `g5_ch13_English_seg5.v9.html` | Hosted v9 lesson page G5 English ch13 seg5 (en): Grammar Playground: Verbs in Action (regular and irregular verbs) |
+| `g5_ch13_English_seg5_partA.v9.html` | (unmapped) |
+| `g5_ch13_English_seg5_partB.v9.html` | (unmapped) |
 | `g5_ch13_English_seg6.v9.html` | Hosted v9 lesson page G5 English ch13 seg6 (en): Imagination Canvas: Survival Haiku |
 | `g5_ch13_English_seg7.v9.html` | Hosted v9 lesson page G5 English ch13 seg7 (en): Connect and Create: Formal Letter on Survival (+ more topics) |
 | `g5_ch13_Urdu_seg1.v9.html` | Hosted v9 lesson page G5 Urdu ch13 seg1 (ur): نئے الفاظ اور جملہ سازی |

@@ -756,6 +756,18 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       await require('./shared/services/howto-first-touch.service').maybeSendHowtoFirstTouch({ user, from, correlationId });
     }
 
+    // The data analyst on WhatsApp (services/data-analyst/entry.js): someone the data_analyst_whatsapp switch
+    // names sends "data" and asks ICT data questions until "menu" or 30 min idle, answered from the data team's
+    // governed MCP. Off unless DATA_MCP_URL (and its address and model key) are set; everyone else, and every
+    // message outside data mode, falls through to the text handler unchanged. A failure here never stops it.
+    if (user && messageType === 'text' && messageBody) {
+      try {
+        if (await require('./shared/services/data-analyst/entry').maybeHandleDataAnalyst({ user, from, messageBody, correlationId, messageId: message.id })) return;
+      } catch (err) {
+        logError('data analyst door failed (non-fatal)', { error: err.message });
+      }
+    }
+
     // Route to appropriate handler based on message type
     if (messageType === 'text' && messageBody) {
       await handleTextMessage(message, from, messageBody, user);
@@ -780,6 +792,20 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       if (user) {
         const ConversationResume = require('./shared/services/conversation-resume.service');
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
+      }
+
+      // The data analyst's buttons (services/data-analyst/entry.js): Ask another, Main menu, Data answer / Normal, a quick
+      // pick, a clarifying option. A hand-back (Main menu, Normal) runs the ordinary text handler with those words.
+      if (buttonId.startsWith('da_')) {
+        try {
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId, messageId: message.id });
+          if (r.handled) {
+            if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
+            return;
+          }
+        } catch (err) {
+          logError('data analyst button failed (non-fatal)', { error: err.message });
+        }
       }
 
       // /feedback's three topic buttons (nfb_topic_<topic>): the tap opens the one-message report. false (switch off,
@@ -1618,6 +1644,11 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
           log: (event, data) => logToFile('🎬 HoS broadcast video tap', { event, ...data, userId: user?.id || null }),
         });
       }
+      // "Make a quiz" on the coaching report template (closed window): the payload names the session; the tap is the yes.
+      else if (buttonPayload && buttonPayload.startsWith('tqr_')) {
+        const TranscriptQuizOffer = require('./shared/services/quiz/transcript-quiz-offer.service');
+        if (!(await TranscriptQuizOffer.handleReportQuizTap(buttonPayload, from))) logToFile('⚠️ unrouted tqr_ payload', { buttonPayload });
+      }
       // bd-ri5o9.1 — the teacher tapped "Get Report" on the report-invite
       // template. MUST stay above the bd-kggts fallthrough: below it this branch
       // is unreachable, which is exactly the bug. The payload carries the session,
@@ -1687,6 +1718,17 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // to be guessed at. The token is ours by construction.
       const vqToken = responseJson.flow_token || message.interactive?.nfm_reply?.flow_token || '';
 
+      // The data analyst's question Flow (token `dataq:<userId>:<ts>`, services/data-analyst/entry.js). Claimed first and
+      // unconditionally, as vqm: is, so detectFlowType's colon rule can never send it to attendance.
+      if (typeof vqToken === 'string' && vqToken.startsWith('dataq:')) {
+        try {
+          await require('./shared/services/data-analyst/entry').handleDataAnalystFlowReply({ user, from, messageId: message.id, responseJson: { ...responseJson, flow_token: vqToken } });
+        } catch (err) {
+          logError('data analyst Flow reply failed (non-fatal)', { error: err.message });
+        }
+        return;
+      }
+
       if (typeof vqToken === 'string' && vqToken.startsWith('vqjoin:')) {
         try {
           const VideoQuizShare = require('./shared/services/quiz/video-quiz-share.service');
@@ -1712,6 +1754,14 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
           logToFile('❌ multi-select quiz Flow reply routing failed', { error: vqmErr.message }, 'error');
           return;
         }
+      }
+
+      // bd-ra8xu.60: the Observation Notes Flow (token `obsnotes:<sessionId>`). Claimed first and unconditionally, as
+      // vqm: is, so detectFlowType's colon rule can never send it to attendance; the handler never throws.
+      if (typeof vqToken === 'string' && vqToken.startsWith('obsnotes:')) {
+        const ObservationNotes = require('./shared/services/observe/observation-notes');
+        await ObservationNotes.handleFlowReply(user, from, vqToken, responseJson, { messageId: message.id });
+        return;
       }
 
       if (typeof vqToken === 'string' && vqToken.startsWith('vq:')) {
@@ -2043,6 +2093,19 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       const listReply = message.interactive.list_reply;
       const listId = listReply.id;
       logToFile('📋 Interactive list item selected', { listId, from });
+
+      // The data analyst's quick picks and clarifying options (da_pick_*, da_opt_*), as on the button branch.
+      if (listId.startsWith('da_')) {
+        try {
+          const r = await require('./shared/services/data-analyst/entry').handleDataAnalystButton({ user, from, buttonId: listId, messageId: message.id });
+          if (r.handled) {
+            if (r.normalText) await handleTextMessage(message, from, r.normalText, user);
+            return;
+          }
+        } catch (err) {
+          logError('data analyst list pick failed (non-fatal)', { error: err.message });
+        }
+      }
 
       // Child test (bd-s1oo0.4): a child, an alternate or a school tapped on the child-test list.
       if (user && listId.startsWith('ctst_')) {
@@ -2771,8 +2834,15 @@ async function handleDocumentMessage(message, from, user) {
     // the sender's NEWEST session (newest-first, one row, all columns) — every
     // document of a coach running observations back-to-back landed on it.
     const { handleLessonPlanMediaArrival } = require('./shared/services/coaching/media-attach.service');
-    const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType });
+    const lpHandled = await handleLessonPlanMediaArrival({ user, from, mediaId: documentId, mimeType, messageId: message.id });
     if (!lpHandled) {
+      // bd-r2uzg1.18.7 — a lesson plan (or a photo as a file) sent after she sent her lesson from the recording
+      // screen in the last 24 h cannot join it: ONE message per burst with the Digital Coaching button. An audio
+      // file whose length could not be read is not this. Anyone else: the reply below, as before.
+      if (audioClassification.decision !== 'route_to_audio_pipeline') {
+        const { answerMediaAfterAppRecording } = require('./shared/services/coaching/app-recording-media.service');
+        if (await answerMediaAfterAppRecording({ user, from, kind: 'document' })) return;
+      }
       // No active coaching session - regular document
       await WhatsAppService.sendMessage(from,
         "I received your document. If you're trying to submit a lesson plan for classroom coaching, " +

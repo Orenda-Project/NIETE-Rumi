@@ -47,6 +47,8 @@ const { subjectName } = require('./subject-vocabulary.service');
 const { indicatorsOf, movesOf } = require('./coach-disagreement-evidence');
 const { displayNameOf } = require('../../bot/shared/services/observe/patch-resolver.service');
 const { teacherLevelOf, VALID_LEVELS } = require('../../bot/shared/utils/teacher-level');
+// bd-r2uzg1.18.1 — pure (no requires): which band-only provider (I-SAPS needs HIGH) a teacher's own page leaves out.
+const BandGate = require('../../bot/shared/services/training/vendor-band-gate.rules');
 // Pure (no requires): the teacher's report card's own "what went well" and step names.
 const { wells, stepOf } = require('../../bot/shared/services/coaching/report-card');
 // A paper's subject by its printable name (as progress.service and teacher-notices print it).
@@ -216,11 +218,29 @@ const SQL = Object.freeze({
 
   // bd-hl4a4y — her trainings, read as GET /training/vendors reads them for her own Training page: her ACTIVE
   // programmes' scopes (a provider, and its levels: none listed = all), ...
+  // bd-r2uzg1.18.1 — with the programme's key and her teacher_level, for the band gate (bandGatedScopes).
   trainingScopes: `/* sc:training-scopes */
-    SELECT a.user_id, s.vendor_id, s.level_ids
+    SELECT a.user_id, a.program_id, p.key AS program_key, u.teacher_level, s.vendor_id, s.level_ids
       FROM teacher_training_assignments a
       JOIN training_program_scopes s ON s.program_id = a.program_id
+      LEFT JOIN training_programs p ON p.id = a.program_id
+      LEFT JOIN users u ON u.id = a.user_id
      WHERE a.user_id = ANY($1::uuid[]) AND a.is_active`,
+
+  // bd-r2uzg1.18.1 — the (teacher, provider) pairs with any work: a certificate or an attempt on one of its levels,
+  // or a unit done. Read only for a band-only provider her band does not cover; earned work keeps it on her page.
+  trainingBandWork: `/* sc:training-band-work */
+    SELECT DISTINCT w.user_id, l.vendor_id
+      FROM training_levels l
+      JOIN LATERAL (
+            SELECT t.user_id FROM training_certificates t WHERE t.level_id = l.id AND t.user_id = ANY($1::uuid[])
+      UNION SELECT t.user_id FROM training_assessment_attempts t WHERE t.level_id = l.id AND t.user_id = ANY($1::uuid[])
+      UNION SELECT tp.user_id FROM teacher_training_progress tp
+              JOIN training_modules m ON m.id = tp.module_id
+              JOIN training_courses c ON c.id = m.course_id
+             WHERE c.level_id = l.id AND tp.user_id = ANY($1::uuid[])
+      ) w ON true
+     WHERE l.vendor_id = ANY($2::uuid[])`,
 
   // ... every active provider of those scopes with its active levels, each with its active parts (active modules of
   // active courses); a provider with no active level is one row with a null level ...
@@ -1217,14 +1237,54 @@ async function levelStatesOf(userId, levels, levelStates) {
   });
 }
 
-/** The trainings of these teachers (trainingProgressOf), three reads for the whole list. */
+/**
+ * bd-r2uzg1.18.1 — her scope rows minus a band-only provider her band does not cover (I-SAPS, Grades 9-12, needs
+ * HIGH), unless she already has work there: the rule her own Training page and WhatsApp apply
+ * (bot/shared/services/training/vendor-band-gate.*), so the coach sees the trainings she sees. One extra read, only
+ * when some teacher on the list is gated. Fails open (a failed read keeps the rows), as her page does.
+ */
+async function bandGatedScopes(query, scopes, levelRows) {
+  const vendorKeyById = new Map(levelRows.map((r) => [r.vendor_id, r.vendor_key]));
+  const programKeyById = new Map(scopes.map((s) => [s.program_id, s.program_key]));
+  const byUser = new Map();
+  for (const s of scopes) {
+    if (!byUser.has(s.user_id)) byUser.set(s.user_id, []);
+    byUser.get(s.user_id).push(s);
+  }
+  const unmet = [];
+  for (const [u, rows] of byUser) {
+    const bands = teacherLevelOf(rows[0]);
+    for (const g of BandGate.bandGatedRows({ scopes: rows, vendorKeyById, programKeyById })) {
+      if (!bands.includes(g.band)) unmet.push([u, g.vendorId]);
+    }
+  }
+  if (!unmet.length) return scopes;
+  let work;
+  try {
+    work = rowsOf(await query(SQL.trainingBandWork, [[...new Set(unmet.map((x) => x[0]))], [...new Set(unmet.map((x) => x[1]))]]));
+  } catch (err) {
+    console.error('[coach-school-card] band work unavailable:', err.message);
+    return scopes;
+  }
+  const workOf = new Map();
+  for (const w of work) {
+    if (!workOf.has(w.user_id)) workOf.set(w.user_id, new Set());
+    workOf.get(w.user_id).add(w.vendor_id);
+  }
+  return [...byUser].flatMap(([u, rows]) => BandGate.gateScopes({
+    scopes: rows, vendorKeyById, programKeyById, bands: teacherLevelOf(rows[0]), vendorIdsWithWork: workOf.get(u),
+  }));
+}
+
+/** The trainings of these teachers (trainingProgressOf), three reads for the whole list (four when one is band-gated). */
 async function trainingsOf(query, ids) {
   if (!ids.length) return trainingProgressOf([]);
   const scopes = rowsOf(await query(SQL.trainingScopes, [ids]));
   const vendorIds = [...new Set(scopes.map((s) => s.vendor_id).filter(Boolean))];
   if (!vendorIds.length) return trainingProgressOf(ids);
   const [levels, done] = await Promise.all([query(SQL.trainingLevels, [vendorIds]), query(SQL.trainingDone, [ids])]);
-  return trainingProgressOf(ids, scopes, rowsOf(levels), rowsOf(done));
+  const seen = await bandGatedScopes(query, scopes, rowsOf(levels));
+  return trainingProgressOf(ids, seen, rowsOf(levels), rowsOf(done));
 }
 
 /** Her activity for the period (sessions also for the period before), shaped once for her card, lists and reports. */

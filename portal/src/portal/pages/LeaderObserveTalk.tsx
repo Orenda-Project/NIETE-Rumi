@@ -9,6 +9,7 @@ import RecordIcon from '../components/coaching/RecordIcon';
 import { leader } from '../services/api';
 import type { TalkGuide, TalkGuideSection } from '../services/api';
 import { acceptFor, checkFile } from '../lib/coachingUpload';
+import { holdFile, isFileRefused, tellUnreadablePick } from '../lib/pickedRead';
 import { canRecordHere } from '../lib/recordingSupport';
 import { deleteRecording } from '../lib/recordingStore';
 import { SendError } from '../lib/coachingSend';
@@ -48,6 +49,8 @@ const COPY = {
   recorded: (ms: number) => `You recorded ${minutesText(ms)}.`,
   sending: 'Sending your talk…',
   notAudio: 'That is not a recording. Choose a sound file from your phone.',
+  // bd-tymy1n (queue #179): a file the phone will not open, refused when she picks it (the teacher app's words)
+  fileWontOpen: 'File will not open',
   tooLarge: 'That recording is too large to send.',
   micBlocked: "We can't use the microphone",
   micHelpApp: 'Open phone Settings → Apps → NIETE → Permissions → Microphone → Allow.',
@@ -149,12 +152,16 @@ const LeaderObserveTalk = () => {
     void send({ blob: out.blob, filename: `Talk${out.type.ext}`, recordingId: out.id });
   };
 
-  const onFile = (file: File | undefined) => {
+  // bd-tymy1n (queue #179): an uploaded talk is read when she picks it and sent from those bytes (Try again too); in the
+  // Android app a picked file could no longer be opened by Send. A file that will not open is refused here.
+  const onFile = async (picked: File | undefined) => {
     setFileError(null);
-    if (!file) return;
-    const problem = checkFile(file, 'audio');
+    if (!picked) return;
+    const problem = checkFile(picked, 'audio');
     if (problem) { setFileError(problem === 'too_large' ? COPY.tooLarge : COPY.notAudio); return; }
-    void send({ blob: file, filename: file.name, recordingId: null });
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick('audio', picked, out.errName); setFileError(COPY.fileWontOpen); return; }
+    void send({ blob: out.file, filename: picked.name, recordingId: null });
   };
 
   if (!id) return null;
@@ -205,7 +212,7 @@ const LeaderObserveTalk = () => {
                   </span>
                 </button>
                 <input ref={input} data-testid="talk-input" type="file" accept={`${acceptFor('audio')},audio/*`} className="hidden"
-                  onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
+                  onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
                 {fileError && <Warning>{fileError}</Warning>}
               </>
             )}

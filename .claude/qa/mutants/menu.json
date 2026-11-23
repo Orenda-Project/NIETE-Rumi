@@ -1,0 +1,62 @@
+{
+ "mutants": [
+  {
+   "id": "silent-bot",
+   "lane": "mock",
+   "features": [
+    "menu",
+    "status",
+    "training"
+   ],
+   "expect": "killed",
+   "why": "every outbound WhatsApp message is swallowed: the bot answers nothing (fake 200 from the send transport)",
+   "edits": [
+    {
+     "file": "bot/shared/services/whatsapp.service.js",
+     "find": "  if (!pacer.isMessagesUrl(url)) return rawFetch(url, init);\n",
+     "replace": "  if (!pacer.isMessagesUrl(url)) return rawFetch(url, init);\n  return Promise.resolve({ ok: true, status: 200, json: async () => ({ messages: [{ id: 'wamid.mutant' }] }), text: async () => '' });\n"
+    },
+    {
+     "file": "bot/shared/services/whatsapp.service.js",
+     "find": "    if (!pacer.isMessagesUrl(url)) return realAxios.post(url, body, config);\n",
+     "replace": "    if (!pacer.isMessagesUrl(url)) return realAxios.post(url, body, config);\n    return Promise.resolve({ status: 200, data: { messages: [{ id: 'wamid.mutant' }] } });\n"
+    }
+   ]
+  },
+  {
+   "id": "training-row-dead",
+   "lane": "mock",
+   "features": [
+    "menu",
+    "status",
+    "training"
+   ],
+   "expect": "killed",
+   "why": "tapping Teacher Training on the menu does nothing",
+   "edits": [
+    {
+     "file": "bot/shared/services/menu.service.js",
+     "find": "          await TrainingEntry.openTrainingFlow(user, from, language);\n",
+     "replace": "          // mutant: the training row does nothing\n"
+    }
+   ]
+  },
+  {
+   "id": "status-text-changed",
+   "lane": "mock",
+   "features": [
+    "menu",
+    "status",
+    "training"
+   ],
+   "why": "the /status text reply says \"Working on:\" instead of \"Running for you:\"",
+   "edits": [
+    {
+     "file": "bot/shared/handlers/text-message.handler.js",
+     "find": "`Running for you:\\n",
+     "replace": "`Working on:\\n"
+    }
+   ]
+  }
+ ]
+}

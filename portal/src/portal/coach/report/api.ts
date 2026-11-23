@@ -17,8 +17,8 @@ export interface CoachReport {
   total: number;
   respectHeld: boolean | null;
   did: { key: string; name: Both; line: string | null }[];
-  missed: { key: string; name: Both; line: string | null; why: Both; module: number | null }[];
-  focus: { key: string; move: string | null; why: string | null; module: number | null; tryLine: { en: string; ur: string } | null } | null;
+  missed: { key: string; name: Both; line: string | null; why: Both }[];
+  focus: { key: string; move: string | null; why: string | null; tryLine: { en: string; ur: string } | null } | null;
 }
 
 export interface ReadyDebrief {
@@ -53,15 +53,17 @@ export interface CoachWeek {
   /** No debrief before this week at all (bd-enec2e.5): only then is a week with no last week "her first week". */
   firstWeek?: boolean;
   respectAll: boolean;
+  /** Queue #186: the week's ONE Coach Training module (the focus's, else the top miss to keep in mind's), or none. */
+  training: number | null;
   focus: {
-    key: string; module: number | null; name: Both; why: Both;
+    key: string; name: Both; why: Both;
     week: Count; last: Count | null; days: { date: string; items: boolean[] }[];
     last10: Count; doneAt: number; reached: boolean;
-    next: string | null; nextName: Both | null; nextModule: number | null;
+    next: string | null; nextName: Both | null;
     steps: { en: string[]; ur: string[]; reviewed: boolean } | null;
   } | null;
   strengths: (Count & { key: string; name: Both })[];
-  keepInMind: (Count & { key: string; name: Both; why: Both; module: number | null })[];
+  keepInMind: (Count & { key: string; name: Both; why: Both })[];
   table: { key: string; name: Both; week: Count; last: Count | null }[];
 }
 
@@ -107,3 +109,27 @@ export async function getCoachWeek(monday: string): Promise<CoachWeek> {
 export async function markWeek(monday: string, what: "opened" | "seen"): Promise<void> {
   try { await api.post(`/coach/week/${encodeURIComponent(monday)}/${what}`); } catch { /* a missed stamp only means one WhatsApp link may follow */ }
 }
+
+/**
+ * bd-o15qnr.28.1 (queue #204, v7) — My progress (GET /api/portal/coach/progress, services/coach-progress.service.js):
+ * the session coach's own, read-only, counts only. `weeks` is null when her week page does not open for her.
+ */
+export interface CoachProgress {
+  week: { monday: string; friday: string; complete: number; target: number };
+  focus: { key: string; name: Both; last10: Count; doneAt: number; window: number } | null;
+  /** Her 8 behaviours over the last `window` debriefs, most seen first. */
+  behaviours: (Count & { key: string; name: Both })[];
+  window: number;
+  /** Respect held in every one of those debriefs (the must-pass check, not one of the 8). */
+  respectAll: boolean;
+  /** The 3 most recent; `step` is coach-v2's (analysing · draft · talk · report · sent); `debrief` once there is one. */
+  observations: { id: string; at: string | null; teacher: string | null; step: string; debrief: { done: number; total: number } | null }[];
+  weeks: { monday: string; friday: string; complete: number; target: number }[] | null;
+}
+
+export async function getCoachProgress(): Promise<CoachProgress> {
+  const res = await api.get("/coach/progress");
+  return res.data.progress as CoachProgress;
+}
+
+export const COACH_PROGRESS_PATH = "/portal/coach/progress";

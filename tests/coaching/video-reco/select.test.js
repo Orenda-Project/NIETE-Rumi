@@ -15,7 +15,7 @@ test('calls completeJson once with job coaching.videoReco, 4000 tokens (gpt-5-mi
   completeJson.mockResolvedValue({ result: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, finishReason: 'stop' });
   const r = await S.pick({ prompt: 'Return JSON' });
   expect(completeJson).toHaveBeenCalledTimes(1);
-  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco', reasoningEffort: 'low' });
+  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco', reasoningEffort: 'low', keepScript: true });
   expect(r).toEqual({ pick: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, model: expect.any(String), truncated: false });
 });
 

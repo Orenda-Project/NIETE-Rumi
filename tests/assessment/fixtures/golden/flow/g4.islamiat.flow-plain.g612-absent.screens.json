@@ -217,6 +217,8 @@
       "screen": {
         "screen": "TYPES",
         "data": {
+          "heading": "Unseen questions: which types?",
+          "types_label": "Unseen question types",
           "summary": "Grade 4 · Islamiat · Chapter 1 · Our School · Pick up to 8",
           "types": [
             {
@@ -262,6 +264,7 @@
       "screen": {
         "screen": "COUNTS",
         "data": {
+          "heading": "Unseen questions: how many of each?",
           "summary": "Grade 4 · Islamiat · Chapter 1 · Our School",
           "hint": "Up to 50 questions in total.",
           "error": "",

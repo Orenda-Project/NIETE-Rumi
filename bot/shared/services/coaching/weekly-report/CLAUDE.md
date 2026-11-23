@@ -1,7 +1,7 @@
 # weekly-report — Group B weekly usage report sent Saturday as a Meta template
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=c600267c0c4d gen=7fc2f643c966 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=a8f8dd646039 gen=178411e08203 overflow=5 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.js` — prepare and send, registers in the nudge sweeper
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `summarise.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:19:934b7eba` · `bot/shared/services/coaching/weekly-report/message.js:13:8fb51b5e`
-- `job.js` ← imported by `bot/workers/sqs-worker.js:2033:3f57026f`
+- `job.js` ← imported by `bot/workers/sqs-worker.js:2045:3f57026f`
 - `message.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
 - `reader.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:16:73533146`
 - `switch.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:17:2a9c4c5a`

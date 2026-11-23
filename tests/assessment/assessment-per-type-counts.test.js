@@ -166,7 +166,8 @@ describe('the endpoint collects a count per type', () => {
   test('a paper bigger than the ceiling is refused, with the ceiling named', async () => {
     const QuestionTypes = require('../../bot/shared/services/assessment/question-types');
     mockRedis.get.mockResolvedValue({
-      ...SESSION, contentSource: 'unseen', pickedTypes: ['MCQs', 'Brief Answers'],
+      // AG row 12: an MCQ group counts as one, so the ceiling is reached on questions that count one each.
+      ...SESSION, contentSource: 'unseen', pickedTypes: ['Brief Answers', 'MCQs'],
     });
     const res = await exchange('u1', 'COUNTS',
       { count_1: String(QuestionTypes.MAX_QUESTIONS), count_2: '5' }, TOKEN);

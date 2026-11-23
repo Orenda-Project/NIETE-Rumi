@@ -155,7 +155,9 @@ describe('grades 1-5 — the portal viewer (GET /curriculum/lp/:lesson_id/file)'
     const [sql] = opensWritten()[0];
     expect(sql).toMatch(/WHERE NOT EXISTS/);
     expect(sql).toMatch(/opened_at > now\(\) - make_interval\(mins => \$6/);
-    expect(sql).toMatch(/lang IS NOT DISTINCT FROM \$4/);
+    // bd-dp9ipc: the language compared is the stored one (none for a grades 1-5 plan), from $4.
+    expect(sql).toMatch(/lang IS NOT DISTINCT FROM p\.lang/);
+    expect(sql).toMatch(/ELSE \$4::text END AS lang/);
   });
 
   test('opening the answer key is a use of that lesson', async () => {

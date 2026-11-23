@@ -10,10 +10,19 @@
  * The page asks for a session's files with postMessage({ type: 'prepare', urls, fresh? }) on a MessageChannel and gets
  * back { ok, cached, missing[], bytes }; "ready offline" is shown only when missing is empty. The files are fetched six at
  * a time, and one that fails (a 429 from a busy tunnel, a dropped request) is tried once more after a short pause.
+ * A fetch is given up (then tried once more) only when it stalls: no answer for 20 s, or no body bytes for 20 s. A clip that
+ * keeps arriving slowly is never cut. A URL already being fetched by any prepare is not fetched again: the second prepare
+ * waits on the same download. With { progress: true } the worker also posts { type: 'progress', done, bytes, link } on the
+ * channel at once and at least every 5 s (done = this prepare's files kept, bytes = its body bytes, link = every body byte
+ * this worker received), so the page can tell a slow link from a dead one.
  * Round 8 (the coach's "ready for offline"): a URL in `fresh` (a battery file, which changes under one URL when a switch
  * flips) is read from the network even when a copy is kept, and keeps that copy when the network fails; bytes counts
  * what came over the network. postMessage({ type: 'check', urls }) answers { ok, cached, missing[] } from the phone
  * alone, fetching nothing.
+ * A SESSION bump keeps what did not change (carry, at install and again at activate): the new SESSION's cache copies an
+ * older cache's entry if, and only if, the entry's own bytes hash to the sha1 the new clips.lock.json names for its path.
+ * Anything else is fetched by the next prepare; a battery file is never carried. activate deletes the older cache only
+ * after its second pass settled.
  */
 'use strict';
 
@@ -55,7 +64,51 @@
 // sa-28: round 28 follow-up: sa-ui.js and sa-core.js (the letter picker and the spoken MCQ draw no Back button on their item and
 //   practice screens, so the cards and the replay stay in reach on a phone; the sandbox-only dev row stays off those screens;
 //   a scored answer records since_fold_ms).
-var VERSION = 'sa-28';
+// sa-29: round 28 follow-up: sa.css and sa-ui.js (the Urdu sound check fits a phone under sa_r28_check_fit; the letter
+//   picker's practice example keeps room for its pointing hand in RDF auto; its last practice feedback keeps the 1.2 s floor).
+// sa-30: round 28 follow-up: sa-ui.js and sa.css (RDF auto's Next sits in the head row with its place held, on the letter
+//   picker and the spoken MCQ, so nothing moves when it is offered and a phone keeps every card and option in reach).
+// sa-31: round 28 follow-up: sa-ui.js (the coach's hold menu says End this task in Urdu apart from the portal's End this
+//   section, under sa_r28_end_task_copy).
+// sa-32: round 28 follow-up, one bump for the engine files of several changes: sa-ui.js and sa.css (Jugnu says the letter
+//   picker's and the spoken MCQ's instruction and practice feedback in coach-led; the picker practice's named line wraps in
+//   the coach-led head row in place of the chip and the Skip), sa-offline.js (the offline timing sweep asks only for files
+//   that exist, prompt_timings.json first).
+// sa-33: round 28, sa.css (the Urdu story question card on a phone in RDF auto holds a two-line question: more
+//   padding over and under, the gaps below it tightened so the four answers stay on the screen).
+// sa-34: round 28, sa-core.js, sa-ui.js and sink-coach.js (the session row keeps the child's practice taps, the answer
+//   cards' reach at each item and again when Next is offered, a story question's first choice, and which engine served
+//   the page; no screen changes).
+// sa-35: round 28, sa-ui.js (the spoken MCQ keeps a few listed Urdu word runs, names and paired words, on one line in the
+//   question and its answers, so a phone never breaks them across two lines).
+// sa-36: round 28, sa.css (the Urdu story question card on a phone in RDF auto keeps a two-line question's lines apart:
+//   18 px at a taller line pitch, the card's padding moved to the top; the four answers stay on the screen).
+// sa-37: round 28, sa-voice.js and sa-ui.js (a spoken clip that starts and then stops mid-way is given up after a short
+//   wait and one retry, not counted as heard; the picker's and the MCQ's cards ignore a tap while it is stopped; the
+//   never-ended guard waits while the page is hidden).
+// sa-38: round 28, sa.css (the Urdu story questions' practice in RDF auto fits a phone like the scored question: the
+//   head row the replay's height, the feedback one fixed line, the four answers 8 px apart and all on the screen).
+// sa-39: sa-offline.js and this worker (a slow link no longer refuses the start: the page waits while clips keep arriving,
+//   a fetch is given up only when it stalls, a retry joins the downloads already running, and the phone logs how long
+//   the preparation took).
+// sa-40: hotfix, sa-page.js (a late "no voice" verdict inside a timed task whose items need no clip no longer stops it:
+//   the task runs to its end on its own clock and the voice refusal comes at that end, between tasks).
+// sa-42: round 28, sa-page.js and sa-offline.js and this worker (device_ready names the build that ran: the page's own
+//   VERSION, the VERSION of each worker that prepared it, and the session cache the clips were found in, asked for on its
+//   own 'held' message; worker_swap marks a newer worker taking the page over mid-session).
+// sa-43: this worker and sa-page.js (a SESSION bump keeps what did not change: install, then activate, copies an older
+//   session cache's entry whose bytes hash to the new lock's sha1 for its path; nothing else is kept). SESSION unchanged:
+//   the carry needs no record from an earlier worker, so it works on the bump it ships with.
+// sa-45: the letter-sound picker's prompt clips re-made (SESSION v32); no worker code changes.
+// sa-46: sa-engine.js (the last recording: the battery's end waits for a recorder stop under way, and tells the page when
+//   the audio is acked). SESSION unchanged: no clip or battery changed.
+// sa-47: sa-page.js + sa-sync.js (the drain keeps an upload that is making progress; an already-scored recording counts as
+//   sent), sa-core.js + sa-mic.js + sa-ui.js + sink-coach.js (an unknown microphone is checked, behind its switch), and
+//   sa-engine.js. SESSION unchanged: no clip or battery changed.
+// sa-48: the letter-sound picker's re-made prompts and the your-turn / picker-intro lines (SESSION v33); no worker code changes.
+// sa-49: the English letter names e, B, t and d play production's v4 takes again under their keys (SESSION v34); no worker
+//   code changes.
+var VERSION = 'sa-49';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -93,45 +146,135 @@ var CORE = 'sa-core-' + VERSION;
 // through a phone-speaker filter: «مَ» short, not «ما»; /a/, /o/, /ba/, /da/, /ta/, «شَ», «چَ»), the picker intro's /ba/ with them.
 // v26: round 28's battery files re-made with two Urdu story options re-worded (their clips re-voiced) and the EN
 // familiar words' accept forms (scorer only; never served).
-var SESSION = 'sa-session-v26';
+// v27: round 28's battery files re-made with the letter-sound picker's practice feedback naming the sound (the
+// letter-sounds lines, then the item's own clip; no new clip).
+// v28: round 28's battery files re-made with their source notes (why a line or item is as it is) worded in product
+// words, not by decision numbers. Nothing a child sees or hears changes.
+// v29: round 28's battery files re-made with three Urdu "your turn" lines spelt right («آواز میں», «کا نام»,
+// «آواز بولیں»), each with its clip at the new text's key.
+// v30: the letter-names practice example's name «ثے» re-voiced under its v4 key: the take said "see" ([siː]), now "say"
+// ([seː]), heard so on repeated listens; levelled like the other v4 clips. No word timings change.
+// v32: the letter-sound picker's 24 prompts (scored and practice, English and Urdu) say each sound three times: one
+// recorded sound copied three times with the same gap, so no letter gets a clue; English t (a real /t/ burst) and d
+// (longer) re-made, the held sounds as the content owner picked, Urdu م and س held. v5/prompt_timings.json gives the
+// three spans: speech_start_ms is the first sound's start, speech_end_ms the third one's end. (v31 is retired unused;
+// the next re-voice takes v33, and SESSION never moves backwards.)
+// v33: 13 of the picker's prompts re-made under their keys as the content owner picked them on a phone speaker (Urdu ب ل ن
+// ر ک گ چ ٹ م ش ف as a short «بَ»-like syllable, not a long «با»; English t and n), each said three times as before, with
+// their spans in v5/prompt_timings.json; the your-turn lines say «آواز میں بولیں» and the picker intro names its example
+// in the task's language, each at its text's key with its word timings (the Urdu-task intro re-made under its key).
+// v34: the English letter names e, B, t and d play production's v4 takes again under their keys: their re-made takes did
+// not pass the ear check. A phone that kept a v33 copy of those four keys takes production's bytes.
+var SESSION = 'sa-session-v34';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
 var PREFETCH_AT_ONCE = 6;
 var RETRY_MS = 1500;
+var IDLE_MS = 20000;
+var PROGRESS_MS = 5000;
 
 /**
  * prefetch(urls, { fetch, match, put, ok, limit?, retryMs?, fresh?, onBytes? }) → Promise<missing urls>: each url not
  * already kept (match) is fetched, at most `limit` at a time, kept (put) when ok(url, res); a failure is tried once more
  * after retryMs. A url in fresh is fetched first even when kept (a failure then falls back to the kept copy).
- * onBytes(n) gets each fetched response's content-length. Never rejects.
+ * onBytes(n) gets the body bytes as they arrive (a response with no readable body: its content-length). A try is
+ * abandoned when no answer comes for idleMs, or no body bytes for idleMs (abort() gives the AbortController whose signal
+ * the fetch gets); a body that keeps arriving is never cut. inflight (shared by every prepare) holds the urls being fetched:
+ * a url already there waits on that download instead of starting another, except that a fresh ask never waits on a plain
+ * one that may still end on the kept copy. onDone(u) once per url kept. Never rejects.
  */
 function prefetch(urls, o) {
   var limit = o.limit || PREFETCH_AT_ONCE;
   var wait = o.retryMs != null ? o.retryMs : RETRY_MS;
+  var idle = o.idleMs || IDLE_MS;
   var fresh = o.fresh || [];
+  var running = o.inflight || {};
   var queue = urls.slice();
   var missing = [];
   function once(u) {
-    return Promise.resolve().then(function () { return o.fetch(u); }).then(function (res) {
+    var ctl = typeof o.abort === 'function' ? o.abort() : null;
+    var t = null;
+    var stop = null;
+    var stalled = new Promise(function (_, no) { stop = no; });
+    stalled.then(null, function () {});
+    // no answer, or no body bytes, for idle ms: the try is given up (a slow body that keeps coming is never cut)
+    function arm() {
+      clearTimeout(t);
+      t = setTimeout(function () { try { if (ctl) ctl.abort(); } catch (_) { /* already settled */ } stop(new Error('stalled')); }, idle);
+    }
+    arm();
+    var got = Promise.resolve().then(function () { return ctl ? o.fetch(u, { signal: ctl.signal }) : o.fetch(u); }).then(function (res) {
+      arm();
       if (!o.ok(u, res)) throw new Error(String(res && res.status));
-      if (o.onBytes) o.onBytes(Number((res.headers && res.headers.get && res.headers.get('content-length')) || 0) || 0);
-      return Promise.resolve(o.put(u, res)).then(function () { return true; });
-    }).then(null, function () { return false; });
+      var body = null;
+      if (res.body && typeof res.body.getReader === 'function' && typeof res.clone === 'function') {
+        var reader = res.clone().body.getReader();
+        body = (function next() {
+          return reader.read().then(function (c) {
+            if (c.done) return null;
+            arm();
+            if (o.onBytes) o.onBytes((c.value && c.value.byteLength) || 0);
+            return next();
+          });
+        }());
+      } else if (o.onBytes) {
+        o.onBytes(Number((res.headers && res.headers.get && res.headers.get('content-length')) || 0) || 0);
+      }
+      return Promise.all([Promise.resolve(o.put(u, res)), body]).then(function () { return true; });
+    });
+    got.then(null, function () {});
+    return Promise.race([got, stalled]).then(function (v) { clearTimeout(t); return v; }, function () { clearTimeout(t); return false; });
   }
-  function one(u) {
-    var first = fresh.indexOf(u) >= 0 ? once(u) : Promise.resolve(false);
+  // a download from the network (a fresh ask, or a plain one whose match missed) can be joined by any ask; a plain one
+  // still matching may end on the kept copy, so a fresh ask never joins it
+  function fromNet(e) { return !!e && (e.fresh || e.net); }
+  function fetchOne(u, e) {
+    var first = e.fresh ? once(u) : Promise.resolve(false);
     return first.then(function (got) { return got ? true : o.match(u); }).then(null, function () { return null; }).then(function (hit) {
       if (hit) return true;
+      var now = running[u];
+      if (now !== e && fromNet(now)) return now.p; // a fresh ask started while this one matched: one request, not two
+      e.net = true;
       return once(u).then(function (got) {
         return got ? true : new Promise(function (r) { setTimeout(r, wait); }).then(function () { return once(u); });
       });
-    }).then(function (got) { if (!got) missing.push(u); });
+    });
+  }
+  function one(u) {
+    var isFresh = fresh.indexOf(u) >= 0;
+    var e = running[u];
+    if (!e || (isFresh && !fromNet(e))) {
+      var mine = e = running[u] = { fresh: isFresh, net: false };
+      e.p = fetchOne(u, e);
+      e.p.then(function () { if (running[u] === mine) delete running[u]; });
+    }
+    return e.p.then(function (got) { if (!got) missing.push(u); else if (o.onDone) o.onDone(u); });
   }
   function worker() { var u = queue.shift(); return u === undefined ? null : one(u).then(worker); }
   var workers = [];
   for (var i = 0; i < Math.min(limit, urls.length); i++) workers.push(worker());
   return Promise.all(workers).then(function () { return urls.filter(function (u) { return missing.indexOf(u) >= 0; }); });
+}
+
+/**
+ * The sa-session-* cache holding most of urls (the one the clips are read from), or null when none holds any. On a deploy
+ * day the worker answering can be newer than the cache the clips are in, so this is looked up, not taken from SESSION.
+ * Only the 'held' message runs it: a prepare reply never waits on it.
+ */
+function heldIn(urls, cachesApi) {
+  if (!urls.length) return Promise.resolve(null);
+  return cachesApi.keys().then(function (keys) {
+    return Promise.all(keys.filter(function (k) { return k.indexOf('sa-session-') === 0; }).map(function (k) {
+      return cachesApi.open(k).then(function (c) {
+        return Promise.all(urls.map(function (u) { return c.match(u, { ignoreSearch: true }); }));
+      }).then(function (hits) { return { name: k, n: hits.filter(Boolean).length }; });
+    }));
+  }).then(function (held) {
+    var best = null;
+    held.forEach(function (h) { if (h.n > 0 && (!best || h.n > best.n)) best = h; });
+    return best ? best.name : null;
+  }).then(null, function () { return null; });
 }
 
 /** A response worth keeping: 2xx, and the type the URL is (a clip is audio, a battery JSON, an engine file not HTML). */
@@ -154,6 +297,97 @@ function installOne(cache, url, fetchFn) {
     .catch(function () { return null; });
 }
 
+// The lock this SESSION's files were taken under (clips.lock.json, served beside this worker).
+var LOCK_FILE = 'clips.lock.json';
+var CARRY_AT_ONCE = 8;
+
+/** The lock's name for a URL the worker keeps ('dashboard/sa/v4/ur/x.mp3'); null for a battery file or a path outside /sa/. */
+function lockPath(url) {
+  var p = new URL(url).pathname;
+  if (p.indexOf('/sa/') !== 0 || p.indexOf('/sa/batteries/') === 0) return null;
+  return 'dashboard' + p;
+}
+
+function hex(buf) {
+  var b = new Uint8Array(buf);
+  var s = '';
+  for (var i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16);
+  return s;
+}
+
+/**
+ * carry(io) → Promise<{ kept, lock }>, never rejects. A SESSION bump keeps what did not change: the SESSION cache takes an
+ * entry of an older sa-session-* cache if, and only if, the entry's own bytes hash (SHA-1) to the new lock's sha1 for its
+ * path (a short, corrupt or re-voiced copy is not kept). Anything else is left for the next prepare to fetch; a battery
+ * file is never carried (it changes under one URL when a switch flips). io.seen (a Set, kept across calls) names the
+ * entries an earlier pass already looked at, so a second pass reads only what an older cache gained since. The lock is
+ * read only when an older SESSION cache is there, and is used only when it names this SESSION.
+ * io: { session, keys(), open(name), lock() → Promise<lock|null>, digest(ArrayBuffer) → Promise<hex sha1>, seen?, limit? }.
+ */
+function carry(io) {
+  var kept = 0;
+  var now = null;
+  var seen = io.seen || new Set();
+  function copyFrom(dst, src, name) {
+    return src.keys().then(function (reqs) {
+      var queue = reqs.filter(function (req) { return !seen.has(name + ' ' + req.url); });
+      function one(req) {
+        // settled = never worth reading again; an entry whose bytes did not match is read again (the old worker may
+        // re-fetch it under the same URL before activate)
+        function settled() { seen.add(name + ' ' + req.url); }
+        var p = lockPath(req.url);
+        var want = p && now.files[p];
+        if (!want) return settled();
+        return dst.match(req).then(function (have) {
+          if (have) return settled();
+          return src.match(req).then(function (res) {
+            if (!res || !cacheable(req.url, res)) return null;
+            return res.clone().arrayBuffer().then(io.digest).then(function (h) {
+              if (h !== want) return null;
+              return dst.put(req, res).then(function () { kept += 1; settled(); });
+            });
+          });
+        });
+      }
+      function worker() {
+        var req = queue.shift();
+        if (req === undefined) return null;
+        return Promise.resolve().then(function () { return one(req); }).then(null, function () { return null; }).then(worker);
+      }
+      var workers = [];
+      for (var i = 0; i < Math.min(io.limit || CARRY_AT_ONCE, queue.length); i++) workers.push(worker());
+      return Promise.all(workers);
+    });
+  }
+  return Promise.resolve().then(function () { return io.keys(); }).then(function (keys) {
+    // newest older SESSION first: an entry taken from it is not taken again from an older one
+    var olds = keys.filter(function (k) { return k.indexOf('sa-session-') === 0 && k !== io.session; })
+      .sort(function (a, b) { return (parseInt(b.slice(12), 10) || 0) - (parseInt(a.slice(12), 10) || 0); });
+    if (!olds.length) return { kept: 0, lock: null };
+    return io.lock().then(function (l) {
+      if (!l || l.session !== io.session || !l.files) return { kept: 0, lock: null };
+      now = l;
+      return io.open(io.session).then(function (dst) {
+        return olds.reduce(function (chain, name) {
+          return chain.then(function () { return io.open(name).then(function (src) { return copyFrom(dst, src, name); }); })
+            .then(null, function () { return null; });
+        }, Promise.resolve());
+      }).then(function () { return { kept: kept, lock: now }; });
+    });
+  }).then(null, function () { return { kept: kept, lock: now }; });
+}
+
+/** The lock served beside this worker (prefetch's stall guard and one retry), or null. */
+function readLock(url, io) {
+  var got = null;
+  return prefetch([url], {
+    fetch: io.fetch, abort: io.abort, limit: 1,
+    match: function () { return null; },
+    ok: function (u, res) { return !!res && res.ok && String((res.headers && res.headers.get && res.headers.get('content-type')) || '').indexOf('json') >= 0; },
+    put: function (u, res) { return res.json().then(function (j) { got = j; }); },
+  }).then(function () { return got; }, function () { return null; });
+}
+
 /** Which way a request is answered: 'core' | 'static' | null (not ours). */
 function strategyFor(url, method, origin) {
   if (method !== 'GET') return null;
@@ -167,18 +401,88 @@ function strategyFor(url, method, origin) {
   return null;
 }
 
+// every prepare's downloads in flight (url → its promise), and every body byte this worker received
+var INFLIGHT = {};
+var LINK = { bytes: 0 };
+
+/**
+ * One 'prepare' message: prefetch(urls) into the session cache, then { ok, cached, missing, bytes } on the port. With
+ * d.progress, { type: 'progress', done, bytes, link } at once and every PROGRESS_MS until the answer (an older page that
+ * never asks for progress gets only the answer, as before). io: prefetch's fetch / match / put / ok / abort.
+ */
+function prepareReply(d, urls, port, io) {
+  var bytes = 0;
+  var done = 0;
+  var tick = null;
+  function progress() { port.postMessage({ type: 'progress', done: done, bytes: bytes, link: LINK.bytes }); }
+  if (d.progress === true) { progress(); tick = setInterval(progress, PROGRESS_MS); }
+  return prefetch(urls, {
+    fetch: io.fetch, match: io.match, put: io.put, ok: io.ok, abort: io.abort, inflight: INFLIGHT,
+    fresh: (d.fresh || []).filter(function (u) { return typeof u === 'string'; }),
+    onBytes: function (n) { bytes += n; LINK.bytes += n; },
+    onDone: function () { done += 1; },
+  }).then(function (missing) {
+    clearInterval(tick);
+    port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes, sw: VERSION });
+  }, function (err) {
+    clearInterval(tick);
+    throw err;
+  });
+}
+
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, carry: carry, readLock: readLock, lockPath: lockPath, prepareReply: prepareReply, heldIn: heldIn, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION, VERSION: VERSION, IDLE_MS: IDLE_MS, PROGRESS_MS: PROGRESS_MS, PREFETCH_AT_ONCE: PREFETCH_AT_ONCE };
 } else {
+  // The SESSION carry: install copies what an older SESSION cache holds unchanged, while the old worker still serves; activate
+  // makes a second pass (what the old worker kept since, e.g. a prepare it answered during the install) and only then
+  // deletes the older caches, so a clip a page was told is ready is never lost in the swap.
+  // activate reads no network (fetches wait while a worker activates): its pass uses the lock install read and checked.
+  // A waiting worker is stopped when idle (a slow link holds activation for minutes) and its globals go with it, so
+  // install also keeps that lock in this worker's CORE cache, under a key no request is answered from, and activate reads
+  // it back from there. With no lock (none served, or one naming another SESSION) activate carries nothing, as install did.
+  var installLock = null;
+  var carrySeen = new Set();
+  var CARRY_LOCK_KEY = '/sa/carry/lock.json';
+  function heldLock() {
+    if (installLock) return Promise.resolve(installLock);
+    return caches.open(CORE).then(function (c) { return c.match(new URL(CARRY_LOCK_KEY, self.location.href).href); })
+      .then(function (res) { return res ? res.json() : null; })
+      .then(function (l) { return l && l.session === SESSION && l.files ? l : null; }, function () { return null; });
+  }
+  function keepLock(l) {
+    return caches.open(CORE).then(function (c) {
+      return c.put(new URL(CARRY_LOCK_KEY, self.location.href).href,
+        new Response(JSON.stringify(l), { headers: { 'content-type': 'application/json' } }));
+    }).then(null, function () { return null; });
+  }
+  function carryNow(atActivate) {
+    return carry({
+      session: SESSION,
+      seen: carrySeen,
+      keys: function () { return caches.keys(); },
+      open: function (n) { return caches.open(n); },
+      lock: function () {
+        if (atActivate) return heldLock();
+        return readLock(new URL('/sa/' + LOCK_FILE, self.location.href).href, {
+          fetch: function (u, init) { return fetch(u, Object.assign({ cache: 'no-cache' }, init || {})); },
+          abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
+        });
+      },
+      digest: function (buf) { return crypto.subtle.digest('SHA-1', buf).then(hex); },
+    }).then(function (r) {
+      if (!atActivate && r.lock) { installLock = r.lock; return keepLock(r.lock).then(function () { return r; }); }
+      return r;
+    });
+  }
   self.addEventListener('install', function (e) {
-    e.waitUntil(caches.open(CORE).then(function (c) {
+    e.waitUntil(Promise.all([caches.open(CORE).then(function (c) {
       // One by one: a file the game lane has not shipped yet must not stop the worker installing.
       return Promise.all(CORE_FILES.map(function (f) { return installOne(c, new URL('/sa/' + f, self.location.href).href, fetch); }));
-    }).then(function () { return self.skipWaiting(); }));
+    }), carryNow()]).then(function () { return self.skipWaiting(); }));
   });
 
   self.addEventListener('activate', function (e) {
-    e.waitUntil(caches.keys().then(function (keys) {
+    e.waitUntil(carryNow(true).then(function () { return caches.keys(); }).then(function (keys) {
       return Promise.all(keys.filter(function (k) { return (k.indexOf('sa-core-') === 0 && k !== CORE) || (k.indexOf('sa-session-') === 0 && k !== SESSION); }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); }));
   });
@@ -220,8 +524,13 @@ if (typeof module === 'object' && module.exports) {
   self.addEventListener('message', function (e) {
     var d = e.data || {};
     var port = e.ports && e.ports[0];
-    if ((d.type !== 'prepare' && d.type !== 'check') || !port) return;
+    if ((d.type !== 'prepare' && d.type !== 'check' && d.type !== 'held') || !port) return;
     var urls = (d.urls || []).filter(function (u) { return typeof u === 'string'; });
+    // which build this is and where the clips are (device_ready, worker_swap); the page caps its wait at 2 s
+    if (d.type === 'held') {
+      e.waitUntil(heldIn(urls, caches).then(function (session) { port.postMessage({ sw: VERSION, session: session }); }));
+      return;
+    }
     if (d.type === 'check') {
       e.waitUntil(Promise.all(urls.map(function (u) {
         return caches.match(u, { ignoreSearch: true }).then(function (hit) { return hit ? null : u; }, function () { return u; });
@@ -231,20 +540,16 @@ if (typeof module === 'object' && module.exports) {
       }));
       return;
     }
-    var bytes = 0;
     e.waitUntil(caches.open(SESSION).then(function (c) {
-      return prefetch(urls, {
-        fetch: function (u) { return fetch(u); },
+      return prepareReply(d, urls, port, {
+        fetch: function (u, init) { return init ? fetch(u, init) : fetch(u); },
         match: function (u) { return caches.match(u, { ignoreSearch: true }); },
         put: function (u, res) { return c.put(u, res); },
         ok: function (u, res) { return cacheable(new URL(u, self.location.href).href, res); },
-        fresh: (d.fresh || []).filter(function (u) { return typeof u === 'string'; }),
-        onBytes: function (n) { bytes += n; },
+        abort: function () { return typeof AbortController === 'function' ? new AbortController() : null; },
       });
-    }).then(function (missing) {
-      port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
-    }, function (err) {
-      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
+    }).then(null, function (err) {
+      port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err), sw: VERSION });
     }));
   });
 }

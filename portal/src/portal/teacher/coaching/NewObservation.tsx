@@ -5,12 +5,13 @@ import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { isOffline, SendError, sendLesson } from '../../lib/coachingSend';
-import { holdPhoto, isRefused } from '../../lib/pickedRead';
+import { holdFile, holdPhoto, isFileRefused, isRefused, tellUnreadablePick } from '../../lib/pickedRead';
 import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
-import { deleteRecording } from '../../lib/recordingStore';
+import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
+import { withDuration } from '../../lib/webmDuration';
 import { isInAppBrowser } from '@/lib/runtime';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
 import { LevelBars } from '../../newui/coaching/LevelBars';
@@ -27,14 +28,15 @@ import { ClassPicker, ConfirmTray, HistoryRow, LeaveNote, ProgressSteps, RecordU
 import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
-import { COACHING, type CoachingCopy } from './copy';
+import { COACHING } from './copy';
+import { notSentTitle } from './notSent';
 import { clearDraft, holdDraft, isSavedAudio, peekDraft, planKeyOf, readPrefill, type DcAudio, type DraftClass, type DraftPlan, type SavedAudio } from './draft';
 import { loadPending, sentBefore, type PendingRecording } from './api';
 import { DC_PICK } from './libraryPick';
 import { libraryKeyFor, sameSubjectName } from '../../lib/classKey';
 import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
-import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard, WaitingRecording } from './parts';
+import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard, UnsentRecording, WaitingRecording } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
 import { dcSteps } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
@@ -69,26 +71,20 @@ import { useDcReport } from './useDcReport';
  *
  * What she has chosen is held in memory (draft.ts) so a trip to the library or her lesson plan, and Back, finds it.
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
+ *
+ * Not sent        bd-r2uzg1.18.8 (ICT DC row 154): memory is not enough for the recording. A new page load (WhatsApp's
+ *                 browser closed, the phone ended the page, a fresh link) loses it, and so does opening this screen
+ *                 afresh from the main page (the held draft is replaced). The recorder has written every chunk to the
+ *                 phone as it recorded (lib/lessonRecorder → lib/recordingStore), so the screen offers the newest one
+ *                 not sent — never the one recording now, nor the one already on the screen. A tap attaches it; Submit
+ *                 or Save takes it off the phone once sent, and Redo throws it away.
  */
 
-type AudioProblem = 'too_large' | 'not_audio' | 'video' | null;
+/** bd-bsc0ox: 'wont_open' — the phone would not read the recording she picked ('File will not open'). */
+type AudioProblem = 'too_large' | 'not_audio' | 'video' | 'wont_open' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
 type Sending = { pct: number } | null;
 const UPLOADING = 'uploading';
-
-/**
- * bd-bmc9a0.1 — ICT IAB rows 28–29: a send that did not go. "No internet" only when the phone says it is offline; else
- * the part that did not go (Recording / Lesson plan / Photo N), or "Not sent" when every file arrived and starting the
- * analysis failed. It said "No internet" on strong Wi-Fi for 39 teachers whose picked file the app could not send.
- */
-function notSentTitle(f: SendError, C: Pick<CoachingCopy, 'noInternet' | 'notSent' | 'recordingNotSent' | 'planNotSent' | 'photoNotSent'>): string {
-  const d = f.detail;
-  if (d ? d.offline : isOffline()) return C.noInternet;
-  if (!d || !d.part) return C.notSent;
-  if (d.part.kind === 'audio') return C.recordingNotSent;
-  if (d.part.kind === 'lesson_plan') return C.planNotSent;
-  return C.photoNotSent(d.part.photo);
-}
 
 const NO_SUBJECTS: SubjectsByGrade = {};
 const norm = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -122,7 +118,8 @@ export function NewObservationPage() {
   const [audio, setAudio] = useState<DcAudio | null>(kept?.audio ?? null);
   const [audioProblem, setAudioProblem] = useState<AudioProblem>(null);
   const [plan, setPlan] = useState<DraftPlan | null>(kept?.plan ?? null);
-  const [planProblem, setPlanProblem] = useState<'not_a_plan' | null>(null);
+  // bd-bsc0ox: 'wont_open' — her plan file would not open when she picked it; said on the screen, the tray is closed.
+  const [planProblem, setPlanProblem] = useState<'not_a_plan' | 'wont_open' | null>(null);
   const [planSheet, setPlanSheet] = useState(() => !!(location.state as { openPlan?: boolean } | null)?.openPlan);
   const [photos, setPhotos] = useState<File[]>(kept?.photos ?? []);
   const audioInput = useRef<HTMLInputElement>(null);
@@ -230,15 +227,28 @@ export function NewObservationPage() {
     holdDraft({ audio: rec, plan, photos, cls, live: live.toRecord() });
     setAudio(rec);
   };
-  const pickAudio = async (file: File | undefined) => {
+  /**
+   * bd-bsc0ox (queue #200) — production, 18 Nov: in the Android app a teacher's picked recording would not open at
+   * Submit (8 tries in 3 minutes, NotReadableError, nothing sent); it went only once she picked it again. So it is read
+   * the moment she picks it and the screen keeps those bytes (lib/pickedRead holdFile, as photos since bd-r2uzg1.9 and
+   * the coach's files since bd-tymy1n); one the phone will not open is refused here, "File will not open", and logged.
+   */
+  const pickAudio = async (picked: File | undefined) => {
     setAudioProblem(null);
-    if (!file) return;
+    if (!picked) return;
     // bd-i0u6n2: a video is refused on its own line; a file the phone marks as audio is taken whatever its name.
-    const checked = await checkAudioFile(file);
+    const checked = await checkAudioFile(picked);
     if (checked.problem) {
       setAudioProblem(checked.problem === 'too_large' ? 'too_large' : checked.problem === 'video' ? 'video' : 'not_audio');
       return;
     }
+    const held = await holdFile(picked);
+    if (isFileRefused(held)) {
+      tellUnreadablePick('audio', picked, held.errName);
+      setAudioProblem('wont_open');
+      return;
+    }
+    const file = held.file;
     const seconds = await readAudioDuration(file);
     // bd-c5reix — the same bytes as a recording she sent before: said now, before anything is uploaded. The one it
     // replaces is let go first, so nothing is armed while the file is checked, nor after a repeat.
@@ -255,13 +265,62 @@ export function NewObservationPage() {
     if (before) { setRepeat({ sessionId: before.sessionId, picked: true }); return; }
     setPhase('idle');
     setAudio({
-      blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
-      recordingId: null, source: 'file', size: file.size, startedAt: null,
+      blob: file, filename: checked.filename || picked.name, durationMs: seconds != null ? seconds * 1000 : null,
+      recordingId: null, source: 'file', size: picked.size, startedAt: null,
+    });
+  };
+  /**
+   * bd-bsc0ox — her own plan (a photo or a file from the tray), read the moment she picks it like the recording. It shows
+   * at once; the screen's copy takes its place when the read is done, and one the phone will not open is taken off
+   * again with "File will not open" (and logged).
+   */
+  const pickPlanFile = (picked: File | undefined, asPhoto: boolean): boolean => {
+    setPlanProblem(null);
+    if (!picked) return false;
+    if (checkFile(picked, 'lesson_plan')) { setPlanProblem('not_a_plan'); return false; }
+    setPlan({ kind: 'file', file: picked, asPhoto });
+    void holdFile(picked).then((out) => {
+      const still = (p: DraftPlan | null) => !!p && p.kind === 'file' && p.file === picked;
+      if (isFileRefused(out)) {
+        tellUnreadablePick('lesson_plan', picked, out.errName);
+        setPlan((p) => (still(p) ? null : p));
+        setPlanProblem('wont_open');
+        return;
+      }
+      setPlan((p) => (still(p) ? { kind: 'file', file: out.file, asPhoto } : p));
+    });
+    return true;
+  };
+  // bd-r2uzg1.18.8 — the newest recording on this phone not sent (see "Not sent" above), read once on arrival. The one
+  // recording now and the one already on the screen are the screen's own, never offered. No phone storage: nothing.
+  const [unsent, setUnsent] = useState<{ meta: StoredRecording; blob: Blob } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const own = new Set([session?.recordingId, kept?.audio && !isSavedAudio(kept.audio) ? kept.audio.recordingId : null]);
+    latestUnsent().then((u) => { if (alive && u && !own.has(u.meta.id)) setUnsent(u); }).catch(() => { /* none to offer */ });
+    return () => { alive = false; };
+    // Once, on arrival: what was on the phone when she opened the screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /** Once it is on the screen, sent or thrown away, it is no longer offered. */
+  const letGo = (id: string | null | undefined) => { if (id) setUnsent((u) => (u && u.meta.id === id ? null : u)); };
+  const takeUnsent = async () => {
+    const u = unsent;
+    if (!u) return;
+    setUnsent(null);
+    setAudioProblem(null);
+    setRepeat(null);
+    // The WebM header carries no length until it is written in (lib/webmDuration); the phone kept the clock's.
+    const blob = await withDuration(u.blob, u.meta.ext, u.meta.elapsedMs);
+    setAudio({
+      blob, filename: lessonFilename(u.meta.ext, new Date(u.meta.startedAt)), durationMs: u.meta.elapsedMs || null,
+      recordingId: u.meta.id, source: 'resumed', size: blob.size, startedAt: u.meta.startedAt,
     });
   };
   const redo = async () => {
     const id = isSavedAudio(audio) ? null : audio?.recordingId;
     if (id) { try { await deleteRecording(id); } catch { /* gone */ } }
+    letGo(id);
     setAudio(null);
     setAudioProblem(null);
   };
@@ -299,7 +358,10 @@ export function NewObservationPage() {
         uploaded: uploaded.current,
         ...(saveForLater ? { saveForLater: true } : {}),
       }, portal, (pct) => setSending({ pct }));
-      if (!isSavedAudio(audio) && audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
+      if (!isSavedAudio(audio) && audio.recordingId) {
+        try { await deleteRecording(audio.recordingId); } catch { /* gone */ }
+        letGo(audio.recordingId);
+      }
       clearDraft();
       if (saveForLater) {
         setSavedId(coachingSessionId);
@@ -425,6 +487,10 @@ export function NewObservationPage() {
 
       {!after ? (
         <>
+          {/* bd-r2uzg1.18.8 — first thing on the screen, before she picks anything: her recording not sent. */}
+          {unsent && !audio && !checking && phase === 'idle' && unsent.meta.id !== session?.recordingId ? (
+            <UnsentRecording startedAt={unsent.meta.startedAt} durationMs={unsent.meta.elapsedMs || null} onPress={() => { void takeUnsent(); }} />
+          ) : null}
           <FlowStep n={1} state={s1}>{C.gradeAndSubject}</FlowStep>
           <ClassPicker
             label={C.gradeAndSubject}
@@ -449,6 +515,7 @@ export function NewObservationPage() {
             <>
               {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
               <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} onView={viewPlan} />
+              {planProblem === 'wont_open' ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.fileWontOpen}</p> : null}
             </>
           ) : null}
 
@@ -523,7 +590,8 @@ export function NewObservationPage() {
               </Tray>
             </>
           ) : null}
-          {audio && (cls || isSavedAudio(audio)) ? (
+          {/* A recording kept from WhatsApp, or one taken back from the phone (bd-r2uzg1.18.8), shows before a class too. */}
+          {audio && (cls || isSavedAudio(audio) || audio.source === 'resumed') ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
           ) : null}
           {/* bd-bmc9a0.2 — ICT IAB row 31: Save recording, under the recording, once it could be sent (the same rule as
@@ -542,7 +610,7 @@ export function NewObservationPage() {
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.tooShort}</p>
           ) : null}
           {audioProblem ? (
-            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : audioProblem === 'video' ? C.notVideo : C.notAudio}</p>
+            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : audioProblem === 'video' ? C.notVideo : audioProblem === 'wont_open' ? C.fileWontOpen : C.notAudio}</p>
           ) : null}
 
           <FlowStep n={4} state={s4} chips={[C.upToPhotos(DC_MAX_PHOTOS), C.noFaces]}>{C.photos}</FlowStep>
@@ -674,14 +742,8 @@ export function NewObservationPage() {
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
         forClass={cls}
         onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos, cls }); navigate(libraryHref()); }}
-        onFile={(file, asPhoto) => {
-          setPlanProblem(null);
-          if (!file) return false;
-          if (checkFile(file, 'lesson_plan')) { setPlanProblem('not_a_plan'); return false; }
-          setPlan({ kind: 'file', file, asPhoto });
-          return true;
-        }}
-        problem={planProblem}
+        onFile={pickPlanFile}
+        problem={planProblem === 'not_a_plan' ? 'not_a_plan' : null}
       />
     </TeacherPage>
   );

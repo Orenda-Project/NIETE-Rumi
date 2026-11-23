@@ -284,6 +284,29 @@ async function uploadLessonPlan(filePath, userId, sessionId) {
 }
 
 /**
+ * bd-xuoj2p — live, 18 Nov 2026: one R2 `InternalError` lost a teacher's voice debrief. The SDK's own retry
+ * was in the stack, but its attempts are back-to-back and all landed in the same blip (<2 s). So a transient
+ * failure (5xx, InternalError, a network error) is tried again after a pause; a 4xx is not.
+ */
+const PAUSES_MS = [2000, 5000];
+function isTransient(err) {
+  const status = err && err.$metadata && err.$metadata.httpStatusCode;
+  if (typeof status === 'number') return status >= 500 || status === 429;
+  return Boolean(err && (err.name === 'InternalError' || /ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up/i.test(err.code || err.message || '')));
+}
+async function sendWithPause(command, key) {
+  for (let i = 0; ; i += 1) {
+    try {
+      return await getR2Client().send(command);
+    } catch (err) {
+      if (i >= PAUSES_MS.length || !isTransient(err)) throw err;
+      console.warn(`⚠️ R2 upload failed (transient), trying again in ${PAUSES_MS[i]}ms: ${key}`, err.name || err.message);
+      await new Promise((r) => setTimeout(r, PAUSES_MS[i]));
+    }
+  }
+}
+
+/**
  * Upload voice debrief audio to R2
  * @param {Buffer} audioBuffer - Audio buffer from TTS
  * @param {string} userId - User's phone number
@@ -309,7 +332,7 @@ async function uploadVoiceDebrief(audioBuffer, userId, sessionId, language) {
       }
     });
 
-    await getR2Client().send(command);
+    await sendWithPause(command, key);
 
     const publicUrl = `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
 

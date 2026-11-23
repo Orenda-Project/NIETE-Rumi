@@ -139,7 +139,7 @@ describe('Assessment in Urdu', () => {
     expect(h1()).toBe(U.steps.questions);
     expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe(U.step(3, 4));
     expect(screen.getByRole('heading', { name: U.askCount })).toBeTruthy();
-    for (const w of [U.seenQuestions, U.unseenQuestions, U.asInBook, U.addType, U.wholePaper, U.optional]) {
+    for (const w of [U.seenQuestions, U.unseenQuestions, U.asInBook, U.addType, U.addSeenType, U.wholePaper, U.optional]) {
       expect(screen.getAllByText(w).length).toBeGreaterThan(0);
     }
     // the type's name is data; its number box is named in Urdu
@@ -149,7 +149,7 @@ describe('Assessment in Urdu', () => {
     // marks under the question count: the reason above the off Next, in Urdu
     fireEvent.change(screen.getByRole('textbox', { name: U.totalMarks }), { target: { value: '3' } });
     expect(screen.getByTestId('button-reason').textContent).toBe(U.why.marksLow(9));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(U.addType) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${U.addType}`) }));
     expect(await screen.findByText(U.objective)).toBeTruthy();
     expect(screen.getByText(U.written)).toBeTruthy();
     for (const en of ['Questions', 'Seen questions', 'Unseen questions', 'As in the book', 'Add a type', 'Total marks', 'Objective', 'Written']) {

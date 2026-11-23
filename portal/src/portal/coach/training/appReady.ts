@@ -113,6 +113,8 @@ const ALWAYS_OPEN: readonly RegExp[] = [
   // Coach reports in the app — her debrief report and her week; the page turns away anyone without coach_reports_app.
   /^\/portal\/coach\/report\/[^/]+$/,
   /^\/portal\/coach\/week(\/[^/]+)?$/,
+  // bd-o15qnr.28 (v7) — My progress (the Home tile); the page turns away anyone off the v6/v7 switch.
+  /^\/portal\/coach\/progress$/,
 ];
 
 const trimmed = (p: string) => p.replace(/\/+$/, "") || "/";

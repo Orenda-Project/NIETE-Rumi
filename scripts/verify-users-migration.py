@@ -188,20 +188,20 @@ def fetch_niete_users(cur) -> dict[str, dict]:
     """phone_number → row. Phones are re-normalized so a differently-formatted
     stored value still matches (defensive: never assume the target is clean)."""
     cur.execute("""
-        SELECT phone_number, teacher_uuid, source, name, first_name,
+        SELECT phone_number, teacher_uuid, source, name,
                (preferences -> 'taleemabad') IS NOT NULL AS has_tb_bundle
         FROM users
     """)
     out: dict[str, dict] = {}
     for r in cur.fetchall():
-        phone, tuuid, source, name, first, has_bundle = r
+        phone, tuuid, source, name, has_bundle = r
         key = normalize_phone_pk(phone) or (phone or "").strip()
         if not key:
             continue
         # First write wins; a re-normalized duplicate shouldn't clobber an exact row.
         out.setdefault(key, {
             "phone_number": phone, "teacher_uuid": str(tuuid) if tuuid else None,
-            "source": source, "name": name, "first_name": first,
+            "source": source, "name": name,
             "has_tb_bundle": has_bundle,
         })
     return out

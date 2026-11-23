@@ -1,7 +1,7 @@
 # child-test — Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=01c87afcb89f gen=0efdc7349a2d overflow=44 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=e9ca2b2ea483 gen=9c56dc2a5d39 overflow=80 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-score.test.js` — the SA scorer's core behaviour
@@ -11,16 +11,20 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `sa-r28-bank.test.js` | (unmapped) |
 | `sa-rdf-w3.test.js` | Pins the RDF auto/manual W3 form shape: task list, official items with src, one-at-a-time display, coach_text |
-| `record*` | 4 files; most used `record-sa-voice-v4.test.js`: Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
+| `sa-r28-mcq-gate.test.js` | (unmapped) |
 | `sa-runtime.test.js` | Pins runtime batteries sa.<form>.<lang>.json validating in the engine (sa-core) with blocks, islands and stop rules |
 | `sa-score-timeouts.test.js` | Pins bounded outbound calls and the 90s sweep deadline so the SA scorer cannot be pinned by a hung call |
+| `record*` | 11 files; most used `record-sa-voice-v4.test.js`: Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
 | `sa-bank.test.js` | Pins the generated SA battery bank: official sourcing, response modes, stop rules, en+ur copy and gender-neutral lines |
+| `sa-per-visit.test.js` | (unmapped) |
+| `sa-practice-first.test.js` | (unmapped) |
 | `sa-practice-only.test.js` | Pins child_test_practice_only: practice coaches get only is_probable_test schools, isPracticeCoach, pilot unchanged |
+| `sa-device-bundle.test.js` | (unmapped) |
+| `sa-r28-mcq-of-all.test.js` | (unmapped) |
 | `sa-voice-sustained-sounds.test.js` | Pins letter-sound clips saying each sound once (continuants held) using ffmpeg silencedetect on served clips |
-| `sa-any-school.test.js` | Pins the sa_any_school switch: school list scope, list opening and seating at any live school, fail-closed reads |
-| `sa-restart.test.js` | Pins sa_end_test_restart: restartAttempt sets aside the ended attempt's rows, moves events, refuses when off |
-| … | 50 more → `CLAUDE.index.md` |
+| … | 93 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

@@ -12,6 +12,7 @@ const WhatsAppService = require('../services/whatsapp.service');
 const { uploadImageWithRetry } = require('../storage/r2');
 const { logToFile } = require('../utils/logger');
 const { runWithCorrelation, generateCorrelationId } = require('../utils/structured-logger');
+const { isGreetingOnly } = require('../utils/greeting');
 
 // Trigger keywords for exam checking (English + Urdu + Arabic)
 const EXAM_CHECK_KEYWORDS = [
@@ -118,7 +119,9 @@ async function handleExamText(message, from, user) {
   return runWithCorrelation(correlationId, async () => {
     // Check for trigger keywords or active session
     const triggered = shouldTriggerExamChecker(text);
-    const hasSession = await hasActiveExamSession(user.id);
+    // One look at the session for this message (an idle one is closed inside: bd-krhhgp).
+    const state = await ExamCheckerOrchestrator.getSessionState(user.id);
+    const hasSession = Boolean(state && state.active);
 
     if (!triggered && !hasSession) {
       return null; // Not for exam checker
@@ -126,8 +129,23 @@ async function handleExamText(message, from, user) {
 
     // Menu/exit word mid-flow: end the session and let normal routing answer.
     if (!triggered && hasSession && EXIT_WORDS.has(text.toLowerCase().trim())) {
-      const state = await ExamCheckerOrchestrator.getSessionState(user.id);
       await ExamCheckerOrchestrator.cancelSession(state.sessionId);
+      return null;
+    }
+
+    // A greeting starts a new conversation, never an exam step (bd-krhhgp: "Hey" got
+    // 'You have 0 images'). The normal bot answers it. A session holding no photos is closed;
+    // one holding photos is kept, so a teacher who says hi mid-collection loses nothing.
+    if (!triggered && hasSession && isGreetingOnly(text)) {
+      if (state.active && state.state === 'collecting_images' && !state.imageCount) {
+        await ExamCheckerOrchestrator.cancelSession(state.sessionId);
+      }
+      logToFile('👋 Greeting passed to normal routing during an exam session', {
+        event: 'exam_checker.greeting_passed',
+        sessionId: state.sessionId,
+        state: state.state,
+        imageCount: state.imageCount || 0,
+      });
       return null;
     }
 
@@ -135,6 +153,8 @@ async function handleExamText(message, from, user) {
       userId: user.id,
       triggered,
       hasSession,
+      sessionId: state.sessionId,
+      sessionCreatedAt: state.createdAt,
       textPreview: text.substring(0, 50)
     });
 

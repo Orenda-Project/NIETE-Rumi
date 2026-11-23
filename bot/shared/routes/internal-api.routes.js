@@ -1521,7 +1521,8 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
     return res.status(400).json({ success: false, error: 'openId is required' });
   }
   const AppSurvey = require('../services/lp-app-open-survey.service');
-  const result = await AppSurvey.onViewerOpen({ openId });
+  // `inApp`: the survey bar is on for her in the app, so the app asks there and WhatsApp does not (one survey).
+  const result = await AppSurvey.onViewerOpen({ openId, inApp: (req.body || {}).inApp === true });
   // The same open books the coaching ask a WhatsApp-delivered K-5 plan books (its own guards,
   // its own once-a-day row). Never throws; its answer rides along for the logs.
   const LpCoachingAsk = require('../services/nudges/lp-coaching-ask.service');
@@ -1534,6 +1535,42 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
     topicNudge = { scheduled: false, reason: 'guard_unavailable' };
   }
   return res.json({ success: true, ...result, coachingAsk, topicNudge });
+});
+
+/**
+ * POST /api/internal/lp/feedback
+ * Body { userId, kind: 'k5'|'g612', ref, lang?, useful?, usedInClass?, reasonText? }
+ *   → 200 { success, outcome: 'saved'|'already_answered', feedback } · 404 unknown_plan · 409 no_answer · 400 · 500
+ *
+ * The survey bar at the end of the teacher app's plan viewer (lp-in-app-feedback.service): one lp_feedback row per
+ * teacher per plan, trigger_mode 'in_app', in the column the band rule picks. `userId` is the portal SESSION's.
+ */
+router.post('/lp/feedback', requireInternalKey, async (req, res) => {
+  const InApp = require('../services/lp-in-app-feedback.service');
+  const p = InApp.parse(req.body);
+  if (!p) return res.status(400).json({ success: false, error: 'userId, kind, ref and an answer are required' });
+  try {
+    const out = await InApp.save(p);
+    if (out.outcome === 'unknown_plan') return res.status(404).json({ success: false, outcome: out.outcome });
+    if (out.outcome === 'no_answer') return res.status(409).json({ success: false, outcome: out.outcome });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    logToFile('❌ Internal LP in-app feedback failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not save' });
+  }
+});
+
+/** POST /api/internal/lp/feedback/state  Body { userId, kind, ref } → { success, feedback: null | { useful, usedInClass } } */
+router.post('/lp/feedback/state', requireInternalKey, async (req, res) => {
+  const InApp = require('../services/lp-in-app-feedback.service');
+  const p = InApp.parse({ ...(req.body || {}), useful: false });
+  if (!p) return res.status(400).json({ success: false, error: 'userId, kind and ref are required' });
+  try {
+    return res.json({ success: true, feedback: await InApp.state(p) });
+  } catch (error) {
+    logToFile('❌ Internal LP in-app feedback state failed', { tk: require('../services/quiz/web-quiz-kid').tk(p.userId), kind: p.kind, ref: p.ref, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Could not read' });
+  }
 });
 
 // ─── assessment generator ───────────────────────────────────────────────────
@@ -1656,12 +1693,17 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
     if (Array.isArray(out.types) && await isAssessmentTopicCtaEnabled().catch(() => false)) {
       out.types = require('../services/assessment/topics/stems').withStems(out.types, subject, grade);
     }
+    // AG row 21 — Select from the book, ADDED only while the picker is on, so off this JSON is unchanged.
+    if (await require('../services/assessment/seen-picked').isPickerOn()) out.bookPicker = true;
   } else {
     // The cap is not conditional on having picked a subject — the form needs it
     // to validate the count field before anything else is chosen.
     const QuestionTypes = require('../services/assessment/question-types');
     out.maxQuestions = QuestionTypes.MAX_QUESTIONS;
     out.defaultQuestions = QuestionTypes.DEFAULT_QUESTIONS;
+    // AG row 12: a group under one heading counts as one toward maxQuestions; maxItems bounds what prints.
+    out.groupedTypes = QuestionTypes.GROUPED_TYPES;
+    out.maxItems = QuestionTypes.MAX_ITEMS;
   }
 
   // Board-pattern papers. Both keys are ADDED only when the flag is on, so with
@@ -1731,6 +1773,45 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
   const chapters = await Browse.listChapters(grade, subject, ...curriculumArgs(await teacherCurriculum(body)));
   return res.json({ success: true, chapters });
 }));
+
+/**
+ * POST /api/internal/assessment/exercises
+ * Body { grade, subject, chapterNumbers } → { success, enabled, chapters: [{ chapterNumber, title, exercises }] }
+ *
+ * AG row 21: her chapters' own exercise questions, for the "Pick from the book" tick-list. Off (app_settings
+ * assessment_book_picker_enabled) → enabled false and nothing read, so the portal draws no picker.
+ */
+router.post('/assessment/exercises', requireInternalKey, assessmentRoute('exercises', async (_Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapters = Array.isArray(body.chapterNumbers) ? body.chapterNumbers.map(num).filter(Number.isInteger) : [];
+  if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!chapters.length) return res.status(400).json({ success: false, error: 'chapterNumbers is required' });
+  if (!(await require('../services/assessment/seen-picked').isPickerOn())) return res.json({ success: true, enabled: false, chapters: [] });
+  if (!(await cellOffered(grade, subject, bodyUserId(body)))) return res.status(400).json(GRADE_NOT_OFFERED);
+  const curriculum = await teacherCurriculum(body);
+  const { listExercises } = require('../services/assessment/book-exercises.service');
+  const out = await listExercises({ grade, subject, chapterNumbers: chapters, curriculum: curriculumArgs(curriculum).length ? curriculum : null });
+  return res.json({ success: true, enabled: true, chapters: out.chapters });
+}));
+
+/**
+ * AG row 21 — the create request's ticked book questions: { picks: null } when none (or the picker is off, or
+ * the paper takes nothing from the book), { picks, types } when good, { error } otherwise.
+ */
+async function bookPicks(body, { contentSource, subject, grade, chapters, QuestionTypes }) {
+  if (!(contentSource === 'seen' || contentSource === 'both') || !Array.isArray(body.seenPicked) || !body.seenPicked.length) {
+    return { picks: null };
+  }
+  const SeenPicked = require('../services/assessment/seen-picked');
+  if (!(await SeenPicked.isPickerOn())) return { picks: null };
+  const allowed = QuestionTypes.forSubject(subject, grade).filter((t) => t.category !== 'board').map((t) => t.id);
+  const out = SeenPicked.clean(body.seenPicked, { allowed, chapters });
+  if (out.error || !out.picks) return out;
+  return { picks: out.picks, types: SeenPicked.toTypes(out.picks, (id) => QuestionTypes.categoryOf(id, subject, grade)) };
+}
 
 /**
  * POST /api/internal/assessment/topics
@@ -2098,7 +2179,9 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // the cap is a convenience; a server that enforces it is the actual rule, and
   // the request row's own CHECK allows up to 60.
   const QuestionTypes = require('../services/assessment/question-types');
-  const parsed = QuestionTypes.parseQuestionCount(
+  // AG row 12: the count is the printed items (up to MAX_ITEMS); the 50-question rule is checked on the types below,
+  // where a group of MCQs, blanks or true/false under one heading counts as one.
+  const parsed = QuestionTypes.parsePaperSize(
     questionCount === null ? QuestionTypes.DEFAULT_QUESTIONS : questionCount);
   if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.message });
 
@@ -2125,6 +2208,43 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       return res.status(400).json({ success: false, error: 'Leave room for new questions.' });
     }
     seenCount = seen.count;
+  }
+  // bd-e5n2jf — Seen per-type counts (Mubashar Zia, 20 Nov): on Seen and Mix she may say how many of
+  // each type come from the book, from the same list as Unseen. Seen: the paper is their sum. Mix:
+  // their sum is the Seen part. Absent, the single Seen number above is used, as before.
+  // AG row 21 — the book questions she ticked (Pick from the book). They ARE her Seen part: counted per type
+  // into seenTypes below, so every rule after this holds unchanged. Ignored with the picker off.
+  const book21 = await bookPicks(body, { contentSource, subject, grade, chapters: picked, QuestionTypes });
+  if (book21.error) return res.status(400).json({ success: false, error: book21.error });
+  const seenPicked = book21.picks;
+  const askedSeenTypes = seenPicked ? book21.types : body.seenTypes;
+  let seenTypes = null;
+  let paperCount = parsed.count;
+  if ((contentSource === 'seen' || contentSource === 'both')
+      && Array.isArray(askedSeenTypes) && askedSeenTypes.length) {
+    const allowed = QuestionTypes.forSubject(subject, grade).filter((t) => t.category !== 'board').map((t) => t.id);
+    seenTypes = [];
+    for (const t of askedSeenTypes) {
+      const id = String((t && t.id) || '').trim();
+      const n = Number(t && t.count);
+      if (!allowed.includes(id)) {
+        return res.status(400).json({ success: false, error: `${id || 'That type'} is not a question type for this subject.` });
+      }
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
+      }
+      seenTypes.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
+    }
+    const seenSum = QuestionTypes.parsePaperSize(seenTypes.reduce((s, t) => s + t.count, 0));
+    if (!seenSum.ok) return res.status(400).json({ success: false, error: seenSum.message });
+    if (contentSource === 'seen') {
+      paperCount = seenSum.count;
+    } else {
+      if (seenSum.count >= parsed.count) {
+        return res.status(400).json({ success: false, error: 'Leave room for new questions.' });
+      }
+      seenCount = seenSum.count;
+    }
   }
   // The questions the types are for: the whole paper, less the ones lifted from the book on Mix.
   const unseenTarget = parsed.count - (seenCount || 0);
@@ -2166,6 +2286,15 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   } else {
     types = QuestionTypes.defaultMix(subject, grade, unseenTarget);
   }
+  // The 50-question rule (AG row 12): each group under one heading is one, each written question one.
+  const seenPart = seenTypes ? QuestionTypes.limitCount(seenTypes) : (contentSource === 'seen' ? paperCount : (seenCount || 0));
+  const counted = seenPart + (contentSource === 'seen' ? 0 : QuestionTypes.limitCount(types));
+  if (counted > QuestionTypes.MAX_QUESTIONS) {
+    return res.status(400).json({
+      success: false,
+      error: `That is ${counted} questions. A paper can hold up to ${QuestionTypes.MAX_QUESTIONS} — a group of MCQs, blanks or true/false counts as one.`,
+    });
+  }
 
   // She picked a chapter, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading a contents
@@ -2195,10 +2324,12 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
     contentSource,
-    questionCount: parsed.count,
+    questionCount: paperCount,
     seenCount,
     totalMarks: budget.marks,
     questionTypes: types,
+    ...(seenTypes ? { seenTypes } : {}),
+    ...(seenPicked ? { seenPicked } : {}),
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,
@@ -2288,6 +2419,7 @@ router.use(require('./internal-attendance.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
 router.use(require('./internal-share.routes'));
 router.use(require('./internal-lp612-own.routes')); // bd-snkn32 Make my own — its own file; see its header.
+router.use(require('./internal-lp612-own-rating.routes')); // bd-snkn32.11 her rating of her own plan
 router.use(require('./internal-lp612-shelf.routes')); // bd-snkn32.42 shelf + human check — see its header.
 router.use(require('./internal-fln-send.routes')); // FLN Send to teacher (PR-E) — its own file; see its header.
 
@@ -3294,13 +3426,14 @@ function portalObserveRoute(name, run) {
 
 /**
  * POST /api/internal/coaching/observe/start
- * Body { userId, teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Body { userId, teacherExtId, schoolExtId?, key, lessonPlanKey?, lessonPlan?, photoKeys?, lesson?, notes? }
  * Ok   200 { status:'ok', coachingSessionId }   400 invalid (not_your_teacher, plan_not_found, …)
+ * notes (bd-ra8xu.60): her Observation Notes [{ text, rec_time | recTime, source, typed_at }]; the service checks them.
  */
 router.post('/coaching/observe/start', requireInternalKey, portalObserveRoute('observe-start',
   (Svc, b) => Svc.startPortalObservation({
     userId: b.userId, teacherExtId: b.teacherExtId, schoolExtId: b.schoolExtId, key: b.key,
-    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson,
+    lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan, lesson: b.lesson, notes: b.notes,
   })));
 
 /** POST /api/internal/coaching/observe/lesson-question  Body { userId } — does Check and send ask the class? (bd-ra8xu.40) */
@@ -3327,10 +3460,13 @@ router.post('/coaching/observe/draft', requireInternalKey, portalObserveRoute('o
  * POST /api/internal/coaching/observe/draft/save  Body { userId, coachingSessionId, edits, submit? } — the Flow's edit
  * keys. bd-ra8xu.40: `submit: true` (only that) submits an FDE (obs612) visit's form; refused while anything is missing
  * (400 invalid, reason obs612_incomplete, with missing and errors). A FICO save is passed on as before, with no submit.
+ * bd-o15qnr.32: `evidence_review` (the v7 form's evidence option B, per indicator) rides as evidenceReview when sent;
+ * the service checks its shape. Without it the call is today's.
  */
 router.post('/coaching/observe/draft/save', requireInternalKey, portalObserveRoute('observe-draft-save',
   (Svc, b) => Svc.saveDraft({
     userId: b.userId, coachingSessionId: b.coachingSessionId, edits: b.edits, ...(b.submit === true ? { submit: true } : {}),
+    ...(b.evidence_review !== undefined ? { evidenceReview: b.evidence_review } : {}),
   })));
 
 /** POST /api/internal/coaching/observe/talk/guide — the debrief guide (built once; can take a model call). */

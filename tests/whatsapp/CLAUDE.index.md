@@ -8,6 +8,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `helpers/` | → (no door; 1 files: 0 test + 1 support) |
 | `extract-key-leading-slash.test.js` | bd-8s0dp: r2 extractKeyFromUrl strips leading slashes on bare keys so feature intro videos are sent |
+| `inbound-media-failed.test.js` | (unmapped) |
 | `inbound-typing-scope.test.js` | bd-0wrn4: inbound typing scope through the real WhatsApp service: replies to others, same-person replies and reactions |
 | `inbound-typing.test.js` | bd-0wrn4: typing is not left on screen after a reaction-only or empty reply, sticker, or silent receipt |
 | `password-reset-sync-budget.test.js` | Pins that POST /api/internal/send-password-reset answers the portal inside its 10 s timeout despite send pacing |

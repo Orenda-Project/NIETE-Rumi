@@ -1,7 +1,7 @@
 # lp612 — Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=67e0355dfd06 gen=590a35a6ff46 overflow=147 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=98641ec30f7b gen=f42f930ada70 overflow=223 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `serving.test.js` — tap to PDF: cache hit vs author now; the lane's front door
@@ -13,14 +13,16 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `__fixtures__/` | → (no door; 7 files: 0 test + 7 support) |
+| `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `helpers/` | Shared harnesses and doubles for the lp612 E2E and unit suites → `helpers/CLAUDE.md` |
 | `fbise-slo-chips.test.js` | bd-f01ob: pins each FBISE SLO showing its own Summative/Formative chip in the outcome box (template, validate, overlay) |
+| `own-goal-k5.test.js` | (unmapped) |
 | `visual*` | 3 files; most used `visual-contract.test.js`: Pins the brief 4b visual contract wired into the gate of record (lint_lp, visual_check, types_manifest) |
 | `cost-names-the-lesson.test.js` | bd-b0qwk.6: pins model-call cost events for writing a 6-12 lesson naming its render and segment |
 | `vendor-integrity.test.js` | Pins integrity of the vendored bot/vendor/lp-v9 pipeline (brief, schemas, lint, renderer) against its upstream manifest |
+| `bidi-caps.test.js` | Pins the vendored 6-12 renderer's bidi pass and language-aware page caps for Urdu and English |
 | `overlay-backfill-over-cap.e2e.test.js` | bd-0t9ce: e2e: an over-cap lesson is repaired in place by the overlay backfill and served in Urdu |
-| `overlay-backfill-over-cap.test.js` | bd-0t9ce: pins overlay repairRow not being stricter than delivery: over-cap renders are written back |
-| … | 204 more → `CLAUDE.index.md` |
+| … | 308 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -34,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/data/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? (+3)
+- docs: `bot/shared/data/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? (+4)

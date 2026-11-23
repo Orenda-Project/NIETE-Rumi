@@ -143,6 +143,16 @@ async function startQuiz({ user, kind, id, lang }, deps) {
   return { error: 'not_found' };
 }
 
+/**
+ * A lesson key a registered provider can parse (`lsn_<source>_<ref>`, the /quiz list's key) → the key, else null. Format
+ * only, no read: whose lesson it is, the provider checks when the quiz is made (startQuiz).
+ */
+function lessonKeyOf(key, deps) {
+  if (typeof key !== 'string' || !/^lsn_[A-Za-z0-9_:.-]{1,200}$/.test(key)) return null;
+  const parsed = providersOf(deps).parseLessonKey(key);
+  return parsed && parsed.provider ? key : null;
+}
+
 /** A quiz the page is waiting on → { state, message?, wa? } | null (not this teacher's). */
 async function quizStatus({ uid, lang, quizId }, deps) {
   const supabase = supabaseOf(deps);
@@ -159,4 +169,4 @@ async function quizStatus({ uid, lang, quizId }, deps) {
   return { state: state === 'failed' ? 'failed' : 'making', title: q.topic || '' };
 }
 
-module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, storedCodeOf, ownFrom, againOf, startQuiz, quizStatus };
+module.exports = { withReturn, waHref, chipFor, videoSend, shareSend, againSend, ownMessage, storedCodeOf, ownFrom, againOf, startQuiz, quizStatus, lessonKeyOf };

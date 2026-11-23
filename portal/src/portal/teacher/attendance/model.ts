@@ -23,6 +23,26 @@ export type Status = 'present' | 'absent' | 'leave';
 /** Who is away; everyone else is present (mark by exception, as WhatsApp). */
 export type Marks = Record<string, 'absent' | 'leave'>;
 
+/* ── the teachers' register (bd-33wxxi.10) ───────────────────────────────── */
+
+/** A principal's teachers, as a register: its listId (the server's; never a class's uuid). */
+export const STAFF = 'staff';
+
+export const isStaff = (listId: string | null | undefined) => listId === STAFF;
+
+/**
+ * Her registers with the teachers' one named in her language: the server's label for it is the school's name
+ * (data), the card says what it is (copy). Class rows are untouched.
+ */
+export function withStaffName(classes: AttendanceClass[], name: string): AttendanceClass[] {
+  return classes.map((c) => (isStaff(c.listId) ? { ...c, label: name } : c));
+}
+
+/** Her ONLY register is her teachers: the hub is skipped and the roll call is the page (Back = Home). */
+export function onlyStaff(classes: AttendanceClass[] | null | undefined, listId?: string): boolean {
+  return !!classes && classes.length === 1 && isStaff(classes[0].listId) && (listId === undefined || isStaff(listId));
+}
+
 /* ── the selector ─────────────────────────────────────────────────────────── */
 
 /** What GradeSubjectButton shows for a class: Grade·Subject when both are known, its own name otherwise. */

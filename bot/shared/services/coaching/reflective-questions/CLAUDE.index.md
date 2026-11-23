@@ -14,18 +14,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `question-prompt.js` | Builds the system prompt for one question of the v12 conversational reflective chain |
 
 ## Who reads this (all, generated)
-- `corpus-normalise.js` ← imported by `bot/shared/services/gpt5-mini.service.js:888:9b0e7afb`
-- `corpus-prompt.js` ← imported by `bot/shared/services/gpt5-mini.service.js:876:86d791bc`
-- `guardrails.js` ← imported by `bot/shared/services/coaching/coaching-card/commitment-card.service.js:27:35714644` · `bot/shared/services/coaching/reflective-conversation.service.js:110:6e560a9c` · `bot/shared/services/gpt5-mini.service.js:918:d5aeeb7e`
-- `language-profiles.js` ← imported by `bot/shared/services/coaching/reflective-conversation.service.js:111:cb1b4a9f` · `bot/shared/services/gpt5-mini.service.js:875:e574b931`
-- `llm-router.service.js` ← imported by `bot/shared/services/gpt5-mini.service.js:877:7c9a8fe1`
-- `question-prompt.js` ← imported by `bot/shared/services/gpt5-mini.service.js:916:ef82afe5`
+- `corpus-normalise.js` ← imported by `bot/shared/services/gpt5-mini.service.js:814:9b0e7afb`
+- `corpus-prompt.js` ← imported by `bot/shared/services/gpt5-mini.service.js:802:86d791bc`
+- `guardrails.js` ← imported by `bot/shared/services/coaching/coaching-card/commitment-card.service.js:27:35714644` · `bot/shared/services/coaching/reflective-conversation.service.js:110:6e560a9c` · `bot/shared/services/gpt5-mini.service.js:844:d5aeeb7e`
+- `language-profiles.js` ← imported by `bot/shared/services/coaching/reflective-conversation.service.js:111:cb1b4a9f` · `bot/shared/services/gpt5-mini.service.js:801:e574b931`
+- `llm-router.service.js` ← imported by `bot/shared/services/gpt5-mini.service.js:803:7c9a8fe1`
+- `question-prompt.js` ← imported by `bot/shared/services/gpt5-mini.service.js:842:ef82afe5`
 
 ## Tests (all, generated)
 - `corpus-prompt.js` ← `tests/coaching/corpus-time-anchor.test.js`
 - `guardrails.js` ← `bot/tests/coaching/reflective-question-english-contract.test.js` · `bot/tests/whatsapp/send-audio-absent-temp-dir.test.js` · `tests/coaching/bd-6fdy3-reflection-redesign.test.js` · `tests/coaching/gender-neutral-urdu-address.test.js` · `tests/coaching/reflective-v12-question-chain.test.js`
 - `language-profiles.js` ← `bot/tests/coaching/reflective-question-english-contract.test.js` · `bot/tests/whatsapp/send-audio-absent-temp-dir.test.js` · `tests/coaching/bd-6fdy3-reflection-redesign.test.js` · `tests/coaching/bd2651-voice-language-rules.test.js` · `tests/coaching/corpus-time-anchor.test.js` · `tests/coaching/reflective-v12-question-chain.test.js`
-- `llm-router.service.js` ← `tests/e2e-mock/reflective-router-cassette.test.js`
+- `llm-router.service.js` ← `tests/e2e-mock/reflective-router-cassette.test.js` · `tests/llm/job-effort.test.js`
 - `question-prompt.js` ← `bot/tests/calls/coaching-voice.test.js` · `bot/tests/coaching/reflective-question-english-contract.test.js` · `tests/coaching/bd-6fdy3-reflection-redesign.test.js`
 
 ## Related (all, generated)

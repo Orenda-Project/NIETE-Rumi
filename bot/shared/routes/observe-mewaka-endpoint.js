@@ -223,6 +223,9 @@ async function bufferEdits(sessionId, screenData) {
     // and fid_e_k evidence boxes, applied by rescoreFidelityFromEdits on submit.
     // why_ / chg_ / d2_ are FICO17 v6 only (bd-ra8xu.38): a V3 form never sends them.
     if (/^(r|ev|imp|fid|why|chg|d2)_/.test(k)) edits[k] = v;
+    // bd-ra8xu.60: the review Flow says (on Section B) that its intros declare the Observation Notes fields; kept with
+    // her answers so every later intro, Back included, knows. applyObserverEdits reads only the prefixes above.
+    if (k === 'v6n' && typeof v === 'string') edits[k] = v;
   });
   let existing = {};
   try {
@@ -234,6 +237,19 @@ async function bufferEdits(sessionId, screenData) {
   const merged = { ...existing, ...edits };
   await redisService.setexWithCeiling(editsKey(sessionId), EDITS_TTL, JSON.stringify(merged));
   return merged;
+}
+
+/**
+ * bd-ra8xu.60 — stamp analysis_data.observation_notes_review_opened_at, once, while Observation Notes are on for the
+ * coach. Not awaited by the caller; never throws.
+ */
+function stampReviewOpened(session) {
+  const observerId = session.observer_user_id || session.user_id;
+  (async () => {
+    const { isOn } = require('../services/observe/observation-notes-switch');
+    if (!(await isOn(observerId))) return;
+    await require('../services/observe/observation-notes').markReviewOpened(session.id);
+  })().catch((err) => logToFile('observation-notes: review-opened stamp failed', { sessionId: session.id, error: err.message }, 'warn'));
 }
 
 /**
@@ -284,6 +300,9 @@ async function handleObserveMewakaRequest(decrypted) {
     };
 
     if (action === 'INIT') {
+      // bd-ra8xu.60: the first time the coach opens Rumi's review, a note saved after it is no longer one she typed
+      // before seeing Rumi's levels. Stamped beside the response, never delaying it; never throws.
+      if (isV6Visit(session)) stampReviewOpened(session);
       // bd-59: the first domain comes from the PACK — 'introduction' is a
       // mewaka key and crashed every HOTS open (the bd-52 refactor converted
       // BACK/data_exchange to domainKeyForScreen but missed this branch).

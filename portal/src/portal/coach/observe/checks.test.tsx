@@ -15,6 +15,8 @@ const PAGES = ["CoachObserve", "CoachObservePick", "CoachVisit", "CoachRecord", 
 const files = [
   ...PAGES.map((p) => ({ rel: `pages/${p}.tsx`, path: resolve(__dirname, `../pages/${p}.tsx`) })),
   { rel: "observe/ObservePage.tsx", path: resolve(__dirname, "ObservePage.tsx") },
+  // bd-ra8xu.60 — the Observation Notes list and box (Record, Check and send, and the v6 Feedback Form parts).
+  { rel: "observe/ObservationNotes.tsx", path: resolve(__dirname, "ObservationNotes.tsx") },
   { rel: "observe/sender.ts", path: resolve(__dirname, "sender.ts") },
   { rel: "observe/format.ts", path: resolve(__dirname, "format.ts") },
 ].map((f) => ({ rel: f.rel, text: readFileSync(f.path, "utf8") }));

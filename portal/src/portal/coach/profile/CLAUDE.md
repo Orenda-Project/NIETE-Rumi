@@ -1,6 +1,6 @@
 # profile — Coach More page and own profile
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=b82c1f75a062 gen=805744b9d1e5 overflow=0 rendered=2026-10-30 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=6fb0cdbbdf38 gen=4db47ca556a9 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachMore.tsx` — identity, Language toggle, My profile, Log out
@@ -19,10 +19,10 @@
 | `useCoachCounts.ts` | Reads school and teacher counts from GET /coach/home for the profile pages |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/insights/components/MoreCoachip.tsx:8:d008c2de` · `portal/src/portal/coach/pages/CoachHome.tsx:13:8f191f80` (+3)
+- `copy.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:19:8f191f80` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:8:d008c2de` (+4)
 - `useCoachCounts.ts` ← imported by `portal/src/portal/coach/profile/CoachMore.tsx:12:01da9c4b` · `portal/src/portal/coach/profile/CoachProfile.tsx:14:01da9c4b`
-- `CoachMore.tsx` ← imported by `portal/src/App.tsx:145:78a58fe5`
-- `CoachProfile.tsx` ← imported by `portal/src/App.tsx:150:00acb213`
+- `CoachMore.tsx` ← imported by `portal/src/App.tsx:155:78a58fe5`
+- `CoachProfile.tsx` ← imported by `portal/src/App.tsx:160:00acb213`
 
 ## Never (human)
 - Privacy policy and Delete account must stay findable in-app for Google Play (profile/CoachProfile.tsx:20, bd-3wb0s)
@@ -33,6 +33,7 @@
 - `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` (CoachMore.tsx)
 - `portal/src/portal/coach/profile/CoachMore.test.tsx` (CoachMore.tsx)
 - `portal/src/portal/coach/profile/CoachProfile.test.tsx` (CoachProfile.tsx)
+- `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx` (CoachProfile.tsx)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

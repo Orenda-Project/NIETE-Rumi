@@ -31,7 +31,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `context.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:28:88b8609b` · `bot/shared/services/child-test/check-flow/completion.js:11:1320dfeb` · `bot/shared/services/child-test/check-flow/send-check.js:13:1320dfeb`
 - `example.js` ← imported by `bot/shared/services/child-test/check-flow/flow.js:30:d2e284a4`
 - `flow.js` ← imported by `bot/scripts/setup/register-child-test-check-flow.js:52:7da3d937` · `bot/scripts/generate-child-test-check-flow-json.js:12:80331a30`
-- `index.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:526:d361a842` · `bot/whatsapp-bot.js:1933:051e3080`
+- `index.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:530:d361a842` · `bot/whatsapp-bot.js:1985:051e3080`
 - `items.js` ← imported by `bot/shared/services/child-test/check-flow/context.js:9:7ba3371e` · `bot/shared/services/child-test/check-flow/index.js:22:7ba3371e` · `bot/shared/services/child-test/check-flow/review-flow.js:21:7ba3371e` · `bot/shared/services/child-test/check-flow/review.js:38:7ba3371e`
 - `prefill.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:26:78eee537` · `bot/shared/services/child-test/check-flow/flow.js:28:3dbfc205` · `bot/shared/services/child-test/check-flow/index.js:20:8f86ffc8` · `bot/shared/services/child-test/check-flow/send-check.js:14:3356c2c4`
 - `review-flow.js` ← imported by `bot/scripts/setup/create-child-test-review-flow-draft.js:33:321de5c6` · `bot/scripts/generate-child-test-review-flow-json.js:12:b50c3294`
@@ -42,10 +42,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `slots.js` ← imported by `bot/shared/services/child-test/check-flow/flow.js:27:503db1e0` · `bot/shared/services/child-test/check-flow/prefill.js:28:503db1e0`
 - `strings.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:29:0aca506a` · `bot/shared/services/child-test/check-flow/completion.js:13:52365221` · `bot/shared/services/child-test/check-flow/context.js:10:52365221` · `bot/shared/services/child-test/check-flow/flow.js:29:52365221` (+1: `python3 kg/kg.py who-reads strings.js`)
 - `token.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:30:52e2fbe4` · `bot/shared/services/child-test/check-flow/completion.js:12:eb846b68` · `bot/shared/services/child-test/check-flow/context.js:11:65cbfffe` · `bot/shared/services/child-test/check-flow/index.js:19:5d29cc0a` (+2: `python3 kg/kg.py who-reads token.js`)
-- column `child_test_blocks.block` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:927:93be78de`
-- column `child_test_blocks.session_id` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:927:93be78de` · `scripts/child-test/smoke-sandbox.js:122:b9d4320e`
-- table `child_test_blocks` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:902:c318f982`? · `scripts/child-test/smoke-sandbox.js:83:c2d8ba96`?
-- table `child_test_sessions` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:1061:a92c1089`? · `scripts/child-test/smoke-sandbox.js:120:09a87965`?
+- column `child_test_blocks.block` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:1462:93be78de`
+- column `child_test_blocks.session_id` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:1462:93be78de` · `scripts/child-test/smoke-sandbox.js:122:b9d4320e`
+- table `child_test_blocks` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:1434:c318f982`? · `scripts/child-test/smoke-sandbox.js:83:c2d8ba96`?
+- table `child_test_sessions` (written by `check-store.js`) ← read by `bot/shared/services/child-test/sa/score.js:1610:a92c1089`? · `scripts/child-test/smoke-sandbox.js:120:09a87965`? · `scripts/sandbox-pii-purge.py:656:5fa9744d`?
 - env `CHILD_TEST_CHECK_FLOW_ID` read at `bot/shared/services/child-test/check-flow/send-check.js:90:18e8fb00`
 - env `CHILD_TEST_ENABLED` read at `bot/shared/services/child-test/check-flow/token.js:15:a0340365`
 - env `CHILD_TEST_REVIEW_FLOW_ID` read at `bot/shared/services/child-test/check-flow/review.js:287:d71b758f`

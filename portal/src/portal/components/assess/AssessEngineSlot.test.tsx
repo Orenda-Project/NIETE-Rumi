@@ -114,6 +114,10 @@ describe("AssessEngineSlot", () => {
     const batteryEnd = (s = SID) => act(() => {
       window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin }));
     });
+    // Next child waits for the last recording's upload (AssessEngineSlot.lastrec.test.tsx)
+    const audioSaved = (s = SID) => act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:audio_saved", s, pending_audio: 0, state: "synced" }, origin: window.location.origin }));
+    });
 
     it("at sa:battery_end the hold reads Next child (coach) / Press and hold, and completing it finishes complete", () => {
       const { frame, onFinished } = setup({ lang: "en", handbackV2: true });
@@ -121,6 +125,7 @@ describe("AssessEngineSlot", () => {
       Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ postMessage: post, location: { search: "" } }) });
       expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
       batteryEnd();
+      audioSaved();
       const hold = screen.getByRole("button", { name: /Next child \(coach\)/ });
       expect(hold).toHaveTextContent("Press and hold");
       expect(screen.queryByRole("button", { name: /End test/ })).toBeNull();
@@ -135,6 +140,7 @@ describe("AssessEngineSlot", () => {
     it("the Urdu labels", () => {
       setup({ lang: "ur", handbackV2: true });
       batteryEnd();
+      audioSaved();
       const hold = screen.getByRole("button", { name: /اگلا بچہ \(کوچ\)/ });
       expect(hold).toHaveTextContent("دبا کر رکھیں");
     });
@@ -176,6 +182,7 @@ describe("AssessEngineSlot", () => {
       expect(onFinished).not.toHaveBeenCalled();
       expect(post).not.toHaveBeenCalled();
       batteryEnd();
+      audioSaved();
       const ready = screen.getByRole("button", { name: /Next child \(coach\)/ });
       expect(ready).not.toBeDisabled();
       expect(ready).toHaveTextContent("Press and hold");

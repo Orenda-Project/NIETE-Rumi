@@ -90,6 +90,11 @@ export const REPORTS_EN = {
   keepChecking: "Keep checking",
   saving: "Saving",
   saveFailed: "Could not save",
+  // bd-o15qnr.38 — the v7 save: still no answer after a few seconds (her answers stay on the phone), or both tries lost.
+  keptOnPhone: "Kept on this phone",
+  noConnection: "No connection",
+  /* bd-tfya0m — an observation with no analysis: there is no draft to check (the bot answers 409 no_analysis) */
+  noAnalysis: "No report to check",
   notEditable: "Cannot change it now",
   readOnly: "Your answers",
   /* bd-ra8xu.40 — a FICO17 v6 visit: the six set from the room, their reasons, D2's counts, a changed AI level's reason */
@@ -105,6 +110,8 @@ export const REPORTS_EN = {
   sayWhyNumber: "Counts and level differ",
   fixThese: "Fix these first",
   couldntTell: "Couldn't tell",
+  /* bd-ra8xu.60 — her Observation Notes (Record and Check and send), read only at the top of each v6 part */
+  notesHeading: "📝 Your Observation Notes",
 
   /*
    * bd-ra8xu.40 — an FDE (obs612) visit's form (Obs612Form). FDE's own wording (its items, levels, headings and the
@@ -141,6 +148,11 @@ export const REPORTS_EN = {
       number: "A whole number",
       row_two: "Fill this in too",
       same_area: "Pick another area",
+      // bd-31ziu8 — FICO-S v1.1: every level needs what the observer saw and heard (20+ characters; the box says so).
+      evidence: "Write what you saw",
+      same_focus: "Pick another indicator",
+      // Queue #184 — FICO 6-12 on the Digital Coach: a level changed from Rumi's needs the reason (20+ characters).
+      change: "Write why you changed",
     },
   },
 
@@ -174,6 +186,8 @@ export const REPORTS_EN = {
   listeningTalk: "Listening to your talk",
   notAudio: "Not a recording",
   tooLarge: "File too large",
+  /* bd-tymy1n (queue #179) — a talk file the phone will not open, refused when she picks it (the teacher app's words) */
+  fileWontOpen: "File will not open",
   sendingTalk: "Sending",
   netTitle: "The internet stopped",
   netSafe: "The recording is safe",
@@ -299,6 +313,9 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   keepChecking: "جانچتے رہیں",
   saving: "محفوظ ہو رہا ہے",
   saveFailed: "محفوظ نہیں ہوا",
+  keptOnPhone: "اس فون میں محفوظ",
+  noConnection: "رابطہ نہیں ہو سکا",
+  noAnalysis: "رپورٹ موجود نہیں",
   notEditable: "اب بدل نہیں سکتا",
   readOnly: "آپ کے جوابات",
   fromRoom: "کلاس میں طے کریں",
@@ -313,6 +330,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   sayWhyNumber: "گنتی اور سطح مختلف",
   fixThese: "پہلے یہ ٹھیک کریں",
   couldntTell: "پتا نہیں چل سکا",
+  // bd-ra8xu.60 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «مشاہدے کے نوٹس» as on Record.
+  notesHeading: "📝 آپ کے مشاہدے کے نوٹس",
 
   // bd-ra8xu.40 — NEW and MACHINE-DRAFTED: awaits a native check (NATIVE-CHECK), like the rest of this file's Urdu.
   // Words reused from above where they exist: محفوظ کریں، جانچتے رہیں، مشاہدات، فیڈبیک.
@@ -345,6 +364,9 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
       number: "پورا عدد لکھیں",
       row_two: "یہ بھی بھریں",
       same_area: "کوئی اور شعبہ چنیں",
+      evidence: "جو دیکھا وہ لکھیں",
+      same_focus: "کوئی اور اشاریہ چنیں",
+      change: "بدلنے کی وجہ لکھیں",
     },
   },
 
@@ -376,6 +398,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   listeningTalk: "گفتگو کا تجزیہ",
   notAudio: "یہ ریکارڈنگ نہیں",
   tooLarge: "فائل بہت بڑی ہے",
+  fileWontOpen: "فائل نہیں کھل رہی",
   sendingTalk: "بھیجا جا رہا ہے",
   netTitle: "انٹرنیٹ بند ہو گیا",
   netSafe: "ریکارڈنگ محفوظ ہے",
@@ -434,5 +457,6 @@ export const COPY_ENTRY = {
   /** "—" and the percent formatter are rightly the same in both languages. */
   same: ["dash", "pct"],
   /** Sentences that mirror a screen's name word for word. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder"],
+  /** bd-ra8xu.60 — notesHeading: «آپ کے مشاہدے کے نوٹس» is five Urdu words for the operator's four English ones. */
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading"],
 };

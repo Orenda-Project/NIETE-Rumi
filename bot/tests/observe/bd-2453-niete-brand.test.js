@@ -62,8 +62,11 @@ describe('bd-2453 — coach card brand tokens', () => {
   });
 
   test('debrief delivery selects the coach-card brand from the session framework', () => {
-    const src = SRC('services/observe/observe-debrief.service.js');
-    expect(src).toMatch(/renderCoachCard\([^)]*brand/);
+    // bd-9652yj: the card sender moved unchanged to coach-report-card.js (the report-ready reply sends it too); the
+    // debrief job hands it the session's framework.
+    expect(SRC('services/observe/coach-report-card.js')).toMatch(/renderCoachCard\([^)]*brand/);
+    expect(SRC('services/observe/observe-debrief.service.js'))
+      .toMatch(/sendCoachReportPicture\(from, feedback, S, framework, lang\)/);
   });
 });
 

@@ -28,8 +28,12 @@ export function visitItem(v: CoachVisit, W: CoachHomeCopy): HistoryItem {
   };
 }
 
-/** The visit that is next: a bordered card, the visit row, and one Take observation button inside it. */
-export function CurrentVisit({ v, W }: { v: CoachVisit; W: CoachHomeCopy }) {
+/**
+ * The visit that is next: a bordered card, the visit row, and one Take observation button inside it.
+ * bd-o15qnr.26 — `start` (the visit flow v2's Today card): the button is Start recording instead, the indigo 64px
+ * button with the red mark, straight to this visit's record step (one tap from Home).
+ */
+export function CurrentVisit({ v, W, start }: { v: CoachVisit; W: CoachHomeCopy; start?: { onPress?: () => void } }) {
   const h = hoursUntil(v.scheduledSlot);
   return (
     <section data-testid="visit-current" className="overflow-hidden rounded-[18px] border-2 border-[#33374a] bg-white shadow-[0_4px_14px_rgba(51,55,74,0.14)]">
@@ -43,12 +47,20 @@ export function CurrentVisit({ v, W }: { v: CoachVisit; W: CoachHomeCopy }) {
         to={to(v)}
       />
       <div className="px-3 pb-3 pt-2">
+        {start ? (
+          <Link to={`${to(v)}/record`} onClick={start.onPress}
+            className="flex min-h-[64px] items-center justify-center gap-2.5 rounded-[14px] bg-[#33374a] px-3 text-[16px] font-semibold text-white">
+            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_4px_rgba(255,77,61,0.25)]" />
+            {W.startRecording}
+          </Link>
+        ) : (
         <Link to={to(v)}
           className="flex min-h-[64px] items-center gap-2.5 rounded-[14px] border border-[#e5e7eb] bg-[#f9fafb] px-3 text-[15px] font-semibold">
           <IconCircle hue="observe" size={40}><Eye className="h-5 w-5" /></IconCircle>
           <span className="flex-1">{W.takeObservation}</span>
           <Chevron />
         </Link>
+        )}
       </div>
     </section>
   );

@@ -36,7 +36,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFake = createFakeSupabase({
     users: [
-      { id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', role: 'coach', region: 'Sihala' },
+      { id: 'coach-1', phone_number: '923000000001', name: 'Coach', preferred_language: 'en', role: 'principal' /* queue #191: rows decide for a principal, not a coach */, region: 'Sihala' },
       { id: 'teacher-1', phone_number: '923000000002', name: 'Teacher', preferred_language: 'en', role: 'teacher', teacher_level: ['PRIMARY'] },
     ],
   });

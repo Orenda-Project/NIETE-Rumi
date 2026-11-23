@@ -4231,7 +4231,7 @@ CREATE TABLE IF NOT EXISTS lp_feedback (
   chapter_number INTEGER,
   segment_number INTEGER,
   topic TEXT,
-  trigger_mode TEXT CHECK (trigger_mode IN ('after_voice_note', 'after_pdf_only')),
+  trigger_mode TEXT CHECK (trigger_mode IN ('after_voice_note', 'after_pdf_only', 'in_app')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_lp_feedback_user_time
@@ -4244,6 +4244,188 @@ CREATE INDEX IF NOT EXISTS idx_lp_feedback_useful_time
 CREATE INDEX IF NOT EXISTS idx_lp_feedback_polarity_time
   ON lp_feedback (reason_polarity, created_at DESC)
   WHERE reason_text IS NOT NULL;
+COMMENT ON COLUMN lp_feedback.trigger_mode IS
+  '[Internal] where the survey was asked: after_voice_note / after_pdf_only (WhatsApp) or in_app (the teacher app)';
+
+-- Replica check (migration V1.10.4): true on a read replica (in recovery), false on the primary. A scheduled job that
+-- must only read a replica calls it first and refuses to run on false. Reads nothing; service_role only.
+CREATE OR REPLACE FUNCTION public.db_is_replica() RETURNS boolean
+  LANGUAGE sql STABLE SECURITY INVOKER
+  AS $$ SELECT pg_is_in_recovery() $$;
+COMMENT ON FUNCTION public.db_is_replica() IS
+  'true on a read replica (in recovery), false on the primary. Called first by jobs that must only read a replica.';
+REVOKE ALL ON FUNCTION public.db_is_replica() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.db_is_replica() TO service_role;
+
+-- Teacher activity reads (migration V1.10.5): the twice-a-day job behind Home's "Last 30 days", My journey and the
+-- team view runs these on the read replica (docs/teacher-activity-store.md). Read only; service_role only.
+CREATE OR REPLACE FUNCTION public.teacher_activity_teachers() RETURNS jsonb
+  LANGUAGE sql STABLE SECURITY INVOKER SET statement_timeout = '20s'
+  AS $$
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'id', u.id, 'name', u.name, 'school', coalesce(s.name, u.school_name),
+           'region', u.region, 'school_region', s.region, 'source', u.source,
+           'level', to_jsonb(u.teacher_level), 'grades', u.grades_taught) ORDER BY u.id), '[]'::jsonb)
+    FROM users u
+    LEFT JOIN schools s ON s.id = u.school_id
+   WHERE u.role = 'teacher' AND u.deleted_at IS NULL
+     AND (u.last_message_at >= now() - interval '60 days'
+       OR u.portal_last_login >= now() - interval '60 days'
+       OR EXISTS (SELECT 1 FROM niete_lp_opens o WHERE o.user_id = u.id AND o.opened_at >= now() - interval '60 days'))
+$$;
+COMMENT ON FUNCTION public.teacher_activity_teachers() IS
+  'The active teachers the twice-a-day activity job counts (docs/teacher-activity-store.md). Read only; service_role.';
+REVOKE ALL ON FUNCTION public.teacher_activity_teachers() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.teacher_activity_teachers() TO service_role;
+
+CREATE OR REPLACE FUNCTION public.teacher_activity_batch(p_user_ids uuid[])
+  RETURNS TABLE (user_id uuid, tiles jsonb, journey jsonb, reports jsonb, latest jsonb)
+  LANGUAGE sql STABLE SECURITY INVOKER SET statement_timeout = '20s'
+  AS $$
+  WITH w AS (
+    SELECT ((today - 29)::timestamp AT TIME ZONE 'Asia/Karachi') AS now_from,
+           ((today - 59)::timestamp AT TIME ZONE 'Asia/Karachi') AS prev_from,
+           ((today - 89)::timestamp AT TIME ZONE 'Asia/Karachi') AS trend_from
+      FROM (SELECT (now() AT TIME ZONE 'Asia/Karachi')::date AS today) d
+  ),
+  t AS (SELECT DISTINCT unnest(p_user_ids) AS uid)
+  SELECT t.uid,
+         jsonb_build_object(
+           'plans_opened', jsonb_build_object('now', plans.now_n, 'prev', plans.prev_n),
+           'taught', jsonb_build_object('now', taught.now_n, 'prev', taught.prev_n),
+           'coached', jsonb_build_object('now', listed.now_n, 'prev', listed.prev_n),
+           'quizzes', jsonb_build_object('now', quizzes.now_n, 'prev', quizzes.prev_n),
+           'exams', jsonb_build_object('now', exams.now_n, 'prev', exams.prev_n)),
+         coalesce(steps.list, '[]'::jsonb),
+         coalesce(reps.list, '[]'::jsonb),
+         last_report.obj
+    FROM t CROSS JOIN w
+    -- the lesson plans she used: opened in the app, or received on WhatsApp (lp-history's union), one per plan
+    LEFT JOIN LATERAL (
+      WITH uses AS (
+        SELECT o.plan_kind AS kind, o.plan_ref AS ref, o.opened_at AS at, 'portal' AS via
+          FROM niete_lp_opens o WHERE o.user_id = t.uid AND o.opened_at >= w.prev_from
+        UNION ALL
+        SELECT 'k5', d.lesson_id, d.created_at, 'whatsapp'
+          FROM niete_lp_downloads d WHERE d.user_id = t.uid AND d.status = 'sent' AND d.created_at >= w.prev_from
+        UNION ALL
+        SELECT 'g612', g.segment_id, g.delivered_at, 'whatsapp'
+          FROM niete_lp612_deliveries g WHERE g.user_id = t.uid AND g.surface <> 'portal' AND g.delivered_at >= w.prev_from
+      )
+      SELECT (SELECT count(DISTINCT kind || ':' || ref) FROM uses WHERE at >= w.now_from) AS now_n,
+             (SELECT count(DISTINCT kind || ':' || ref) FROM uses WHERE at < w.now_from) AS prev_n,
+             (SELECT jsonb_agg(jsonb_build_object('kind', 'plan_opened', 'at', p.at, 'ref_id', p.ref,
+                       'meta', jsonb_build_object('plan_kind', p.kind, 'via', p.via)))
+                FROM (SELECT DISTINCT ON (kind, ref) kind, ref, at, via FROM uses ORDER BY kind, ref, at DESC) p) AS steps
+    ) plans ON true
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE f.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE f.created_at < w.now_from) AS prev_n,
+             jsonb_agg(jsonb_build_object('kind', 'taught', 'at', f.created_at, 'ref_id', f.id,
+               'meta', jsonb_strip_nulls(jsonb_build_object(
+                 'plan_kind', CASE WHEN f.lp612_segment_id IS NOT NULL THEN 'g612' WHEN lp.id IS NOT NULL THEN 'k5' END,
+                 'plan_ref', coalesce(f.lp612_segment_id, lp.content -> 'v8' ->> 'lesson_id'),
+                 'grade', f.grade, 'subject', f.subject, 'topic', left(f.topic, 120))))) AS steps
+        FROM lp_feedback f
+        LEFT JOIN lesson_plans lp ON lp.id = f.lesson_plan_id
+       WHERE f.user_id = t.uid AND f.used_in_class = 'taught' AND f.created_at >= w.prev_from
+    ) taught ON true
+    -- her own Digital Coach observations (countsFor's rule, by completed_at); each gives a step, its report a step
+    -- (when scored) and its tip a step (when it has one)
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE c.completed_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE c.completed_at < w.now_from) AS prev_n,
+             coalesce(jsonb_agg(jsonb_build_object('kind', 'coached', 'at', c.completed_at, 'ref_id', c.id,
+               'meta', jsonb_strip_nulls(jsonb_build_object('topic', left(c.analysis_data ->> 'topic', 120),
+                 'subject', c.analysis_data ->> 'subject')))), '[]'::jsonb)
+             || coalesce(jsonb_agg(jsonb_build_object('kind', 'report',
+               'at', coalesce(c.report_generated_at, c.analysis_completed_at, c.completed_at), 'ref_id', c.id,
+               'meta', jsonb_strip_nulls(jsonb_build_object('topic', left(c.analysis_data ->> 'topic', 120),
+                 'pct', c.analysis_data -> 'scores' -> 'overall_percentage', 'opened_at', c.coach_report_opened_at))))
+               FILTER (WHERE jsonb_typeof(c.analysis_data -> 'scores' -> 'overall_percentage') = 'number'), '[]'::jsonb)
+             || coalesce(jsonb_agg(jsonb_build_object('kind', 'tip',
+               'at', coalesce(c.report_generated_at, c.analysis_completed_at, c.completed_at), 'ref_id', c.id,
+               'meta', jsonb_build_object('text', left(coalesce(c.prioritized_action -> 'thing_to_try' ->> 'text',
+                 c.prioritized_action ->> 'action'), 200))))
+               FILTER (WHERE coalesce(c.prioritized_action -> 'thing_to_try' ->> 'text', c.prioritized_action ->> 'action', '') <> ''),
+               '[]'::jsonb) AS steps
+        FROM coaching_sessions c
+       WHERE c.user_id = t.uid AND c.status = 'completed' AND c.observation_type IS NULL AND c.completed_at >= w.prev_from
+    ) coached ON true
+    -- the Coached tile counts what the list it opens shows ("All DC observations", teacher-coaching.service
+    -- HISTORY_SQL): every lesson she sent that was not stopped, by created_at (bd-96f69c.11). Steps above keep the
+    -- completed rule.
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE c.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE c.created_at < w.now_from) AS prev_n
+        FROM coaching_sessions c
+       WHERE c.user_id = t.uid AND c.observation_type IS NULL AND c.created_at >= w.prev_from
+         AND (c.status NOT IN ('failed', 'cancelled', 'abandoned') OR (c.status = 'cancelled' AND c.failed_step = 'not_a_class_no_answer'))
+         AND c.status NOT IN ('initiated', 'pending')
+    ) listed ON true
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE q.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE q.created_at < w.now_from) AS prev_n,
+             jsonb_agg(jsonb_build_object('kind', 'quiz', 'at', q.created_at, 'ref_id', q.id,
+               'meta', jsonb_strip_nulls(jsonb_build_object('topic', left(q.topic, 120), 'grade', q.grade,
+                 'subject', q.subject, 'played', q.total_students_completed)))) AS steps
+        FROM quizzes q
+       WHERE q.teacher_id = t.uid AND q.status IN ('sent', 'report_sent') AND q.created_at >= w.prev_from
+    ) quizzes ON true
+    -- her papers (the Assessment Generator): one per request that reached a ready root paper, never an edit
+    -- (progress.service's rule), dated by the paper
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE e.created_at >= w.now_from) AS now_n,
+             count(*) FILTER (WHERE e.created_at < w.now_from) AS prev_n,
+             jsonb_agg(jsonb_build_object('kind', 'exam', 'at', e.created_at, 'ref_id', e.id,
+               'meta', jsonb_strip_nulls(jsonb_build_object('grade', e.grade_code, 'subject', e.subject_code,
+                 'chapter', e.chapter_number)))) AS steps
+        FROM (SELECT DISTINCT ON (r.id) p.id, p.created_at, r.grade_code, r.subject_code, r.chapter_number
+                FROM assessment_requests r
+                JOIN assessment_papers p ON p.request_id = r.id
+               WHERE r.user_id = t.uid AND p.status = 'ready' AND p.edited_from IS NULL AND p.created_at >= w.prev_from
+               ORDER BY r.id, p.created_at DESC) e
+    ) exams ON true
+    -- every step in one list, newest first, capped at 200
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(x.step ORDER BY x.at DESC) AS list
+        FROM (SELECT s.step, s.at
+                FROM (SELECT a.step, (a.step ->> 'at')::timestamptz AS at
+                        FROM jsonb_array_elements(coalesce(plans.steps, '[]'::jsonb) || coalesce(taught.steps, '[]'::jsonb)
+                               || coached.steps || coalesce(quizzes.steps, '[]'::jsonb)
+                               || coalesce(exams.steps, '[]'::jsonb)) a(step)) s
+               ORDER BY s.at DESC LIMIT 200) x
+    ) steps ON true
+    -- her own scored reports in 90 days, newest first: each applicable indicator's 0-2 score (the trend's input)
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(r.obj ORDER BY r.at DESC) AS list
+        FROM (SELECT c.completed_at AS at, jsonb_build_object('session_id', c.id, 'at', c.completed_at,
+                       'framework', coalesce(c.analysis_data ->> 'framework', c.framework),
+                       'indicators', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', i.value ->> 'id',
+                                        'name', i.value ->> 'name', 'score', i.value -> 'score')), '[]'::jsonb)
+                                        FROM jsonb_each(c.analysis_data -> 'domains') d,
+                                             jsonb_array_elements(CASE WHEN jsonb_typeof(d.value -> 'indicators') = 'array'
+                                               THEN d.value -> 'indicators' ELSE '[]'::jsonb END) i
+                                       WHERE jsonb_typeof(i.value -> 'score') = 'number'
+                                         AND coalesce(i.value ->> 'applicable', 'true') <> 'false')) AS obj
+                FROM coaching_sessions c
+               WHERE c.user_id = t.uid AND c.status = 'completed' AND c.observation_type IS NULL
+                 AND c.completed_at >= w.trend_from AND jsonb_typeof(c.analysis_data -> 'domains') = 'object'
+               ORDER BY c.completed_at DESC LIMIT 6) r
+    ) reps ON true
+    -- her latest own report (any score shape): the "Try next class" tip's source
+    LEFT JOIN LATERAL (
+      SELECT jsonb_build_object('session_id', c.id, 'at', c.completed_at,
+               'tip', left(coalesce(c.prioritized_action -> 'thing_to_try' ->> 'text', c.prioritized_action ->> 'action'), 600)) AS obj
+        FROM coaching_sessions c
+       WHERE c.user_id = t.uid AND c.status = 'completed' AND c.observation_type IS NULL AND c.completed_at >= w.trend_from
+       ORDER BY c.completed_at DESC LIMIT 1
+    ) last_report ON true
+$$;
+COMMENT ON FUNCTION public.teacher_activity_batch(uuid[]) IS
+  'One row per teacher: Home tiles, journey steps, report indicator scores and the latest tip source, for the twice-a-day activity job (docs/teacher-activity-store.md). Read only; service_role.';
+REVOKE ALL ON FUNCTION public.teacher_activity_batch(uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.teacher_activity_batch(uuid[]) TO service_role;
 
 -- =============================================================================
 -- EXAM GENERATOR (design: docs/migration/05-exam-generator.md)
@@ -5269,6 +5451,37 @@ CREATE TABLE IF NOT EXISTS niete_gb_lp_renders (
 CREATE INDEX IF NOT EXISTS idx_gb_lp_renders_inflight
   ON niete_gb_lp_renders (status, started_at) WHERE status = 'authoring';
 
+-- V1.10.8 (bd-snkn32.59): Make my own, a whole unit: her day-by-day outline; no plan bodies (day plans are
+-- niete_lp612_own_plans rows with answers.unit). Asked first per docs/lesson-plan-data-model-debt.md.
+CREATE TABLE IF NOT EXISTS niete_lp_own_units (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES users(id),
+  class_id         UUID REFERENCES classes(id),
+  book_stem        TEXT,
+  grade            SMALLINT NOT NULL CHECK (grade BETWEEN 1 AND 12),
+  subject          TEXT NOT NULL,
+  start_kind       TEXT NOT NULL CHECK (start_kind IN ('book', 'goals')),
+  chapter_from     SMALLINT,
+  chapter_to       SMALLINT,
+  goals            TEXT[],
+  period_minutes   SMALLINT NOT NULL CHECK (period_minutes BETWEEN 20 AND 90),
+  pace             TEXT NOT NULL CHECK (pace IN ('recommended', 'slower', 'faster')),
+  outline          JSONB NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'archived')),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at       TIMESTAMPTZ,
+  CONSTRAINT niete_lp_own_units_book_range CHECK (start_kind <> 'book' OR (chapter_from IS NOT NULL AND chapter_to >= chapter_from)),
+  -- V1.10.9 (bd-snkn32.59.4): a goal unit is her goals' words with no book; a book unit names its book.
+  CONSTRAINT niete_lp_own_units_goals CHECK (start_kind <> 'goals' OR (cardinality(goals) BETWEEN 2 AND 8 AND book_stem IS NULL AND chapter_from IS NULL)),
+  CONSTRAINT niete_lp_own_units_book CHECK (start_kind <> 'book' OR book_stem IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp_own_units_user
+  ON niete_lp_own_units (user_id, updated_at DESC);
+
+ALTER TABLE niete_lp_own_units ENABLE ROW LEVEL SECURITY;
+
 -- V1.9.6 (bd-snkn32): Make my own lesson plans, a teacher's fork of a 6-12 plan.
 -- KNOWN DESIGN DEBT (Nov 2026): one of ~20 lesson-plan tables, one set per product generation.
 -- This table: a teacher's own edited 6-12 plan. Target: lesson files, owned by a teacher.
@@ -5311,11 +5524,23 @@ CREATE TABLE IF NOT EXISTS niete_lp612_own_plans (
   library_decided_by UUID REFERENCES users(id),
   library_decided_at TIMESTAMPTZ,
   library_reject_reason TEXT,
+  -- V1.10.3: her own rating of her own plan (bd-snkn32.11)
+  teacher_rating    SMALLINT CONSTRAINT niete_lp612_own_plans_teacher_rating_range
+                      CHECK (teacher_rating IS NULL OR teacher_rating BETWEEN 1 AND 5),
+  teacher_confusing TEXT,
+  teacher_rated_at  TIMESTAMPTZ,
+  CONSTRAINT niete_lp612_own_plans_teacher_confusing CHECK (
+    teacher_confusing IS NULL OR (teacher_rating IS NOT NULL AND char_length(teacher_confusing) <= 300)
+  ),
+  CONSTRAINT niete_lp612_own_plans_teacher_rated_when CHECK ((teacher_rating IS NULL) = (teacher_rated_at IS NULL)),
   CONSTRAINT niete_lp612_own_plans_library_decision_who CHECK (
     (library_decision IS NULL) = (library_decided_at IS NULL) AND (library_decision IS NULL) = (library_decided_by IS NULL)
   ),
   CONSTRAINT niete_lp612_own_plans_library_reason CHECK (library_reject_reason IS NULL OR library_decision = 'rejected'),
-  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (num_nonnulls(segment_id, lesson_id) = 1),
+  -- V1.10.9 (bd-snkn32.59.4): a goal-unit day names neither (no textbook).
+  CONSTRAINT niete_lp612_own_plans_one_parent CHECK (
+    num_nonnulls(segment_id, lesson_id) = 1 OR (segment_id IS NULL AND lesson_id IS NULL AND answers->'unit'->>'start' = 'goals')
+  ),
   CONSTRAINT niete_lp612_own_plans_edit_round CHECK (
     (parent_own_id IS NULL AND edit_round IS NULL AND edit_request IS NULL)
     OR (parent_own_id IS NOT NULL AND edit_round IN (1, 2) AND edit_request IS NOT NULL)
@@ -9631,5 +9856,335 @@ ALTER TABLE whatsapp_feedback ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS service_role_whatsapp_feedback ON whatsapp_feedback;
 CREATE POLICY service_role_whatsapp_feedback ON whatsapp_feedback FOR ALL USING (auth.role() = 'service_role');
 GRANT ALL ON whatsapp_feedback TO service_role;
+
+-- A/B tracker (migration V1.10.7): the tracker's own five ab_ tables (RLS on, service_role only, unit ids only, no FK
+-- or trigger on an app table), its two nightly reads (read replica, 30 s), the teacher helper and its three writes (15 s).
+-- docs/ab-tracker-store.md.
+CREATE TABLE IF NOT EXISTS public.ab_card_lock (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  test_id     TEXT NOT NULL UNIQUE CHECK (test_id ~ '^[a-z0-9]+(-[a-z0-9]+)+$'),
+  sha256      TEXT NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+  unit_kind   TEXT NOT NULL CHECK (unit_kind IN ('school', 'teacher')),
+  metric_ids  TEXT[] NOT NULL CHECK (cardinality(metric_ids) BETWEEN 1 AND 12),
+  start_on    DATE NOT NULL,
+  read_on     DATE NOT NULL CHECK (read_on >= start_on),
+  ended_at    TIMESTAMPTZ,
+  first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.ab_assignment (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  test_id      TEXT NOT NULL REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE,
+  unit_id      UUID NOT NULL,
+  arm          TEXT NOT NULL CHECK (arm ~ '^[a-z0-9_]{1,24}$'),
+  block        TEXT,
+  assigned_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ab_assignment_unit UNIQUE (test_id, unit_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.ab_refresh_log (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  status         TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'ran', 'partial', 'failed')),
+  tests          INTEGER NOT NULL DEFAULT 0 CHECK (tests >= 0),
+  watermark      DATE,
+  detail         JSONB NOT NULL DEFAULT '{}'::jsonb,
+  started_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at    TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.ab_rollup_unit_period (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  test_id      TEXT NOT NULL REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE,
+  arm          TEXT NOT NULL,
+  unit_id      UUID NOT NULL,
+  block        TEXT,
+  period_kind  TEXT NOT NULL CHECK (period_kind IN ('day', 'week')),
+  period       DATE NOT NULL,
+  metric_id    TEXT NOT NULL,
+  n bigint NOT NULL CHECK (n >= 0), s double precision NOT NULL, ss double precision NOT NULL,
+  refresh_id   UUID NOT NULL REFERENCES public.ab_refresh_log(id),
+  pulled_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ab_rollup_unit_period_grain UNIQUE (test_id, unit_id, metric_id, period_kind, period)
+);
+CREATE INDEX IF NOT EXISTS idx_ab_rollup_test_metric_period
+  ON public.ab_rollup_unit_period (test_id, metric_id, period);
+
+CREATE TABLE IF NOT EXISTS public.ab_stop_state (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  test_id           TEXT NOT NULL REFERENCES public.ab_card_lock(test_id) ON DELETE CASCADE,
+  rule_id           TEXT NOT NULL,
+  state             TEXT NOT NULL CHECK (state IN ('tripped', 'reviewed', 'clear')),
+  value             DOUBLE PRECISION,
+  threshold         DOUBLE PRECISION,
+  reviewed_by_role  TEXT CHECK (reviewed_by_role IS NULL OR reviewed_by_role IN ('owner', 'second_reader')),
+  as_of             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ab_stop_state_rule UNIQUE (test_id, rule_id)
+);
+
+ALTER TABLE public.ab_card_lock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ab_assignment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ab_refresh_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ab_rollup_unit_period ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ab_stop_state ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ab_card_lock FROM anon, authenticated;
+REVOKE ALL ON public.ab_assignment FROM anon, authenticated;
+REVOKE ALL ON public.ab_refresh_log FROM anon, authenticated;
+REVOKE ALL ON public.ab_rollup_unit_period FROM anon, authenticated;
+REVOKE ALL ON public.ab_stop_state FROM anon, authenticated;
+
+COMMENT ON TABLE public.ab_card_lock IS '[Internal] A/B tracker: one row per launched test (frozen card hash, unit kind, measures, dates).';
+COMMENT ON TABLE public.ab_assignment IS '[Internal] A/B tracker: each unit''s arm in a test (unit ids only).';
+COMMENT ON TABLE public.ab_refresh_log IS '[Internal] A/B tracker: one row per nightly rollup run.';
+COMMENT ON TABLE public.ab_rollup_unit_period IS '[Internal] A/B tracker: test x unit x measure x day/week sums (n, s, ss).';
+COMMENT ON TABLE public.ab_stop_state IS '[Internal] A/B tracker: stop-rule state per test.';
+
+-- READS — run by the nightly job on the read replica. Pakistan dates. Each call is bounded to one test's own units.
+CREATE OR REPLACE FUNCTION public.ab_tracker_live_tests() RETURNS jsonb
+  LANGUAGE sql STABLE SECURITY INVOKER SET statement_timeout = '30s'
+  AS $$
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'test_id', c.test_id, 'unit_kind', c.unit_kind, 'metric_ids', to_jsonb(c.metric_ids),
+           'start_on', c.start_on, 'read_on', c.read_on,
+           'units', (SELECT count(*) FROM public.ab_assignment a WHERE a.test_id = c.test_id)) ORDER BY c.test_id), '[]'::jsonb)
+    FROM public.ab_card_lock c
+   WHERE c.ended_at IS NULL
+     AND c.start_on <= (now() AT TIME ZONE 'Asia/Karachi')::date
+     AND c.read_on + 14 >= (now() AT TIME ZONE 'Asia/Karachi')::date
+$$;
+
+-- The test's teachers: a school unit = the school's teachers; a teacher unit = the teacher. Deleted and test accounts
+-- out. Plain STABLE SQL with no SET, so the planner inlines it into each measure's query (indexes on users stay usable).
+CREATE OR REPLACE FUNCTION public.ab_tracker_unit_teachers(p_test_id text, p_kind text)
+  RETURNS TABLE (teacher_id uuid, unit_id uuid, arm text, block text)
+  LANGUAGE sql STABLE SECURITY INVOKER
+  AS $$
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.school_id = a.unit_id
+   WHERE p_kind = 'school' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+  UNION ALL
+  SELECT u.id, a.unit_id, a.arm, a.block
+    FROM public.ab_assignment a JOIN public.users u ON u.id = a.unit_id
+   WHERE p_kind = 'teacher' AND a.test_id = p_test_id AND u.role = 'teacher' AND u.deleted_at IS NULL AND u.is_test_user IS NOT TRUE
+$$;
+
+-- One test x one measure x a window of Pakistan days -> jsonb rows {arm, unit_id, block, period_kind, period, n, s, ss}.
+-- The measures (workspace catalogue .claude/skills/ab-testing/reference/metrics/<id>.sql says the same):
+--   plan_fidelity                  unit x day: scored lesson-plan fidelity of AI-coach and coach-visit sessions (0-100)
+--   teachers_coming_back           unit x week (Monday): distinct teachers who took a plan (WhatsApp send or app open)
+--   child_quiz_objectives_secured  unit x day, child level: each child's share of quiz objectives secured that day
+--   send_failures                  unit x day: lesson-plan sends, 1 = failed (a stop-rule measure)
+CREATE OR REPLACE FUNCTION public.ab_tracker_metric_rows(p_test_id text, p_metric_id text, p_from date, p_to date)
+  RETURNS jsonb
+  LANGUAGE plpgsql STABLE SECURITY INVOKER SET statement_timeout = '30s'
+  AS $$
+DECLARE
+  v_kind text;
+  v_from timestamptz := (p_from::timestamp AT TIME ZONE 'Asia/Karachi');
+  v_to   timestamptz := ((p_to + 1)::timestamp AT TIME ZONE 'Asia/Karachi');
+  v_out  jsonb;
+BEGIN
+  SELECT c.unit_kind INTO v_kind FROM public.ab_card_lock c WHERE c.test_id = p_test_id;
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'ab_tracker_metric_rows: unknown test %', p_test_id; END IF;
+  IF p_to < p_from OR p_to - p_from > 62 THEN RAISE EXCEPTION 'ab_tracker_metric_rows: the window must be 1 to 63 days'; END IF;
+
+  IF p_metric_id = 'plan_fidelity' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (c.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             (c.analysis_data #>> '{lp_fidelity,fidelity_pct}')::double precision AS v
+        FROM t JOIN public.coaching_sessions c ON c.user_id = t.teacher_id
+       WHERE c.created_at >= v_from AND c.created_at < v_to
+         AND (c.observation_type IS NULL OR c.observation_type = 'leader_observation')
+         AND c.analysis_data #>> '{lp_fidelity,status}' = 'ok'
+         AND jsonb_typeof(c.analysis_data #> '{lp_fidelity,fidelity_pct}') = 'number'
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
+
+  ELSIF p_metric_id = 'teachers_coming_back' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), took AS (
+      SELECT d.user_id AS teacher_id, d.created_at AS at
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.status = 'sent' AND d.created_at >= v_from AND d.created_at < v_to
+      UNION ALL
+      SELECT o.user_id, o.opened_at
+        FROM t JOIN public.niete_lp_opens o ON o.user_id = t.teacher_id
+       WHERE o.plan_kind = 'k5' AND o.source IN ('viewer', 'external') AND o.opened_at >= v_from AND o.opened_at < v_to
+    ), wk AS (
+      SELECT DISTINCT took.teacher_id, date_trunc('week', took.at AT TIME ZONE 'Asia/Karachi')::date AS wk FROM took
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT t.arm, t.unit_id, t.block, 'week' AS period_kind, wk.wk AS period, 1 AS n,
+             count(*)::double precision AS s, (count(*) * count(*))::double precision AS ss
+        FROM wk JOIN t ON t.teacher_id = wk.teacher_id GROUP BY t.arm, t.unit_id, t.block, wk.wk) r;
+
+  ELSIF p_metric_id = 'child_quiz_objectives_secured' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), s AS (
+      SELECT t.arm, t.unit_id, t.block, qs.id AS session_id, qs.student_id,
+             (qs.created_at AT TIME ZONE 'Asia/Karachi')::date AS d
+        FROM t JOIN public.quizzes q ON q.teacher_id = t.teacher_id
+        JOIN public.quiz_sessions qs ON qs.quiz_id = q.id
+       WHERE qs.created_at >= v_from AND qs.created_at < v_to
+         AND qs.invited_by_student_id IS NULL AND qs.student_id IS NOT NULL
+         AND (qs.user_id IS NULL OR qs.user_id <> q.teacher_id)
+    ), obj AS (
+      SELECT s.arm, s.unit_id, s.block, s.d, s.student_id, split_part(qq.external_id, ':', 3) AS objective,
+             bool_and(coalesce(a.is_correct, false)) AS secured
+        FROM s JOIN public.quiz_answers a ON a.session_id = s.session_id
+        JOIN public.quiz_questions qq ON qq.id = a.question_id
+       WHERE qq.external_id LIKE 'tq:%'
+       GROUP BY s.arm, s.unit_id, s.block, s.d, s.student_id, split_part(qq.external_id, ':', 3)
+    ), kid AS (
+      SELECT obj.arm, obj.unit_id, obj.block, obj.d, obj.student_id,
+             avg(CASE WHEN obj.secured THEN 1.0 ELSE 0.0 END)::double precision AS v
+        FROM obj GROUP BY obj.arm, obj.unit_id, obj.block, obj.d, obj.student_id
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT kid.arm, kid.unit_id, kid.block, 'day' AS period_kind, kid.d AS period, count(*) AS n,
+             sum(kid.v) AS s, sum(kid.v * kid.v) AS ss
+        FROM kid GROUP BY kid.arm, kid.unit_id, kid.block, kid.d) r;
+
+  ELSIF p_metric_id = 'send_failures' THEN
+    WITH t AS (SELECT * FROM public.ab_tracker_unit_teachers(p_test_id, v_kind)), x AS (
+      SELECT t.arm, t.unit_id, t.block, (d.created_at AT TIME ZONE 'Asia/Karachi')::date AS d,
+             CASE WHEN d.status = 'sent' THEN 0.0 ELSE 1.0 END::double precision AS v
+        FROM t JOIN public.niete_lp_downloads d ON d.user_id = t.teacher_id
+       WHERE d.created_at >= v_from AND d.created_at < v_to
+    )
+    SELECT coalesce(jsonb_agg(r ORDER BY r.unit_id, r.period), '[]'::jsonb) INTO v_out FROM (
+      SELECT x.arm, x.unit_id, x.block, 'day' AS period_kind, x.d AS period, count(*) AS n, sum(x.v) AS s, sum(x.v * x.v) AS ss
+        FROM x GROUP BY x.arm, x.unit_id, x.block, x.d) r;
+
+  ELSE
+    RAISE EXCEPTION 'ab_tracker_metric_rows: unknown metric %', p_metric_id;
+  END IF;
+  RETURN v_out;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ab_tracker_unit_teachers(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_unit_teachers(text, text) TO service_role;
+REVOKE ALL ON FUNCTION public.ab_tracker_live_tests() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_live_tests() TO service_role;
+REVOKE ALL ON FUNCTION public.ab_tracker_metric_rows(text, text, date, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_metric_rows(text, text, date, date) TO service_role;
+
+-- WRITES — run by the nightly job on the primary, one call at a time. They touch the ab_ tables only.
+CREATE OR REPLACE FUNCTION public.ab_tracker_refresh_open(p_tests integer, p_watermark date) RETURNS uuid
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.ab_refresh_log (status, tests, watermark)
+  VALUES ('running', greatest(coalesce(p_tests, 0), 0), p_watermark)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ab_tracker_upsert_rollup(p_refresh_id uuid, p_rows jsonb) RETURNS integer
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+DECLARE
+  v_n integer;
+BEGIN
+  IF jsonb_typeof(p_rows) IS DISTINCT FROM 'array' OR jsonb_array_length(p_rows) > 2000 THEN
+    RAISE EXCEPTION 'ab_tracker_upsert_rollup: rows must be a list of at most 2000';
+  END IF;
+  INSERT INTO public.ab_rollup_unit_period AS r
+         (test_id, arm, unit_id, block, period_kind, period, metric_id, n, s, ss, refresh_id, pulled_at)
+  SELECT x.test_id, x.arm, x.unit_id, x.block, x.period_kind, x.period, x.metric_id, x.n, x.s, x.ss, p_refresh_id, now()
+    FROM jsonb_to_recordset(p_rows) AS x(test_id text, arm text, unit_id uuid, block text, period_kind text,
+                                         period date, metric_id text, n bigint, s double precision, ss double precision)
+  ON CONFLICT (test_id, unit_id, metric_id, period_kind, period) DO UPDATE
+     SET arm = EXCLUDED.arm, block = EXCLUDED.block, n = EXCLUDED.n, s = EXCLUDED.s, ss = EXCLUDED.ss,
+         refresh_id = EXCLUDED.refresh_id, pulled_at = EXCLUDED.pulled_at, updated_at = now();
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ab_tracker_refresh_close(p_refresh_id uuid, p_status text, p_detail jsonb) RETURNS void
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+BEGIN
+  UPDATE public.ab_refresh_log
+     SET status = p_status, detail = coalesce(p_detail, '{}'::jsonb), finished_at = now(), updated_at = now()
+   WHERE id = p_refresh_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ab_tracker_refresh_close: no refresh %', p_refresh_id; END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ab_tracker_refresh_open(integer, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_refresh_open(integer, date) TO service_role;
+REVOKE ALL ON FUNCTION public.ab_tracker_upsert_rollup(uuid, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_upsert_rollup(uuid, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- Answer-key review queue (bot/database/migrations/qfix_keys_quiz_item_reviews.sql)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS quiz_item_reviews (
+  id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  question_id       uuid        NOT NULL REFERENCES public.quiz_questions(id) ON DELETE CASCADE,
+  reason            text        NOT NULL DEFAULT 'dominant_wrong_option' CHECK (reason IN ('dominant_wrong_option','blind_solve')),
+  status            text        NOT NULL DEFAULT 'open' CHECK (status IN ('open','key_wrong','ambiguous','key_ok','fixed')),
+  key_at_flag       text        NOT NULL CHECK (key_at_flag ~ '^[A-D]$'),        -- the grader's key when flagged (web item key, else correct_option)
+  top_wrong_option  text        CHECK (top_wrong_option ~ '^[A-D]$'),            -- stored slot, not display position; blind_solve: the solver's pick
+  answers_n         integer     NOT NULL CHECK (answers_n >= 0),
+  top_wrong_n       integer     NOT NULL CHECK (top_wrong_n >= 0),
+  right_n           integer     NOT NULL CHECK (right_n >= 0),
+  first_flagged_on  date        NOT NULL,                                        -- Pakistan date of the run
+  last_seen_on      date        NOT NULL,
+  reviewed_at       timestamptz,
+  reviewed_by       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  review_note       text        CHECK (review_note IS NULL OR char_length(review_note) <= 500),
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT qir_one_per_reason UNIQUE (question_id, reason),
+  CONSTRAINT qir_reviewed_has_when CHECK (status = 'open' OR reviewed_at IS NOT NULL),
+  CONSTRAINT qir_nightly_has_wrong CHECK (reason <> 'dominant_wrong_option' OR top_wrong_option IS NOT NULL)
+);
+COMMENT ON TABLE public.quiz_item_reviews IS 'Answer-key review queue: items where one wrong option drew most children. Owner quiz team; steward the NIETE bot team. Service role only. Item ids and counts only.';
+COMMENT ON COLUMN public.quiz_item_reviews.reviewed_by IS 'Internal: the staff user who set the verdict';
+CREATE INDEX IF NOT EXISTS qir_open_idx ON public.quiz_item_reviews (first_flagged_on) WHERE status = 'open';
+ALTER TABLE public.quiz_item_reviews ENABLE ROW LEVEL SECURITY;   -- no policy: service role only
+DROP TRIGGER IF EXISTS qir_updated_at ON public.quiz_item_reviews;
+CREATE TRIGGER qir_updated_at BEFORE UPDATE ON public.quiz_item_reviews
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE OR REPLACE FUNCTION public.quiz_key_answer_counts(p_min_answers integer DEFAULT 20, p_recent_days integer DEFAULT 3)
+RETURNS TABLE (question_id uuid, correct_option text, option_a text, option_b text, option_c text, option_d text,
+               media jsonb, counts jsonb, answers_n integer)
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
+  WITH recent AS (
+    SELECT DISTINCT a.question_id FROM public.quiz_answers a
+    WHERE COALESCE(a.answered_at, a.created_at) >= now() - make_interval(days => p_recent_days)
+  ), dist AS (
+    SELECT a.question_id, upper(a.selected_option) AS opt, count(*)::integer AS n
+    FROM public.quiz_answers a JOIN recent r ON r.question_id = a.question_id
+    WHERE a.selected_option ~* '^[A-D]$'
+    GROUP BY 1, 2
+  ), agg AS (
+    SELECT d.question_id, jsonb_object_agg(d.opt, d.n) AS counts, sum(d.n)::integer AS answers_n FROM dist d GROUP BY 1
+  )
+  SELECT q.id, q.correct_option, q.option_a, q.option_b, q.option_c, q.option_d, q.media, agg.counts, agg.answers_n
+  FROM agg JOIN public.quiz_questions q ON q.id = agg.question_id
+  WHERE agg.answers_n >= p_min_answers;
+$$;
+REVOKE ALL ON FUNCTION public.quiz_key_answer_counts(integer, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.quiz_key_answer_counts(integer, integer) TO service_role;
 
 NOTIFY pgrst, 'reload schema';

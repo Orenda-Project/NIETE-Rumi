@@ -224,7 +224,7 @@ const STRINGS = {
     send_delivering: '📨 Natuma ripoti kwa mwalimu sasa. Nitakujulisha ikifika.',
     send_cancel_ack: 'Sawa — sijatuma chochote. Ukibadili mawazo, andika /observe na uchague uchunguzi huo.',
     send_already_sent: '✅ Ripoti ya uchunguzi huo imeshatumwa kwa mwalimu.',
-    send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; Rumi anamkumbusha, na ripoti itafika mara tu atakapobonyeza.',
+    send_waiting_tap_info: '📨 Ripoti iko tayari — mwaliko ulitumwa kwa {name} ({date}). Bado hajaugusa; ninamkumbusha, na ripoti itafika mara tu atakapobonyeza.',
     send_done_fo: '✅ Ripoti imefika kwa mwalimu. Asante kwa kazi nzuri ya ukocha! 🌱',
     // bd-2411: delivery to the teacher failed on the worker; tell the coach so it isn't a silent drop.
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
@@ -241,6 +241,8 @@ const STRINGS = {
     report_caption_teacher:
       'Ripoti yako ya somo 🌱 Imeandaliwa kutokana na uchunguzi wa {fo} — pamoja na kumbukumbu za mazungumzo yenu.',
     report_caption_teacher_obs612: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwenye zana ya uchunguzi ya FDE.',
+    // bd-31ziu8: a FICO 6-12 visit's report (ICT grades 6-12; code name FICO-S v1.1). It keeps its debrief (HITL).
+    report_caption_teacher_ficos: 'Ripoti yako ya somo 🌱 Kutoka kwa ziara ya {fo}, kwa FICO 6-12 — pamoja na kumbukumbu za mazungumzo yenu.',
     companion_from_label: 'Kutoka kwa',
     companion_commitment_label: 'Ahadi yako',
     companion_closing: 'Tunajivunia kazi yako. Tuko pamoja. 💛',
@@ -354,35 +356,53 @@ const STRINGS = {
     v6_choose_level: 'ایک لیول چنیں۔',
     v6_write_why: 'لکھیں کہ آپ نے یہ لیول کیوں چنا (کم از کم 20 حروف)۔',
     v6_check_numbers: 'دونوں نمبر دوبارہ دیکھیں۔',
-    v6_d2_mismatch: 'آپ کا لیول گنتی سے میل نہیں کھاتا۔ ایک کو بدلیں، یا وجہ لکھیں۔',
-    v6_change_why: 'آپ نے Rumi کا دیا ہوا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',
+    v6_change_why: 'آپ نے ریکارڈنگ سے دیا گیا لیول بدلا ہے۔ وجہ لکھیں (کم از کم 20 حروف)۔',
     v6_fix_heading: 'آگے بڑھنے سے پہلے یہ ٹھیک کریں:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov). DRAFT Urdu, for the rubric owner's review. {l} is a
     // section letter and {code} an indicator code (both isolated by the caller); numbers arrive in Urdu digits.
     v6f_section: 'حصہ {l}',
     v6f_progress: 'حصہ {l} · {n} میں سے {i}',
     v6f_intro_count: 'اس حصے میں {n} اشاریے ہیں، ہر اسکرین پر ایک۔',
-    v6f_intro_rumi: 'ان میں سے {k} کا لیول Rumi نے ریکارڈنگ سے چنا ہے: ہر ایک کو دیکھیں۔',
+    v6f_intro_rumi: 'ان میں سے {k} کا لیول \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ نے ریکارڈنگ سے چنا ہے: ہر ایک کو دیکھیں۔',
     v6f_intro_room: 'باقی {m} کا لیول (کلاس) آپ کلاس میں جو دیکھا اس سے خود چنیں، وجہ کے ساتھ۔',
     v6f_room_tag: '(کلاس)',
     v6f_start: 'حصہ {l} شروع کریں',
-    v6f_rumi_chose: 'Rumi نے ریکارڈنگ سے {level} چنا۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔',
-    v6f_rumi_none: 'Rumi ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔',
+    // bd-ra8xu.60 — Observation Notes (DRAFT for native review, like the other v6 coach strings).
+    v6f_notes_heading: '📝 آپ کے مشاہدے کے نوٹس',
+    notes_invite: '📝 انتظار کے دوران: کلاس میں آپ نے کیا دیکھا جو ریکارڈنگ میں سنائی نہیں دیتا؟ بورڈ، گروپ کا کام، کون خاموش رہا۔ فارم کھولنے سے پہلے اسے مشاہدے کے نوٹس میں لکھ دیں۔',
+    notes_button: 'نوٹس لکھیں',
+    notes_saved: '📝 آپ کے نوٹس اس مشاہدے کے ساتھ محفوظ ہو گئے ({n})۔ یہ فارم کے ہر حصے کے شروع میں نظر آئیں گے۔',
+    notes_saved_late: '📝 آپ کے نوٹس اس مشاہدے کے ساتھ محفوظ ہو گئے ({n})۔',
+    notes_count_one: '{n} نوٹ',
+    notes_count_many: '{n} نوٹس',
+    notes_digits: '۰۱۲۳۴۵۶۷۸۹',
+    notes_clock: '⁦{t}⁩',
+    notes_not_saved: 'معذرت، نوٹس محفوظ نہیں ہو سکے۔ دوبارہ کوشش کریں۔',
+    nf_heading: 'آپ نے کلاس میں کیا دیکھا؟',
+    nf_help: 'وہ لکھیں جو ریکارڈنگ میں سنائی نہیں دیتا۔ یہ نوٹس ریکارڈنگ کے ساتھ پڑھے جائیں گے۔',
+    nf_label: 'آپ کے نوٹس',
+    nf_helper: 'کسی بھی زبان میں، ہر نوٹ نئی لائن پر۔ فارم کھولنے سے پہلے لکھیں۔',
+    nf_save: 'نوٹس محفوظ کریں',
+    v6f_rumi_chose: '\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ نے ریکارڈنگ سے {level} چنا۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔',
+    v6f_rumi_none: '\u2066NIETE\u2069 ٹیچنگ اسسٹنٹ ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔',
     v6f_level: 'لیول',
     v6f_level_room: 'لیول · آپ چنیں',
     v6f_evidence: 'ثبوت',
-    v6f_evidence_help: 'Rumi نے کیا سنا؛ ضرورت ہو تو بدلیں',
+    v6f_evidence_help: 'ریکارڈنگ میں کیا سنا گیا؛ ضرورت ہو تو بدلیں',
     v6f_improve: 'بہتری کے لیے',
     v6f_improve_help: 'استاد اگلی بار کیا کرے',
     v6f_change: 'تبدیلی کی وجہ',
-    v6f_change_help: 'صرف اگر آپ نے Rumi کا لیول بدلا (کم از کم ۲۰ حروف)۔',
+    v6f_change_help: 'صرف اگر آپ نے ریکارڈنگ سے دیا گیا لیول بدلا (کم از کم ۲۰ حروف)۔',
     v6f_why: 'اس لیول کی وجہ',
     v6f_why_help: 'کم از کم ۲۰ حروف: آپ نے کلاس میں کیا دیکھا۔',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required. DRAFT.
+    v6f_why_help_na: 'لیول کے لیے کم از کم ۲۰ حروف۔ لاگو نہیں کے لیے ایک دو لفظ کافی ہیں۔',
     v6f_from_recording: 'ریکارڈنگ سے',
     v6f_coach_adds: 'کوچ شامل کرتا ہے:',
     v6f_next: 'آگے',
     v6f_submit: 'مشاہدہ جمع کریں',
     v6f_rec_nothing: 'ریکارڈنگ میں اس کے لیے کچھ نہیں ملا۔',
+    v6f_rec_starred: '★ ستارے والا اشاریہ: یہ صرف آپ کا ہے۔ \u2066NIETE\u2069 ٹیچنگ اسسٹنٹ اسے نہیں سنتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔',
     v6f_rec_ie: 'ریکارڈنگ سے یہ معلوم نہیں ہو سکا۔ جو آپ نے دیکھا اس سے لیول چنیں۔',
     v6f_rec_na: 'ریکارڈنگ کو سبق میں یہ نہیں ملا۔',
     v6f_d2_turns: 'پہلے آدھے حصے میں طلبہ {a} بار بولے اور دوسرے میں {b} بار۔ ریکارڈنگ یہ نہیں بتا سکتی کہ کتنے مختلف بچے بولے۔',
@@ -443,7 +463,8 @@ const STRINGS = {
     guide_cue_rehearse: '(تین سے پانچ سیکنڈ انتظار کریں)',
     coach_card_try_label: 'اگلا فوکس',
     // The Feedback Report shows the coach-debrief rubric: marks computed from the judge's booleans
-    // (observe-coach-rubric.js), the misses with why they matter, and the next focus's Coach Training module.
+    // (observe-coach-rubric.js), the misses with why they matter, and the one next focus. No Coach Training module after a
+    // debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_marks_label: 'اس ڈی بریف میں آپ کے رویے',
     coach_card_respect_line: '✓ احترام برقرار رہا — ہمیشہ کی طرح',
     coach_card_missed_label: 'اس بار کیا رہ گیا',
@@ -452,8 +473,6 @@ const STRINGS = {
     coach_card_why_label: 'کیوں اہم ہے:',
     coach_card_focus_why_label: 'یہی کیوں:',
     coach_card_you_said_label: 'آپ نے کہا:',
-    coach_card_module_line: '📘 کوچ ٹریننگ، ماڈیول {n}: {title}',
-    coach_card_module_lang: 'ur',
     coach_rubric_names: {
       opened_with_specific_praise: 'مخصوص تعریف',
       anchored_in_real_moment: 'سبق کے لمحے کا حوالہ',
@@ -478,6 +497,12 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'آپ کی ڈی بریف رپورٹ تیار ہے۔ یہ ایپ میں کھلتی ہے، انگریزی یا اردو میں۔',
     coach_report_link_button: 'میری رپورٹ کھولیں',
+    // bd-9652yj (queue #166) — for a coach on the coach app nudge: the report-ready message's way back (reply 1 sends
+    // today's WhatsApp report card), the line when that card cannot be sent, and the line that opens a visit resumed
+    // from the app's "Continue on WhatsApp". The "1" is what she types (the bot also takes ۱).
+    coach_report_reply1_line: 'رپورٹ نہیں کھل رہی؟ *1* لکھ کر بھیجیں، میں یہیں بھیج دوں\u00A0گی۔',
+    coach_report_here_failed: 'یہ رپورٹ ابھی یہاں نہیں کھل سکی۔ اپنے مشاہدے دیکھنے کے لیے /observe لکھیں۔',
+    handoff_resume_intro: 'آئیے آپ کا دورہ یہیں واٹس\u00A0ایپ پر جاری رکھتے\u00A0ہیں۔',
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'آپ کی ہفتہ وار کوچنگ رپورٹ تیار ہے: آپ کا ہفتہ، اور اگلے ہفتے کا فوکس۔ یہ صرف آپ کے لیے ہے۔',
     coach_week_link_button: 'میرا ہفتہ کھولیں',
@@ -575,7 +600,7 @@ const STRINGS = {
     send_delivering: '📨 رپورٹ بھیجی جا رہی ہے — پہنچتے ہی بتاؤں گی۔',
     send_cancel_ack: 'ٹھیک ہے، نہیں بھیجی۔ تفصیلات محفوظ ہیں — جب چاہیں \u2066/observe\u2069 سے دوبارہ۔',
     send_already_sent: 'یہ رپورٹ پہلے ہی بھیجی جا چکی ہے۔ ✅',
-    send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ رومی یاد دہانی بھیجتی رہتی ہے، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',
+    send_waiting_tap_info: '📨 رپورٹ تیار ہے — {name} کو دعوت ({date}) بھیجی جا چکی ہے۔ ابھی دعوت پر ٹیپ نہیں ہوا؛ میں یاد دہانی بھیجتی رہتی ہوں، اور ٹیپ ہوتے ہی رپورٹ خود بخود پہنچ جائے گی۔',
     send_done_fo: '✅ رپورٹ استاد کو پہنچ گئی۔',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ \u2066/observe\u2069 لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
@@ -590,6 +615,8 @@ const STRINGS = {
     report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
     // bd-pni007 (DRAFT for native review): an FDE visit's report, scored by the coach on FDE's own tool.
     report_caption_teacher_obs612: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، ایف ڈی ای کے مشاہداتی ٹول پر۔',
+    // bd-31ziu8 (DRAFT for native review): a FICO 6-12 visit's report; it keeps its debrief (HITL).
+    report_caption_teacher_ficos: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، \u2066FICO 6-12\u2069 پر، آپ کی گفتگو کے نوٹس کے ساتھ۔',
     companion_from_label: 'جانب سے',
     companion_commitment_label: 'آپ کا عزم',
     companion_closing: 'ہمیں آپ کے کام پر فخر ہے۔ ہم ساتھ ہیں۔ 💛',
@@ -738,34 +765,53 @@ const STRINGS = {
     v6_choose_level: 'Choose a level.',
     v6_write_why: 'Write why you chose this level (at least 20 characters).',
     v6_check_numbers: 'Check the two numbers.',
-    v6_d2_mismatch: "Your level doesn't match the counts. Change one, or say why.",
-    v6_change_why: 'You changed a level Rumi set. Write why (at least 20 characters).',
+    v6_change_why: 'You changed the level from the recording. Write why (at least 20 characters).',
     v6_fix_heading: 'Please fix these before you go on:',
     // FICO17 v6 coach form, one indicator per screen (13 Nov): observe-fico17-v6.js screenData.
     v6f_section: 'Section {l}',
     v6f_progress: 'Section {l} · {i} of {n}',
     v6f_intro_count: '{n} indicators, one per screen.',
-    v6f_intro_rumi: 'Rumi has set the level for {k} of them from the recording: check each one.',
+    v6f_intro_rumi: 'The NIETE Teaching Assistant set the level for {k} of them from the recording: check each one.',
     v6f_intro_room: 'You set the {m} marked (room) from what you saw in the class, with a reason.',
     v6f_room_tag: '(room)',
     v6f_start: 'Start Section {l}',
-    v6f_rumi_chose: 'Rumi chose {level} from the recording. Change it if you saw something different.',
-    v6f_rumi_none: 'Rumi could not set a level from the recording. Choose the level you saw.',
+    // bd-ra8xu.60 — Observation Notes: the offer while Rumi listens, the notes Flow, and the review intros.
+    v6f_notes_heading: '📝 Your Observation Notes',
+    notes_invite: "📝 While you wait: what did you see in the room that a recording can't hear? The board, group work, who stayed quiet. Add it as Observation Notes before you open the form.",
+    notes_button: 'Add notes',
+    notes_saved: "📝 Saved {n} with this observation. You'll see them at the top of each section of the form.",
+    notes_saved_late: '📝 Saved {n} with this observation.',
+    notes_count_one: '{n} note',
+    notes_count_many: '{n} notes',
+    notes_digits: '0123456789',
+    notes_clock: '{t}',
+    notes_not_saved: "Sorry, your notes didn't save. Please try again.",
+    nf_heading: 'What did you see in the room?',
+    nf_help: "Write what the recording can't hear. They are read beside the recording.",
+    nf_label: 'Your notes',
+    nf_helper: 'Any language, one note per line. Write before you open the form.',
+    nf_save: 'Save notes',
+    v6f_rumi_chose: 'The NIETE Teaching Assistant chose {level} from the recording. Change it if you saw something different.',
+    v6f_rumi_none: 'The NIETE Teaching Assistant could not set a level from the recording. Choose the level you saw.',
     v6f_level: 'Level',
     v6f_level_room: 'Level · you choose',
     v6f_evidence: 'Evidence',
-    v6f_evidence_help: 'What Rumi heard; edit if needed',
+    v6f_evidence_help: 'What was heard in the recording; edit if needed',
     v6f_improve: 'To improve',
     v6f_improve_help: 'What the teacher could do next time',
     v6f_change: 'Why you changed',
-    v6f_change_help: "Only if you changed Rumi's level (20+ characters).",
+    v6f_change_help: 'Only if you changed the level from the recording (20+ characters).',
     v6f_why: 'Why this level',
     v6f_why_help: 'At least 20 characters: what you saw in the room.',
+    // Per-indicator N/A (19 Nov): the room indicators that offer N/A (C3 C5 D4). The published Flow marks the box required.
+    v6f_why_help_na: 'For a level, 20+ characters on what you saw. For N/A, a word or two.',
     v6f_from_recording: 'From the recording',
     v6f_coach_adds: 'Coach adds:',
     v6f_next: 'Next',
     v6f_submit: 'Submit observation',
     v6f_rec_nothing: 'The recording showed nothing for this.',
+    // Queue #184: a starred indicator in starred mode (fico_v6_starred): never sent to the Digital Coach.
+    v6f_rec_starred: '★ Starred: yours alone. The NIETE Teaching Assistant does not listen for this one; set the level from what you saw.',
     v6f_rec_ie: "The recording couldn't show this. Set the level from what you saw.",
     v6f_rec_na: 'The recording did not find this in the lesson.',
     v6f_d2_turns: 'The recording has {a} student turns in the first half and {b} in the second. It cannot tell how many different children spoke.',
@@ -846,7 +892,8 @@ const STRINGS = {
     manage_removed_ack: '✅ {name} removed from your list.',
     coach_card_try_label: 'Next focus',
     // The Feedback Report shows the coach-debrief rubric: marks computed from the judge's booleans
-    // (observe-coach-rubric.js), the misses with why they matter, and the next focus's Coach Training module.
+    // (observe-coach-rubric.js), the misses with why they matter, and the one next focus. No Coach Training module after a
+    // debrief (queue #186): the coach's one training recommendation is in her Weekly Report.
     coach_card_marks_label: 'Your behaviours in this debrief',
     coach_card_respect_line: '✓ Respect held — as always',
     coach_card_missed_label: 'What was missed this time',
@@ -855,8 +902,6 @@ const STRINGS = {
     coach_card_why_label: 'Why it matters:',
     coach_card_focus_why_label: 'Why this one:',
     coach_card_you_said_label: 'You said:',
-    coach_card_module_line: '📘 Coach Training, Module {n}: {title}',
-    coach_card_module_lang: 'en',
     coach_rubric_names: {
       opened_with_specific_praise: 'Specific praise',
       anchored_in_real_moment: 'Real moment',
@@ -881,6 +926,10 @@ const STRINGS = {
     // Coach reports in the app: the ONE WhatsApp message with the link to her debrief report page (button <= 20).
     coach_report_link_body: 'Your debrief report is ready. It opens in the app, in English or Urdu.',
     coach_report_link_button: 'Open my report',
+    // bd-9652yj (queue #166) — see the Urdu block.
+    coach_report_reply1_line: "Report not opening? Reply *1* and I'll send it here.",
+    coach_report_here_failed: 'I could not open that report here just now. Type /observe to see your observations.',
+    handoff_resume_intro: "Let's carry on with your visit here on WhatsApp.",
     // Phase 3: the ONE WhatsApp message on Friday with the link to her week (button <= 20).
     coach_week_link_body: 'Your weekly coaching report is ready: your week, and your focus for next week. It is just for you.',
     coach_week_link_button: 'Open my week',
@@ -972,7 +1021,7 @@ const STRINGS = {
     send_delivering: '📨 Sending the report to the teacher now. I\'ll confirm once it lands.',
     send_cancel_ack: "Okay — nothing was sent. If you change your mind, type /observe and pick that observation.",
     send_already_sent: '✅ That observation\'s report has already been sent to the teacher.',
-    send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; Rumi keeps reminding, and the report is delivered automatically the moment the invitation is tapped.',
+    send_waiting_tap_info: '📨 The report is ready — the invitation went to {name} ({date}). No tap yet; I keep reminding, and the report is delivered automatically the moment the invitation is tapped.',
     send_done_fo: '✅ The report reached the teacher. Beautiful coaching work! 🌱',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
@@ -990,6 +1039,8 @@ const STRINGS = {
       'Your lesson report 🌱 Prepared from {fo}\'s visit — with notes from your conversation together.',
     // bd-pni007: an FDE visit's report. No debrief conversation is promised: the coach scored FDE's own tool.
     report_caption_teacher_obs612: 'Your lesson report 🌱 From {fo}\'s visit, on FDE\'s observation tool.',
+    // bd-31ziu8: a FICO 6-12 visit's report (ICT grades 6-12; code name FICO-S v1.1). It keeps its debrief (HITL).
+    report_caption_teacher_ficos: 'Your lesson report 🌱 From {fo}\'s visit, on FICO 6-12 — with notes from your conversation together.',
     companion_from_label: 'From',
     companion_commitment_label: 'Your commitment',
     // bd-2405: was 'We are proud of your work. Tuko pamoja. 💛' — the Swahili

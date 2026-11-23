@@ -1,12 +1,13 @@
-import type { ReactNode } from "react";
+import { useContext, useLayoutEffect, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
 import { FeatureArt, type AnyFeature } from "./icons";
 import { useLatinAttrs } from "@/lib/textDir";
 import { BackLink } from "../lib/useBack";
+import { RecordingBarShownContext } from "../lib/recordingBarShown";
 import { cn } from "@/lib/utils";
 import { FOCUS } from "./ui/styles";
 import { HelpButton } from "./help/HelpButton";
@@ -58,6 +59,12 @@ export default function TeacherPage({
   children: ReactNode;
 }) {
   const C = useCopy(TEACHER_FRAME);
+  const barShown = useContext(RecordingBarShownContext);
+  // bd-2q8l2u — a new page opens at its top: the window's scroll otherwise carries over from the last screen (the
+  // chapter list opened part-way down, chapters 1–3 above the screen). A layout effect, so a child's own scroll
+  // (PagesStep's scrollIntoView) still wins; only the path counts, so a ?step= change inside one page keeps her place.
+  const { pathname } = useLocation();
+  useLayoutEffect(() => { try { window.scrollTo(0, 0); } catch { /* no window to scroll */ } }, [pathname]);
   // bd-fmf24g.62: an English lesson title or crumb on an Urdu page is its own LTR paragraph (src/lib/textDir.ts).
   const ltrOf = useLatinAttrs();
   const circle = (
@@ -104,7 +111,8 @@ export default function TeacherPage({
         <div className="flex flex-col gap-2.5 pb-4 pt-3">{children}</div>
         {dock && (
           // `bare`: no menu under the dock (a recording), so it stands at the bottom edge, not 88px up.
-          <div className={`sticky ${bare ? 'bottom-[calc(8px+env(safe-area-inset-bottom))]' : 'bottom-[calc(88px+var(--notice-h,0px)+env(safe-area-inset-bottom))]'} z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0`}>
+          // bd-o15qnr.27: a recording running elsewhere puts its bar (56px) above the menu: the dock stands above it too.
+          <div className={`sticky ${bare ? 'bottom-[calc(8px+env(safe-area-inset-bottom))]' : barShown ? 'bottom-[calc(148px+var(--notice-h,0px)+env(safe-area-inset-bottom))]' : 'bottom-[calc(88px+var(--notice-h,0px)+env(safe-area-inset-bottom))]'} z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0`}>
             {dock}
           </div>
         )}

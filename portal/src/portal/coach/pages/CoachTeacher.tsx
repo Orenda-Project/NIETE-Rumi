@@ -91,7 +91,8 @@ function CoachTeacherToday() {
         </>
       ) : undefined}
       // Schedule a visit opens Schedule, a HITL row opens its observation (Observe): each only once that feature is in the coach app.
-      dock={t?.teacherExtId && scheduleReady ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
+      // bd-sf8ioj — never on her own page (a principal holding her own school): a visit is never booked with herself.
+      dock={t?.teacherExtId && scheduleReady && !t.isSelf ?<BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {t && data && (

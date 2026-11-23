@@ -28,9 +28,10 @@ const read = (rel) => fs.readFileSync(path.join(BOT, rel), 'utf8');
 /** file -> the job names its call sites must carry, and how many create() sites it has. */
 const EXPECTED = {
   'shared/services/gpt5-mini.service.js': {
-    sites: 11,
+    sites: 12,
     jobs: [
-      'coaching.pedagogy',          // analyzePedagogy: scoring call + the photo-less retry + the incomplete-analysis retry (3 sites)
+      'coaching.pedagogy',          // analyzePedagogy: scoring call + the photo-less retry + the unreadable-reply re-ask
+                                    // + the incomplete-analysis retry (4 sites, all `...scoringRequest`)
       'coaching.completeJson',      // generic JSON helper: debrief notes, observe2 moments, remark narrative; the
                                     // debrief guide and feedback card name coaching.observeDebrief (bd-gr4fy.15)
       'coaching.fidelityFallback',  // _generateFidelityAssessment
@@ -45,8 +46,9 @@ const EXPECTED = {
   'shared/services/coaching/reflective-conversation.service.js': {
     sites: 1, jobs: ['coaching.acknowledgement'],
   },
+  // Two sites, one job: the report narrative, and FICO 6-12's one line per section (queue #184, v6's rule).
   'shared/services/coaching/report-v2/narrative.service.js': {
-    sites: 1, jobs: ['coaching.narrative'],
+    sites: 2, jobs: ['coaching.narrative'],
   },
   'shared/services/coaching/coaching-card/commitment-card.service.js': {
     sites: 2, jobs: ['coaching.commitmentCard', 'coaching.cardLocalise'],

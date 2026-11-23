@@ -221,6 +221,13 @@ const PORTAL_LP_MAKE_OWN_KEY = 'portal_lp_make_own';
  * plan before it is listed: LIST-ONLY (read with isUserListedInFlag, like portal_role_switch), anything else nobody.
  */
 const PORTAL_LP_OWN_SHELF_KEY = 'portal_lp_own_shelf';
+
+/**
+ * bd-snkn32.56 — "Make my own" from a learning goal or topic (no textbook in class), grades 6-12. LIST-ONLY while it is
+ * tested with a few teachers (read with isUserListedInFlag): a JSON list of users.id; true, "teachers", absent or a
+ * failed read is nobody. Rides with portal_lp_make_own. The bot reads the same key (lp612-own-goal.store).
+ */
+const PORTAL_LP_OWN_GOAL_START_KEY = 'portal_lp_own_goal_start';
 const PORTAL_LP_OWN_REVIEWERS_KEY = 'portal_lp_own_reviewers';
 
 /**
@@ -295,6 +302,16 @@ const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
  * portal_coach_v2 on for her (the pages live inside v2). A tester switch: everyone else's app is unchanged.
  */
 const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
+
+/**
+ * bd-o15qnr.26 — the coach VISIT FLOW v2, per user (queue #177, Option A): Schedule becomes the one open list of her
+ * visits (Overdue · Today · Coming up · Earlier, Cancel visit on each row), the menu's Observe becomes Observations,
+ * New visit gets the teaching-level chips and the Home a Today card. Same shape and rule as the keys above: a list of
+ * users.id = those users, true = everyone, absent = off. /config sends it as features.coachFlowV2, only with
+ * portal_coach_v2 AND portal_coach_full_app on for her (it reworks the Schedule and Observe screens those open).
+ * A tester switch: everyone else's app is unchanged.
+ */
+const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
 
 /**
  * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
@@ -588,7 +605,12 @@ function isLoginIntlNumbersEnabled(supabase) {
   return isFlagEnabled(supabase, PORTAL_LOGIN_INTL_NUMBERS_KEY);
 }
 
+// The lesson plan in the app and the activity Home have their own switches, kept in lib/lp-app-switches.js (this file is
+// over the 300-line limit): portal_lp_feedback_bar, portal_teacher_home_activity, portal_teacher_journey,
+// lp_whatsapp_pdf_off, lp_whatsapp_survey_off. They read through readFlagRow / isFlagEnabledForUser below.
+
 module.exports = {
+  readFlagRow,
   PORTAL_LOGIN_INTL_NUMBERS_KEY,
   isLoginIntlNumbersEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
@@ -614,10 +636,12 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
+  PORTAL_COACH_FLOW_V2_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
+  PORTAL_LP_OWN_GOAL_START_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
   PORTAL_HELP_VIDEOS_KEY,
   PORTAL_PRINCIPAL_APP_KEY,

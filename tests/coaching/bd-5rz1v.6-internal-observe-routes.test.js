@@ -65,6 +65,13 @@ describe('bd-5rz1v.6 — /api/internal/coaching/observe/*', () => {
   });
 
   // bd-ra8xu.40: the class the coach named on Check and send rides with the start, and the portal asks first whether to ask.
+  // bd-ra8xu.60: the Observation Notes typed on Record and Check and send ride with the start; the service checks them.
+  test('start passes the Observation Notes too', async () => {
+    const notes = [{ text: 'Board work', rec_time: '12:40', source: 'portal_record' }];
+    await invoke(router, '/coaching/observe/start', { body: { userId: 'c1', teacherExtId: 't1', key: 'k', notes } });
+    expect(svc.startPortalObservation).toHaveBeenCalledWith(expect.objectContaining({ userId: 'c1', notes }));
+  });
+
   test('start passes the named lesson too', async () => {
     await invoke(router, '/coaching/observe/start', { body: { userId: 'c1', teacherExtId: 't1', key: 'k', lesson: { grade: 7, subject: 'maths' } } });
     expect(svc.startPortalObservation).toHaveBeenCalledWith(expect.objectContaining({ userId: 'c1', lesson: { grade: 7, subject: 'maths' } }));

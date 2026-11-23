@@ -527,6 +527,17 @@ export const portal = {
     return response.data;
   },
 
+  /** AG row 21: her chapters' own exercise questions for Pick from the book; enabled false = no picker. */
+  getAssessmentExercises: async (
+    grade: number,
+    subject: string,
+    chapters: number[]
+  ): Promise<{ success: boolean; enabled: boolean; chapters: AssessmentExerciseChapter[] }> => {
+    // The first read of a chapter asks the model (cached after it), so this one read may take a while.
+    const response = await api.get('/assessment/exercises', { params: { grade, subject, chapters: chapters.join(',') }, timeout: 120_000 });
+    return response.data;
+  },
+
   /** Ask for a paper. 202 + a requestId to poll on; the paper does not exist yet. */
   generateAssessment: async (
     spec: AssessmentSpec
@@ -746,8 +757,16 @@ export type PortalConfig = {
     lpOwnShelf?: boolean;
     /** bd-snkn32.42 — this user approves plans for the shelf (portal_lp_own_reviewers, list-only; fail-closed). */
     lpOwnReviewer?: boolean;
+    /** bd-snkn32.56 — Make my own from a learning goal or topic (portal_lp_own_goal_start, list-only; fail-closed). */
+    lpOwnGoalStart?: boolean;
+    /** bd-snkn32.59 — Make my own → A whole unit (portal_lp_own_unit, list-only, with Make my own on; fail-closed). */
+    lpOwnUnit?: boolean;
+    /** Send on WhatsApp on the plan screen: false only when her programme is on lp_whatsapp_pdf_off (absent = today). */
+    lpWhatsappSend?: boolean;
     /** bd-ik5e8j.4 — the help videos: the "?" and More → How to use (portal_help_videos, with the teacher app on; fail-closed). */
     helpVideos?: boolean;
+    /** The survey bar at the end of a grades 1-5 plan (portal_lp_feedback_bar, with the teacher app on; fail-closed). */
+    lpFeedbackBar?: boolean;
   };
   /** bd-tacnwy — the profile types the switch offers (teacher, coach, principal); empty unless features.roleSwitch. */
   roleSwitchRoles?: string[];
@@ -820,8 +839,20 @@ export type CoachObservationView = {
 
 /** bd-ra8xu.40 — the class of the observed lesson, named on Check and send: grades 1-5, or a grade 6-12 class and its subject. */
 export type ObserveLesson = { primary: true } | { grade: number; subject?: string };
-/** bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer. */
-export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[]; subjectGrades?: number[] };
+/**
+ * bd-ra8xu.40 — ask: FDE's tools are on for her, so Check and send asks the class; the grades and subject keys to offer.
+ * bd-ra8xu.60 — `observationNotes: true`: her observation_notes switch is on, so Record and Check and send take Observation
+ * Notes. Absent means off (the answer is byte-identical to before while it is off).
+ */
+export type ObserveLessonQuestion = { ask: boolean; grades?: number[]; subjects?: string[]; subjectGrades?: number[]; observationNotes?: boolean };
+/**
+ * bd-ra8xu.60 — one Observation Note as POST /leader/observe/start takes it: what she saw that the recording cannot hear.
+ * `rec_time` is the recording clock ('MM:SS') when typed on Record; absent for one added on Check and send. Text at most
+ * 600 characters, at most 40 notes (the dashboard and the bot cap them again).
+ */
+export type ObserveNote = { text: string; rec_time?: string; source: 'portal_record' | 'portal_check'; typed_at: string };
+/** bd-ra8xu.60 — a note as a FICO17 v6 draft returns it (GET /leader/observe/:id/draft `notes`), to show read only. */
+export type DraftObservationNote = { text: string; recTime: string | null };
 
 export type DraftOption = { id: string; title: string };
 export type DraftIndicator = {
@@ -832,14 +863,53 @@ export type DraftMove = { k: number; plan: string; verdict: string; evidence: st
 /** bd-ra8xu.40 — a level a FICO17 v6 indicator offers: "1".."4", "NA" or "IE", its short title and the rubric's words. */
 export type V6Option = { id: string; title: string; description?: string };
 /**
+ * bd-o15qnr.31 (#188, 21 Nov ~10:05, evidence option B with editing) — the coach's review of the NIETE Teaching
+ * Assistant's evidence for one indicator, sent beside `ev_<code>` (POST …/draft `evidence_review`, keyed by code):
+ *   summary   the assistant's line and the coach's (the same when unchanged);
+ *   items     each of the assistant's quotes with what the coach did (kept / removed / edited, the edit as coach_text),
+ *             then the coach's own lines (an optional MM:SS time).
+ * `ev_<code>` is still the one text the reports read; this is the record of what changed.
+ */
+export type EvidenceReviewItem =
+  | { source: 'rumi'; time: string | null; quote: string; status: 'kept' | 'removed' | 'edited'; coach_text?: string }
+  | { source: 'coach'; time?: string | null; text: string };
+export type EvidenceReview = { summary: { rumi: string; coach: string }; items: EvidenceReviewItem[] };
+/**
  * bd-ra8xu.40 — one of the 17 on a FICO17 v6 review (the v6 Flow's screen, in the portal):
  *   'dc'        one of Rumi's 11: `rumi` is his level (null when he had none), `rating` pre-filled, evidence editable;
  *   'combined'  one of the six set from the room: `body` is the definition and Rumi's evidence (read only), blank
  *               `rating` until set, a reason (`why`); D2 also its two counts.
  */
 export type V6Indicator =
-  | { id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string }
-  | { id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string } };
+  | {
+    id: string; field: string; name: string; kind: 'dc'; options: V6Option[]; rumi: string | null; rating: string; evidence: string; improvement: string;
+    /** bd-o15qnr.31 — the Digital Coach's own evidence: its one line and each {time MM:SS, quote}. Absent from an older bot. */
+    rumiEvidence?: { because: string | null; items: { time: string | null; quote: string }[] };
+    /** bd-o15qnr.31 — the coach's review of that evidence, as last saved; null/absent before one is saved. */
+    evidenceReview?: EvidenceReview | null;
+    /** bd-o15qnr.37 — one plain line on what the indicator looks at (#217's guide line), under its name. Absent from an older bot. */
+    about?: string;
+  }
+  | {
+    id: string; field: string; name: string; kind: 'combined'; options: V6Option[]; body: string; rating: string; why: string; d2?: { children: string; quietLater: string };
+    /** bd-o15qnr.36 — the "From the recording" box as parts (observe-fico17-v6.combinedParts). Absent from an older bot: `body`. */
+    recording?: V6Recording;
+    /** bd-o15qnr.37 — one plain line on what the indicator looks at, under its name (then not repeated in the box). */
+    about?: string;
+  };
+/**
+ * bd-o15qnr.36 — one of the six's "From the recording", in the person's language: what to look for, the state, every
+ * snippet the recording did find, the indicator's own N/A words, D2's counts, and what the person adds (without the
+ * rubric's "sets the final level with a written justification").
+ */
+export interface V6Recording {
+  lookFor: string;
+  state: 'found' | 'none' | 'ie' | 'na' | 'starred' | 'd2';
+  found: { time: string | null; quote: string }[];
+  naText: string | null;
+  turns: { first: number; second: number } | null;
+  youAdd: string;
+}
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
   | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] }
@@ -854,6 +924,8 @@ export type RubricLabel = { id: string; label: string };
 export type ObservationDraft = {
   scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean;
   kind?: 'fico17_v6'; rubric?: RubricLabel | null; minReason?: number;
+  /** bd-ra8xu.60 — a v6 visit's Observation Notes, word for word ([] when none; absent from an older bot). */
+  notes?: DraftObservationNote[];
 };
 
 /**
@@ -869,6 +941,14 @@ export type Obs612Field = {
   input: 'radio' | 'dropdown' | 'textarea' | 'textinput' | 'number';
   kind: 'yes_no' | 'level' | 'points' | null; n: number | null; short: string | null; text: string | null;
   options: Obs612Option[] | null; required: boolean; max: number | null;
+  /** Queue #218 (FICO-S v1.2): this level arrives on N/A when the field `code` is set to `level` (C3 after C1 = 1). */
+  follows?: { code: string; level: string };
+  /**
+   * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
+   * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
+   */
+  about?: string;
+  notes?: string;
 };
 export type Obs612Part =
   | { type: 'heading'; text: string }
@@ -877,9 +957,9 @@ export type Obs612Part =
   | { type: 'levels'; label: string; rows: { key: string; n: number; name: string; level: string | null }[] }
   | { type: 'score'; total: number; max: number; pct: number; band: string | null }
   | Obs612Field;
-export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area';
+export type Obs612ErrorCode = 'item' | 'choice' | 'text' | 'number' | 'row_two' | 'same_area' | 'evidence' | 'same_focus';
 export type Obs612Draft = {
-  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur'; toolName: string; toolTitle: string;
+  kind: 'obs612'; label: string; rubricId: string; tool: 'gen' | 'msci' | 'enur' | 'ficos'; toolName: string; toolTitle: string;
   sheet: string | null; grade: number | null; subject: string | null;
   sections: { id: string; parts: Obs612Part[] }[];
   values: Record<string, string>; errors: Record<string, Obs612ErrorCode>; missing: string[];
@@ -947,14 +1027,23 @@ export type AssessmentTopic = {
   sortOrder: number;
 };
 
+/** AG row 21: one exercise question printed in the book, as the bot read it off the chapter's pages. */
+export type AssessmentExercise = { ref: string; heading: string | null; text: string; type: string; page: number | null };
+export type AssessmentExerciseChapter = { chapterNumber: number; title: string | null; exercises: AssessmentExercise[] };
+
 export type AssessmentOptions = {
   success: boolean;
   grades: number[];
+  /** AG row 21: present (true) only while the bot offers Pick from the book for this grade + subject. */
+  bookPicker?: boolean;
   subjects?: AssessmentSubject[];
   types?: AssessmentQuestionType[];
   /** The one cap. Never hardcoded here — the dead panel's 20 vs the bot's 25. */
   maxQuestions: number;
   defaultQuestions: number;
+  /** AG row 12: types printed as a group under one heading count as one toward maxQuestions; maxItems bounds the print. */
+  groupedTypes?: string[];
+  maxItems?: number;
   /** Only while the board pattern is on: the grades it serves (any call), and the pattern for this grade + subject. */
   patternGrades?: number[];
   patterns?: AssessmentPattern[];
@@ -1079,6 +1168,8 @@ export type EditFields = {
 export type EditItem = {
   id: string; number: number | null; removed: boolean; type: string;
   section: 'objective' | 'subjective'; marks: number; text: string; fields: EditFields;
+  /** The question's Bloom's level as the bot tagged it (editor-only; ICT sheet AG rows 6-7). */
+  blooms?: string;
   subs?: { index: number; fields: EditFields }[];
 };
 export type EditPaper = { paperId: string; version: number; grade: number; subject: string;
@@ -1202,7 +1293,8 @@ export const leader = {
 
   // bd-2676 — book a visit from the portal (Riffat R33: clearing WhatsApp
   // storage used to lose the schedule). Create + cancel only, no edit.
-  createSchedule: async (input: { teacherExtId: string; date: string; slot?: string }):
+  // bd-o15qnr.27 (v6): `now: true` = "Schedule for Now" (the coach is in the class): the server sends no notice or invite.
+  createSchedule: async (input: { teacherExtId: string; date: string; slot?: string; now?: boolean }):
     Promise<{ success: boolean; id?: string; updated?: boolean }> => {
     const response = await api.post('/leader/schedules', input);
     return response.data;
@@ -1229,6 +1321,8 @@ export const leader = {
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' } | { ownId: string };
     /** bd-ra8xu.40 — the class she named (asked only while FDE's tools are on for her). */
     lesson?: ObserveLesson;
+    /** bd-ra8xu.60 — her Observation Notes; sent only when there is at least one (no key otherwise). */
+    notes?: ObserveNote[];
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/leader/observe/start', args);
     return response.data;
@@ -1263,9 +1357,13 @@ export const leader = {
     return response.data;
   },
 
-  /** The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. */
-  saveObservationDraft: async (id: string, edits: Record<string, string>): Promise<{ success: boolean }> => {
-    const response = await api.post(`/leader/observe/${id}/draft`, { edits });
+  /**
+   * The review form's own keys: r_/ev_/imp_ per indicator, fid_r_/fid_e_ per lesson-plan move. bd-o15qnr.31 — with
+   * `evidenceReview` (by indicator code) also `evidence_review`; none (or empty), today's body exactly.
+   */
+  saveObservationDraft: async (id: string, edits: Record<string, string>, evidenceReview?: Record<string, EvidenceReview>): Promise<{ success: boolean }> => {
+    const review = evidenceReview && Object.keys(evidenceReview).length ? { evidence_review: evidenceReview } : {};
+    const response = await api.post(`/leader/observe/${id}/draft`, { edits, ...review });
     return response.data;
   },
 
@@ -1273,8 +1371,9 @@ export const leader = {
    * bd-ra8xu.40 — save an FDE (obs612) visit's form (the Flow's field names), and with `submit` submit it. Answers the
    * form as it now stands. A Submit with anything missing is a 400 whose body is an Obs612Refusal (the answers are saved).
    */
-  saveObs612Form: async (id: string, values: Record<string, string>, submit = false): Promise<Obs612Draft> => {
-    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true } : { edits: values });
+  saveObs612Form: async (id: string, values: Record<string, string>, submit = false, evidenceReview?: Record<string, EvidenceReview>): Promise<Obs612Draft> => {
+    const review = evidenceReview && Object.keys(evidenceReview).length ? { evidence_review: evidenceReview } : {};
+    const response = await api.post(`/leader/observe/${id}/draft`, submit ? { edits: values, submit: true, ...review } : { edits: values, ...review });
     return response.data;
   },
 
@@ -1333,6 +1432,14 @@ export const coach = {
     if (args.date) params.date = args.date;
     if (args.coach) params.coach = args.coach;
     const response = await api.get('/coach/team', { params });
+    return response.data;
+  },
+  /**
+   * bd-9652yj (queue #166) — "Continue on WhatsApp": a 5-character code the bot reads to carry on with this visit
+   * (dashboard/routes/coach-handoff.routes.js). code null: no code today; the chat still opens.
+   */
+  handoff: async (body: { screen: string; visitId?: string }): Promise<{ success: boolean; code: string | null }> => {
+    const response = await api.post('/coach/handoff', body, { timeout: 4000 });
     return response.data;
   },
   /** bd-rlxkkt.9 — Coach Training: the modules she marked done ({ module key: ISO time }). */

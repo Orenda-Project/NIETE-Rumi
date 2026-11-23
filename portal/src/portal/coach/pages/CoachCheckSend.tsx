@@ -1,22 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
+import { AlertTriangle, BookOpen, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
-import { AudioCard, ListRow, SelectField } from "../../teacher/ui";
+import { AudioCard, ChoicePair, ChosenSoFar, ListRow, SelectField } from "../../teacher/ui";
+import { LIST_CARD } from "../../teacher/ui/styles";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveRecentPlan } from "../../services/api";
+import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveNote, type ObserveRecentPlan } from "../../services/api";
 import { downloadsOnly, isOwnPlan } from "../../lib/observeRecentPlans";
+import { planClassOf, recentForClass } from "../../lib/observePlanClass";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { PLAN_V7 } from "../flow/copyV7plan";
 import { Card, Loading, Failed, useLoad } from "../ui";
-import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
+import { clearDraft, getDraft, getNotes, MAX_NOTES, setDraft, setNotes, withTyped, type DraftAudio } from "../observeDraft";
+import { AddNote, NotesList, shownNote } from "../observe/ObservationNotes";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
 import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
 import { withDuration } from "../../lib/webmDuration";
+import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
 import { lengthShort, madeWhen, planKindLabel } from "../observe/format";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
@@ -46,6 +52,31 @@ import type { CoachVisit } from "../types";
  * PDF, Word file or photo. One sheet, Camera / Gallery / Files, each its own hidden input (outside the sheet, so a pick
  * is not lost when the sheet closes). The file is checked on arrival (.pdf .docx .jpg .jpeg .png, 25 MB; no .doc) and goes
  * up with the recording as the plan; the bot reads it and scores Section B from it.
+ *
+ * bd-tymy1n (queue #179) — every file she picks here is READ when she picks it and the page keeps the bytes: the photos
+ * (PhotoGrid readOnPick, as the teacher's Digital Coaching since bd-r2uzg1.9) and her own plan. In the Android app the
+ * picked file could no longer be opened by Send (production 18 Nov: 8 sends, each stopped on photo 1). A file that will
+ * not open is refused right here, with its reason in the logs.
+ *
+ * bd-ra8xu.60 (queue #127) — Observation Notes, while her observation_notes switch is on (the same lesson-question read
+ * says `observationNotes: true`): the notes typed on Record, read only with their recording clocks, and a box for anything
+ * she remembers after Stop. Send carries them all to the start; with none there is no `notes` key, as today. Notes made on
+ * Record are shown (and sent) even if this read fails, so nothing she typed is lost; off, there are none and nothing shows.
+ *
+ * bd-o15qnr.33 (queue #204; the operator 21 Nov ~09:10: "when selecting a lesson plan, it should have already filtered down
+ * to that subject grades Lesson Plans. In both, Recent ones or Library. Also, combine these 2 together. It should be Attach
+ * Lesson Plan. Then 2 buttons, nietes lp or attach teachers lp ... On nietes lp, show in a tray their 3 last recent plans of
+ * that grade subject, or give them the chapter picker to select their own. If they attach, give them the camera vs attach
+ * one."), behind the v6/v7 switch (useFlowV6 true; off or still being read, the three tiles as before): ONE section,
+ * Attach lesson plan, with two choices (the kit's ChoicePair).
+ *   NIETE lesson plan   a Tray: the teacher's three newest plans for the class answered above (Grade 1-5 = grades 1 to 5;
+ *                       a grade 9-12 the grade alone), filtered here from the same recent list (lib/observePlanClass), then
+ *                       Pick a chapter: the same LibraryPicker as Library, opened on that class (its grade and subject
+ *                       steps taken for her, Back straight back here). No class answered (not asked, or not yet): the
+ *                       newest three, and the full picker. Sending never waits for it.
+ *   Teacher's own plan  a Tray: Camera (the capture input) / Attach file (the file picker), the same hidden inputs.
+ * Whatever is picked goes up exactly as before (the same `plan` to startSend). Once attached, the plan reads as plain words
+ * (the kit's ChosenSoFar: which choice, its title, its line) with Change (that choice's tray again) and Remove plan.
  */
 
 type Plan =
@@ -101,9 +132,13 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [planError, setPlanError] = useState<"wrong_type" | "too_large" | null>(null);
+  const [planError, setPlanError] = useState<"wrong_type" | "too_large" | "wont_open" | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
+  // bd-o15qnr.33 — the NIETE lesson plan tray (switch on).
+  const [nieteOpen, setNieteOpen] = useState(false);
+  const v7 = useFlowV6() === true;
+  const P = useCopy(PLAN_V7);
   const [recent, setRecent] = useState<ObserveRecentPlan[] | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [libraryLevel, setLibraryLevel] = useState(0);
@@ -124,13 +159,28 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     let live = true;
     Promise.resolve()
       .then(() => leader.getObserveLessonQuestion())
-      .then((q) => { if (live && q && q.ask) setQuestion(q); })
+      .then((q) => { if (live && q && (q.ask || q.observationNotes === true)) setQuestion(q); })
       .catch(() => { /* not asked */ });
     return () => { live = false; };
   }, []);
   // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
   // An older bot that does not say which grades: every grade 6-12 asks it, as before.
   const needsSubject = (g: string | null) => !!g && g !== "primary" && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
+  // bd-ra8xu.60 — her Observation Notes for this recording (Record's, then the ones added here).
+  const [notes, setNoteList] = useState<ObserveNote[]>(() => getNotes(visit.id));
+  const notesHeading = useId();
+  const showNotes = question.observationNotes === true || notes.length > 0;
+  const addNotes = (typed: string) => {
+    const next = withTyped(notes, typed, { source: "portal_check", typed_at: new Date().toISOString() }, true);
+    setNoteList(next);
+    setNotes(visit.id, next);
+  };
+  // bd-o15qnr.33 — the class answered above, as the filter for her plans and the library (null: nothing answered).
+  const planClass = v7 && question.ask ? planClassOf(grade, needsSubject(grade) ? subject : null) : null;
+  const classLabel = planClass
+    ? [grade === "primary" ? C.gradePrimary : C.grade(Number(grade)),
+      planClass.subject ? ((C.subjects as Record<string, string>)[planClass.subject] || planClass.subject) : null].filter(Boolean).join(" · ")
+    : null;
   const lessonOf = (): ObserveLesson | null => {
     if (!question.ask || !grade) return null;
     if (grade === "primary") return { primary: true };
@@ -156,23 +206,50 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     [visit.teacherExtId, visit.schoolExtId],
   );
 
-  const openRecent = () => {
-    setRecentOpen(true);
+  const loadRecentOnce = () => {
     if (recent == null) {
       loadTheirRecent().then((r) => setRecent((r && r.plans) || [])).catch(() => setRecent([]));
     }
   };
 
-  const onPlanFile = (file: File | undefined, source: PlanSource) => {
+  const openRecent = () => {
+    setRecentOpen(true);
+    loadRecentOnce();
+  };
+
+  // bd-o15qnr.33 — NIETE lesson plan: the same recent list, read once, filtered to the class.
+  const openNiete = () => {
+    setNieteOpen(true);
+    loadRecentOnce();
+  };
+
+  /** A recent plan picked (today's tray or the NIETE one): the same pick as always. */
+  const pickRecent = (p: ObserveRecentPlan) => {
+    setPlan({ kind: "library", pick: isOwnPlan(p) ? { ownId: p.ownId } : { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C, kit) });
+    setRecentOpen(false);
+    setNieteOpen(false);
+  };
+
+  const openPicker = () => {
+    setNieteOpen(false);
+    setLibraryLevel(0);
+    setStage("library");
+  };
+
+  const onPlanFile = async (picked: File | undefined, source: PlanSource) => {
     setPlanError(null);
-    if (!file) return;
+    if (!picked) return;
     setOwnOpen(false);
-    const problem = checkPlanFile(file);
+    const problem = checkPlanFile(picked);
     if (problem) { setPlanError(problem); return; }
+    // bd-tymy1n: read now, while the phone still opens it; the plan that goes up is these bytes.
+    const out = await holdFile(picked);
+    if (isFileRefused(out)) { tellUnreadablePick("lesson_plan", picked, out.errName); setPlanError("wont_open"); return; }
+    const file = out.file;
     // A photo just taken has no useful name; a chosen file is shown by its own name and what it is.
     if (source === "camera") { setPlan({ kind: "file", file, title: C.planPhoto, sub: C.takenNow }); return; }
-    const kind = planKindLabel(planKindOf(file.name), C);
-    setPlan({ kind: "file", file, title: file.name, sub: [kind, formatSize(file.size)].filter(Boolean).join(" · ") });
+    const kind = planKindLabel(planKindOf(picked.name), C);
+    setPlan({ kind: "file", file, title: picked.name, sub: [kind, formatSize(picked.size)].filter(Boolean).join(" · ") });
   };
 
   const onLibraryPick = useCallback((p: PickedPlan) => {
@@ -196,6 +273,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
       ...(lesson ? { lesson } : {}),
+      ...(notes.length ? { notes } : {}),
       // bd-33wxxi.4 — where the strip's tap and the ready banner go (the principal app's own screens, or the coach's).
       waitHref: routes.sending(visit.id),
       observationHref: (obsId) => routes.observation(obsId),
@@ -208,13 +286,21 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
   if (stage === "library") {
     return (
-      <ObservePage banner={false} title={C.library} crumb={crumb}
+      <ObservePage banner={false} title={v7 ? P.nietePlan : C.library} crumb={crumb}
         onBack={() => (libraryLevel > 0 ? setLibraryBack((n) => n + 1) : setStage("check"))}>
-        <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
-          loadRecent={() => loadTheirRecent().then(downloadsOnly)} recentTitle={C.theirRecentPlans} showUsed={false} />
+        {v7 ? (
+          // bd-o15qnr.33 — Pick a chapter: the picker on the class answered above; her recent plans were in the tray.
+          <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
+            only={planClass} hideRecent showUsed={false} />
+        ) : (
+          <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
+            loadRecent={() => loadTheirRecent().then(downloadsOnly)} recentTitle={C.theirRecentPlans} showUsed={false} />
+        )}
       </ObservePage>
     );
   }
+
+  const shownRecent = recent ? recentForClass(recent, planClass) : [];
 
   return (
     <ObservePage banner={false} title={C.checkAndSend} crumb={crumb} backTo={routes.visit(visit.id)} feature="observations"
@@ -233,6 +319,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
         )} />
       {isShort && <Alert>{C.shortWarning}</Alert>}
 
+      {/* bd-o15qnr.29 (the operator 21 Nov ~09:00: "it asks for Grade Subject in a weird chips type way. Make it how it used
+          to be"): the dropdowns for everyone, switch on or off (v7's chips are gone). */}
       {question.ask && (
         <>
           <SectionHeading>{C.classAndSubject}</SectionHeading>
@@ -251,37 +339,78 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
         </>
       )}
 
-      <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
-      {plan ? (
-        <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white" data-testid="chosen-plan">
-          <ListRow variant="row" first icon="file" label={plan.title} subtitle={plan.sub} chip={{ text: C.removePlan, tone: "score" }} onPress={() => setPlan(null)} />
-        </div>
+      {v7 ? (
+        <>
+          <SectionHeading chip={C.optional}>{P.attachPlan}</SectionHeading>
+          {plan ? (
+            <div className={`${LIST_CARD} flex flex-col px-3 py-1`} data-testid="chosen-plan">
+              <ChosenSoFar heading={P.attachPlan}
+                items={[{ label: plan.kind === "file" ? P.ownPlan : P.nietePlan, value: plan.title, sub: plan.sub || undefined,
+                  onChange: () => (plan.kind === "file" ? setOwnOpen(true) : openNiete()) }]} />
+              <div className="flex justify-end border-t border-[#e5e7eb]">
+                <button type="button" onClick={() => setPlan(null)} className="flex min-h-[56px] items-center px-0.5">
+                  <span className="inline-flex h-9 items-center rounded-full border-[1.5px] border-[#c7cad6] bg-white px-3.5 text-[14px] font-semibold text-[#33374a]">{C.removePlan}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ChoicePair compact items={[
+              { key: "niete", label: P.nietePlan, art: <BookOpen className="h-[22px] w-[22px]" />, onPress: openNiete, testId: "attach-niete" },
+              { key: "own", label: P.ownPlan, art: <Paperclip className="h-[22px] w-[22px]" />, onPress: () => setOwnOpen(true), testId: "attach-own" },
+            ]} />
+          )}
+        </>
       ) : (
-        <div className="[display:grid] grid-cols-3 gap-2.5">
-          <Tile icon={<Clock className="h-[22px] w-[22px]" />} label={C.theirRecentPlans} onClick={openRecent} />
-          <Tile icon={<Library className="h-[22px] w-[22px]" />} label={C.library} onClick={() => { setLibraryLevel(0); setStage("library"); }} />
-          <Tile icon={<Paperclip className="h-[22px] w-[22px]" />} label={C.ownPlan} onClick={() => setOwnOpen(true)} />
-        </div>
+        <>
+          <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
+          {plan ? (
+            <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white" data-testid="chosen-plan">
+              <ListRow variant="row" first icon="file" label={plan.title} subtitle={plan.sub} chip={{ text: C.removePlan, tone: "score" }} onPress={() => setPlan(null)} />
+            </div>
+          ) : (
+            <div className="[display:grid] grid-cols-3 gap-2.5">
+              <Tile icon={<Clock className="h-[22px] w-[22px]" />} label={C.theirRecentPlans} onClick={openRecent} />
+              <Tile icon={<Library className="h-[22px] w-[22px]" />} label={C.library} onClick={() => { setLibraryLevel(0); setStage("library"); }} />
+              <Tile icon={<Paperclip className="h-[22px] w-[22px]" />} label={C.ownPlan} onClick={() => setOwnOpen(true)} />
+            </div>
+          )}
+        </>
       )}
       {/* The three pickers live here, outside the sheet, so a pick still arrives after the sheet has closed.
           Camera: accept must be exactly image/* (Capacitor opens the camera only then). Gallery: the same without capture.
           Files: the extensions. The type and size are checked on arrival either way. */}
       <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "camera"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "camera"); e.target.value = ""; }} />
       <input ref={planGalleryInput} data-testid="plan-gallery-input" type="file" accept="image/*" className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "gallery"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "gallery"); e.target.value = ""; }} />
       <input ref={planFileInput} data-testid="plan-file-input" type="file" accept={PLAN_FILE_EXTENSIONS.join(",")} className="hidden"
-        onChange={(e) => { onPlanFile(e.target.files?.[0], "files"); e.target.value = ""; }} />
+        onChange={(e) => { void onPlanFile(e.target.files?.[0], "files"); e.target.value = ""; }} />
       {planError === "wrong_type" && <Alert chips={[C.kindPdf, C.kindWord, C.kindPhoto]}>{C.notPlanFile}</Alert>}
       {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
+      {planError === "wont_open" && <Alert>{C.fileWontOpen}</Alert>}
 
       <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" />
+      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
 
-      <Tray open={ownOpen} title={C.ownPlan} onClose={() => setOwnOpen(false)}>
+      {showNotes && (
+        <section aria-labelledby={notesHeading} data-testid="observation-notes" className="flex flex-col gap-3">
+          <SectionHeading><span id={notesHeading}>{C.notesTitle}</span></SectionHeading>
+          <NotesList notes={notes.map(shownNote)} />
+          {notes.length < MAX_NOTES && <AddNote multiline label={C.notesMore} addLabel={C.addNote} onAdd={addNotes} />}
+        </section>
+      )}
+
+      <Tray open={ownOpen} title={v7 ? P.ownPlan : C.ownPlan} onClose={() => setOwnOpen(false)}>
         <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />
-        <SheetRow icon={<ImageIcon className="h-[22px] w-[22px]" />} label={C.gallery} onClick={() => planGalleryInput.current?.click()} />
-        <SheetRow icon={<FolderOpen className="h-[22px] w-[22px]" />} label={C.files} onClick={() => planFileInput.current?.click()} />
+        {v7 ? (
+          // bd-o15qnr.33 — "the camera vs attach one": the file picker takes a PDF, a Word file or a photo.
+          <SheetRow icon={<Paperclip className="h-[22px] w-[22px]" />} label={P.attachFile} onClick={() => planFileInput.current?.click()} />
+        ) : (
+          <>
+            <SheetRow icon={<ImageIcon className="h-[22px] w-[22px]" />} label={C.gallery} onClick={() => planGalleryInput.current?.click()} />
+            <SheetRow icon={<FolderOpen className="h-[22px] w-[22px]" />} label={C.files} onClick={() => planFileInput.current?.click()} />
+          </>
+        )}
         <div className="flex flex-wrap gap-2">
           {[C.kindPdf, C.kindWord, C.kindPhoto, C.upToMb(PLAN_MAX_MB)].map((t) => <StatusChip key={t} text={t} tone="info" className="bg-white" />)}
         </div>
@@ -294,13 +423,31 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
             {recent.map((p, i) => (
               <ListRow key={isOwnPlan(p) ? p.ownId : p.assetId} variant="row" first={i === 0} icon="file" label={p.topic || C.lessonPlan} subtitle={planSub(p, C, kit) || undefined}
-                onPress={() => {
-                  setPlan({ kind: "library", pick: isOwnPlan(p) ? { ownId: p.ownId } : { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C, kit) });
-                  setRecentOpen(false);
-                }} />
+                onPress={() => pickRecent(p)} />
             ))}
           </div>
         )}
+      </Tray>
+
+      {/* bd-o15qnr.33 — NIETE lesson plan: the class it is for (plain words), its three newest plans, Pick a chapter. */}
+      <Tray open={nieteOpen} title={P.nietePlan} onClose={() => setNieteOpen(false)}>
+        {classLabel && <p dir="auto" data-testid="niete-class" className="px-1 text-[15px] font-semibold text-[#6b7280]">{classLabel}</p>}
+        <h3 dir="auto" className="px-1 text-[16px] font-semibold text-[#1d2025]">{P.recentPlans}</h3>
+        {recent == null && <Loading />}
+        {recent && shownRecent.length === 0 && (
+          <div className="flex min-h-[64px] items-center gap-3 rounded-2xl bg-white px-3.5 text-[15px] text-[#6b7280]">
+            <Clock className="h-5 w-5 shrink-0" aria-hidden="true" /><span dir="auto">{planClass ? P.noneForClass : C.noRecentPlans}</span>
+          </div>
+        )}
+        {shownRecent.length > 0 && (
+          <div className={LIST_CARD} data-testid="niete-recent">
+            {shownRecent.map((p, i) => (
+              <ListRow key={isOwnPlan(p) ? p.ownId : p.assetId} variant="row" first={i === 0} icon="file" label={p.topic || C.lessonPlan} subtitle={planSub(p, C, kit) || undefined}
+                onPress={() => pickRecent(p)} />
+            ))}
+          </div>
+        )}
+        <SheetRow icon={<Library className="h-[22px] w-[22px]" />} label={P.pickChapter} onClick={openPicker} />
       </Tray>
     </ObservePage>
   );

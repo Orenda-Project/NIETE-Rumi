@@ -40,13 +40,15 @@ describe('ownUrl / readOwn round trip', () => {
 });
 
 describe('steps — bd-snkn32.19: one flow 1–12, only the lists differ', () => {
-  it('grades 1–5 run pages → size → level → resources → way → check', () => {
+  it('grades 1–5 run pages → purpose → size → level → resources → way → check (bd-snkn32.63)', () => {
     const steps = stepsFor({ grade: 4, mixed: false });
-    expect(steps).toEqual(['pages', 'size', 'level', 'resources', 'way', 'check']);
-    expect(nextStep('pages', steps)).toBe('size');
+    expect(steps).toEqual(['pages', 'purpose', 'size', 'level', 'resources', 'way', 'check']);
+    expect(nextStep('pages', steps)).toBe('purpose');
+    expect(nextStep('pages')).toBe('purpose'); // the default walk is the 1–5 one
+    expect(prevStep('size', steps)).toBe('purpose');
+    expect(nextStep('purpose', stepsFor({ grade: 4, mixed: true }))).toBe('size'); // never "which outcomes first" below 9
     expect(nextStep('way', steps)).toBe('check');
     expect(nextStep('check', steps)).toBeNull();
-    expect(prevStep('size', steps)).toBe('pages');
     expect(prevStep('pages', steps)).toBeNull();
   });
   it('grades 6–12 ask what the lesson is for right after the pages', () => {
@@ -71,10 +73,12 @@ describe('readOwn — the band decides what survives (bd-snkn32.19)', () => {
     expect(readOwn('grade=10&subject=Chemistry&chapter=c02&way=worked')!.way).toBeNull();
     expect(readOwn('grade=4&subject=Urdu&chapter=c02&way=phonics')!.way).toBe('phonics');
   });
-  it('drops exam practice below Grade 8 and any purpose at 1–5', () => {
+  it('drops exam practice below Grade 8 and at 1–5 (bd-snkn32.63: 1–5 keeps new, revise, re-teach)', () => {
     expect(readOwn('grade=7&subject=Science&chapter=c02&purpose=board')!.purpose).toBeNull();
     expect(readOwn('grade=8&subject=Science&chapter=c02&purpose=board')!.purpose).toBe('board');
-    expect(readOwn('grade=4&subject=Science&chapter=c02&purpose=new')!.purpose).toBeNull();
+    expect(readOwn('grade=4&subject=Science&chapter=c02&purpose=new')!.purpose).toBe('new');
+    expect(readOwn('grade=4&subject=Science&chapter=c02&purpose=reteach')!.purpose).toBe('reteach');
+    expect(readOwn('grade=4&subject=Science&chapter=c02&purpose=board')!.purpose).toBeNull();
   });
   it('drops the outcomes focus below Grade 9 and on exam practice', () => {
     expect(readOwn('grade=8&subject=Science&chapter=c02&focus=summative')!.focus).toBeNull();

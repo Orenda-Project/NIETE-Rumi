@@ -10,6 +10,10 @@
  *               else the library pick for the class's grade (a story → the stories page's own sheet; a ready video
  *               quiz → the send sheet); a quiz just made from a lesson replaces it with "Send to my class"
  *   under it    the confirm rows for children who joined on their own ("Same child / Different / Not sure"), "Children on this phone"
+ *   reports     (quiz_teacher_home_reports, bd-5j1zaf) "Quiz reports": every sent quiz, newest first, 5 rows + "More"; each
+ *               row its topic, "{played} of {of} played", the chip "+{late} after the report" when children finished
+ *               after its 12 h report ("Report not sent yet" before it), and "See report" (the live report, ?from=home);
+ *               a foot line "Evening rounds" when a class has a live round (REPORTS_SWAPS; off, no section)
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
@@ -27,6 +31,8 @@
  *   one lesson  (quiz_teacher_home_one_lesson, ?session=<coaching session id>: a Digital Coach report's "Create Quick
  *               Quiz") the top card alone, "Quiz from this lesson", that lesson's "Quiz this" started right after paint;
  *               no list, no library, "See all my lessons" to the plain home (ONE_SWAPS)
+ *               and the same page for a lesson plan, ?lesson=<the /quiz list's lesson key>: its card makes that plan's
+ *               quiz (kind lesson, LESSON_SWAPS); the session wins when both are given
  *
  * The script never builds HTML (createElement + textContent only); the inline CSS and the script are allowed by their
  * sha256 in the Content-Security-Policy (header + <meta>). Audit hooks: data-screen per screen, ONE data-primary per
@@ -357,21 +363,73 @@ var g0=store('th.grade');`],
 ]);
 const ONE_SCRIPT = swapped(SCRIPT, ONE_SWAPS, 'the one-lesson part');
 const ONE_SCRIPT_HASH = sha(ONE_SCRIPT);
+/**
+ * forward (quiz_forward_button): the send sheet's "More ways to share" (#th-native), shown only when the browser has a
+ * share sheet (navigator.share: Chrome, the teacher app; never WhatsApp's own browser, where the wa.me link is the one
+ * tap). Its tap is the step fwd_native, and what the browser reports is fwd_result {r: shared|dismissed|failed}.
+ * Anchored on the step, the sheet and the copy button, so it composes with every other part; swapped last.
+ */
+const FORWARD_SWAPS = Object.freeze([
+  ['if(x.c)o.c=x.c}', 'if(x.c)o.c=x.c;if(x.r)o.r=x.r}'],
+  ["q('#th-copied').hidden=true;q('#th-long').hidden=true;", "q('#th-copied').hidden=true;q('#th-long').hidden=true;q('#th-native').hidden=!(navigator.share);"],
+  ["q('#th-copy').addEventListener('click',copy);", `q('#th-copy').addEventListener('click',copy);
+q('#th-native').addEventListener('click',function(){var x=cur;if(!x||!navigator.share)return;var o={kind:x.sendKind,id:x.id,origin:x.origin,c:x.c};step('fwd_native',o);
+function r(v){o.r=v;step('fwd_result',o)}try{navigator.share({text:x.message}).then(function(){r('shared')},function(e){r(e&&e.name==='AbortError'?'dismissed':'failed')})}catch(e){r('failed')}});`],
+]);
+const ONE_SCRIPT_FWD = swapped(ONE_SCRIPT, FORWARD_SWAPS, 'a forward part');
+const ONE_SCRIPT_FWD_HASH = sha(ONE_SCRIPT_FWD);
+/**
+ * The same one-lesson page for a lesson PLAN (?lesson=<the /quiz list's key>): its card makes that plan's quiz, the
+ * make() a plan row's "Quiz this" runs (kind 'lesson'). The ?session= scripts above stay byte for byte.
+ */
+const LESSON_SWAPS = Object.freeze([["r={kind:'coach',make:'coaching',id:b.one,title:''}", "r={kind:'lesson',make:'lesson',id:b.one,title:''}"]]);
+const ONE_LESSON_SCRIPT = swapped(ONE_SCRIPT, LESSON_SWAPS, 'the lesson-plan part');
+const ONE_LESSON_SCRIPT_HASH = sha(ONE_LESSON_SCRIPT);
+const ONE_LESSON_SCRIPT_FWD = swapped(ONE_SCRIPT_FWD, LESSON_SWAPS, 'the lesson-plan part');
+const ONE_LESSON_SCRIPT_FWD_HASH = sha(ONE_LESSON_SCRIPT_FWD);
+/**
+ * The "Quiz reports" section (quiz_teacher_home_reports, bd-5j1zaf): its drawing and its taps, swapped onto whichever
+ * script the other switches chose (each variant under its own hash, built on first use), with its own few styles. The
+ * row's verb is the row button's 48 px; the late chip is a pill like "Sent ✓", in the warning colours. The tap's beacon
+ * sends `late` as the string "true" | "false" (the portal edge keeps a POST field only when it is a string). OFF: none of it.
+ */
+const REPORTS_SWAPS = Object.freeze([
+  ['function lib(L){', `var rshown=5;
+function rstep(late){var o={t:b.t,step:'report',late:late?'true':'false'};try{var s=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/api/th/step',new Blob([s],{type:'application/json'})))return;post('/api/th/step',o).catch(function(){})}catch(e){}}
+function reps(){var R=d.reports,s=q('#th-rp');if(!s)return;var all=(R&&R.rows)||[],ul=q('#th-rp-rows');clear(ul);
+all.slice(0,rshown).forEach(function(r){var li=el('li','th-row');li.setAttribute('data-row','report');var tx=el('div','th-row-t');var n=el('span','th-row-n');n.appendChild(topic(r.title));tx.appendChild(n);
+var k=el('span','th-row-k',r.of!=null&&r.onList>0?fill('th.rp.of',{played:dg(r.onList),of:dg(r.of)}):r.of==null&&r.played>0?fill('th.rp.n',{played:dg(r.played)}):S['th.zero']);tx.appendChild(k);
+if(r.late>0)k.appendChild(el('span','th-late',fill('th.rp.late',{late:dg(r.late)})));else if(!r.reported)tx.appendChild(el('span','th-row-k',S['th.rp.pending']));
+li.appendChild(tx);var a=link('th-row-v',S['th.report'],r.report,'report');a.addEventListener('click',function(){rstep(r.late>0)});li.appendChild(a);ul.appendChild(li)});
+s.hidden=!all.length;q('#th-rp-more').hidden=all.length<=rshown;var g=q('#th-rp-rounds');g.hidden=!(R&&R.rounds);if(R&&R.rounds)g.setAttribute('href',R.rounds)}
+q('#th-rp-more').addEventListener('click',function(){rshown+=10;reps();step('reports_more')});
+function lib(L){`],
+  ['under();rows();lib(', 'under();reps();rows();lib('],
+]);
+const REPORTS_CSS = '\n.th-late{display:inline-block;unicode-bidi:isolate;margin-inline-start:8px;padding:0 8px;border-radius:999px;background:var(--warn-bg);color:var(--warn);font-size:14px;font-weight:800;white-space:nowrap}html[lang=ur] .th-late{font-weight:400;font-size:16px}';
+const REPORTS_SCRIPTS = new Map();
+function reportsScript(key, base) {
+  if (!REPORTS_SCRIPTS.has(key)) { const text = swapped(base.text, REPORTS_SWAPS, 'the quiz reports part'); REPORTS_SCRIPTS.set(key, { text, hash: sha(text) }); }
+  return REPORTS_SCRIPTS.get(key);
+}
+
+const LESSON_KEY_RX = /^lsn_[A-Za-z0-9_:.-]{1,200}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Every page the switches can ask for: paged × named × early × counts × grade-fast × portal, each under its own hash.
 // The fast grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch
 // on the counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
 const SCRIPTS = new Map();
-[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => [false, true].forEach((portal) => {
+[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => [false, true].forEach((portal) => [false, true].forEach((forward) => {
   let text = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
   if (fast) text = wait ? swapped(SCRIPT_WAIT, FAST_SWAPS) : paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
   if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
   if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
   if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
   if (portal) text = swapped(text, PORTAL_SWAPS, 'the portal-link part');
-  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}|${portal}`, { text, hash: !fast && !counts && !named && !early && !portal ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
-})))))));
+  if (forward) text = swapped(text, FORWARD_SWAPS, 'a forward part');
+  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}|${portal}|${forward}`, { text, hash: !fast && !counts && !named && !early && !portal && !forward ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
+}))))))));
 
 /**
  * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
@@ -411,21 +469,33 @@ function pageLang(tokenLang, asked) {
 const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
 const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
 const ONE_IDS = Object.freeze(['th.one.say']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS].includes(id)));
+const FORWARD_IDS = Object.freeze(['th.share.more']);
+// the "Quiz reports" section's: the script fills the row words; its heading and rounds line are the shell's own
+const REPORT_IDS = Object.freeze(['th.rp.of', 'th.rp.n', 'th.rp.late', 'th.rp.pending']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', 'th.rp.head', 'th.rp.rounds', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS, ...REPORT_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
  * script and its own hash; `portal` (only a real true) adds "Open my portal" to the foot and its script part; `one`
- * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson.
+ * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson;
+ * `reports` (only a real true; never on the one-lesson page) adds the "Quiz reports" section, its styles and its script part.
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null }) {
-  const oneId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
-  const { text: script, hash: scriptHash } = oneId ? { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH } : SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}`);
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, forward = false, reports = false }) {
+  const sessionId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
+  const lessonKey = !sessionId && typeof lesson === 'string' && LESSON_KEY_RX.test(lesson) ? lesson : null;
+  const oneId = sessionId || lessonKey;
+  const fwd = forward === true;
+  const oneScript = lessonKey
+    ? (fwd ? { text: ONE_LESSON_SCRIPT_FWD, hash: ONE_LESSON_SCRIPT_FWD_HASH } : { text: ONE_LESSON_SCRIPT, hash: ONE_LESSON_SCRIPT_HASH })
+    : (fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH });
+  const key = `${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}|${fwd}`;
+  const rp = reports === true && !oneId;
+  const { text: script, hash: scriptHash } = oneId ? oneScript : (rp ? reportsScript(key, SCRIPTS.get(key)) : SCRIPTS.get(key));
   const l = clampLanguage(lang);
-  const style = `${fontFace(l)}${CSS}`;
+  const style = `${fontFace(l)}${CSS}${rp ? REPORTS_CSS : ''}`;
   const styleHash = sha(style);
   const enc = encodeURIComponent(token);
   const chat = require('./teacher-home.copy').chatLink();
@@ -434,8 +504,9 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   if (named === true) NAMED_IDS.forEach((id) => { s[id] = str(id, l); });
   if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   if (oneId) ONE_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (rp) REPORT_IDS.forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
-    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${oneId ? `&amp;session=${oneId}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
+    ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${sessionId ? `&amp;session=${sessionId}` : lessonKey ? `&amp;lesson=${encodeURIComponent(lessonKey)}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
   const chips = [1, 2, 3, 4, 5].map((g) => `<button type="button" class="th-chip" data-grade="${g}" data-tap="grade" aria-pressed="false" aria-label="${esc(str('th.grade.n', l).replace('{n}', digits(g, l)))}">${esc(digits(g, l))}</button>`).join('');
   const boot = { t: token, lang: l, ask: switchTo && asked === 'en' ? 'en' : null, dg: l === 'ur' ? UR_DIGITS : null, s, ...(oneId ? { one: oneId } : {}) };
@@ -448,7 +519,13 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
 <section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
 <ul class="th-rows" id="th-confirm" hidden></ul>
-<a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>
+<a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>${rp ? `
+<section id="th-rp" hidden>
+<h2>${esc(str('th.rp.head', l))}</h2>
+<ul class="th-rows" id="th-rp-rows"></ul>
+<button type="button" class="th-link" id="th-rp-more" data-tap="reports_more" hidden>${esc(str('th.more', l))}</button>
+<a class="th-link" id="th-rp-rounds" data-tap="rounds" hidden>${esc(str('th.rp.rounds', l))}</a>
+</section>` : ''}
 <section id="th-tl" hidden>
 <h2>${esc(str('th.timeline', l))}</h2>
 <ul class="th-rows" id="th-rows"></ul>
@@ -478,7 +555,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <button type="button" class="th-go2" id="th-copy" data-tap="copy">${esc(str('th.copy', l))}</button>
 <p class="th-ok" id="th-copied" role="status" hidden>${esc(str('th.copied', l))}</p>
 <p class="th-note" id="th-long" role="status" hidden>${esc(str('th.copy.long', l))}</p>
-<a class="th-go" id="th-sheet-go" data-tap="share_tap">${esc(str('th.send', l))}</a>
+<a class="th-go" id="th-sheet-go" data-tap="share_tap">${esc(str('th.send', l))}</a>${fwd ? `\n<button type="button" class="th-go2" id="th-native" data-tap="share_native" hidden>${esc(str('th.share.more', l))}</button>` : ''}
 <p class="th-note">${esc(str('th.send.note1', l))}</p>
 <p class="th-note">${esc(str('th.send.note2', l))}</p>
 <p class="th-note">${esc(str('th.back.note', l))}</p>
@@ -494,5 +571,5 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 module.exports = {
   buildShell, pageLang, msgRows, SCRIPT, SCRIPT_HASH, SCRIPT_PAGED, SCRIPT_PAGED_HASH,
   FAST_SCRIPT, FAST_SCRIPT_HASH, SCRIPT_PAGED_FAST, SCRIPT_PAGED_FAST_HASH, SCRIPT_WAIT, SCRIPT_WAIT_HASH, HOME_P99_MS, WAIT_MS, swapped, digits, csp, sha,
-  ONE_SCRIPT, ONE_SCRIPT_HASH,
+  ONE_SCRIPT, ONE_SCRIPT_HASH, ONE_SCRIPT_FWD, FORWARD_SWAPS, ONE_LESSON_SCRIPT, ONE_LESSON_SCRIPT_FWD, REPORTS_SWAPS,
 };

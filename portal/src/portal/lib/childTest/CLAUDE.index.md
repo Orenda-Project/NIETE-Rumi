@@ -33,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `uploader.ts` ← `portal/src/portal/lib/childTest/uploader.test.ts`
 
 ## Related (all, generated)
-- docs: `portal/src/portal/lib/CLAUDE.md`? · `portal/src/portal/types/CLAUDE.md`?
+- docs: `portal/src/portal/lib/CLAUDE.md`?

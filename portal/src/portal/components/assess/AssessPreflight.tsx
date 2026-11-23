@@ -22,9 +22,17 @@ import AssessActions from './AssessActions';
  * then reads silence), and the recording can be played again by a tap (iOS
  * refuses a play-back that no tap started). Every check is reported to the logs
  * (micReport.ts), switch or not.
+ *
+ * With sa_r28_mic_unknown (floor): "I heard it" is offered only when the meter's
+ * peak is above MIC_FLOOR (0.01, unrounded; silence is one 8-bit step, 1/128).
+ * At or under it the card says no sound came through and offers Try again. The
+ * peak is stored to 4 dp; a phone with no meter passes on "I heard it" alone,
+ * stored with mic_rms null and how 'unmeasured'.
  */
 
 export const RECORD_MS = 2000;
+/** The engine's floor (dashboard/sa/sa-mic.js FLOOR): a peak at or under it is silence. */
+export const MIC_FLOOR = 0.01;
 const BEEP_S = 0.4;
 const METER_MS = 50;
 
@@ -61,14 +69,15 @@ export function rmsOf(buf: Uint8Array): number {
   return Math.min(1, Math.sqrt(sum / buf.length));
 }
 
-type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void; micRequired?: boolean; iosMic?: boolean };
+type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void; micRequired?: boolean; iosMic?: boolean; floor?: boolean };
 
-export default function AssessPreflight({ copy, onMic, onReady, micRequired = false, iosMic = false }: Props) {
+export default function AssessPreflight({ copy, onMic, onReady, micRequired = false, iosMic = false, floor = false }: Props) {
   const [mic, setMic] = useState<MicState>('idle');
   const [tried, setTried] = useState(false);
   const [withoutMic, setWithoutMic] = useState(false);
   const [level, setLevel] = useState(0);
   const peak = useRef(0);
+  const measured = useRef(false);
   const cleanup = useRef<() => void>(() => {});
   const recording = useRef<string | null>(null);
 
@@ -78,7 +87,10 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
 
   const finish = (ok: boolean) => {
     probed.current = true;
-    onMic({ mic_ok: ok, mic_rms: Math.round(peak.current * 100) / 100, at: Date.now() });
+    if (!floor) { onMic({ mic_ok: ok, mic_rms: Math.round(peak.current * 100) / 100, at: Date.now() }); return; }
+    onMic(measured.current
+      ? { mic_ok: ok, mic_rms: Math.round(peak.current * 10000) / 10000, at: Date.now(), how: 'auto' }
+      : { mic_ok: ok, mic_rms: null, at: Date.now(), how: 'unmeasured' });
   };
 
   const check = async () => {
@@ -86,6 +98,7 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
     setWithoutMic(false);
     cleanup.current();
     peak.current = 0;
+    measured.current = false;
     recording.current = null;
     setLevel(0);
     // iosMic: made here, inside the tap, before anything is awaited
@@ -131,6 +144,7 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
         analyser.fftSize = 1024;
         ctx.createMediaStreamSource(stream).connect(analyser);
         const buf = new Uint8Array(analyser.fftSize);
+        measured.current = true;
         meter = window.setInterval(() => {
           analyser.getByteTimeDomainData(buf);
           const r = rmsOf(buf);
@@ -207,6 +221,8 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
     } catch { /* the coach can still say what they heard */ }
   };
   const blocked = micRequired && mic !== 'ok' && !withoutMic;
+  // floor: a measured peak at or under the floor is silence, and "I heard it" is not offered
+  const silent = floor && measured.current && peak.current <= MIC_FLOOR;
 
   return (
     <div data-testid="assess-preflight" className="space-y-4">
@@ -239,9 +255,11 @@ export default function AssessPreflight({ copy, onMic, onReady, micRequired = fa
         )}
         {mic === 'asking' && (
           <div className="space-y-2">
-            <p className="text-slate-800">{copy.micListen}</p>
+            {silent
+              ? <p data-testid="assess-mic-none" role="status" className="text-slate-800">{copy.micNone}</p>
+              : <p className="text-slate-800">{copy.micListen}</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={heard} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-medium text-white">{copy.micHeard}</button>
+              {!silent && <button type="button" onClick={heard} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-medium text-white">{copy.micHeard}</button>}
               <button type="button" onClick={again} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white">{copy.tryAgain}</button>
             </div>
             {iosMic && (

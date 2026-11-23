@@ -105,6 +105,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `1f24ac83b6ed.mp3` | (unmapped) |
 | `1f6b18a314e8.json` | English word timings (9 words, 4.1s) for the v4 clip "Can you hear Jugnu? Tap the picture…", read by sa-ui |
 | `1f6b18a314e8.mp3` | (unmapped) |
+| `1fe934e933f1.json` | (unmapped) |
 | `1fe934e933f1.mp3` | (unmapped) |
 | `202e2d64c57b.json` | English word timings (9 words, 2.7s) for the v4 clip "Now it is your turn to say each num…", read by sa-ui |
 | `202e2d64c57b.mp3` | (unmapped) |
@@ -209,6 +210,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `3c1a366ad1ea.json` | English word timings (5 words, 2.6s) for the v4 clip "Well done! The word is:", read by sa-ui |
 | `3c1a366ad1ea.mp3` | (unmapped) |
 | `3ccbfcbb8d89.mp3` | (unmapped) |
+| `3d2d50db4ac6.json` | (unmapped) |
 | `3d2d50db4ac6.mp3` | (unmapped) |
 | `3ebd8b0ca40c.json` | English word timings (1 words, 2.0s) for the v4 clip "ut", read by sa-ui |
 | `3ebd8b0ca40c.mp3` | (unmapped) |
@@ -295,11 +297,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `51da99e39153.mp3` | (unmapped) |
 | `51fcfc587e0d.json` | English word timings (5 words, 2.0s) for the v4 clip "The number 3 goes here.", read by sa-ui |
 | `51fcfc587e0d.mp3` | (unmapped) |
+| `526e247b7b39.json` | (unmapped) |
+| `526e247b7b39.mp3` | (unmapped) |
 | `54121dfbff4a.json` | English word timings (4 words, 1.7s) for the v4 clip "Now some English reading.", read by sa-ui |
 | `54121dfbff4a.mp3` | (unmapped) |
 | `541a1a51ea43.mp3` | (unmapped) |
 | `547bca418207.json` | English word timings (21 words, 8.5s) for the v4 clip "Here are some multiplication proble…", read by sa-ui |
 | `547bca418207.mp3` | (unmapped) |
+| `5634d08731e5.json` | (unmapped) |
 | `5634d08731e5.mp3` | (unmapped) |
 | `565949fce286.json` | English word timings (35 words, 13.1s) for the v4 clip "Now some questions about the story you just rea…", read by sa-ui |
 | `565949fce286.mp3` | (unmapped) |
@@ -316,6 +321,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `58f127d915ca.mp3` | (unmapped) |
 | `59447289f516.json` | English word timings (14 words, 5.0s) for the v4 clip "Can you not hear? Ask the coach to…", read by sa-ui |
 | `59447289f516.mp3` | (unmapped) |
+| `59c239b8cb70.json` | (unmapped) |
+| `59c239b8cb70.mp3` | (unmapped) |
 | `59f56005eef7.mp3` | (unmapped) |
 | `5a5a4506816e.mp3` | (unmapped) |
 | `5a69b26f71d1.mp3` | (unmapped) |
@@ -399,6 +406,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `6deabef167a1.mp3` | (unmapped) |
 | `6e91acc195d4.json` | English word timings (8 words, 2.2s) for the v4 clip "What did they see on the way back?", read by sa-ui |
 | `6e91acc195d4.mp3` | (unmapped) |
+| `6ee3d9136216.json` | (unmapped) |
+| `6ee3d9136216.mp3` | (unmapped) |
 | `6f291175d5de.json` | English word timings (4 words, 2.2s) for the v4 clip "The answer is 5.", read by sa-ui |
 | `6f291175d5de.mp3` | (unmapped) |
 | `710fd56aa576.mp3` | (unmapped) |
@@ -418,6 +427,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `749326ee46bb.json` | English word timings (4 words, 1.9s) for the v4 clip "That is right, 1.", read by sa-ui |
 | `749326ee46bb.mp3` | (unmapped) |
 | `75a677691f8d.mp3` | (unmapped) |
+| `75aa6411952a.json` | (unmapped) |
 | `75aa6411952a.mp3` | (unmapped) |
 | `760a10aa6c63.json` | English word timings (27 words, 11.4s) for the v4 clip "Letters will come one at a time. Sa…", read by sa-ui |
 | `760a10aa6c63.mp3` | (unmapped) |
@@ -428,6 +438,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `775b9d416132.mp3` | (unmapped) |
 | `778206bc38f0.json` | English word timings (8 words, 6.2s) for the v4 clip "Star comes next. Star, square, star…", read by sa-ui |
 | `778206bc38f0.mp3` | (unmapped) |
+| `77c1242162bf.json` | (unmapped) |
+| `77c1242162bf.mp3` | (unmapped) |
 | `7901ec44f3e2.json` | English word timings (4 words, 2.4s) for the v4 clip "This number is 66.", read by sa-ui |
 | `7901ec44f3e2.mp3` | (unmapped) |
 | `7960cae10928.json` | English word timings (8 words, 2.9s) for the v4 clip "On what day did Sara wake up early?", read by sa-ui |
@@ -454,6 +466,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `80414090be6a.json` | English word timings (8 words, 3.3s) for the v4 clip "Yes! The sound of this letter is ss…", read by sa-ui |
 | `80414090be6a.mp3` | (unmapped) |
 | `81583eb277f0.mp3` | (unmapped) |
+| `827036988442.json` | (unmapped) |
 | `827036988442.mp3` | (unmapped) |
 | `83231d96ede2.mp3` | (unmapped) |
 | `83742be68181.mp3` | (unmapped) |
@@ -488,6 +501,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `8c3d6593606f.mp3` | (unmapped) |
 | `8c4fa6d67ffa.mp3` | (unmapped) |
 | `8d264b8a08fa.mp3` | (unmapped) |
+| `8d31cfd2ad8c.json` | (unmapped) |
+| `8d31cfd2ad8c.mp3` | (unmapped) |
 | `8d7b12af776d.json` | English word timings (5 words, 2.0s) for the v4 clip "The bigger number is 12.", read by sa-ui |
 | `8d7b12af776d.mp3` | (unmapped) |
 | `8d8c78e9156c.mp3` | (unmapped) |
@@ -504,6 +519,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `8ffbd6a92cf8.mp3` | (unmapped) |
 | `902fc6e315f9.mp3` | (unmapped) |
 | `90472804f8d0.mp3` | (unmapped) |
+| `90d23fdca65f.json` | (unmapped) |
 | `90d23fdca65f.mp3` | (unmapped) |
 | `9147e9aae734.mp3` | (unmapped) |
 | `917fd105f2b8.json` | English word timings (4 words, 1.3s) for the v4 clip "What is a duckling?", read by sa-ui |
@@ -534,6 +550,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `9aacb3936bdb.json` | English word timings (10 words, 3.1s) for the v4 clip "Now it is your turn to tap the bigg…", read by sa-ui |
 | `9aacb3936bdb.mp3` | (unmapped) |
 | `9ab074cce043.mp3` | (unmapped) |
+| `9b269e61a60d.json` | (unmapped) |
 | `9b269e61a60d.mp3` | (unmapped) |
 | `9b4f1b67db04.mp3` | (unmapped) |
 | `9bd3a9a47530.mp3` | (unmapped) |
@@ -544,18 +561,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `9ca6ad7ecafc.mp3` | (unmapped) |
 | `9d2bf077ad30.mp3` | (unmapped) |
 | `9dfec66e5711.mp3` | (unmapped) |
+| `9e5356dd090a.json` | (unmapped) |
+| `9e5356dd090a.mp3` | (unmapped) |
 | `9e6fbb86c6da.json` | English word timings (26 words, 9.7s) for the v4 clip "This is a listening game. Jugnu wil…", read by sa-ui |
 | `9e6fbb86c6da.mp3` | (unmapped) |
+| `9e810a641d17.json` | (unmapped) |
+| `9e810a641d17.mp3` | (unmapped) |
 | `9e8f1e73d9a6.json` | English word timings (8 words, 3.0s) for the v4 clip "Look at the pattern. Tap what comes…", read by sa-ui |
 | `9e8f1e73d9a6.mp3` | (unmapped) |
 | `9f2edafd30d8.mp3` | (unmapped) |
 | `9f4d879810b9.mp3` | (unmapped) |
 | `9faa6bb02bfc.mp3` | (unmapped) |
+| `9fd8fb1634a3.json` | (unmapped) |
 | `9fd8fb1634a3.mp3` | (unmapped) |
 | `a0237bf64d44.mp3` | (unmapped) |
 | `a09049fba36e.mp3` | (unmapped) |
+| `a14508028d80.json` | (unmapped) |
+| `a14508028d80.mp3` | (unmapped) |
 | `a163e3434239.mp3` | (unmapped) |
 | `a168bae5fbc5.mp3` | (unmapped) |
+| `a1c813f91253.json` | (unmapped) |
+| `a1c813f91253.mp3` | (unmapped) |
 | `a1e7712b45ec.json` | English word timings (2 words, 1.6s) for the v4 clip "That’s right!", read by sa-ui |
 | `a1e7712b45ec.mp3` | (unmapped) |
 | `a1ea30770326.mp3` | (unmapped) |
@@ -566,6 +592,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `a372de23836d.mp3` | (unmapped) |
 | `a4b9f6e36394.mp3` | (unmapped) |
 | `a4f752a70638.mp3` | (unmapped) |
+| `a512e469735b.json` | (unmapped) |
 | `a512e469735b.mp3` | (unmapped) |
 | `a62c12b3baed.json` | English word timings (7 words, 2.1s) for the v4 clip "Why did Sara take money with her?", read by sa-ui |
 | `a62c12b3baed.mp3` | (unmapped) |
@@ -618,6 +645,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `b435e0066130.mp3` | (unmapped) |
 | `b45c41532283.json` | English word timings (10 words, 5.4s) for the v4 clip "For example, the sounds in "pot" ar…", read by sa-ui |
 | `b45c41532283.mp3` | (unmapped) |
+| `b46df7fb28cf.json` | (unmapped) |
+| `b46df7fb28cf.mp3` | (unmapped) |
 | `b47b98dfabac.mp3` | (unmapped) |
 | `b49a37641843.json` | English word timings (6 words, 3.1s) for the v4 clip "Yes! This made-up word is ut.", read by sa-ui |
 | `b49a37641843.mp3` | (unmapped) |
@@ -626,6 +655,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `b5cffa8f4d9e.mp3` | (unmapped) |
 | `b5fca5e35e15.json` | English word timings (13 words, 11.0s) for the v4 clip "Star, circle: one. Star, circle: tw…", read by sa-ui |
 | `b5fca5e35e15.mp3` | (unmapped) |
+| `b6da485a0ca5.json` | (unmapped) |
+| `b6da485a0ca5.mp3` | (unmapped) |
 | `b86760afcd2e.mp3` | (unmapped) |
 | `b8caa98a9722.mp3` | (unmapped) |
 | `b8f1a6f0faeb.mp3` | (unmapped) |
@@ -673,6 +704,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `c40c0132e8eb.mp3` | (unmapped) |
 | `c45531b7c68d.json` | English word timings (1 words, 2.3s) for the v4 clip "mouse", read by sa-ui |
 | `c45531b7c68d.mp3` | (unmapped) |
+| `c48879e6acf6.json` | (unmapped) |
 | `c48879e6acf6.mp3` | (unmapped) |
 | `c520252c8687.json` | English word timings (4 words, 1.4s) for the v4 clip "This word is made.", read by sa-ui |
 | `c520252c8687.mp3` | (unmapped) |
@@ -687,9 +719,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `c86f1687cbfd.mp3` | (unmapped) |
 | `c8bd288808a5.json` | English word timings (17 words, 8.6s) for the v4 clip "Listen to each problem very careful…", read by sa-ui |
 | `c8bd288808a5.mp3` | (unmapped) |
+| `c912ca56a309.json` | (unmapped) |
+| `c912ca56a309.mp3` | (unmapped) |
 | `c9bbc5d27d91.json` | English word timings (3 words, 1.8s) for the v4 clip "I heard you!", read by sa-ui |
 | `c9bbc5d27d91.mp3` | (unmapped) |
 | `c9dc86aca5b0.mp3` | (unmapped) |
+| `ca7101db1ee9.json` | (unmapped) |
 | `ca7101db1ee9.mp3` | (unmapped) |
 | `ca7d9f162fd5.mp3` | (unmapped) |
 | `cab783000833.mp3` | (unmapped) |
@@ -701,8 +736,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `cce18d15d02e.json` | English word timings (19 words, 7.8s) for the v4 clip "Here are some made-up words. They a…", read by sa-ui |
 | `cce18d15d02e.mp3` | (unmapped) |
 | `ccfb4406eebb.mp3` | (unmapped) |
+| `cd064ba2cb54.json` | (unmapped) |
+| `cd064ba2cb54.mp3` | (unmapped) |
+| `cd2e188e70ef.json` | (unmapped) |
 | `cd2e188e70ef.mp3` | (unmapped) |
 | `cd49d3299e1b.mp3` | (unmapped) |
+| `cdcf3a3b1425.json` | (unmapped) |
+| `cdcf3a3b1425.mp3` | (unmapped) |
 | `ce2f19c464fb.mp3` | (unmapped) |
 | `cf63f9828e33.json` | English word timings (5 words, 2.4s) for the v4 clip "This made-up word is dif.", read by sa-ui |
 | `cf63f9828e33.mp3` | (unmapped) |
@@ -723,6 +763,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `d26996070807.mp3` | (unmapped) |
 | `d2c4689652c4.mp3` | (unmapped) |
 | `d46835a2afc9.mp3` | (unmapped) |
+| `d4d6c94b2aaa.json` | (unmapped) |
+| `d4d6c94b2aaa.mp3` | (unmapped) |
 | `d561c2210f9f.json` | English word timings (6 words, 1.6s) for the v4 clip "Who fell in the mud last?", read by sa-ui |
 | `d561c2210f9f.mp3` | (unmapped) |
 | `d5a270b8ca60.json` | English word timings (6 words, 1.8s) for the v4 clip "The sound of this letter is:", read by sa-ui |
@@ -762,6 +804,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `df1d5c972d5b.mp3` | (unmapped) |
 | `dfa92af7ba17.mp3` | (unmapped) |
 | `e019ac11d658.mp3` | (unmapped) |
+| `e04bacd87c47.json` | (unmapped) |
+| `e04bacd87c47.mp3` | (unmapped) |
 | `e0ae8f9530f8.mp3` | (unmapped) |
 | `e0bb45195c58.mp3` | (unmapped) |
 | `e0f30c026e46.mp3` | (unmapped) |
@@ -829,8 +873,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `f3c62702689c.mp3` | (unmapped) |
 | `f40ed9fb5acf.json` | English word timings (11 words, 3.2s) for the v4 clip "Now it is your turn to read each wo…", read by sa-ui |
 | `f40ed9fb5acf.mp3` | (unmapped) |
+| `f469e15977b9.json` | (unmapped) |
 | `f469e15977b9.mp3` | (unmapped) |
+| `f582a3db069e.json` | (unmapped) |
 | `f582a3db069e.mp3` | (unmapped) |
+| `f68cb8bc48c3.json` | (unmapped) |
 | `f68cb8bc48c3.mp3` | (unmapped) |
 | `f6d829c4a0da.json` | English word timings (7 words, 3.8s) for the v4 clip "The sound of this letter is sss.", read by sa-ui |
 | `f6d829c4a0da.mp3` | (unmapped) |

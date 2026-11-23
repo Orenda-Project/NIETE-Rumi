@@ -191,10 +191,10 @@ describe('validation and storage (endpoint helpers)', () => {
     expect(O6.validateScreen('DOMAIN_C', { ...ok, r_C1: '4', chg_C: 'She asked why and followed up with Ali.' }, analysis)).toEqual({});
   });
 
-  test('D2: numbers checked, and a level that does not match the counts needs a number in the reason', () => {
+  test('D2: numbers an old form sends are checked; the level is the coach\'s, whatever the counts (bd-ra8xu.61)', () => {
     const ok = { r_D1: '1', r_D5: '1', r_D3: 'NA', why_D3: 'No child spoke to another child.', r_D4: '2', why_D4: 'They only answered when they were sure.' };
     expect(O6.validateScreen('DOMAIN_D', { ...ok, d2_children: '3', d2_quiet_later: '5', r_D2: '3', why_D2: 'Front rows only answered today.' }, {}).d2_children).toBeTruthy();
-    expect(O6.validateScreen('DOMAIN_D', { ...ok, d2_children: '4', d2_quiet_later: '0', r_D2: '2', why_D2: 'Front rows only answered today.' }, {}).why_D2).toBeTruthy();
+    expect(O6.validateScreen('DOMAIN_D', { ...ok, d2_children: '4', d2_quiet_later: '0', r_D2: '2', why_D2: 'Front rows only answered today.' }, {})).toEqual({});
     expect(O6.validateScreen('DOMAIN_D', { ...ok, d2_children: '4', d2_quiet_later: '0', r_D2: '2', why_D2: 'Two of the 4 only read the answer out.' }, {})).toEqual({});
     expect(O6.validateScreen('DOMAIN_D', { ...ok, d2_children: '7', d2_quiet_later: '2', r_D2: '4', why_D2: 'Back rows joined in the group work.' }, {})).toEqual({});
   });

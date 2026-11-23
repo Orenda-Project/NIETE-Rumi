@@ -69,6 +69,8 @@ const CASES = [
   ['POST', '/api/portal/leader/observe/start', 'observe.started', 'coach', {}],
   ['POST', '/api/portal/leader/observe/obs-3/report/send', 'observe.report_sent', 'coach', {}],
   ['POST', '/api/portal/me/notices/n-1/opened', 'notice.opened', 'notice', {}],
+  // The survey bar at the end of a lesson plan in the app: her answer saved (ids only; never her words).
+  ['POST', '/api/portal/lp/feedback', 'lp_feedback', 'lesson_plan', {}],
 ];
 
 test.each(CASES)('%s %s → %s', async (method, path, action, feature, extra) => {
@@ -90,7 +92,8 @@ test.each([400, 401, 403, 404, 409, 500, 502])('a %s is not an action', async (s
 test('reads and writes that are not key actions log nothing', async () => {
   const srv = await app();
   for (const [m, p] of [['GET', '/api/portal/dashboard'], ['GET', '/api/portal/me'], ['GET', '/api/portal/curriculum/grades'], ['POST', '/api/portal/logout'],
-    ['PUT', '/api/portal/me/language'], ['GET', '/api/portal/classes'], ['POST', '/api/portal/lp612/status/abc']]) await call(srv, m, p);
+    ['PUT', '/api/portal/me/language'], ['GET', '/api/portal/classes'], ['POST', '/api/portal/lp612/status/abc'],
+    ['GET', '/api/portal/lp/feedback?kind=k5&ref=x']]) await call(srv, m, p);
   expect(actions()).toEqual([]);
 });
 

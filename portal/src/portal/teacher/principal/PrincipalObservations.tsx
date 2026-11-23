@@ -21,7 +21,10 @@ import { REPORTS } from "../../coach/reports/copy";
 import { reportGroups } from "../../coach/reports/ReportRows";
 import { dayGroups } from "../../coach/reports/data";
 import { PRINCIPAL } from "./copy";
-import { PRINCIPAL_PICK, principalObservationPath } from "./observe";
+import { PRINCIPAL_PICK, PRINCIPAL_SCHEDULE, principalObservationPath } from "./observe";
+import { SCHEDULE } from "../../coach/schedule/copy";
+import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
+import { PrincipalObserveV6 } from "./ObserveV6";
 
 /** As many of her observations as the coach's Reports shows as recent (and as many of her own DC lessons). */
 const RECENT_COUNT = 5;
@@ -48,13 +51,25 @@ const RECENT_COUNT = 5;
  *
  * Digital Coaching's main page sends her here (CoachingHome), so every Back inside DC lands on Observe.
  */
+/**
+ * bd-o15qnr.28 (queue #204) — with the v6/v7 switch on for her, Observe is the coach flow's look (ObserveV6.tsx,
+ * #188's board p7-observe); off, today's page below, unchanged. Nothing while /config is read (it already was, for the
+ * principal app's own switch, so this is the shared answer).
+ */
 export function PrincipalObservations() {
+  const on = useFlowV6();
+  if (on === null) return null;
+  return on ? <PrincipalObserveV6 /> : <PrincipalObservationsToday />;
+}
+
+function PrincipalObservationsToday() {
   const O = useCopy(OBSERVATIONS);
   const B = useCopy(OBSERVE);
   const R = useCopy(REPORTS);
   const P = useCopy(PRINCIPAL);
   const D = useCopy(COACHING);
   const F = useCopy(TEACHER_FRAME);
+  const Sch = useCopy(SCHEDULE);
   const { days } = useCopy(LESSONS);
   const [load, retry] = useLoad(() => coach.getReports({ page: 1 }), "principal:reports:recent");
   // Her own lessons: the DC page's reads (a failed pending read shows none, as there).
@@ -81,6 +96,8 @@ export function PrincipalObservations() {
           <FeatureTile feature="coaching" label={P.ownLesson} to={COACHING_NEW} />
           <FeatureTile feature="observations" label={P.oneTeacher} to={PRINCIPAL_PICK}
             chip={waiting > 0 ? { text: B.waitingN(waiting), tone: "waiting" } : null} />
+          {/* bd-31ziu8 — principals book visits as coaches do: their booked visits, as the coach's My schedule. */}
+          <FeatureTile feature="observations" label={Sch.mySchedule} to={PRINCIPAL_SCHEDULE} />
         </nav>
       </FeatureMotionProvider>
       <div className="mt-3" data-testid="principal-observations">

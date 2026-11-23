@@ -26,6 +26,13 @@
 
   var FORM_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var SESSION_RX = /^[A-Za-z0-9_-]{6,64}$/;
+  // This build of the page, logged on device_ready (round 28): always sw.js VERSION in the same tree (a test pins the two).
+  var VERSION = 'sa-49';
+
+  // the server's MAX_EVENT_DATA (sa-api.service.js): a longer value is not kept at all
+  var MAX_VALUE = 300;
+  /** A worker's word for device_ready / worker_swap: whole or null (never cut), so the event stays inside 300 characters. */
+  function stamp(v) { return typeof v === 'string' && v && v.length <= 64 ? v : null; }
 
   /** The page's parameters, checked; anything unexpected falls back to the safe value. */
   function params(search, hash) {
@@ -122,21 +129,106 @@
   }
 
   /**
+   * Whether a task's item prompt is a clip: the child must hear the item to answer it. The letter-sound picker and the
+   * spoken MCQ (kind pick | mcq), the spoken questions (mode oral), a listening task, and any task whose items Jugnu
+   * says as they show (say | prompt | prompt_audio; a task that reads them only on its replay tile shows them instead).
+   * The listen-and-tap grids (letters, words, numbers: the item is said, the child taps it) are clip-prompted.
+   */
+  function clipPrompted(t) {
+    if (!t) return true;
+    if (t.kind === 'pick' || t.kind === 'mcq' || t.mode === 'oral' || /listen/.test(String(t.subtask || ''))) return true;
+    if (t.say_on === 'replay') return false;
+    return (t.items || []).some(function (it) { return !!(it && (it.say || it.prompt || it.prompt_audio)); });
+  }
+
+  /** A late 'none' may wait for the task's end only in a timed task whose items need no clip (the child sees them). */
+  function deferrable(t) { return !!(t && t.time_limit_s > 0) && !clipPrompted(t); }
+
+  /**
    * After the preparation: device_ready is logged; no clip and no phone voice → the screen refuses the start and the
    * coach page is told {type:'sa:refused', s, reason:'voice'}. With sa_voice_gate_v2 (battery.ui.voice_gate_v2) the
    * refusal offers Try again: ctx.again() prepares once more; a voice → the test starts, {type:'sa:unrefused', s}.
+   *
+   * The preparation is not awaited by the start, so the verdict can land inside a running timed task. There a 'none'
+   * never refuses (O-86 (c)): voice_late_none { task, ms into the task } is logged, the clock runs on untouched, the
+   * task's result carries voice_deferred: true, and the gate runs at that task's task_end (voice_deferred_end { task, ms,
+   * by } just before the refusal: by 'task_end', or the phase that ended the task), so the refusal falls between
+   * tasks, before anything of the next one. Only a timed task whose items need no clip defers (deferrable); before any
+   * task, between tasks, in an untimed task or a clip-prompted one the refusal is at once. A task left without its end
+   * (the page hidden: a timed task runs again from its start) is gated then, before it runs again.
    */
   function voiceGate(engine, offline, ctx) {
-    function readyOf(o) {
-      return {
+    function readyOf(o, session) {
+      var v = {
         ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
         clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
+        // how the preparation went on this phone (sa-offline.js): its ms, bytes, the first clip stage that stalled, clips missing
+        prep_ms: o.prep_ms != null ? o.prep_ms : null, prep_bytes: o.prep_bytes != null ? o.prep_bytes : null,
+        prep_gaveup_stage: o.prep_gaveup_stage || null, prep_missing: o.prep_missing != null ? o.prep_missing : null,
+        page: VERSION, sw: stamp(o.sw), session: stamp(session),
       };
+      // the server drops a value over MAX_EVENT_DATA whole: long names give way first, so the preparation fields are kept
+      if (JSON.stringify(v).length > MAX_VALUE) { v.sw = null; v.session = null; }
+      return v;
+    }
+    /** The timed task under way when the verdict lands, if the gate may wait for its end; else null. */
+    function running() {
+      if (typeof engine.on !== 'function' || !engine.runner.view) return null;
+      var v = engine.runner.view();
+      if (!v || (v.phase !== 'running' && v.phase !== 'last_word') || !deferrable(v.task)) return null;
+      return v;
+    }
+    function waitForEnd(v) {
+      var id = v.task.id;
+      var ms = Math.max(0, Math.round(v.task.time_limit_s * 1000 - (v.time_left_ms || 0)));
+      engine.runner.log('voice_late_none', { task_id: id, value: { task: id, ms: ms } });
+      var pending = true;
+      function done() {
+        if (!pending) return false;
+        pending = false;
+        engine.off('task_end', onEnd);
+        engine.off('state', onState);
+        return true;
+      }
+      // how the deferral ended, on the task, immediately before the refusal: by 'task_end', or the phase that ended it
+      // (silence_reminder: a silent attempt under sa_silence_repeat is no result, and with no voice the reminder can't play)
+      function ended(by, used) {
+        var w = engine.runner.view();
+        var left = w && w.task && w.task.id === id ? (w.time_left_ms || 0) : 0;
+        var at = used != null ? used : Math.max(0, Math.round(v.task.time_limit_s * 1000 - left));
+        engine.runner.log('voice_deferred_end', { task_id: id, value: { task: id, ms: at, by: by } });
+        refuse();
+      }
+      // task_end fires inside the runner's finish, before any screen of the task's end or of the next task is drawn
+      function onEnd(e) {
+        if (e && e.task_id === id && e.value) e.value.voice_deferred = true;
+        if (done()) ended('task_end', e && e.task_id === id && e.value ? e.value.time_used_ms : null);
+      }
+      function onState(s) {
+        if (s && (s.phase === 'running' || s.phase === 'last_word') && s.task && s.task.id === id) return;
+        if (done()) ended((s && s.phase) || null, null);
+      }
+      engine.on('task_end', onEnd);
+      engine.on('state', onState);
     }
     return offline.then(function (o) {
-      engine.runner.log('device_ready', { value: readyOf(o) });
+      // The clips' cache (o.held, capped at 2 s by sa-offline.js) is waited for only when no refusal is coming: a refusal
+      // is never held back by it, and its device_ready says session null.
+      var refusing = o.voice === 'none' && engine.view && engine.view.refuse;
+      var held = !refusing && o.held && typeof o.held.then === 'function' ? o.held.then(null, function () { return null; }) : Promise.resolve(null);
+      return held.then(function (session) { return [o, session]; });
+    }).then(function (r) {
+      var o = r[0];
+      var value = readyOf(o, r[1]);
+      if (typeof ctx.onReady === 'function') ctx.onReady(value);
+      engine.runner.log('device_ready', { value: value });
       // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
       if (o.voice !== 'none' || !engine.view || !engine.view.refuse) return;
+      var under = running();
+      if (under) { waitForEnd(under); return; }
+      refuse();
+    });
+    function refuse() {
       engine.runner.log('voice_not_ready');
       var gate2 = !!(ctx.battery && ctx.battery.ui && ctx.battery.ui.voice_gate_v2 === true) && typeof ctx.again === 'function';
       var retry = gate2 ? function () {
@@ -151,6 +243,29 @@
       } : null;
       if (retry) engine.view.refuse('voice', { retry: retry }); else engine.view.refuse('voice');
       tell(ctx, { type: 'sa:refused', s: engine.session_id, reason: 'voice' });
+    }
+  }
+
+  /**
+   * worker_swap { from, to, task } (round 28): a newer worker took the page over mid-session (skipWaiting + clients.claim,
+   * no reload), so the clips from here on come from its cache. from = the worker before (first: from(), device_ready's sw),
+   * to = version(the new controller) or null, task = the task running when it happened, or null between tasks. Data only.
+   */
+  function swapWatch(engine, container, from, version) {
+    if (!container || typeof container.addEventListener !== 'function') return;
+    var task = null;
+    var last;
+    if (typeof engine.on === 'function') {
+      engine.on('task_start', function (e) { task = e && e.task_id || null; });
+      engine.on('task_end', function () { task = null; });
+    }
+    container.addEventListener('controllerchange', function () {
+      var was = last !== undefined ? last : from();
+      var at = task;
+      Promise.resolve().then(function () { return version(container.controller); }).then(null, function () { return null; }).then(function (to) {
+        last = stamp(to);
+        engine.runner.log('worker_swap', { task_id: at || undefined, value: { from: stamp(was), to: last, task: at } });
+      });
     });
   }
 
@@ -308,7 +423,7 @@
    * network came back after the hand-back would never send. drain() lists every coach (proctored) session in the
    * phone's store with something unsent, and runs the same sync for each, one after another, through the coach sink.
    *   o: { store, sync (SAE.sync), mode ('proctored' default | 'game'), sink(id) → a sink or null, exclude (the session
-   *        this page runs), online, timers }
+   *        this page runs), online, timers, onProgress (the sync's: each server answer, the bytes of an upload) }
    * → Promise<[{ s, state, pending_events, pending_audio }]>. A game session goes through its own kept run token (the
    * game sink for that id); none kept → state 'no_sink', left on the phone.
    */
@@ -323,7 +438,7 @@
           if (!p.events.length && !p.results.length && !p.chunks.some(function (c) { return c.final; })) return null;
           var sink = o.sink(id);
           if (!sink) { out.push({ s: id, state: 'no_sink', pending_events: p.events.length + p.results.length, pending_audio: p.chunks.filter(function (c) { return c.final; }).length }); return null; }
-          var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers });
+          var sy = o.sync.create({ store: o.store, sink: sink, session_id: id, online: o.online, timers: o.timers, onProgress: o.onProgress });
           return sy.flush().then(function (st) {
             if (sy.stop) sy.stop();
             out.push({ s: id, state: st.state, pending_events: st.pending_events, pending_audio: st.pending_audio });
@@ -333,14 +448,30 @@
     });
   }
 
-  /** The drain page (/sa/play.html?drain=1&embed=1): no screen, no session; drain, then tell the coach page once. */
+  var PROGRESS_EVERY_MS = 1000;
+  /**
+   * The drain page (/sa/play.html?drain=1&embed=1): no screen, no session; drain, then tell the coach page once.
+   * While it works it tells the coach page {type:'sa:drain_progress', acks, bytes} on each server answer and, at most
+   * once a second, as an upload's bytes go out, so a slow upload that is moving is never cut.
+   */
   function bootDrain(SAE, p) {
     var store = SAE.store;
     var sink = function () { return SAE.sinks.coach(); };
+    var tell = p.embed && root.parent && root.parent !== root;
+    var acks = 0;
+    var bytes = 0;
+    var last = 0;
+    var onProgress = !tell ? null : function (kind, n) {
+      if (kind === 'ack') acks += 1; else bytes = n;
+      var now = Date.now();
+      if (kind !== 'ack' && now - last < PROGRESS_EVERY_MS) return;
+      last = now;
+      root.parent.postMessage({ type: 'sa:drain_progress', acks: acks, bytes: bytes }, root.location.origin);
+    };
     return store.open().then(function (st) {
-      return drain({ store: st, sync: SAE.sync, sink: sink });
+      return drain({ store: st, sync: SAE.sync, sink: sink, onProgress: onProgress });
     }).then(function (sessions) { return sessions; }, function () { return []; }).then(function (sessions) {
-      if (p.embed && root.parent && root.parent !== root) {
+      if (tell) {
         root.parent.postMessage({ type: 'sa:drained', sessions: sessions }, root.location.origin);
       }
       return sessions;
@@ -416,7 +547,10 @@
               .then(function (d) { if (d.length) engine.runner.log('drained', { value: d }); }, function () {});
           }, 3000);
         }
-        voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); } });
+        var served = null;
+        voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); },
+          onReady: function (v) { served = v.sw; } });
+        if (SAE.offline && SAE.offline.version) swapWatch(engine, root.navigator && root.navigator.serviceWorker, function () { return served; }, SAE.offline.version);
         if (battery.ui && battery.ui.r8_lang_switch === true) langAltLoad(SAE, p, battery, offline, engine);
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
@@ -427,5 +561,5 @@
     });
   }
 
-  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
+  return { VERSION: VERSION, otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, wholeOf: wholeOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, swapWatch: swapWatch, deferrable: deferrable, clipPrompted: clipPrompted, lockDown: lockDown, drain: drain, bootDrain: bootDrain, boot: boot };
 }));

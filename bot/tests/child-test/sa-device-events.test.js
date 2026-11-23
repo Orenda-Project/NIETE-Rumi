@@ -50,7 +50,8 @@ test('device_ready, voice_not_ready and voice_retry are kept with their values; 
   const out = await sa.saBatch({ userId: COACH, sessionId: SID, seqFrom: 1, seqTo: 7, events, results: [] }, deps);
   expect(out).toEqual({ status: 'ok', ackedTo: 7 });
   const kept = synced[0].events;
-  expect(kept.map((e) => e.type)).toEqual(['device_ready', 'voice_not_ready', 'voice_retry']);
-  expect(kept[0]).toEqual({ seq: 2, type: 'device_ready', task_id: null, at: '2026-10-28T08:59:40Z', data: ready });
-  expect(kept[2].data).toEqual({ voice: 'clips', clips_cached: 144 });
+  // the session's start is kept too (one per session)
+  expect(kept.map((e) => e.type)).toEqual(['session_start', 'device_ready', 'voice_not_ready', 'voice_retry']);
+  expect(kept[1]).toEqual({ seq: 2, type: 'device_ready', task_id: null, at: '2026-10-28T08:59:40Z', data: ready });
+  expect(kept[3].data).toEqual({ voice: 'clips', clips_cached: 144 });
 });
