@@ -75,13 +75,15 @@ export function PickTeacher() {
           lead: "person" as const,
           title: t.name,
           extra: [levelNames(t.levels), seen].filter(Boolean).join(" · "),
-          chip: last && last.step !== "sent" ? reportChip(last, R) : null,
+          // bd-o15qnr.40.1 (queue #229, the operator 23 Nov): with the switch on, no step chip here ("Feedback Form" read as
+          // if the teacher could not be observed); the steps stay on Today / Needs you and the observation page.
+          chip: !v6 && last && last.step !== "sent" ? reportChip(last, R) : null,
           // bd-31ziu8 — book the visit first, as a coach does (operator 18 Nov: "It has to be the same as coach"); the
           // visit screen (Start recording / Upload recording) opens from My schedule.
           to: principalNewVisitPath(t.teacherExtId),
         };
       });
-  }, [card, latest, q, P, R, days, today, levelNames]);
+  }, [card, latest, q, P, R, days, today, levelNames, v6]);
 
   return (
     <TeacherPage feature="observations" title={B.pickTheTeacher} crumb={`${O.title} · ${P.oneTeacher}`} backTo={OBS_HOME}

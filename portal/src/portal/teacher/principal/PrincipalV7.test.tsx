@@ -279,3 +279,42 @@ describe("Pick the teacher, v6 (p7-pick)", () => {
     expect(screen.queryByTestId("pick-whose")).toBeNull();
   });
 });
+
+/**
+ * bd-o15qnr.40.1 (queue #229, the operator 23 Nov ~15:20): on Schedule an observation's teacher list, a teacher whose last
+ * observation is still in progress wore its step chip ("Feedback Form", "Debrief"…), which reads as if that teacher cannot
+ * be observed. With the switch on the list names the teacher, the level and when last observed, and no step chip; the
+ * step chips stay on Today / Needs you and the observation page. Switch off: as today.
+ */
+describe("Pick the teacher, no step chips (bd-o15qnr.40.1)", () => {
+  const CARD_3 = { ...CARD, teachers: [
+    { teacherExtId: "ext-r3", name: "Hira Noor", levels: [4], counts: null },
+    { teacherExtId: "ext-r2", name: "Ambreen Gul", levels: [5], counts: null },
+    { teacherExtId: "ext-k", name: "Kiran Shahzadi", levels: [4], counts: null },
+  ] };
+  const serveCard = (features: Record<string, unknown>) => {
+    serve({ features });
+    const base = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation(((url: string) => (url === "/principal/school/card" ? Promise.resolve({ data: CARD_3 }) : base(url))) as never);
+  };
+
+  it("switch on: no Feedback Form / Debrief chip beside a teacher; each is still listed with when last observed", async () => {
+    serveCard(ON);
+    at(PRINCIPAL_PICK, <PickTeacher />);
+    const pick = await screen.findByTestId("principal-pick");
+    await within(pick).findByText("Hira Noor");
+    await waitFor(() => expect(coachApi.getReports).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    for (const word of ["Feedback Form", "Debrief", "Send report", "Analysing"]) expect(within(pick).queryByText(word)).toBeNull();
+    expect(within(pick).getByText("Ambreen Gul")).toBeTruthy();
+    expect(within(pick).getByText("Kiran Shahzadi")).toBeTruthy();
+    expect(within(pick).getAllByText(/last observed/i).length).toBeGreaterThan(0);
+  });
+
+  it("switch off: today's list keeps its step chip", async () => {
+    serveCard({ teacherV2: true, principalApp: true });
+    at(PRINCIPAL_PICK, <PickTeacher />);
+    const pick = await screen.findByTestId("principal-pick");
+    expect(await within(pick).findByText("Feedback Form")).toBeTruthy();
+  });
+});
