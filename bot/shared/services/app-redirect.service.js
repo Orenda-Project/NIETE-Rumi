@@ -225,7 +225,9 @@ const TEACHER_APP_KEY = 'portal_teacher_v2';
  * bd-eqkr0n (2g) — request → the page a principal's link lands on (app-login-link.js LANDINGS), for a principal the
  * principal app is on for. Observe only: her other requests keep their own paths. No way back to WhatsApp is offered.
  */
-const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe' });
+// bd-uxzi8c (queue #205): an exam paper too. The teacher app's own paper page and words (APP_LINK_COPY), since the
+// principal app opens the teacher app's pages; before this a principal got the WhatsApp Flow and the PDF in chat.
+const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe', assessment_generator: 'assessment_generator' });
 const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
 
 const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons' });
