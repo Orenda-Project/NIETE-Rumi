@@ -493,7 +493,7 @@ function swapCounts(all, sitting, set) {
   return { ...(nSwapped ? { n_swapped: nSwapped } : {}), ...(nShort ? { n_short: nShort } : {}) };
 }
 const orderFields = (ord) => (ord ? { order: ord.order } : {});
-const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
+const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned, order_algo: OrderSeed.ALGO } : {});
 // session_started.order_arm (all | pct | off): the link's arm while either order switch is set, so the canary's on-arm
 // share is read from the events; neither set: no field (today's event). The hub's cached switch read; a failure: none.
 async function orderArm(shareCodeId) {
