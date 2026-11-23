@@ -120,13 +120,9 @@ function planState(analysis) {
   // Most missed: the first move of the plan not done at all (a must before an optional one), else the first done in part.
   const missed = order.filter((m) => m.mark === 'missed');
   const worst = missed.find((m) => !m.partial && m.must) || missed.find((m) => !m.partial) || missed[0] || null;
-  let mostMissed = null;
-  if (worst) {
-    // Its time: its own evidence's, else when the lesson moved on to the next move the recording shows ("about").
-    const at = order.indexOf(worst);
-    const next = order.slice(at + 1).find((m) => m.time);
-    mostMissed = { id: worst.id, step: worst.step, time: worst.time || (next && next.time) || null };
-  }
+  // Its time only from its own evidence (a move done in part): a move not done at all has no moment in the recording,
+  // and a time borrowed from another move points the coach at the wrong minute.
+  const mostMissed = worst ? { id: worst.id, step: worst.step, time: worst.time || null } : null;
 
   return {
     state: 'ok',
