@@ -13,7 +13,8 @@
  *   reports     (quiz_teacher_home_reports, bd-5j1zaf) "Quiz reports": every sent quiz, newest first, 5 rows + "More"; each
  *               row its topic, "{played} of {of} played", the chip "+{late} after the report" when children finished
  *               after its 12 h report ("Report not sent yet" before it), and "See report" (the live report, ?from=home);
- *               a foot line "Evening rounds" when a class has a live round (REPORTS_SWAPS; off, no section)
+ *               a foot line "Evening rounds" when a class has a live round, shown alone when no quiz has a row yet
+ *               (REPORTS_SWAPS; off, no section)
  *   timeline    "My lessons": lesson plans, coaching sessions and sent quizzes, newest first, 5 rows + "More"; each row
  *               one verb: "Quiz this" (the existing job, then the page polls until the class message exists) /
  *               "Send again" / "See report"; topic names verbatim with dir=auto
@@ -412,7 +413,7 @@ all.slice(0,rshown).forEach(function(r){var li=el('li','th-row');li.setAttribute
 var k=el('span','th-row-k',r.of!=null&&r.onList>0?fill('th.rp.of',{played:dg(r.onList),of:dg(r.of)}):r.of==null&&r.played>0?fill('th.rp.n',{played:dg(r.played)}):S['th.zero']);tx.appendChild(k);
 if(r.late>0)k.appendChild(el('span','th-late',fill('th.rp.late',{late:dg(r.late)})));else if(!r.reported)tx.appendChild(el('span','th-row-k',S['th.rp.pending']));
 li.appendChild(tx);var a=link('th-row-v',S['th.report'],r.report,'report');a.addEventListener('click',function(){rstep(r.late>0)});li.appendChild(a);ul.appendChild(li)});
-s.hidden=!all.length;q('#th-rp-more').hidden=all.length<=rshown;var g=q('#th-rp-rounds');g.hidden=!(R&&R.rounds);if(R&&R.rounds)g.setAttribute('href',R.rounds)}
+s.hidden=!all.length&&!(R&&R.rounds);q('#th-rp-more').hidden=all.length<=rshown;var g=q('#th-rp-rounds');g.hidden=!(R&&R.rounds);if(R&&R.rounds)g.setAttribute('href',R.rounds)}
 q('#th-rp-more').addEventListener('click',function(){rshown+=10;reps();step('reports_more')});
 function lib(L){`],
   ['under();rows();lib(', 'under();reps();rows();lib('],
