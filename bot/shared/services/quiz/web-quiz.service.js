@@ -379,6 +379,17 @@ function sittingQuestions(questions, session) {
 }
 
 /**
+ * How many questions a sitting serves, for the page to name. An evening round ships its whole pool (the start's order
+ * picks the child's set from it) but serves the child's set, 5 + 2, while that order can reach the page (roundSitting's
+ * gate); `k` (the link's chip) is the child it names. Any other quiz, or a round with both switches off: every question.
+ * Pure; `f` is the hub's switches, already read.
+ */
+function servedCount(questions, f, shareCodeId, k) {
+  if (!Round().roundFields(questions) || (!OrderSeed.onFor(f, shareCodeId) && !f.eveningRound)) return questions.length;
+  return Round().selectRoundItems(questions, { k: k || null }).length;
+}
+
+/**
  * The session the seam needs, for an evening round's questions only (any other quiz: `s` as it is, nothing read).
  * The round's own set holds only while the start reply can carry it to the page (web_quiz_order_seed, or this link in
  * web_quiz_order_seed_pct's arm, or web_quiz_evening_round on, see orderRows; `s.share_code_id` names the link at start,
@@ -849,6 +860,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   const hubFlags = await require('./web-quiz-hub-flags').flags().catch(() => ({}));
   if (hubFlags.rewatchDone === true) out.rewatch_done = true;
   if (hubFlags.videoClean === true) out.video_clean = true;
+  // quiz.n (the start card's count, the link preview's): what a sitting serves (the same switch read)
+  out.quiz.n = servedCount(questions, hubFlags, ctx.shareCodeId, k);
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),

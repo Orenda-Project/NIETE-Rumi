@@ -136,3 +136,50 @@ describe('"Done for tonight!": the start answers round_done_for_tonight with no 
     expect(evs.filter((e) => e.n === 'quiz_start')).toEqual([]);
   });
 });
+
+describe('the start card counts what a sitting serves (the payload\'s n), not the pool the page ships', () => {
+  // 9 served rows ship (5 lesson + 4 recall); every sitting serves 7 (quiz.n, web-quiz.service getQuiz)
+  const NINE = ['l1', 'l2', 'l3', 'l4', 'l5', 'r1', 'r2', 'r3', 'r4'].map((qid, i) => ({ qid, text: `Stem ${qid}?`, options: opt4(i + 1), correct_slot: 'B' }));
+  const V2 = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [], identity: { mode: 'v2' } };
+  const card = (o) => page({ questions: JSON.parse(JSON.stringify(NINE)), ...o });
+  const small = (html) => (/<p class="wq-small">([^<]*)<\/p>/.exec(html) || [])[1];
+
+  test.each([
+    ['en', '7 questions · about 4 minutes'],
+    ['ur', '۷ سوال · تقریباً ۴ منٹ'],
+  ])('%s: the landing says 7, in the page\'s digits', async (lang, line) => {
+    const p = card({ lang, quizExtra: { n: 7 } });
+    await flush();
+    expect(p.moment()).toBe('M3');
+    expect(small(p.html())).toBe(line);
+  });
+
+  test('the identity v2 landing and the teacher\'s preview say 7 too', async () => {
+    const v2 = card({ lang: 'en', ident: true, cls: V2, quizExtra: { n: 7 } });
+    const teacher = card({ lang: 'en', preview: true, search: '?p=tok', quizExtra: { n: 7 } });
+    await flush();
+    expect(v2.moment()).toBe('M4-who-v2');
+    expect(small(v2.html())).toBe('7 questions · about 4 minutes');
+    expect(teacher.moment()).toBe('M3-teacher');
+    expect(teacher.html()).toContain('7 questions · about 4 minutes');
+  });
+
+  test('a quiz whose n is every question (or a payload without one) says what it ships, as today', async () => {
+    const same = card({ lang: 'en', quizExtra: { n: 9 } });
+    const none = card({ lang: 'en' });
+    await flush();
+    expect(small(same.html())).toBe('9 questions · about 5 minutes');
+    expect(small(none.html())).toBe('9 questions · about 5 minutes');
+  });
+
+  test('the sitting still plays and numbers the child\'s own set from the pool', async () => {
+    const p = page({
+      lang: 'en', questions: JSON.parse(JSON.stringify(NINE)), quizExtra: { n: 7 },
+      store: { wq_from: { code: 'TEST', st: 'old-st', at: Date.now() } },
+      api: { '/api/wq/session': { st: 'new-st', child: CHILD, resume: { answered: [] }, order: { q: ['l1', 'l2', 'l3', 'l4', 'l5', 'r2', 'r4'], o: {} } } },
+    });
+    await flush(); await flush();
+    expect(p.wq.QS).toHaveLength(7);
+    expect(stemOf(p.html())).toBe('l1');
+  });
+});

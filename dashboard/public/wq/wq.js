@@ -1741,6 +1741,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return '<span class="wq-sent">' + esc(s).replace(/([.!?\u06D4\u061F]) (?=\S)/g, '$1</span> <span class="wq-sent">') + '</span>';
   } : null;
 
+  // The start card's count: what a sitting serves (the payload's n) where the page ships more (an evening round's pool,
+  // which the start's order cuts to the child's set); else the questions here.
+  function cardN() { return Q.n > 0 && Q.n < N ? Q.n : N; }
   function landing() {
     var here = kids();
     var classChips = {};
@@ -1760,7 +1763,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       (fold ? '' : pic) +
       // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
       (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (chLineHtml ? chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
@@ -1788,7 +1791,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-preview">' + esc(T.previewPlay) + '</button>' +
@@ -1894,7 +1897,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLS_PICK = null;
   // Identity v2 (name first; dashboard/public/wq/wq-identity.js) when the server turns it on for this quiz.
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
-    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
+    T: T, TW: TW, CLS: CLS, Q: Q, N: cardN(), LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
     lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher, chLineHtml: chLineHtml
