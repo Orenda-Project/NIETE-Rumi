@@ -2854,7 +2854,7 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-feedback.routes'));
 // bd-snkn32 — Make my own lesson plan (dark unless portal_lp_make_own); see the route's header.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own.routes'));
-// bd-snkn32.56 — Make my own from a learning goal or topic (dark unless the list-only portal_lp_own_goal_start).
+// bd-snkn32.56 — Make my own from a learning goal or topic (dark unless portal_lp_own_goal_start: a list, or "teachers" minus GB).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp612-own-goal.routes'));
 // bd-snkn32.59 (queue #165): Make my own, a whole unit (grades 1-5). Dark unless portal_lp_own_unit has her (a list, or "teachers"); never GB.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-lp-own-unit.routes'));

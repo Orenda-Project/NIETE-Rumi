@@ -113,7 +113,6 @@ const {
   PORTAL_LP_MAKE_OWN_KEY,
   PORTAL_LP_OWN_SHELF_KEY,
   PORTAL_LP_OWN_REVIEWERS_KEY,
-  PORTAL_LP_OWN_GOAL_START_KEY,
   isUserListedInFlag,
   PORTAL_HELP_VIDEOS_KEY,
   isCoachObservationOn,
@@ -9613,8 +9612,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpWhatsappPdfOffFor(supabase, userId),
       // The plan screen's slim layout (rides with the teacher app).
       LpAppSwitches.isLpViewerSlimOn(supabase, userId),
-      // bd-snkn32.56 — Make my own from a goal or topic: list-only, and it rides with Make my own on.
-      isUserListedInFlag(supabase, PORTAL_LP_OWN_GOAL_START_KEY, userId),
+      // bd-snkn32.56 — Make my own from a goal or topic: a list or "teachers" minus GB (bd-sm4xdn), rides with Make my own on.
+      require('../../bot/shared/services/lp612-own-goal.store').goalStartOn(supabase, userId),
       // bd-snkn32.59 (queue #165) — Make my own → A whole unit: a list or "teachers" (bd-snkn32.59.8), rides with Make my own on.
       require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
     ]);
