@@ -335,7 +335,7 @@ function renderLpCheckMessage(lp, S) {
   if (lp.as_planned) out.push(`*${S.lp_done_as_planned}* ${lp.as_planned.step} — ${lp.as_planned.text}`);
   if (lp.most_missed) {
     const at = lp.most_missed.time ? ` (${fill(S.lp_about_time, { time: lp.most_missed.time })})` : '';
-    out.push(`*${S.lp_most_missed}* ${lp.most_missed.step}, ${lp.most_missed.move}${at}${lp.most_missed.text ? ` — ${lp.most_missed.text}` : ''}`);
+    out.push(`*${S.lp_most_missed}* ${lp.most_missed.step}${S.lp_comma || ', '}${lp.most_missed.move}${at}${lp.most_missed.text ? ` — ${lp.most_missed.text}` : ''}`);
   }
   out.push('', `*${S.lp_moves_label}*`);
   for (const st of lp.steps || []) {
