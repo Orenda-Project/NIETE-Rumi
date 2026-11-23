@@ -288,8 +288,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
 
   // Queue #230: the hero opens with a title block (Teacher Observation Report, who, where, which class, when, by whom,
   // on what rubric), not the affirmation sentence; the affirmation follows the hero as its lead line.
+  // Only for an observer the HITL v6/v7 switch names (loadTitleFacts .hitl); every other report is as before.
   const facts = await loadTitleFacts(session);
-  vm.title = buildReportTitle({
+  if (facts.hitl) vm.title = buildReportTitle({
     teacher: (opts.teacherName && opts.teacherName !== 'Teacher' ? opts.teacherName : null) || facts.teacherName,
     school: facts.school,
     grade: analysis.grade,

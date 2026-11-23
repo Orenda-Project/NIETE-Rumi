@@ -12,7 +12,8 @@
  *
  * Every fact is read, never made: a fact that is not on file is left out, the line with it. The title and the labels
  * are in the report's language; names stay as stored. buildReportTitle is pure; loadTitleFacts reads the two users
- * (teacher and observer) and never throws.
+ * (teacher and observer) and the HITL switch, and never throws. ON: only a report whose observer the HITL v6/v7 switch
+ * (portal_coach_flow_v2) names; every other report keeps today's header until the switch reaches its observer.
  */
 
 const WORDS = {
@@ -92,12 +93,13 @@ function rubricChip(analysis) {
  * @param {object} session  coaching_sessions row (user_id, observer_user_id)
  */
 async function loadTitleFacts(session, deps = {}) {
-  const out = { teacherName: null, school: null, observer: null, observerRole: null };
+  const out = { teacherName: null, school: null, observer: null, observerRole: null, hitl: false };
   const s = session || {};
   const ids = [s.user_id, s.observer_user_id].filter(Boolean);
   if (!ids.length) return out;
+  let supabase;
   try {
-    const supabase = deps.supabase || require('../../../config/supabase');
+    supabase = deps.supabase || require('../../../config/supabase');
     const { data } = await supabase.from('users').select('id, name, role, school_name').in('id', ids);
     const byId = Object.fromEntries((data || []).map((u) => [u.id, u]));
     const t = byId[s.user_id] || {};
@@ -106,7 +108,20 @@ async function loadTitleFacts(session, deps = {}) {
     out.school = text(t.school_name);
     out.observer = text(o.name);
     out.observerRole = text(o.role);
-  } catch (_) { /* the title is drawn from what was read */ }
+  } catch (_) { return out; /* the title is drawn from what was read */ }
+  // The title block rides the HITL v6/v7 switch (portal_coach_flow_v2), read with the portal's own rule for the
+  // observer (observer-report-copy flowV6OnFor): the switch's accounts get it, every other report is as before. A
+  // missing observer, no row or a failed read is off.
+  try {
+    if (s.observer_user_id) {
+      const { flowV6OnFor, SWITCH_KEYS } = require('../../observe/observer-report-copy');
+      const { data: rows, error } = await supabase.from('app_settings').select('key,value').in('key', SWITCH_KEYS);
+      if (!error) {
+        const values = new Map((rows || []).map((r) => [r.key, r.value]));
+        out.hitl = flowV6OnFor(values, { id: s.observer_user_id, role: out.observerRole }) === true;
+      }
+    }
+  } catch (_) { out.hitl = false; }
   return out;
 }
 

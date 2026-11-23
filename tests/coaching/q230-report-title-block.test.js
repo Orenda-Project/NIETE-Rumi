@@ -18,10 +18,20 @@ const USERS = {
   't-1': { id: 't-1', name: 'Ayesha Bibi', role: 'teacher', school_name: 'IMCG F-7/2' },
   'o-1': { id: 'o-1', name: 'Rifat Yasmeen', role: 'coach', school_name: null },
   'p-1': { id: 'p-1', name: 'Nadia Khan', role: 'principal', school_name: 'IMCG F-7/2' },
+  'o-2': { id: 'o-2', name: 'Sana Riaz', role: 'coach', school_name: null },
 };
+// The HITL v6/v7 switch names o-1 (a coach: the coach app, the full app and the flow switch); o-2 is not on it.
+const SETTINGS = { portal_coach_flow_v2: '["o-1"]', portal_coach_v2: '["o-1","o-2"]', portal_coach_full_app: '["o-1","o-2"]' };
 jest.mock('../../bot/shared/config/supabase', () => ({
-  from: jest.fn(() => ({
-    select: () => ({ in: async (_c, ids) => ({ data: ids.map((id) => USERS[id]).filter(Boolean), error: null }) }),
+  from: jest.fn((table) => ({
+    select: () => ({
+      in: async (_c, keys) => ({
+        data: table === 'app_settings'
+          ? keys.filter((k) => k in SETTINGS).map((k) => ({ key: k, value: SETTINGS[k] }))
+          : keys.map((id) => USERS[id]).filter(Boolean),
+        error: null,
+      }),
+    }),
   })),
 }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -76,12 +86,13 @@ describe('queue #230 · buildReportTitle', () => {
     expect(Title.rubricChip({ framework: 'oecd' })).toBeNull();
   });
 
-  it('loadTitleFacts reads the teacher and the observer, and a failed read is no facts, not a throw', async () => {
+  it('loadTitleFacts reads the teacher, the observer and whether the HITL switch names the observer; a failed read is off', async () => {
     await expect(Title.loadTitleFacts({ user_id: 't-1', observer_user_id: 'o-1' }))
-      .resolves.toEqual({ teacherName: 'Ayesha Bibi', school: 'IMCG F-7/2', observer: 'Rifat Yasmeen', observerRole: 'coach' });
+      .resolves.toEqual({ teacherName: 'Ayesha Bibi', school: 'IMCG F-7/2', observer: 'Rifat Yasmeen', observerRole: 'coach', hitl: true });
+    await expect(Title.loadTitleFacts({ user_id: 't-1', observer_user_id: 'o-2' })).resolves.toMatchObject({ observer: 'Sana Riaz', hitl: false });
     const broken = { from: () => { throw new Error('db down'); } };
-    await expect(Title.loadTitleFacts({ user_id: 't-1' }, { supabase: broken }))
-      .resolves.toEqual({ teacherName: null, school: null, observer: null, observerRole: null });
+    await expect(Title.loadTitleFacts({ user_id: 't-1', observer_user_id: 'o-1' }, { supabase: broken }))
+      .resolves.toEqual({ teacherName: null, school: null, observer: null, observerRole: null, hitl: false });
   });
 });
 
@@ -111,6 +122,29 @@ describe('queue #230 · the hero renders the title block', () => {
     expect(html).toMatch(/\.tn,\.tm\{unicode-bidi:plaintext;text-align:right\}/); // a Latin name keeps its own order
     expect(html).toMatch(/@font-face\{font-family:'NastaliqUrdu';font-weight:400;src:url\(data:font\/ttf;base64,[A-Za-z0-9+/]{100,}/);
     expect(html).not.toContain(AFFIRM_UR); // noLead: the FDE / FICO 6-12 sentence is not drawn at all
+  });
+
+  async function renderV6(observerId) {
+    jest.resetModules();
+    jest.doMock('../../bot/shared/services/coaching/report-v2/narrative.service', () => ({
+      ...jest.requireActual('../../bot/shared/services/coaching/report-v2/narrative.service'),
+      generateReportNarrative: async () => ({ affirmation: 'You asked why, and they told you.', strength_name: 'S', strength_note: 'N', horizon_title: 'H', horizon_note: 'Q', moments: [] }),
+    }));
+    jest.doMock('../../bot/shared/utils/html-to-pdf', () => ({ htmlToImage: async (html) => Buffer.from(String(html)) }));
+    jest.doMock('../../bot/shared/services/coaching/coaching-trend.service', () => ({ loadTrendData: async () => [] }));
+    jest.doMock('../../bot/shared/storage/r2', () => ({ downloadFromR2: jest.fn(), extractKeyFromUrl: jest.fn() }));
+    jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+    const { reviewedV6, TRANSCRIPT } = require('../fixtures/fico17-v6-reviewed');
+    const { generateHeroReport } = require('../../bot/shared/services/coaching/report-v2/hero-report.service');
+    const out = await generateHeroReport({ id: 'cs', user_id: 't-1', observer_user_id: observerId, created_at: '2026-11-23T10:17:02Z', transcript_text: TRANSCRIPT },
+      reviewedV6(), { language: 'en', brand: 'niete', teacherName: 'Ayesha Bibi' });
+    return out.png.toString();
+  }
+
+  it('the real path, an observer off the HITL switch: today\'s header, unchanged', async () => {
+    const h = hero(await renderV6('o-2'));
+    expect(h).toContain('<h1>You asked why, and they told you.</h1>');
+    expect(h).not.toContain('Teacher Observation Report');
   });
 
   it('the real path: generateHeroReport on a reviewed v6 visit draws the title block with the read facts', async () => {

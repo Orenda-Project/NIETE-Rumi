@@ -455,6 +455,7 @@ async function obs612Title(session, analysis, base, vm) {
   const lang = clampLanguage(vm.language, ['en', 'ur']);
   const v = base.view || {};
   const facts = await loadTitleFacts(session);
+  if (!facts.hitl) return null; // not on the HITL v6/v7 switch: today's header
   return {
     ...buildReportTitle({
       teacher: base.teacherName && base.teacherName !== 'Teacher' ? base.teacherName : facts.teacherName,
