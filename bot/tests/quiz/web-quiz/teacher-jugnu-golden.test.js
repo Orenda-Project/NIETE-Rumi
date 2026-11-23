@@ -27,8 +27,12 @@ const LIST = 'a0000000-0000-4000-8000-00000000003b';
 const CLASS = 'c1a55000-0000-4000-8000-000000000001';
 const kid = (n) => `b0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`;
 // The baselines are sha256 + byte length of each whole page (the page embeds ~95 KB of font per render).
+// Each sha256 is kept as eight 8-character groups split by spaces. Raw hex can hold a phone-shaped digit run by chance
+// (the public-repo fixture rule, tests/setup/phone-shaped-fixtures, needs 11 digits in a row); a group never can.
 const FILE = path.join(__dirname, '__goldens__', 'teacher-report-pages.json');
-const digest = (html) => ({ sha256: crypto.createHash('sha256').update(html, 'utf8').digest('hex'), bytes: Buffer.byteLength(html, 'utf8') });
+const GROUPED = /^[0-9a-f]{8}( [0-9a-f]{8}){7}$/;
+const sha = (html) => crypto.createHash('sha256').update(html, 'utf8').digest('hex').match(/.{8}/g).join(' ');
+const digest = (html) => ({ sha256: sha(html), bytes: Buffer.byteLength(html, 'utf8') });
 
 function seed(settings) {
   const DB = {
@@ -108,6 +112,7 @@ if (process.env.GOLDEN_WRITE === '1') {
       await boot(STATES[state]);
       const url = PAGES.find(([n]) => n === name)[1]();
       const want = JSON.parse(fs.readFileSync(FILE, 'utf8'))[name];
+      expect(want.sha256).toMatch(GROUPED);
       const plain = await page(url);
       expect(plain.status).toBe(200);
       expect(digest(plain.html)).toEqual(want);
