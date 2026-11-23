@@ -52,8 +52,9 @@ describe('an English question on an Urdu page (the look on)', () => {
 });
 
 describe('the Urdu Videos grid: an English title', () => {
+  // From its own left edge: right-aligned, a line cut at a space sat flush right and its "…" fell past the box.
   test('clamps left to right, so the ellipsis ends the words', () => {
-    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-vct:has\(>bdi\.wq-lat\)\{[^}]*direction:ltr[^}]*text-align:right/);
+    expect(CSS).toMatch(/html\.wq-adv\[lang=ur\] \.wq-vct:has\(>bdi\.wq-lat\)\{[^}]*direction:ltr[^}]*text-align:left/);
   });
 });
 
