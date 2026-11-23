@@ -356,3 +356,46 @@ describe('runKeyVerify, switch on: a confirmed repeat keeps its targeted rewrite
     expect(kv.record.status).not.toBe('held');
   });
 });
+
+describe('a released hold: the reviewer\'s key_ok writes media.key_held.released_at, and the item serves again', () => {
+  const KeyHold = require('../../shared/services/quiz/key-hold-flag');
+  const RELEASED_AT = '2026-11-25T09:30:00.000Z';
+  /** The teacher's PDF for the stored rows, through the same renderPdf the hand-off calls. */
+  const printRows = () => Gen.renderPdf({
+    quiz: quiz(), questions: rows(), digest: DIGEST, teacherName: 'Rifat Test', grade: '3', lessonSummary: 'You planned reading short sentences.',
+    language: 'en', contentLanguage: 'en', date: DAY, link: null,
+  });
+
+  test('isHeld: a hold with released_at is not held; without it (or with it empty) it still is', () => {
+    expect(KeyHold.isHeld({ media: { key_held: { reason: 'blind_solve', verdict: 'disagree', picks: ['dog'] } } })).toBe(true);
+    expect(KeyHold.isHeld({ media: { key_held: { reason: 'blind_solve', verdict: 'disagree', picks: ['dog'], released_at: RELEASED_AT } } })).toBe(false);
+    expect(KeyHold.isHeld({ media: { key_held: { reason: 'blind_solve', released_at: null } } })).toBe(true);
+    expect(KeyHold.isHeld({ media: { key_held: { reason: 'blind_solve', released_at: '' } } })).toBe(true);
+    expect(KeyHold.isHeld({ media: {} })).toBe(false);
+  });
+
+  test('switch on: a released item is served by loadQuestions and printed by renderPdf; an unreleased one stays out of both', async () => {
+    seed({ hold: true });
+    await Gen.process(QID, { quizId: QID, phone: PHONE });
+    const held = rows().find((q) => q.question_text === FLAGGED_STEM);
+    expect(held.media.key_held).toBeTruthy();
+
+    // not released: still held at both doors
+    expect((await served()).map((q) => q.qid)).not.toContain(held.id);
+    await printRows();
+    expect(pdfHtml()).not.toContain(FLAGGED_STEM);
+
+    // the reviewer's key_ok: released_at on the hold, nothing else on the row changes
+    held.media = { ...held.media, key_held: { ...held.media.key_held, released_at: RELEASED_AT } };
+    const page = await served();
+    expect(page).toHaveLength(8);
+    expect(page.map((q) => q.qid)).toContain(held.id);
+    await printRows();
+    expect(pdfHtml()).toContain(FLAGGED_STEM);
+
+    // the reviewer's rollback removes exactly released_at: held again
+    const { released_at: _gone, ...hold } = held.media.key_held;
+    held.media = { ...held.media, key_held: hold };
+    expect((await served()).map((q) => q.qid)).not.toContain(held.id);
+  });
+});

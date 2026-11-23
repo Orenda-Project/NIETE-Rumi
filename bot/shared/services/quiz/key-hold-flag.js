@@ -6,7 +6,7 @@
  * (transcript-quiz-generate runKeyVerify): the item ships as authored, the author's key kept, marked media.key_held,
  * and it gets one answer-key review queue row (quiz_item_reviews, blind_solve, open). Nothing reads a held item to a
  * child or prints it for the teacher while the switch is on: the web quiz's served set (web-quiz.service
- * loadQuestions) and the teacher's PDF (renderPdf) go through shown().
+ * loadQuestions) and the teacher's PDF (renderPdf) go through shown(). A hold a reviewer released (released_at) is shown.
  * Off (a missing row, false, the string "true", any other value, a failed read): today's rewrite exactly, and every
  * row is shown as before. 30 s cache; a reader that finds no held row makes no read at all.
  */
@@ -31,9 +31,14 @@ async function on(now = Date.now()) {
   return cache.on;
 }
 
-/** A row the blind solve held (media.key_held), whatever held it. */
+/**
+ * A row the blind solve held (media.key_held), whatever held it, that a person has not released. The reviewer's
+ * key_ok writes media.key_held.released_at (a timestamp) and its rollback removes exactly that key, so a released
+ * item is served and printed again and a rolled-back one is held again.
+ */
 function isHeld(row) {
-  return Boolean(row && row.media && row.media.key_held);
+  const hold = row && row.media && row.media.key_held;
+  return Boolean(hold) && !hold.released_at;
 }
 
 /** `rows` without the held ones while the switch is on; the same array otherwise (and no read when none is held). */
