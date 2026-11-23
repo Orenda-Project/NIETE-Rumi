@@ -72,7 +72,27 @@ describe('FICO-S portal: the pre-fill lines are tagged and name the Digital Coac
   });
 
   test('the WhatsApp Flow\'s screen data keeps its own words (portal only)', () => {
-    const c1 = FF.screenData(FF.indicatorScreenId('C1'), {}, 'en', { dc: DC, rubric: RUBRIC });
-    expect(JSON.stringify(c1)).toMatch(/NIETE Teaching Assistant chose/);
+    const c1 = JSON.stringify(FF.screenData(FF.indicatorScreenId('C1'), {}, 'en', { dc: DC, rubric: RUBRIC }));
+    // the Flow's own line (whatever this branch words it: "Rumi chose" on staging/main, "The NIETE Teaching Assistant
+    // chose" on sandbox), never the portal's
+    expect(c1).toContain(FF.STR.en.rumi_chose('3').split(' 3 ')[0]);
+    expect(c1).not.toMatch(/The Digital Coach chose/);
+  });
+});
+
+/*
+ * bd-o15qnr.40.4 (1b) — staging and production still word the Flow's change-reason help "Only if you changed Rumi's
+ * level", and the portal's "Why you changed" box took it as its label. The portal's label has its own words (p_help_chg),
+ * whatever the Flow says; the Flow's help is left as it is.
+ */
+describe('FICO-S portal: the change-reason label has the portal\'s own words', () => {
+  test('English and Urdu: the chg_ field text is lbl_chg + the portal help, never the Flow\'s help', () => {
+    for (const lang of ['en', 'ur']) {
+      const chgField = screenOf(secsOf(lang), 'C1').parts.find((p) => p.type === 'field' && p.name === 'chg_C1');
+      const s = FF.STR[lang];
+      expect(s.p_help_chg).toBeTruthy();
+      expect(chgField.text).toBe(`${s.lbl_chg}: ${s.p_help_chg}`);
+      expect(s.p_help_chg).not.toMatch(/Rumi|رومی|NIETE|ٹیچنگ اسسٹنٹ/);
+    }
   });
 });
