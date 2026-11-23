@@ -6,3 +6,4 @@
 {"ts":"2026-11-23T13:21:44Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"8947fa0d24a4","branch":"bd-p3gk97-main","user":""}
 {"ts":"2026-11-23T13:21:52Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-p3gk97-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"8947fa0d24a4","branch":"bd-p3gk97-main","user":""}
 {"ts":"2026-11-23T13:22:05Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"8947fa0d24a4","branch":"bd-p3gk97-main","user":""}
+{"ts":"2026-11-23T14:37:25Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"8947fa0d24a4","branch":"bd-p3gk97-main","user":""}
