@@ -1,3 +1,4 @@
 {"ts":"2026-11-23T12:31:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"5fa08eb1d746","branch":"bd-p3gk97-e1qvrf-stg","user":""}
 {"ts":"2026-11-23T12:33:08Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"5fa08eb1d746","branch":"bd-p3gk97-e1qvrf-stg","user":""}
 {"ts":"2026-11-23T12:38:48Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (this commit carries its own @T1184 scenario from b59238a, validated OK; @wip, mock cassettes lack a lesson transcript)","sha":"5fa08eb1d746","branch":"bd-p3gk97-e1qvrf-stg","user":""}
+{"ts":"2026-11-23T12:38:48Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-5fa08eb1d746","sha":"5fa08eb1d746","branch":"bd-p3gk97-e1qvrf-stg","user":""}
