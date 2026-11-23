@@ -28,6 +28,7 @@ const { ACTIVITY_CTE } = require('./lp-activity.service');
 // bd-o15qnr.23: "today" is the day in Pakistan, not the UTC date — overdue, Home's
 // today, the week and the team schedule all count from it.
 const { karachiToday } = require('../lib/visit-time');
+const { searchSchools } = require('../../bot/shared/utils/school-search');
 
 const TERMINAL_STATUSES = ['completed', 'observer_review_complete'];
 /** The report has reached the teacher (bot portal-observe.service REPORT_OUT). */
@@ -378,6 +379,23 @@ function normalisePhone(digits) {
   if (digits.startsWith('0')) return `92${digits.slice(1)}`;
   if (digits.length === 10 && digits.startsWith('3')) return `92${digits}`;
   return digits;
+}
+
+/**
+ * The report rows that match what the coach typed, in their own order: her teacher's or her school's name, with case,
+ * spaces and punctuation not mattering and the words in any order (bd-bfagiy: "i103", "I 10 3", "tahira i-10/3"); or,
+ * with four digits or more, the teacher's phone typed any local way. A name with digits in it ("No.2 G-10/2") is still
+ * searched as a name.
+ */
+function filterReports(rows, query) {
+  const digits = digitsOf(query);
+  const byPhone = (r) => {
+    if (digits.length < 4) return false;
+    const phone = digitsOf(r.teacherPhone);
+    return !!phone && (phone.includes(normalisePhone(digits)) || phone.includes(digits));
+  };
+  const byName = new Set(searchSchools(rows, query, (r) => ({ names: [r.teacherName, r.schoolName] })));
+  return rows.filter((r) => byPhone(r) || byName.has(r));
 }
 
 // ── teachers: the patch plus the three new numbers ──────────────────────────
@@ -899,18 +917,7 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
 
   const q = String(opts.q || '').trim();
   let matched = shaped;
-  if (q) {
-    const digits = digitsOf(q);
-    const lower = q.toLowerCase();
-    matched = shaped.filter((r) => {
-      if (digits.length >= 4) {
-        const phone = digitsOf(r.teacherPhone);
-        return phone.includes(normalisePhone(digits)) || phone.includes(digits);
-      }
-      return String(r.teacherName || '').toLowerCase().includes(lower)
-        || String(r.schoolName || '').toLowerCase().includes(lower);
-    });
-  }
+  if (q) matched = filterReports(shaped, q);
 
   const out = {
     waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !notToDo.has(r.id)),
@@ -929,6 +936,7 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
 
 module.exports = {
   SQL,
+  filterReports,
   PORTAL_KEY_RX,
   weekBounds,
   monthBounds,

@@ -22,6 +22,7 @@ import { bookedOn, clashesAt, dayLong, sinceText, sinceTone, timeWords } from ".
 import { LevelChips, atLevel, levelCounts, useLevel, useLevelNames, withLevel, type TeachingLevel } from "../people/level";
 import { useFlowV2 } from "../flow/useCoachFlowV2";
 import { trackFlow } from "../flow/track";
+import { searchSchools } from "../../lib/schoolSearch";
 
 /**
  * bd-o15qnr — New visit: 1 school → 2 teacher (her numbers, a Profile link,
@@ -67,9 +68,10 @@ function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3, v6 = f
   const c = useCopy(SCHEDULE);
   const F = useCopy(FLOW_V6);
   const [q, setQ] = useState("");
-  // bd-o15qnr.27 (v6): a school-name search over the list (#188's v6 board, step 1)
-  const needle = q.trim().toLowerCase();
-  const shown = v6 && needle ? schools.filter((s) => (s.name || "").toLowerCase().includes(needle)) : schools;
+  // bd-o15qnr.27 (v6): a school search over the list (#188's v6 board, step 1). bd-bfagiy: by name or EMIS, case, spaces
+  // and punctuation not mattering, words in any order ("i103", "I 10 3", "IMSG I10"); the closest school first, then as
+  // the list runs (never-visited first).
+  const shown = searchSchools([...schools].sort(bySince), v6 ? q : "", (s) => ({ names: [s.name], codes: [s.emis] }));
   return (
     <>
       {chips}
@@ -88,7 +90,7 @@ function SchoolStep({ schools, onPick, chips, trimmed = false, steps = 3, v6 = f
       )}
       <HistoryList showMore={false} groups={[{
         day: "",
-        items: [...shown].sort(bySince).map((s) => ({
+        items: shown.map((s) => ({
           id: s.schoolExtId,
           lead: "school" as const,
           title: s.name || c.dash,

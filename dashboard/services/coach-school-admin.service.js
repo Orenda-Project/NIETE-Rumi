@@ -24,6 +24,7 @@
  */
 
 const { getCoachSchool } = require('./coach-v2.service');
+const { schoolMatchRank, searchText } = require('../../bot/shared/utils/school-search');
 
 const SEARCH_MIN = 2;      // one letter matches most of the district
 const SEARCH_CAP = 20;     // a readable list; type more to narrow it
@@ -36,17 +37,14 @@ const refuse = (status, reason) => ({ status, data: { success: false, reason } }
 const notFound = () => refuse(404, 'not_found');
 
 /**
- * Best match first: an exact EMIS, then names that start with what she typed,
- * then EMIS codes that do, then everything else; by name within each.
+ * Best match first, by the shared school search rule (bd-bfagiy: case, spaces and punctuation do not matter): the
+ * whole name or EMIS, then one that starts with what she typed, then one holding it, then the words found apart, then
+ * anything else the bot sent; by name within each.
  */
 function rankSchools(schools, term) {
-  const t = String(term || '').trim().toLowerCase();
   const tier = (s) => {
-    const emis = String(s.emis || '').toLowerCase();
-    if (emis && emis === t) return 0;
-    if (String(s.name || '').toLowerCase().startsWith(t)) return 1;
-    if (emis.startsWith(t)) return 2;
-    return 3;
+    const rank = schoolMatchRank({ names: [s.name], codes: [s.emis] }, term);
+    return rank === null ? 4 : rank;
   };
   return [...schools].sort((a, b) => (tier(a) - tier(b))
     || String(a.name || '').localeCompare(String(b.name || '')));
@@ -54,7 +52,8 @@ function rankSchools(schools, term) {
 
 async function searchSchools(client, leaderUserId, term) {
   const q = String(term || '').trim().slice(0, 64);
-  if (q.length < SEARCH_MIN) return { status: 200, data: { success: true, schools: [] } };
+  // two letters or digits at least; spaces and punctuation do not count ("-/" is no search)
+  if (searchText(q).length < SEARCH_MIN) return { status: 200, data: { success: true, schools: [] } };
   const out = await client.searchSchools({ leaderUserId, term: q });
   if (out.status !== 200) return out;
   const schools = rankSchools((out.data && out.data.schools) || [], q).slice(0, SEARCH_CAP)

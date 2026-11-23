@@ -21,6 +21,7 @@ import { withDuration } from '../lib/webmDuration';
 import { SendError, type LibraryPick } from '../lib/coachingSend';
 import { holdFile, holdPhoto, isFileRefused, isRefused, tellUnreadablePick } from '../lib/pickedRead';
 import type { FinishedRecording } from '../lib/lessonRecorder';
+import { searchSchools } from '../lib/schoolSearch';
 import {
   entryCopy, firstName, forgetRecording, recordingTeacher, rememberRecording, sendObservation, type UnsentFor,
 } from '../lib/coachObserve';
@@ -237,11 +238,9 @@ const LeaderObserveRecord = () => {
     .filter((t) => t.teacherExtId)
     .map((t) => ({ teacherExtId: t.teacherExtId as string, schoolExtId: null, name: t.name || 'Unnamed teacher', school: t.schoolName })), [teachers]);
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter((t) => `${t.name} ${t.school || ''}`.toLowerCase().includes(q));
-  }, [all, query]);
+  // bd-bfagiy: the teacher's or the school's name, case, spaces and punctuation not mattering, words in any order;
+  // the closest first
+  const shown = useMemo(() => searchSchools(all, query, (t) => ({ names: [t.name, t.school] })), [all, query]);
 
   // A visit opened from the schedule arrives with the teacher already chosen.
   const preselected = useRef(false);
