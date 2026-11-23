@@ -138,7 +138,9 @@ on('WQ052', 'roster', async (page, ctx) => {
     expect(banner === 'Practice round · your first score 5/5 is the one that counts', 'the card says "' + banner + '"');
     const ev = L.events(B.page);
     // the share text carries the kept first score: read what Share would send (no navigator.share → the fallback screen)
-    await B.page.evaluate(() => { try { delete navigator.share; } catch (_) { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } });
+    // share lives on Navigator.prototype, so deleting it from the instance does nothing; shadow it instead (a headed
+    // Chrome has a real share sheet, headless has none)
+    await B.page.evaluate(() => Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }));
     await B.page.click('#wq-share');
     // phone B is closed before the runner's screenshot (of phone A) is taken: on a miss, say what B was showing
     await B.page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT }).catch(async (err) => {

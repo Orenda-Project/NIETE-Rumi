@@ -269,8 +269,12 @@ on('WQ153', 'roster', async (page, ctx) => {
   const row = again.find((t) => /Parts of a Plant/.test(t));
   expect(row && /Best 5\/5 · 2 tries/.test(row), 'Play again rows: ' + JSON.stringify(again));
   expect(/first score/i.test(await text(page)), 'no note that the first score is the teacher\'s');
+  // the page drops ?again=1 from the address bar once it has read it (wq.js replaceState), so a slowed, headed browser
+  // can miss it in the URL: check the link carries it, then that the tap lands on the quiz
+  const href = await page.$eval('a.wq-vitem[data-again]:has-text("Parts of a Plant")', (a) => a.getAttribute('href'));
+  expect(/\/q\/AB12CD\?(.*&)?again=1/.test(href || ''), 'Play again links to ' + href);
   await page.click('a.wq-vitem[data-again]:has-text("Parts of a Plant")');
-  await page.waitForURL(/\/q\/AB12CD\?again=1/, { timeout: WAIT });
+  await page.waitForURL(/\/q\/AB12CD/, { timeout: WAIT, waitUntil: 'commit' });
   await page.waitForSelector(M('M3') + ', ' + M('M6') + ', ' + M('M4-opening') + ', .wq-scorecard', { state: 'attached', timeout: WAIT });
   expect(!(await page.$('.wq-scorecard')), 'Play again opened the old scorecard');
   return { row };
