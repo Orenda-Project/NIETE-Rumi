@@ -23,7 +23,8 @@
  *      every row: paged, because one response stops at the server's max-rows (1,000) with no error.
  *   6. Writes on the PRIMARY, to quiz_item_reviews only: a new suspect is inserted 'open'; an open one has its counts
  *      refreshed; a reviewed one (any other status) is left exactly as the reviewer left it, except last_seen_on.
- * Logged with a correlation id: counts only (quiz_keys.flagged). Never throws.
+ * Logged with a correlation id, counts only: quiz_keys.flagged for a run, and quiz_keys.tick once per tick with its
+ * outcome (so "ran yesterday" is told apart from "never ticked"). Never throws.
  */
 const { logToFile } = require('../../utils/logger');
 const { logEvent, generateCorrelationId, runWithCorrelation } = require('../../utils/structured-logger');
@@ -208,12 +209,17 @@ async function run(deps = {}) {
     writer = () => require('../../config/supabase'),
   } = deps;
   return runWithCorrelation(generateCorrelationId(), async () => {
+    let out;
     try {
-      return await tick({ now, redis, reader, writer });
+      out = await tick({ now, redis, reader, writer });
     } catch (err) {
       logToFile('❌ Answer-key review: the nightly flag stopped', { error: err && err.message }, 'error');
-      return { outcome: 'error' };
+      out = { outcome: 'error' };
     }
+    try {
+      logEvent('quiz_keys.tick', { outcome: out.outcome, reason: out.reason || null, run_date: pktDate(now) });
+    } catch (_) { /* a log line never stops the job */ }
+    return out;
   });
 }
 
