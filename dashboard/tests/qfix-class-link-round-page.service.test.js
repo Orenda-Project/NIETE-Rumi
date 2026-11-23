@@ -79,6 +79,29 @@ describe('"Done for tonight!": the start answers round_done_for_tonight with no 
     expect(p.ls.has('wq_s_TEST') ? JSON.parse(p.ls.get('wq_s_TEST')).st : undefined).toBeFalsy();
   });
 
+  test.each(['en', 'ur'])('%s: Home on the done screen goes back to the class link\'s landing (a sibling can still play), never to the round', async (lang) => {
+    const p = done(lang);
+    await flush(); await flush();
+    const home = /<a [^>]*id="wq-done-home"[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/.exec(p.html());
+    expect(home).not.toBeNull();
+    expect(home[1]).toMatch(/^\/j\/K7Q2MXTRAB(\?|$)/);
+    expect(home[2]).toBe(p.wq.T.home);
+    expect(p.html()).not.toMatch(/href="[^"]*\/q\/TEST/);
+    expect(p.html()).not.toMatch(START);
+  });
+
+  test('a done answer without a class link code: no Home, the words and nothing that starts again', async () => {
+    const p = page({
+      lang: 'en', questions: JSON.parse(JSON.stringify(POOL)),
+      store: { wq_from: { code: 'TEST', st: 'old-st', at: Date.now() } },
+      api: { '/api/wq/session': { round_done_for_tonight: true, class_link_code: 'not a code!', round_code: 'TEST' } },
+    });
+    await flush(); await flush();
+    expect(p.html()).toContain(DECK.en);
+    expect(p.html()).not.toContain('id="wq-done-home"');
+    expect(p.html()).not.toMatch(START);
+  });
+
   test.each(['en', 'ur'])('%s: the hub link (?k=, identity v2) of a child who finished: one start, the words, and a tap anywhere starts nothing', async (lang) => {
     const p = page({
       lang, ident: true, cls: V2, search: '?k=c-zara', questions: JSON.parse(JSON.stringify(POOL)),
