@@ -27,7 +27,7 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
   midnight) or `true` (03:00). No row, a malformed value or a failed read = off. Read on the replica.
 - **Order:** `rpc('db_is_replica')` first, before any other read, else refused; the switch; one worker per tick (Redis
   claim) and once per Pakistan date (marker `ab_tracker:v1:run:<date>`, 36 h).
-- **Reads (replica, 30 s each, one at a time, 0.5 s apart):** `ab_tracker_live_tests()`, then per test and database
+- **Reads (replica, sent as GET because the replica refuses POST rpc calls; 30 s each, one at a time, 0.5 s apart):** `ab_tracker_live_tests()`, then per test and database
   measure `ab_tracker_metric_rows(test, measure, from, to)`: daily measures from 4 days back (or the start) to
   yesterday, weekly ones from that Monday. On a Pakistan Monday and on the test's read day the window runs from the
   start instead (weekly: its Monday), read in 7-day slices, so rows that landed late are counted; the upsert overwrites,
