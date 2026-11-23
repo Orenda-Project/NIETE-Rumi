@@ -527,6 +527,7 @@
     // (the Videos screens as picture shelves stamp with their own writer, vtrip, after the draw)
     if (B.list_states && !lookOnly(B) && !(shelfOn(B) && (name === 'videos' || /^watch\//.test(name)))) trip(root, name, h, data);
     wire(root, B, ctx, name);
+    if (typeof root.querySelectorAll === 'function') vfit(root);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   // The test markers (`list_states` only): data-fetch pending|done|failed, when the skeleton came and went, and
@@ -676,7 +677,7 @@
   // One subject's shelf. A load that fails shows the oops line and one Try again in its place (never placeholders forever).
   function shelf(root, B, ctx, key, si) {
     var at = function () { return view.name === 'videos' && !view.subject ? root.querySelector('[data-vshelf="' + String(key).replace(/["\\]/g, '') + '"]') : null; };
-    var put = function (sh, h) { sh.innerHTML = h; if (typeof sh.querySelectorAll === 'function') { each(sh, '[data-tap]', function (el) { bindTap(el, root, B, ctx, 'videos'); }); thumbFallback(sh); } };
+    var put = function (sh, h) { sh.innerHTML = h; if (typeof sh.querySelectorAll === 'function') { each(sh, '[data-tap]', function (el) { bindTap(el, root, B, ctx, 'videos'); }); thumbFallback(sh); vfit(sh); } };
     var state = function (sh, st) { vrows[key] = st; if (sh && typeof sh.setAttribute === 'function') sh.setAttribute('data-fetch', st); subjState(root, B); };
     var fill = function (j) {
       var sh = at(); if (!sh) return;
@@ -695,6 +696,24 @@
   function oopsHtml(ctx, key, pos) {
     var t = C(ctx);
     return '<p class="wq-soon wq-voops">' + esc(t.oops) + '</p><button class="wq-btn wq-btn--secondary wq-vretry" type="button" data-tap="vretry" data-item="' + esc(key) + '" data-pos="' + (pos || 0) + '">' + esc(t.retry) + '</button>';
+  }
+  // A video title whose 2-line clamp hides nothing is marked .wq-vfit (wq-doors.css draws an Urdu one unclipped, so its
+  // Nastaliq tails show whole). Nastaliq ink overflows its own line box by 4-5 px, so "hides nothing" = less than half a
+  // line of scroll overflow; a clamped title hides a whole line. A title not laid out yet (no height) stays clipped. The
+  // Urdu face arriving late, or a new width (rotation, split screen; read once it settles), can change the lines, so
+  // every title is read again then.
+  var vfitHooked = false, vfitWait = null;
+  function vfit(scope) {
+    try {
+      each(scope, '.wq-vct', function (t) {
+        var lh = t.clientHeight ? parseFloat(window.getComputedStyle(t).lineHeight) || 28 : 0;
+        if (lh && t.scrollHeight - t.clientHeight < lh / 2) t.classList.add('wq-vfit'); else t.classList.remove('wq-vfit');
+      });
+      if (vfitHooked) return;
+      vfitHooked = true;
+      if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function () { vfit(document); });
+      window.addEventListener('resize', function () { clearTimeout(vfitWait); vfitWait = setTimeout(function () { vfit(document); }, 250); });
+    } catch (e) {}
   }
   // A thumbnail that does not load falls back to the full poster once, then to the card's plain tile.
   function thumbFallback(el) {
