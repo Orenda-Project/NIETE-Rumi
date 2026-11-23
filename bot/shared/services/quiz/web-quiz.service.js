@@ -2031,10 +2031,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
       logToFile('❌ web-quiz: could not complete session', { sessionId: s.id, error: error.message }, 'error');
       fail(502, 'db_unavailable');
     }
-    Funnel.emit('child_completed', {
-      quiz_id: s.quiz_id, session_id: s.id, share_code_id: s.share_code_id, channel: 'web', pct,
-      ...(s.user_id ? { kind: 'self_test' } : {}),
-    });
+    // With the quiz stream on it, not awaited: the funnel watcher counts web finishes (bd-4dkwaf).
+    require('./web-quiz-finish-event').emitFinished(s, pct, quizSourceOf);
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
     // an evening round's sitting, once (its first finish): how many of the child's recall items came back right
     if (!sitting.round_plain && !s.user_id) {
