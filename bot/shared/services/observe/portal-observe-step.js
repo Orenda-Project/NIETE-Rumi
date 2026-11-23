@@ -51,6 +51,11 @@ const STOPPED = new Set(['cancelled', 'abandoned', 'failed']);
 const FDE_RUBRIC_RX = /^(obs612-(gen|msci|enur)-v\d+|fico_s_v\d+_\d+)$/; // FICO-S: v1.1, v1.2 (queue #218)
 const FDE_FORM_STATUS = 'obs612_form';
 const PAST_THE_FORM = new Set(['observer_review_complete', 'completed']);
+// bd-o15qnr.41 (queue #228; the operator 23 Nov: "dont open the form till analysis is complete") — a FICO-S visit
+// stamped for the Digital Coach (queue #184, obs612/fico-s-dc.js REASON) is the Digital Coach's first: its form is hers
+// only once Rumi's pre-fill is on it (onAnalysisReady → 'obs612_form'), as a FICO17 v6 review waits for
+// 'awaiting_observer_review'. Before that the step is 'analysing', so the form is not offered empty.
+const DC_FIRST_REASON = 'fico_s_dc';
 
 /**
  * @param {{status: string, debriefStatus?: string, deliveryStatus?: string|null,
@@ -98,7 +103,8 @@ function stepOfRow(row) {
   const r = row || {};
   const ad = r.analysis_data || {};
   const td = ad.teacher_delivery || {};
-  const fdeFormOpen = FDE_RUBRIC_RX.test(String(r.framework || '')) && !PAST_THE_FORM.has(r.status) && !STOPPED.has(r.status);
+  const dcFirst = r.framework_selection_reason === DC_FIRST_REASON;
+  const fdeFormOpen = FDE_RUBRIC_RX.test(String(r.framework || '')) && !dcFirst && !PAST_THE_FORM.has(r.status) && !STOPPED.has(r.status);
   return observeStep({
     status: fdeFormOpen ? FDE_FORM_STATUS : r.status,
     debriefStatus: r.debrief_status,
