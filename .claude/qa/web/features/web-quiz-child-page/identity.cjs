@@ -27,17 +27,31 @@ const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 
 // ── today's path ──────────────────────────────────────────────────────────────────────────────────────────────────
 on('WQ011', 'off', async (page, ctx) => {
-  // A child remembered on this phone is listed once: finish the first quiz, open the next, "Not <first>?" → Whose turn
+  // A child remembered on this phone is listed once. As the spec walks it: Nadia finished the teacher's first quiz on
+  // this phone, PLAYS the next one with "Play as Nadia" (the server hands her back under the next quiz's chip and the
+  // phone keeps her once: wq.js rememberKid), and then "Whose turn?" — reached from her card's "Someone else's turn"
+  // and "Not Nadia?" — lists her once.
   await L.setMode(ctx, page, 'off');
   await L.finishFast(page, ctx, CODES.OPEN, 'Nadia');
   await openQuiz(page, ctx, CODES.NEXT);
   expect((await inner(page, '#wq-play-as')) === 'Play as Nadia', 'the next quiz does not offer Play as Nadia');
+  const b = await L.boot(page);
+  await page.click('#wq-play-as');
+  await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT });
+  await play(page, b.quiz.questions, b.quiz.questions.length, -1);
+  await toResults(page);
+  await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
+  await page.waitForSelector('#wq-turn', { state: 'visible', timeout: WAIT });
+  await page.click('#wq-turn');
+  await page.waitForSelector('#wq-notme', { state: 'visible', timeout: WAIT });
   await page.click('#wq-notme');
   await page.waitForSelector('#wq-new', { state: 'visible', timeout: WAIT });
   expect((await inner(page, '#wq h2')) === 'Whose turn is it?', 'no "Whose turn is it?" heading');
   const nadias = await page.$$eval('.wq-kid', (els) => els.map((e) => e.innerText.trim()).filter((t) => /Nadia/.test(t)).length);
   expect(nadias === 1, 'Nadia is listed ' + nadias + ' times');
-  return { listed: nadias };
+  const kept = ((await L.stored(page, 'wq_kids')) || []).filter((k) => k.first === 'Nadia').length;
+  expect(kept === 1, 'the phone keeps Nadia ' + kept + ' times');
+  return { listed: nadias, kept };
 });
 
 on('WQ058', 'roster', async (page, ctx) => {
@@ -326,14 +340,25 @@ on('WQ038', 'v2', async (page, ctx) => {
   expect(toobaAnswers === '2', 'Tooba\'s session now has ' + toobaAnswers + ' answers');
   // Tooba taps her own card again: her quiz continues from question 3
   await openQuiz(page, ctx, CODES.OPEN);
+  // The phone's open quiz is now YUSRA's (1 answer), so the page may reopen on her "Go on" (#wq-cont): that is Yusra's
+  // quiz, not Tooba's card. Tooba taps "Not Yusra?" (#wq-restart) to reach the cards, then her own card.
   await page.waitForSelector('.wq-kid-big:has-text("Tooba"), #wq-cont', { state: 'visible', timeout: WAIT });
-  if (await page.$('.wq-kid-big:has-text("Tooba")')) await page.click('.wq-kid-big:has-text("Tooba")'); else await page.click('#wq-cont');
+  let path = 'card';
+  if (!(await page.$('.wq-kid-big:has-text("Tooba")'))) {
+    path = 'Not ' + (await inner(page, '#wq-restart').catch(() => '?')).replace(/^Not |\?$/g, '') + '? → card';
+    await page.click('#wq-restart');
+    // "Not Yusra?" asks "What is your name?" (identity v2); its Back is the landing with this phone's cards
+    await page.waitForSelector('.wq-kid-big:has-text("Tooba"), #wq-name', { state: 'visible', timeout: WAIT });
+    if (!(await page.$('.wq-kid-big:has-text("Tooba")'))) { path += ' (name screen → Back)'; await page.click('#wq-back'); }
+    await L.waitOr(page, '.wq-kid-big:has-text("Tooba")', 'no card for Tooba after "Not Yusra?"');
+  }
+  await page.click('.wq-kid-big:has-text("Tooba")');
   await page.waitForSelector(M('M6') + ' .wq-qof', { state: 'visible', timeout: WAIT });
   const qof = await inner(page, '.wq-qof');
   const state = await sessionsOf(ctx, CODES.OPEN);
   const diag = await Promise.all(state.filter((r) => /Tooba|Yusra/.test(r[0])).map(async (r) => r[0].split(' ')[0] + ':' + r[1] + ':' + (await L.one(ctx, 'select count(*) from quiz_answers where session_id = ' + q(r[3]))) + ' answers'));
-  expect(qof === 'Question 3 of 5', 'Tooba continues at "' + qof + '" (sessions: ' + diag.join(', ') + ')');
-  return { tooba: 'kept 2 answers, continues at 3', yusra: 'own quiz from 1' };
+  expect(qof === 'Question 3 of 5', 'Tooba (via ' + path + ') continues at "' + qof + '" (sessions: ' + diag.join(', ') + ')');
+  return { tooba: 'kept 2 answers, continues at 3', yusra: 'own quiz from 1', path };
 });
 
 on('WQ039', 'v2', async (page, ctx) => {
@@ -452,7 +477,8 @@ on('WQ044', 'v2', async (page, ctx) => {
   await openQuiz(page, ctx, CODES.OPEN);
   const cards = await page.$$eval('.wq-kid-big', (els) => els.map((e) => ({ text: e.innerText.trim(), animal: Boolean(e.querySelector('.wq-ani')) })));
   expect(cards.length === 2 && cards.every((c) => c.animal), 'cards: ' + JSON.stringify(cards));
-  expect((await inner(page, '#wq-someone')) === 'Someone else', 'no "Someone else" button');
+  // copy deck v2.3 (6632c9f17): the button reads "My name isn't here" (was "Someone else")
+  expect((await inner(page, '#wq-someone')) === "My name isn't here", 'no "My name isn\'t here" button: "' + (await inner(page, '#wq-someone').catch(() => '')) + '"');
   await page.click('.wq-kid-big:has-text("Omar")');
   await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
   const [row] = await sessionsOf(ctx, CODES.OPEN);
@@ -467,7 +493,7 @@ on('WQ045', 'v2', async (page, ctx) => {
   const ev = L.events(page);
   await openQuiz(page, ctx, CODES.OPEN);
   const order = await page.$$eval('#wq-someone, .wq-kid-big', (els) => els.map((e) => e.id || 'card'));
-  expect(order[0] === 'wq-someone', '"Someone else" is not first: ' + order.join(', '));
+  expect(order[0] === 'wq-someone', '"My name isn\'t here" is not first: ' + order.join(', '));
   expect(await page.$('.wq-kids-small'), 'the cards are not the smaller kind');
   await page.click('.wq-kid-big:has-text("Hina")');
   await page.waitForSelector(M('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
@@ -478,7 +504,7 @@ on('WQ045', 'v2', async (page, ctx) => {
   await ev.flush();
   const logged = ev.of('identity_pick').filter((e) => e.src === 'wrong_card');
   expect(logged.length && typeof logged[0].ms === 'number', 'no identity_pick {src: wrong_card, ms} event (seen: ' + JSON.stringify(ev.of('identity_pick').map((e) => e.src)) + ')');
-  return { first: 'Someone else', undo: 'identity_pick wrong_card after ' + logged[0].ms + ' ms' };
+  return { first: "My name isn't here", undo: 'identity_pick wrong_card after ' + logged[0].ms + ' ms' };
 });
 
 on('WQ046', 'v2', async (page, ctx) => {

@@ -138,9 +138,15 @@ on('WQ052', 'roster', async (page, ctx) => {
     expect(banner === 'Practice round · your first score 5/5 is the one that counts', 'the card says "' + banner + '"');
     const ev = L.events(B.page);
     // the share text carries the kept first score: read what Share would send (no navigator.share → the fallback screen)
-    await B.page.evaluate(() => { try { delete navigator.share; } catch (_) { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); } });
+    // share lives on Navigator.prototype, so deleting it from the instance does nothing; shadow it instead (a headed
+    // Chrome has a real share sheet, headless has none)
+    await B.page.evaluate(() => Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }));
     await B.page.click('#wq-share');
-    await B.page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT });
+    // phone B is closed before the runner's screenshot (of phone A) is taken: on a miss, say what B was showing
+    await B.page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT }).catch(async (err) => {
+      const seen = await B.page.evaluate(() => ({ m: (document.getElementById('wq') || {}).getAttribute ? document.getElementById('wq').getAttribute('data-m') : null, url: location.href, sheet: Boolean(document.querySelector('#wq-sheet, .wqfc-sheet')), body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 220) })).catch(() => null);
+      throw new Error('no share fallback on phone B after Share: ' + JSON.stringify(seen) + ' (' + String(err.message).split('\n')[0] + ')');
+    });
     const msg = await inner(B.page, M('M12-fallback') + ' .wq-card');
     expect(/5\/5|5 out of 5|5 stars/.test(msg) && !/4\/5|4 out of 5/.test(msg), 'the shared message does not carry the first score: "' + msg + '"');
     return { first, second, banner, shared: msg.split('\n')[0] };
