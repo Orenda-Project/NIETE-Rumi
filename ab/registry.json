@@ -1,3 +1,9 @@
 {
-  "tests": []
+  "tests": [
+    {
+      "test_id": "ict-web-quiz-own-order",
+      "flag_key": "ab_web_quiz_own_order",
+      "card_sha256": "3e677fa653de419ecd27bac1f39a23554e5e8d52cfce3a704b11476bb11bf9a1"
+    }
+  ]
 }
