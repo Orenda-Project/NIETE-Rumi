@@ -199,11 +199,9 @@ async function finishInner(body = {}, out = {}, { device = null } = {}, live = n
     const lang = body.lang === 'en' || body.lang === 'ur' ? body.lang : null;   // else the child's own language (history)
     const pct = Number(out.score.pct);
     const ctx = Number.isFinite(pct) && pct < 50 ? 'after_quiz_low' : 'after_quiz';
-    // an evening round is played once: never "Play again" (read beside the code, cached per code; a failed read: not a round)
-    const [{ data: sc }, round] = await Promise.all([
-      dbRead('nextOffer:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select('code, active').eq('id', s.share_code_id).maybeSingle()),
-      require('./web-quiz-evening-round').isRoundShareCode(s.share_code_id),
-    ]);
+    // the code's quiz source rides the same read: an evening round is played once, never "Play again"
+    const { data: sc } = await dbRead('nextOffer:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select('code, active, quizzes(src:meta->>source)').eq('id', s.share_code_id).maybeSingle());
+    const round = Boolean(sc && sc.quizzes && sc.quizzes.src === 'evening_round');
     const extra = [];
     const k = T.chipId(s.share_code_id, s.student_id);
     if (sc && sc.code && sc.active !== false && !round) extra.push({ kind: 'quiz', variant: 'again', id: qkOf(s.quiz_id, sc.code), href: `/q/${encodeURIComponent(sc.code)}?again=1&k=${encodeURIComponent(k)}`, ...words('again'), minutes: 3 });
