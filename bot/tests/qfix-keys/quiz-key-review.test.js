@@ -47,18 +47,59 @@ function answerRows() {
   ];
 }
 
+const Q_WRONG_KEY_LATE = 'ffffffff-0000-4000-8000-000000000001';
+
+/** `n` items that are fine (key A right for 21 of 25), ids in question_id order, then `suspect` (key C, 16 of 25 on A)
+ *  with the highest id: the row a read that stops at the server's cap never sees. */
+function manyRows(n, suspect = Q_WRONG_KEY_LATE) {
+  const rows = [];
+  for (let i = 1; i <= n; i += 1) {
+    rows.push({ question_id: `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`, correct_option: 'A', option_a: 'x', option_b: 'y',
+      option_c: 'z', option_d: null, media: {}, counts: { A: 21, B: 4 }, answers_n: 25 });
+  }
+  rows.push({ question_id: suspect, correct_option: 'C', option_a: 'Maa, Maa', option_b: 'put-tur-hoo', option_c: 'Bhaoo, Bhaoo', option_d: null,
+    media: {}, counts: { A: 16, B: 2, C: 7 }, answers_n: 25 });
+  return rows;
+}
+
+/** A PostgREST call: filters, order and limit apply to the function's rows, and no response holds more than maxRows
+ *  (the server's max-rows; 1,000 on the NIETE prod replica), cut with no error. ignorePaging: a server that answers
+ *  every call with the same first rows. */
+function query(result, { maxRows = Infinity, ignorePaging = false, limits = [] } = {}) {
+  const q = { gt: null, order: null, offset: 0, limit: Infinity };
+  return {
+    gt(col, v) { q.gt = [col, v]; return this; },
+    order(col) { q.order = col; return this; },
+    limit(n) { q.limit = n; return this; },
+    range(from, to) { q.offset = from; q.limit = to - from + 1; return this; },
+    then(resolve, reject) {
+      if (!Array.isArray(result.data)) return Promise.resolve(result).then(resolve, reject);
+      limits.push(q.limit);
+      let out = result.data.slice();
+      if (!ignorePaging) {
+        if (q.gt) out = out.filter((r) => r[q.gt[0]] > q.gt[1]);
+        if (q.order) out.sort((a, b) => (a[q.order] < b[q.order] ? -1 : a[q.order] > b[q.order] ? 1 : 0));
+        out = out.slice(q.offset, q.offset + q.limit);
+      }
+      return Promise.resolve({ data: out.slice(0, maxRows), error: null }).then(resolve, reject);
+    },
+  };
+}
+
 /** The replica: db_is_replica, the switch row, and the counts function. Like the NIETE prod replica, it
- *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400. */
-function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows() } = {}) {
+ *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400, and cuts every response at 1,000 rows. */
+function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows(), maxRows = 1000, ignorePaging = false } = {}) {
   const calls = [];
+  const limits = [];
   return {
     calls,
-    async rpc(name, args, opts) {
+    limits,
+    rpc(name, args, opts) {
       calls.push({ name, args });
-      if (!opts || opts.get !== true) return { data: null, error: { message: `400: replica refuses POST rpc ${name}` } };
-      if (name === 'db_is_replica') return { data: true, error: null };
-      if (name === 'quiz_key_answer_counts') return { data: rows, error: null };
-      return { data: null, error: { message: `unexpected rpc ${name}` } };
+      if (!opts || opts.get !== true) return query({ data: null, error: { message: `400: replica refuses POST rpc ${name}` } });
+      if (name === 'db_is_replica') return query({ data: true, error: null });
+      if (name === 'quiz_key_answer_counts') return query({ data: rows, error: null }, { maxRows, ignorePaging, limits });
+      return query({ data: null, error: { message: `unexpected rpc ${name}` } });
     },
     from(table) {
       if (table !== 'app_settings') throw new Error(`reader touched ${table}`);
@@ -143,7 +184,8 @@ describe('nightly answer-key review flag', () => {
     // The verdict and the numbers the reviewer judged stay; only "still seen" moves.
     expect(writer.store.get(`${Q_WEB_KEY}|dominant_wrong_option`)).toMatchObject({ answers_n: 30, top_wrong_n: 21, last_seen_on: '2026-11-23' });
     expect(writer.store.get(`${Q_WRONG_KEY}|dominant_wrong_option`).last_seen_on).toBe('2026-11-23');
-    expect(mockLogEvent).toHaveBeenLastCalledWith('quiz_keys.flagged', expect.objectContaining({ n_new: 0, n_total: 2, n_reviewed_skipped: 1 }));
+    const flaggedCalls = mockLogEvent.mock.calls.filter(([n]) => n === 'quiz_keys.flagged');
+    expect(flaggedCalls[flaggedCalls.length - 1][1]).toEqual(expect.objectContaining({ n_new: 0, n_total: 2, n_reviewed_skipped: 1 }));
   });
 
   test('switch off (no app_settings row) reads nothing more and writes nothing', async () => {
@@ -178,5 +220,72 @@ describe('nightly answer-key review flag', () => {
     writer.store.get(`${Q_WEB_KEY}|dominant_wrong_option`).status = 'key_ok';
     const held = await Review.heldQuestionIds(writer, [Q_WRONG_KEY, Q_WEB_KEY, Q_FINE]);
     expect([...held]).toEqual([Q_WRONG_KEY]);
+  });
+
+  // Production, 23 Nov: quiz_key_answer_counts(20, 47) has 6,739 rows and one GET came back with exactly 1,000, no error.
+  test('reads every count row past the server\'s 1,000-row cap, and logs the true number scanned', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(2345) }), writer: () => writer });
+    expect(out.outcome).toBe('ran');
+    expect([...writer.store.values()].map((r) => r.question_id)).toEqual([Q_WRONG_KEY_LATE]);
+    expect(mockLogEvent).toHaveBeenCalledWith('quiz_keys.flagged', expect.objectContaining({ scanned: 2346, n_new: 1 }));
+  });
+
+  test('a server cap below the page size still reads every row', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(1000), maxRows: 400 }), writer: () => writer });
+    expect(out).toMatchObject({ outcome: 'ran', scanned: 1001, n_new: 1 });
+  });
+
+  test('a server that ignores the paging stops the run with an error and writes nothing, never loops', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(2345), ignorePaging: true }), writer: () => writer });
+    expect(out).toEqual({ outcome: 'error' });
+    expect(writer.store.size).toBe(0);
+  });
+
+  test('page_rows in the switch sets the page size (staging pages for real with 100)', async () => {
+    const writer = fakeWriter();
+    const reader = fakeReader({ switchValue: { at: '02:00', page_rows: 100 }, rows: manyRows(250) });
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader, writer: () => writer });
+    expect(out).toMatchObject({ outcome: 'ran', scanned: 251, pages: 4, n_new: 1 });
+    expect(reader.limits).toEqual([100, 100, 100, 100]);
+  });
+
+  test('a read past 50 pages stops with an error and writes nothing', async () => {
+    const writer = fakeWriter();
+    const reader = fakeReader({ switchValue: { at: '02:00', page_rows: 50 }, rows: manyRows(2600) });
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader, writer: () => writer });
+    expect(out).toEqual({ outcome: 'error' });
+    expect(reader.limits).toHaveLength(50);
+    expect(writer.store.size).toBe(0);
+  });
+
+  test('page_rows outside 50..1000 is ignored: the default 1000', () => {
+    expect(Review.parseSwitch({ at: '02:00' }).page_rows).toBe(1000);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 100 }).page_rows).toBe(100);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 10 }).page_rows).toBe(1000);
+    expect(Review.parseSwitch({ at: '02:00', page_rows: 5000 }).page_rows).toBe(1000);
+  });
+
+  // NIGHT_READS must tell "ran yesterday" (done_already) from "never ticked": one counts-only line per tick.
+  test('every tick logs quiz_keys.tick once, with its outcome and the Pakistan date', async () => {
+    const writer = fakeWriter();
+    const redis = fakeRedis();
+    const ticks = () => mockLogEvent.mock.calls.filter(([n]) => n === 'quiz_keys.tick').map(([, f]) => f);
+    await Review.run({ now: NOW, redis, reader: fakeReader({ switchValue: null }), writer: () => writer });
+    await Review.run({ now: new Date('2026-11-21T19:00:00Z'), redis, reader: fakeReader(), writer: () => writer });
+    await Review.run({ now: NOW, redis, reader: fakeReader(), writer: () => writer });
+    redis.m.delete(Review.TICK_KEY);
+    await Review.run({ now: new Date('2026-11-21T21:40:00Z'), redis, reader: fakeReader(), writer: () => writer });
+    redis.m.clear();
+    await Review.run({ now: NOW, redis, reader: fakeReader({ rows: manyRows(10), ignorePaging: true, maxRows: 5 }), writer: () => writer });
+    expect(ticks()).toEqual([
+      { outcome: 'off', reason: 'switch_off', run_date: '2026-11-22' },
+      { outcome: 'not_due', reason: null, run_date: '2026-11-22' },
+      { outcome: 'ran', reason: null, run_date: '2026-11-22' },
+      { outcome: 'done_already', reason: null, run_date: '2026-11-22' },
+      { outcome: 'error', reason: null, run_date: '2026-11-22' },
+    ]);
   });
 });
