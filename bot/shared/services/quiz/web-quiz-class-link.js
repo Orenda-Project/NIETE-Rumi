@@ -377,7 +377,7 @@ async function remindFields(link, push, now = new Date()) {
   return { push_remind: true, remind_code: code };
 }
 
-async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}, push = {}) {
+async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}, push = {}, { qa = false } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const practice = isTeacherPreview(code, jt);
@@ -395,7 +395,7 @@ async function arrive({ code, device_ref: deviceRef, jt, via = null } = {}, push
   // forward: a link reaches a phone it never visited only by being shared (a copied link or the class-week line carries
   // no marker).
   if (!practice) {
-    require('./web-quiz-evening-round').classLinkOpen(code, MARKED_VIA.has(via) ? via : (mine.length ? 'remembered' : 'forward'), { deviceRef });
+    require('./web-quiz-evening-round').classLinkOpen(code, MARKED_VIA.has(via) ? via : (mine.length ? 'remembered' : 'forward'), { deviceRef, qa });
   }
   if (mine.length) {
     const script = scriptOf(kids, lang);
