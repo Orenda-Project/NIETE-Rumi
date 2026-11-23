@@ -5,3 +5,4 @@
 {"ts":"2026-11-23T15:35:45Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-4dkwaf-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"6db7a3e845a1","branch":"bd-4dkwaf-main","user":""}
 {"ts":"2026-11-23T15:36:14Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: impact.py hook_notes.py select_e2e.py tenants_lite.py check-scenario-coverage.py","sha":"6db7a3e845a1","branch":"bd-4dkwaf-main","user":""}
 {"ts":"2026-11-23T15:50:00Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (internal Slack quiz-funnel monitor and a fire-and-forget log event only; no teacher, child or web-quiz screen or message changed)","sha":"6db7a3e845a1","branch":"bd-4dkwaf-main","user":""}
+{"ts":"2026-11-23T15:50:00Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-6db7a3e845a1","sha":"6db7a3e845a1","branch":"bd-4dkwaf-main","user":""}
