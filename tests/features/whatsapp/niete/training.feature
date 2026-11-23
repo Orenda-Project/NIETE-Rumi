@@ -3083,3 +3083,14 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
     When a child finishes a web quiz
     Then the result screen is exactly as before and no try is kept
+
+  @quiz @copy @wip @draft @P2 @T1244
+  Scenario: The quiz message I send again from my quiz home is in one language, the quiz's
+    Given the NIETE bot chat is open, my quiz home is in Urdu, and I made a quiz in English
+    When I send that quiz again to my class from my quiz home, or tap its one-tap link from a WhatsApp message
+    Then the whole message my class reads is in English, including its last line "Any day: send “quiz” to this number"
+    And a quiz made in Urdu sent from an English home ends with the Urdu line «کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں»
+    And a quiz with no recorded language ends with the line in my home's language, as before
+    # teacher-home.send.js againOf: the return line follows quizzes.language (the language the stored message was written
+    # in), not the home's. Unit: bot/tests/qfix-forward/forward-route.test.js ("the return line follows the class
+    # message's language").
