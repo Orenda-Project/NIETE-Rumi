@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T04:38:06Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
+{"ts":"2026-11-23T04:38:19Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"0b1274f3ed50","branch":"bd-3kshar.17-staging","user":""}
