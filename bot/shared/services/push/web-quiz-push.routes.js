@@ -6,11 +6,13 @@
  *
  *   GET  /state        {remind, test, portal}: the edge's /remind/:code page and the portal's teacher card ask before they draw
  *   GET  /key?code=    {key, ask}: the VAPID public key; ask false outside the canary (web_quiz_push_canary)
- *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
- *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint}   → {ok:1}
+ *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?, ps?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
+ *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint, ps?}   → {ok:1}
  *   POST /test         {endpoint} → {ok:1, sent, status} (web_quiz_push_test only)
- *   POST /e            {step, how?, iab?, lang?, ok?, src?} → {ok:1}: a page step, allow-listed enums only
- *   POST /delivered    {tag} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
+ *   POST /e            {step, how?, iab?, lang?, ok?, src?, ps?} → {ok:1}: a page step, allow-listed enums only
+ *   POST /delivered    {tag, shown?, err?, ps?} → {ok:1}: the worker showed a reminder (the funnel's delivered step)
+ *                      ps?: the page-session id (wq-tel.js) the page sent or kept for its worker; logged, never stored
+ *                      /e, /subscribe, /opened, /delivered: a user agent carrying "QFIXQA" (a QA walk) logs qa: true
  *   POST /portal/subscribe|unsubscribe|test   the teacher card (portal_push_remind): the edge adds user_id from its session
  */
 const express = require('express');
@@ -50,14 +52,14 @@ function createRouter() {
   router.get('/key', wrap((req) => Push.keyFor({ code: typeof req.query.code === 'string' ? req.query.code : null })));
   router.post('/subscribe', wrap((req) => {
     const b = body(req);
-    return Push.subscribe({ sub: b.sub, code: b.code, lang: b.lang, chips_n: b.chips, chip: b.chip, rotate_from: b.rotate_from,
+    return Push.subscribe({ sub: b.sub, code: b.code, lang: b.lang, chips_n: b.chips, chip: b.chip, rotate_from: b.rotate_from, ps: b.ps,
       device_ref: req.get('x-wq-device'), ua: req.get('user-agent'), via: 'family_phone' });
   }));
   router.post('/unsubscribe', wrap((req) => Push.unsubscribe({ endpoint: body(req).endpoint, by: body(req).by === 'notification' ? 'notification' : 'page' })));
-  router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint })));
+  router.post('/opened', wrap((req) => Push.markOpened({ endpoint: body(req).endpoint, ps: body(req).ps, ua: req.get('user-agent') })));
   router.post('/test', wrap((req) => Push.sendTest({ endpoint: body(req).endpoint })));
-  router.post('/e', wrap((req) => Push.stepEvent(body(req))));
-  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag, shown: body(req).shown, err: body(req).err })));
+  router.post('/e', wrap((req) => Push.stepEvent(body(req), { ua: req.get('user-agent') })));
+  router.post('/delivered', wrap((req) => Push.delivered({ tag: body(req).tag, shown: body(req).shown, err: body(req).err, ps: body(req).ps, ua: req.get('user-agent') })));
 
   // the teacher card (car C): the edge's portal session names the teacher
   router.post('/portal/subscribe', wrap((req) => {

@@ -13,7 +13,8 @@
  *                                                             class of a listed school, or a school in a listed region
  *                                                             (schools.region: the ICT sector, e.g. "Tarnol") offers
  *                                                             the ask or may subscribe; no row (or nothing listed) =
- *                                                             every class
+ *                                                             every class. A page's code is a quiz share code (/q/) or
+ *                                                             a live standing class link's (/j/): codeRef reads both
  *
  * Env (sandbox only; never shared with staging or prod): WQ_PUSH_VAPID_PUBLIC, WQ_PUSH_VAPID_PRIVATE,
  * WQ_PUSH_VAPID_SUBJECT (VAPID), WQ_PUSH_ENC_KEY (32 bytes base64, AES-256-GCM of the endpoint and keys),
@@ -23,8 +24,10 @@
  *   keyFor({code})                         → {key, ask}: ask false outside the canary (the page draws nothing)
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
- *   payloadFor(row, {test, rounds, names}) → {t, b, url, tag, lang, test}: class-named when the phone's classes have
- *                                            a round ready; children's first names only with `names` on; no score, ever
+ *   payloadFor(row, {test, rounds, names, hub, door}) → {t, b, url, tag, lang, test}: class-named when the phone's
+ *                                            classes have a round ready; children's first names only with `names` on
+ *                                            (with rounds, only the children still waiting: rounds[].kids); no score,
+ *                                            ever; door 'j' (the row's code is a class link) → /j/<code>, else /q/<code>
  *   sendOne(row, payload, {webpush})       → {sent, status}; 404/410 revokes the row as `gone`
  *   sendTest({endpoint}, {webpush})        → {ok:1, sent, status} | {status:404, err:'off'}
  *   dueTick(now, {webpush})                → {sent, revoked, deduped}: due rows, ONE per phone (device_ref) a school
@@ -34,7 +37,9 @@
  *                                            (web_quiz.push_landed) is the portal's; funnelTick(now) logs the day's
  *                                            counts once after 21:00 PKT
  *
- * Logs carry kinds and counts only — never the endpoint or the keys.
+ * Logs carry kinds and counts only — never the endpoint or the keys. The page's steps, the subscribe, the opened tap
+ * and the delivered show also carry `ps` when the page (or its worker, from what the page kept) sent one: wq-tel.js's
+ * random page-session id, so a funnel read can drop QA walks by page_start.ua. Never stored on the row.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -67,6 +72,13 @@ const CLASS_PHONE = 4;
 const CODE_RX = /^[A-Za-z0-9_-]{3,32}$/;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEVICE_RX = /^[A-Za-z0-9_-]{22}$/;
+const PS_RX = /^[a-z0-9]{12}$/;
+/** {ps} for a well-formed page-session id (wq-tel.js: 12 of [a-z0-9]), else nothing: the event stays as it was. */
+const psOf = (v) => (typeof v === 'string' && PS_RX.test(v) ? { ps: v } : {});
+/** {qa: true} when the phone's user agent (relayed by the portal) marks a QA walk ("QFIXQA"), else nothing: a funnel read
+ * drops walks exactly on every page that mounts the ask, including the ones without a page session (the class link, the
+ * stop landing). Logged only, never stored. */
+const qaOf = (ua) => (/QFIXQA/.test(String(ua || '')) ? { qa: true } : {});
 
 // The words (jg.remind.push_* in the copy deck): a reminder never names a child.
 // The child reminder (the lead's take A): the title carries the news, the body the one step. {c} = a class label, the
@@ -96,7 +108,7 @@ const COPY = Object.freeze({
 let cache = null;
 let lastGood = null;   // the last switches read that succeeded: a failed read keeps it (a failed read is not OFF)
 let canaryCache = null;
-const codeCache = new Map();   // share code → {at, ok} under the current canary (10 min)
+const codeCache = new Map();   // page code (share code or class link) → {at, ok} under the current canary (10 min)
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_CACHE_MAX = 5000;
 const envReady = () => ENV.every((k) => String(process.env[k] || '').trim() !== '');
@@ -148,7 +160,26 @@ async function canary(now = Date.now()) {
   return c;
 }
 
-/** May this quiz (its share code) offer the ask? Always with no canary; else its class, or its class's school, listed. */
+/**
+ * What a page's code names, or null: a quiz share code (door 'q') read first, else a live standing class link (door
+ * 'j': not revoked, not expired), each with its class and teacher when it has them. The /j/ page passes the round's
+ * share code when a round is ready, else the link's own code. A read error throws.
+ */
+async function codeRef(code, now = Date.now()) {
+  if (!CODE_RX.test(String(code || ''))) return null;
+  const k = String(code).toUpperCase();
+  const uuid = (v) => (UUID_RX.test(String(v || '')) ? String(v) : null);
+  const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id, teacher_user_id').eq('code', k).maybeSingle();
+  if (error) throw new Error(error.message || 'share code read failed');
+  if (sc) return { door: 'q', classId: uuid(sc.class_id), teacherId: uuid(sc.teacher_user_id) };
+  const { data: cl, error: e2 } = await supabase.from('class_links').select('class_id, teacher_id, expires_at, revoked_at').eq('code', k).maybeSingle();
+  if (e2) throw new Error(e2.message || 'class link read failed');
+  if (!cl || cl.revoked_at || !cl.expires_at || !(Date.parse(cl.expires_at) > now)) return null;
+  return { door: 'j', classId: uuid(cl.class_id), teacherId: uuid(cl.teacher_id) };
+}
+
+/** May this quiz (its share code, or the class link's code) offer the ask? Always with no canary; else its class, or its
+ *  class's school, listed. */
 async function canaryAllows(code, now = Date.now()) {
   const c = await canary(now);
   if (!c) return true;
@@ -158,9 +189,8 @@ async function canaryAllows(code, now = Date.now()) {
   if (hit && now - hit.at < CODE_TTL_MS) return hit.ok;
   let ok = false;
   try {
-    const { data: sc, error } = await supabase.from('quiz_share_codes').select('class_id').eq('code', k).maybeSingle();
-    if (error) throw new Error(error.message || 'share code read failed');
-    const classId = sc && sc.class_id ? String(sc.class_id) : null;
+    const ref = await codeRef(k, now);
+    const classId = ref ? ref.classId : null;
     if (classId && c.classes.has(classId)) ok = true;
     else if (classId && (c.schools.size || c.regions.size)) {
       const { data: cl, error: e2 } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
@@ -180,6 +210,34 @@ async function canaryAllows(code, now = Date.now()) {
   if (codeCache.size >= CODE_CACHE_MAX) codeCache.clear();
   codeCache.set(k, { at: now, ok });
   return ok;
+}
+
+/** The class the consent's code names (kept on the row), or null: none, or a read error (the consent still stands). */
+async function classOf(code, now = Date.now()) {
+  try {
+    const ref = await codeRef(code, now);
+    return ref ? ref.classId : null;
+  } catch (err) {
+    logToFile('⚠️ web quiz push: code class lookup failed — stored without a class', { error: err.message });
+    return null;
+  }
+}
+
+/** Where a reminder's own code opens: 'j' for a live class link, else 'q' (a share code; an unknown code or a read
+ *  error keeps the quiz link it always had). `memo` (code → door) spares a tick reading one code twice. */
+async function doorFor(row, now = Date.now(), memo = null) {
+  const code = row && row.kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? String(row.quiz_code) : null;
+  if (!code) return 'q';
+  if (memo && memo.has(code)) return memo.get(code);
+  let door = 'q';
+  try {
+    const ref = await codeRef(code, now);
+    if (ref && ref.door === 'j') door = 'j';
+  } catch (err) {
+    logToFile('⚠️ web quiz push: code door lookup failed — quiz link', { error: err.message });
+  }
+  if (memo) memo.set(code, door);
+  return door;
 }
 
 /** The page's key answer: the VAPID key, and whether this quiz may offer the ask (the canary). */
@@ -275,7 +333,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     if (!(await canaryAllows(input.code, now))) return { status: 409, err: 'canary' };
     const kids = deviceRef ? await HubDevice.deviceKids(deviceRef) : [];
     if (chipsN >= CLASS_PHONE || kids.length >= CLASS_PHONE) return { status: 409, err: 'class_phone' };
-    input = { ...input, kids };
+    input = { ...input, kids, class_id: await classOf(input.code, now) };
   }
   const kids = input.kids || [];
   const rowDevice = via === 'family_phone' ? (deviceRef || crypto.randomBytes(16).toString('base64url')) : deviceRef;
@@ -285,6 +343,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     device_ref: rowDevice,
     user_id: via === 'teacher_portal' ? userId : null,
     student_id: via === 'family_phone' && kids.length === 1 && input.chip && String(input.chip) === String(kids[0]) && UUID_RX.test(String(input.chip)) ? input.chip : null,
+    class_id: via === 'family_phone' ? input.class_id || null : null,
     quiz_code: CODE_RX.test(String(input.code || '')) ? input.code : null,
     lang: input.lang === 'en' ? 'en' : 'ur',
     ua_class: uaClass(input.ua),
@@ -321,7 +380,7 @@ async function subscribe(input = {}, { now = Date.now() } = {}) {
     const { error } = await supabase.from(TABLE).insert({ ...row, rebind_of: rebindOf, sent_count: 0, unopened_count: 0, last_sent_at: null, last_opened_at: null });
     if (error) throw new Error(error.message || 'push row insert failed');
   }
-  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN });
+  logEvent('web_quiz.push_subscribed', { kind, via, ua_class: row.ua_class, chips_n: chipsN, ...psOf(input.ps), ...qaOf(input.ua) });
   return { ok: 1 };
 }
 
@@ -332,7 +391,7 @@ async function unsubscribe({ endpoint, by } = {}, { now = Date.now() } = {}) {
   return { ok: 1 };
 }
 
-async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
+async function markOpened({ endpoint, ps, ua } = {}, { now = Date.now() } = {}) {
   if (typeof endpoint !== 'string' || !endpoint) return { status: 400, err: 'bad_sub' };
   const row = await rowByEndpoint(endpoint);
   if (row && !row.revoked_at) {
@@ -340,7 +399,7 @@ async function markOpened({ endpoint } = {}, { now = Date.now() } = {}) {
       .update({ last_opened_at: iso(now), unopened_count: 0, expires_at: iso(now + KEEP_DAYS * DAY_MS), updated_at: iso(now) })
       .eq('id', row.id);
     if (error) throw new Error(error.message || 'push opened failed');
-    logEvent('web_quiz.push_opened', { kind: row.kind });
+    logEvent('web_quiz.push_opened', { kind: row.kind, ...psOf(ps), ...qaOf(ua) });
   }
   return { ok: 1 };
 }
@@ -354,24 +413,49 @@ const TITLE_MAX = 60;   // code points: Android shows one line of title
 const cps = (v) => [...String(v)].length;
 const joinLast = (list, c) => (list.length > 1 ? `${list.slice(0, -1).join(c.and)}${c.last}${list[list.length - 1]}` : list[0] || '');
 /**
+ * The waiting children's first names from class-link's rounds (rounds[].kids, filled only with `names` on): first_ur on
+ * an Urdu phone, else first; one per child across classes (a name shown once), at most NAMES_MAX; [] when no kid carries
+ * a name.
+ */
+function kidNames(rounds, lang) {
+  const seen = new Set();
+  const out = [];
+  for (const r of Array.isArray(rounds) ? rounds : []) {
+    if (!r || !CODE_RX.test(String(r.class_link_code || '')) || !Array.isArray(r.kids)) continue;
+    for (const k of r.kids) {
+      const name = clip(k && ((lang === 'ur' && k.first_ur) || k.first));
+      const id = k && k.student_id ? `i|${k.student_id}` : `n|${name}`;
+      if (!name || seen.has(id) || out.includes(name)) continue;
+      seen.add(id);
+      out.push(name);
+    }
+  }
+  return out.slice(0, NAMES_MAX);
+}
+
+/**
  * rounds: roundsReadyForPhone's answer for this phone (class-link), [] when none; names: the children's first names
- * (only ever passed with `names` on); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
+ * (only ever passed with `names` on), used only when there is no round (with rounds the names are the waiting
+ * children's, kidNames: a child who finished tonight is not named); hub: the phone's own hub (/h/<token>?from=push) for the tap when no class is
  * known, else the quiz's link is the last fallback. One notification for the phone whichever applies.
  */
-function payloadFor(row, { test = false, rounds = [], names = [], hub = null } = {}) {
+function payloadFor(row, { test = false, rounds = [], names = [], hub = null, door = 'q' } = {}) {
   const kind = row && row.kind === 'evening_plan' ? 'evening_plan' : 'quiz_reminder';
   const lang = row && row.lang === 'en' ? 'en' : 'ur';
   const c = COPY[kind][lang];
   const code = kind === 'quiz_reminder' && CODE_RX.test(String(row.quiz_code || '')) ? row.quiz_code : null;
   const tag = kind === 'quiz_reminder' ? 'jugnu-remind' : 'niete-plan';
-  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: code ? `/q/${code}?from=push` : '/', tag, lang, test: Boolean(test) };
+  const own = code ? `/${door === 'j' ? 'j' : 'q'}/${code}?from=push` : '/';
+  const base = { t: test ? c.testT || c.t : c.t, b: test ? c.test : c.b, url: own, tag, lang, test: Boolean(test) };
   if (test || kind !== 'quiz_reminder') return base;
   const ready = (Array.isArray(rounds) ? rounds : []).filter((r) => r && CODE_RX.test(String(r.class_link_code || '')));
-  const who = (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
+  const who = ready.length ? kidNames(ready, lang) : (Array.isArray(names) ? names : []).map(clip).filter(Boolean).slice(0, NAMES_MAX);
   // the label in the phone's language (class_label_en / class_label_ur), the other one when that is missing
   const labels = [...new Set(ready.map((r) => clip(r[`class_label_${lang}`] || r.class_label_en || r.class_label_ur)).filter(Boolean))];
   const home = typeof hub === 'string' && HUB_PATH_RX.test(hub) ? hub : null;
   const url = ready.length ? `/j/${ready[0].class_link_code}?from=push` : home || base.url;
+  // one line of title: names dropped from the end until it fits, the first always kept
+  while (who.length > 1 && cps(c.named.replace('{c}', who.join(c.and))) > TITLE_MAX) who.pop();
   if (who.length) return { ...base, t: c.named.replace('{c}', who.join(c.and)), b: c.tap, url };
   if (!labels.length) return { ...base, url };
   const many = c.many.replace('{c}', joinLast(labels, c));
@@ -394,14 +478,18 @@ async function hubFor(row) {
   }
 }
 
-/** class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. */
-async function roundsFor(row, now) {
+/**
+ * class-link's rounds for this phone today (PLAN §3.2); [] until that module exports roundsReadyForPhone. With `names`
+ * on it asks for the waiting children (withKids); off, it asks as before and drops any `kids` it is sent anyway.
+ */
+async function roundsFor(row, now, names = false) {
   if (!row || row.kind !== 'quiz_reminder' || !row.device_ref) return [];
   try {
     const CL = require('../quiz/web-quiz-class-link');
     if (!CL || typeof CL.roundsReadyForPhone !== 'function') return [];
-    const out = await CL.roundsReadyForPhone(row.device_ref, pktDay(now));
-    return Array.isArray(out) ? out : [];
+    const out = names ? await CL.roundsReadyForPhone(row.device_ref, pktDay(now), { withKids: true }) : await CL.roundsReadyForPhone(row.device_ref, pktDay(now));
+    if (!Array.isArray(out)) return [];
+    return names ? out : out.map((r) => (r && r.kids ? (({ kids, ...rest }) => rest)(r) : r));
   } catch (err) {
     logToFile('⚠️ web quiz push: rounds lookup failed — generic reminder', { error: err && err.message });
     return [];
@@ -456,7 +544,7 @@ async function sendTest({ endpoint } = {}, opts = {}) {
   if (typeof endpoint !== 'string' || !endpoint) return { status: 400, err: 'bad_sub' };
   const row = await rowByEndpoint(endpoint);
   if (!row || row.revoked_at) return { ok: 1, sent: 0, status: 0 };
-  const out = await sendOne(row, payloadFor(row, { test: true }), opts);
+  const out = await sendOne(row, payloadFor(row, { test: true, door: await doorFor(row) }), opts);
   if (out.sent) logEvent('web_quiz.push_sent', { n: 1, kind: row.kind, test: true });
   return { ok: 1, ...out };
 }
@@ -474,6 +562,7 @@ async function dueTick(now = Date.now(), opts = {}) {
   const sentBy = {};
   const body = { round: 0, named: 0, generic: 0 };
   const phones = new Set();
+  const doors = new Map();
   let revoked = 0;
   let deduped = 0;
   for (const row of data || []) {
@@ -486,14 +575,18 @@ async function dueTick(now = Date.now(), opts = {}) {
     const phone = row.kind === 'quiz_reminder' && row.device_ref ? `p|${row.device_ref}` : null;
     if (phone && phones.has(phone)) { deduped += 1; continue; }
     const lang = row.lang === 'en' ? 'en' : 'ur';
-    const names = s.names ? await namesFor(row, lang) : [];
-    const rounds = await roundsFor(row, now);
+    const rounds = await roundsFor(row, now, s.names);
+    // with a round, the names are its waiting children (kidNames); the phone's own list only for a plain reminder
+    const names = s.names && !rounds.length ? await namesFor(row, lang) : [];
+    const named = (rounds.length ? kidNames(rounds, lang) : names).length > 0;
     const hub = rounds.length ? null : await hubFor(row);
-    const out = await sendOne(row, payloadFor(row, { rounds, names, hub }), { ...opts, now });
+    // the row's own code is the link only with no round and no hub: read its door then, never otherwise
+    const door = !rounds.length && !hub ? await doorFor(row, now, doors) : 'q';
+    const out = await sendOne(row, payloadFor(row, { rounds, names, hub, door }), { ...opts, now });
     if (phone) phones.add(phone);
     if (out.sent) {
       sentBy[row.kind] = (sentBy[row.kind] || 0) + 1;
-      if (row.kind === 'quiz_reminder') body[names.length ? 'named' : rounds.length ? 'round' : 'generic'] += 1;
+      if (row.kind === 'quiz_reminder') body[named ? 'named' : rounds.length ? 'round' : 'generic'] += 1;
       await supabase.from(TABLE).update({
         sent_count: (row.sent_count || 0) + 1, unopened_count: (row.unopened_count || 0) + 1, last_sent_at: iso(now), updated_at: iso(now),
       }).eq('id', row.id);
@@ -509,7 +602,7 @@ async function dueTick(now = Date.now(), opts = {}) {
 
 const TAGS = Object.freeze({ 'jugnu-remind': 'quiz_reminder', 'niete-plan': 'evening_plan' });
 /** The worker showed a reminder (sw.js push handler). Counts only. */
-function delivered({ tag, shown, err } = {}) {
+function delivered({ tag, shown, err, ps, ua } = {}) {
   const kind = TAGS[String(tag || '')];
   if (!kind) return { status: 400, err: 'bad_tag' };
   // shown: the worker's showNotification resolved (true) or rejected (false, with the error's name); an older worker
@@ -517,7 +610,7 @@ function delivered({ tag, shown, err } = {}) {
   const ev = { kind, reason: kind };
   if (typeof shown === 'boolean') ev.shown = shown;
   if (shown === false && typeof err === 'string' && /^[A-Za-z]{1,40}$/.test(err)) ev.err = err;
-  logEvent('web_quiz.push_delivered', ev);
+  logEvent('web_quiz.push_delivered', { ...ev, ...psOf(ps), ...qaOf(ua) });
   return { ok: 1 };
 }
 
@@ -595,8 +688,8 @@ const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed
 const HOWS = new Set(['intent', 'menu', 'copy']);
 // Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
 const SRCS = new Set(['result', 'class_link', 'landing']);
-/** A page step event, allow-listed enums only. */
-function stepEvent(body = {}) {
+/** A page step event, allow-listed enums only; `ua` is the phone's user agent (the walk mark). */
+function stepEvent(body = {}, { ua } = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
   logEvent('web_quiz.remind_step', {
     step: body.step,
@@ -605,6 +698,8 @@ function stepEvent(body = {}) {
     ...(body.lang === 'en' || body.lang === 'ur' ? { lang: body.lang } : {}),
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
+    ...psOf(body.ps),
+    ...qaOf(ua),
   });
   return { ok: 1 };
 }

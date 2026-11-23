@@ -2,7 +2,8 @@
    It shows the one daily reminder, opens the quiz on a tap, stops on the Stop action and re-subscribes when the browser
    rotates the subscription. It has NO network request handler of any kind and keeps no cache: page loads never pass
    through it (a source test in dashboard/tests/push-remind-edge.service.test.js holds that). The
-   payload is {t, b, url, tag, lang, test}; it never carries a child's name. */
+   payload is {t, b, url, tag, lang, test}; it never carries a child's name. Its delivered, opened and re-subscribe posts
+   carry the `ps` the page kept at subscribe time (that page load's telemetry session id), when one was kept. */
 'use strict';
 
 var ICON = '/wq/jugnu/hello.webp';
@@ -25,7 +26,7 @@ function post(path, body) {
     .catch(function () { return null; });
 }
 
-/** What the page kept at subscribe time ({key, code, lang}), or null. */
+/** What the page kept at subscribe time ({key, code, lang, ps?}), or null. */
 function idbGet(k) {
   return new Promise(function (resolve) {
     try {
@@ -50,6 +51,12 @@ function keyBytes(b64u) {
   var out = new Uint8Array(raw.length);
   for (var i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
   return out;
+}
+
+/** The body with the kept page-session id added, when the page kept a well-formed one; else the body as it is. */
+function withPs(body, ctx) {
+  if (ctx && typeof ctx.ps === 'string' && /^[a-z0-9]{12}$/.test(ctx.ps)) body.ps = ctx.ps;
+  return body;
 }
 
 function withSub(fn) {
@@ -81,7 +88,7 @@ self.addEventListener('push', function (e) {
     if (d.test) return null;
     var b = { tag: tag, shown: r.shown };
     if (r.err) b.err = r.err;
-    return post('/api/wqpush/delivered', b);
+    return idbGet('ctx').then(function (ctx) { return post('/api/wqpush/delivered', withPs(b, ctx)); });
   }));
 });
 
@@ -97,7 +104,7 @@ self.addEventListener('notificationclick', function (e) {
   var url = safeUrl(e.notification.data && e.notification.data.url);
   e.waitUntil(Promise.all([
     self.clients.openWindow(url).catch(function () { return null; }),
-    withSub(function (sub) { return post('/api/wqpush/opened', { endpoint: sub.endpoint }); }),
+    withSub(function (sub) { return idbGet('ctx').then(function (ctx) { return post('/api/wqpush/opened', withPs({ endpoint: sub.endpoint }, ctx)); }); }),
   ]));
 });
 
@@ -108,7 +115,7 @@ self.addEventListener('pushsubscriptionchange', function (e) {
     var next = e.newSubscription ? Promise.resolve(e.newSubscription)
       : self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(ctx.key) });
     return next.then(function (sub) {
-      return post('/api/wqpush/subscribe', { sub: sub.toJSON(), code: ctx.code || null, lang: ctx.lang === 'en' ? 'en' : 'ur', rotate_from: old });
+      return post('/api/wqpush/subscribe', withPs({ sub: sub.toJSON(), code: ctx.code || null, lang: ctx.lang === 'en' ? 'en' : 'ur', rotate_from: old }, ctx));
     });
   }).catch(function () { return null; }));
 });
