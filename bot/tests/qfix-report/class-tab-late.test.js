@@ -59,7 +59,9 @@ describe('late on: the class tab\'s quiz rows', () => {
 // GOLDEN: late off (false or absent), with late rows IN the data, is the class tab the code made before this change.
 const FILE = path.join(__dirname, '__golden__', 'class-tab-late-off.json');
 const withoutStyles = (html) => html.replace(/<style>[\s\S]*?<\/style>/g, '<style></style>');
-const digest = (html) => ({ sha256: crypto.createHash('sha256').update(withoutStyles(html), 'utf8').digest('hex'), bytes: Buffer.byteLength(withoutStyles(html), 'utf8') });
+// sha256 as 8-character groups split by spaces: no digit run in the golden is ever phone-shaped (tests/setup)
+const sha = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex').match(/.{8}/g).join(' ');
+const digest = (html) => ({ sha256: sha(withoutStyles(html)), bytes: Buffer.byteLength(withoutStyles(html), 'utf8') });
 const OFF_RENDERS = {
   'en-screen': () => page('en'),
   'en-screen-false': () => page('en', { late: false }),
