@@ -990,6 +990,23 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .foot .fpp{ flex:none; white-space:nowrap; }
 .foot .fr{ text-align:${start}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
+/* VENDOR DIVERGENCE (bd-ain69z) — SYNC.md §3.44. LIGHT PRINT: plans printed almost black on a school
+   printer (sheet Lesson Plan row 960; Amena, 22 Nov: "lighter", ICT and GB, English + Urdu). Every large
+   solid fill (title, section bars, "open with this question", check, coach, board label) ends white with a
+   coloured edge and dark ink, so it prints light and a teacher can write on it. Words and layout unchanged:
+   the edge is an inset box-shadow, never a border, so no box grows by a pixel (a section bar one pixel
+   taller can push a plan onto another page). Last in the sheet so it wins in both directions. */
+.hero, .hook, .ck, .srq, .coach{ background:#fff !important; color:var(--ink) !important;
+  box-shadow:inset 0 0 0 2px var(--navy) !important; }
+.hero *, .hook *, .ck *, .srq *, .coach *{ color:var(--ink) !important; }
+.hook .lbl, .hook [class*="lbl"], .hero [class*="kick"]{ color:#8A5F04 !important; }
+.s-o, .s-w, .s-i, .s-d, .s-a, .s-c, .s-h{ background:#fff !important; color:var(--ink) !important;
+  --edge:var(--navy); box-shadow:inset 0 0 0 2px var(--edge), inset ${rtl ? "-8px" : "8px"} 0 0 0 var(--edge) !important; }
+.s-o{ --edge:var(--s-note-ink); } .s-w{ --edge:var(--band-w); } .s-i{ --edge:var(--band-i); }
+.s-d{ --edge:var(--navy); } .s-a{ --edge:var(--leaf); } .s-c{ --edge:var(--band-c); } .s-h{ --edge:var(--mut); }
+.s-o *, .s-w *, .s-i *, .s-d *, .s-a *, .s-c *, .s-h *{ color:var(--ink) !important; }
+.bar .badge{ background:#fff !important; box-shadow:inset 0 0 0 1.5px var(--ink); }
+.board .lbl{ background:#fff !important; color:var(--navy) !important; box-shadow:inset 0 -2px 0 var(--navy); }
 ${rtl ? `
 /* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
    Each prose run follows ITS OWN first strong character

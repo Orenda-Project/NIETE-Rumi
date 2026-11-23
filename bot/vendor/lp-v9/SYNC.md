@@ -1591,6 +1591,24 @@ flash science brief lists `cycle` among the spec types, but no module drew it: `
 **LOCAL-ONLY divergence** until upstream (`lp_html/diagrams/`, `lp_author/visual_check.py`) carries the type;
 push the module up on the next re-sync. Cached renders keep their old boards until re-authored.
 
+### 3.44 Light print — `lib/template.js` `css()` (2026-11-23, bd-ain69z)
+
+ICT feedback sheet, Lesson Plan row 960, and Amena's 22 Nov break sweep: plans printed almost black on a
+school printer (title, section bars, "open with this question", check, coach and board-label boxes were solid
+navy / band fills, ~20% of every page near-black). Decision (queue #203): lighter, ICT and GB, English + Urdu.
+
+- One block at the end of the sheet (after every base rule, before the RTL-only block): those boxes and
+  `.s-o`/`.s-h` end `background:#fff` with dark ink; the colour survives as an INSET box-shadow edge (8px on
+  the reading-start side of a section bar). Never a border: a section bar one pixel taller can push a plan
+  onto another page (the §3 note on `.s-*` bands). Bar badges become a white chip with an ink ring.
+- Check (fixture `GK_g1_seg2.ur`, phone format): pages 2/2 EN and UR before and after, `pdftotext` length
+  identical, near-black share 19.5-22.7% → 2.7-3.5% per page. Script and pictures:
+  `06_Logs & Misc/Investigations/workspace/pk-ict/general/ict-feedback-sheet-sweep/runs/q203-light-print/`.
+- `tests/lp-v8/bd-ain69z-light-print.test.js`: 4 red before, green after.
+
+**LOCAL-ONLY divergence** until upstream `lp_html/lib/template.js` carries the block (the grades 1-5 v9
+PDFs are rendered there). Stored PDFs keep the dark look until re-rendered.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
