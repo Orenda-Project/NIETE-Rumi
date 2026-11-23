@@ -104,6 +104,14 @@ export type CoachReport = {
    * written): the card's line says "Debrief: analysing". Absent from an older server.
    */
   listening?: boolean;
+  /**
+   * bd-o15qnr.45 (queue #240) — the step the observation page shows (the bot's portal-observe-step): analysing · draft ·
+   * talk · listening · feedback · report · sending · waiting_teacher · sent · done. Absent from an older server.
+   */
+  stage?: string;
+  /** bd-o15qnr.45 — the class the visit named: grade 1-12 and a subject key (english, maths …); null when none. */
+  grade?: number | null;
+  subject?: string | null;
 };
 
 export type ReportsData = {
