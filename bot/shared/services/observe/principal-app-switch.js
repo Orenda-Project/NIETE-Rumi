@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The principal app's switch, read on the bot: app_settings portal_principal_app (dashboard/lib/feature-flags.js
- * PORTAL_PRINCIPAL_APP_KEY; the portal's own reader is dashboard/lib/teacher-app.js isPrincipalAppUser).
+ * PORTAL_PRINCIPAL_APP_KEY; the portal's own reader is dashboard/lib/teacher-app.js isPrincipalObserveUser).
  *
  * The portal's rule: true, "true", or a list of users.id naming her. Anything else ("teachers", an object, a malformed
  * value), no row, no user or a failed read is OFF. Fail-closed, never throws. Whether she is a principal is the

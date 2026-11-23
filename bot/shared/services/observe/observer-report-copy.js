@@ -12,7 +12,7 @@
  *   principalFlowV2  she is a principal (users.role) AND portal_principal_app AND portal_coach_flow_v2 name her
  * "Name her" is isFlagEnabledForUser's rule: true, "true", or a JSON list of users.id holding hers ("teachers" covers
  * only a users.role teacher, never an observer). No row, a malformed value or a failed read is OFF (fail-closed).
- * Not re-checked here: the principal app's "she has a school" (isPrincipalAppUser) — a principal reaches Send only
+ * Not re-checked here: the principal app's "she has a school" (isPrincipalObserveUser) — a principal reaches Send only
  * through the portal's observe gate, which already asked it.
  *
  * WHEN: the caller (observe-send processTeacherReport) calls this only after the report itself went to the teacher on

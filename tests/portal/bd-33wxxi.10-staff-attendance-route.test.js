@@ -1,8 +1,8 @@
 /**
  * bd-33wxxi.10 — the principal's TEACHER register on the portal's class-attendance routes (listId "staff").
  *
- * The routes are the gate: only a principal the principal app is on for (lib/teacher-app isPrincipalAppUser —
- * the portal_principal_app switch names her AND users.role principal) may name "staff", and only for her the
+ * The routes are the gate: only a principal (lib/teacher-app isPrincipalHomeUser — users.role principal; since
+ * bd-33wxxi.11 every principal, no switch) may name "staff", and only for her the
  * routes tell the bot the staff register is allowed ({ staff: true }). Anyone else naming "staff" is 404 before
  * the bot is asked; a teacher's calls reach the bot exactly as before (no extra argument).
  */
@@ -129,13 +129,14 @@ test.each(STAFF_ROUTES)('%s %s for "staff" by a teacher: 404, the bot never aske
   expect(asked()).toBe(false);
 });
 
-test.each(STAFF_ROUTES)('%s %s for "staff" by a principal the principal app is NOT on for: 404, the bot never asked', async (m, p, args) => {
+// bd-33wxxi.11 (queue #236, option B): the staff register is part of every principal's Home (her Attendance tile), so
+// the principal app's switch (now observing only) no longer decides it.
+test.each(STAFF_ROUTES)('%s %s for "staff" by a principal the principal app is NOT on for: the bot is asked, staff allowed', async (m, p, args) => {
   principalSwitch = [];
-  // …and the teacher app on for her by the teacher switch would still not let her name "staff".
   users[PRINCIPAL] = { role: 'principal', school_id: 'school-1' };
   const r = await invoke(m, p, { params: { listId: 'staff' }, ...args });
-  expect(r.statusCode).toBe(404);
-  expect(asked()).toBe(false);
+  expect(r.statusCode).toBe(200);
+  expect(asked()).toBe(true);
 });
 
 test('a teacher on the principal switch list (role teacher) cannot name "staff"', async () => {

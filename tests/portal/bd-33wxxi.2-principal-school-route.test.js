@@ -4,9 +4,9 @@
  * getPrincipalSchoolCard), counts only.
  *
  *   signed out                         401 (requirePortalAuth, the guard it is mounted with)
- *   not on the principal app           404, nothing read (portal_principal_app off for her, or she is not a principal)
- *   on, her row names no school        200 { school: null } — the card says "No school"
- *   on                                 200 { success, school, period, overview, tiles, teachers, scores (counts) }
+ *   not a principal                    404, nothing read (since bd-33wxxi.11 every principal has it, no switch)
+ *   her row names no school            200 { school: null } — the card says "No school"
+ *   a principal                        200 { success, school, period, overview, tiles, teachers, scores (counts) }
  *   period                             today | week | month (default week); anything else 400
  *
  * The school is never taken from the request: only the session user is read.
@@ -80,14 +80,20 @@ test('signed out: 401', async () => {
   expect((await call(makeRouter(), { userId: null })).statusCode).toBe(401);
 });
 
-test('not on the principal app: 404 and nothing is read (switch absent, unlisted, or not a principal)', async () => {
-  settings = {};
-  expect((await call(makeRouter())).statusCode).toBe(404);
-  settings = { portal_principal_app: ['someone-else'] };
-  expect((await call(makeRouter())).statusCode).toBe(404);
+// bd-33wxxi.11 (queue #236, option B): her school card is part of every principal's Home; the switch no longer decides.
+test('not a principal: 404 and nothing is read, whatever the switch holds', async () => {
   settings = { portal_principal_app: ['t-1'] };
   expect((await call(makeRouter(), { userId: 't-1' })).statusCode).toBe(404);
+  settings = {};
+  expect((await call(makeRouter(), { userId: 't-1' })).statusCode).toBe(404);
   expect(getPrincipalSchoolCard).not.toHaveBeenCalled();
+});
+
+test('a principal the switch does not name (or no switch at all): her card, 200', async () => {
+  settings = {};
+  expect((await call(makeRouter())).statusCode).toBe(200);
+  settings = { portal_principal_app: ['someone-else'] };
+  expect((await call(makeRouter())).statusCode).toBe(200);
 });
 
 test('on, her row names no school: 200 { school: null }, the card is not read', async () => {

@@ -8,8 +8,8 @@ import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
 import { AuthContext } from "../hooks/authContext";
 import { useHomeLook } from "./home/useHomeData";
-import { COACH_CARD_FLOW_NAV_KEYS, COACH_CARD_FULL_NAV_KEYS, COACH_CARD_NAV_KEYS, COACH_NAV_KEYS, coachMenuPath, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, currentPrincipalMenuItem, PRINCIPAL_NAV_FEATURE, PRINCIPAL_NAV_KEYS, type CoachNavKey, type NavFeature, type PrincipalNavKey } from "./menu";
-import { usePrincipalApp } from "./principal/usePrincipalApp";
+import { COACH_CARD_FLOW_NAV_KEYS, COACH_CARD_FULL_NAV_KEYS, COACH_CARD_NAV_KEYS, COACH_NAV_KEYS, coachMenuPath, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, currentPrincipalMenuItem, PRINCIPAL_NAV_FEATURE, principalNavKeysFor, type CoachNavKey, type NavFeature, type PrincipalNavKey } from "./menu";
+import { usePrincipalApp, usePrincipalObserve } from "./principal/usePrincipalApp";
 
 /**
  * bd-fmf24g.1 — the teacher v2 menu (canvas v28): a white bottom bar on a phone with
@@ -76,15 +76,17 @@ const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false, fullAp
   // bd-33wxxi.9.1 — a principal on the principal app (#78): her own items. Anyone else (a teacher, a principal the switch
   // does not name) is answered at once with no read, so their bar is exactly today's; a coach's menu never asks.
   const principal = usePrincipalApp(role === "teacher" ? authUser : null);
+  // bd-33wxxi.11 — every principal has her items; Observe only when portal_principal_app names her (principalObserve).
+  const principalObserve = usePrincipalObserve(role === "teacher" ? authUser : null);
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
     ? (schoolCard ? (fullApp ? (flowV2 ? COACH_CARD_FLOW_NAV_KEYS : COACH_CARD_FULL_NAV_KEYS) : COACH_CARD_NAV_KEYS) : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS)
       .filter((k) => !flowV2 || k !== "schedule")
       .map((k) => ({ feature: k, label: C.coachNav[k], to: coachMenuPath(k, flowV2), glyph: COACH_ICONS[k] }))
     : principal
-      ? PRINCIPAL_NAV_KEYS.map((k) => ({ feature: k, label: k === "observe" ? C.coachNav.observe : C.nav[k], to: teacherPath(PRINCIPAL_NAV_FEATURE[k]), glyph: PRINCIPAL_ICONS[k] }))
+      ? principalNavKeysFor(principalObserve).map((k) => ({ feature: k, label: k === "observe" ? C.coachNav.observe : C.nav[k], to: teacherPath(PRINCIPAL_NAV_FEATURE[k]), glyph: PRINCIPAL_ICONS[k] }))
       : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));
   const current: string | null = role === "coach" ? (schoolCard ? currentCoachCardItem(pathname, search, flowV2) : currentCoachMenuItem(pathname, search, flowV2))
-    : principal ? currentPrincipalMenuItem(pathname) : currentMenuItem(pathname);
+    : principal ? currentPrincipalMenuItem(pathname, { observe: principalObserve }) : currentMenuItem(pathname);
   // The Home look reaches the teacher's phone bar only; a coach's menu never reads it (nothing is asked, always off).
   const userKey = authUser?.phoneNumber;
   const look = useHomeLook(role === "teacher" ? userKey : null, role === "teacher");

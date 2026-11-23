@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { usePrincipalApp } from '../principal/usePrincipalApp';
+import { usePrincipalObserve } from '../principal/usePrincipalApp';
 import { CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
@@ -37,8 +37,9 @@ export function ObservationsHomePage() {
   const C = useCopy(OBSERVATIONS);
   const { user } = useAuth();
   // bd-33wxxi.4 — a principal on the principal app: her Observations (My own lesson / One of my teachers, the ones she
-  // made, then this page's own sections). Everyone else: exactly this page.
-  if (usePrincipalApp(user)) {
+  // made, then this page's own sections). bd-33wxxi.11: only when portal_principal_app names her (principalObserve).
+  // Everyone else: exactly this page.
+  if (usePrincipalObserve(user)) {
     return <Suspense fallback={null}><PrincipalObservations /></Suspense>;
   }
   return (

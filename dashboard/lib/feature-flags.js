@@ -239,12 +239,13 @@ const PORTAL_LP_OWN_REVIEWERS_KEY = 'portal_lp_own_reviewers';
 const PORTAL_HELP_VIDEOS_KEY = 'portal_help_videos';
 
 /**
- * bd-33wxxi.1 — the PRINCIPAL app, per user: app_settings key that puts a principal (users.role principal) on the
- * teacher app every teacher has (lib/teacher-app.js teacherAppOnFor: portal_teacher_v2, portal_teacher_home_card and
- * portal_teacher_home_look then answer ON for her), plus her school. Same shape and rule as the keys above: a list of
- * users.id = those principals, true = every principal, absent = off. It never opens anything for a teacher or a coach
- * (a coach who is also a principal at a school keeps the coach app), and "teachers" names nobody here. Off, every
- * principal keeps /portal/leader exactly as it was. /config sends it as features.principalApp.
+ * bd-33wxxi.1 — the PRINCIPAL app, per user. Since bd-33wxxi.11 (queue #236, option B) it holds only OBSERVING in the
+ * app: every principal (users.role principal) has the principal Home with no switch (lib/teacher-app.js
+ * isPrincipalHomeUser: the teacher app plus her school), and this key adds the observe API, the coach observation reads
+ * and the Observations tile and Observe item (lib/teacher-app.js isPrincipalObserveUser; /config features.principalObserve).
+ * The bot reads it too, for WhatsApp "observe" and the rubric. Same shape and rule as the keys above: a list of users.id
+ * = those principals, true = every principal, absent = off. It never opens anything for a teacher or a coach, and
+ * "teachers" names nobody here.
  */
 const PORTAL_PRINCIPAL_APP_KEY = 'portal_principal_app';
 

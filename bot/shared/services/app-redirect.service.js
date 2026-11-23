@@ -78,7 +78,7 @@
  *      rollback is OFF.
  *   2g. THE PRINCIPAL APP LINK (bd-eqkr0n, queue #203 follow-up), for observe only (PRINCIPAL_LINKS): a principal the
  *      principal app is on for (app_settings portal_principal_app names her: true, "true" or a list holding her; AND
- *      users.role principal: the portal's own rule, dashboard/lib/teacher-app isPrincipalAppUser) gets ONE cta_url
+ *      users.role principal: the portal's own rule, dashboard/lib/teacher-app isPrincipalObserveUser) gets ONE cta_url
  *      message, the coach nudge's line without its "reply 1" sentence and its [Open in the app] button, signed in on her
  *      Observations page. Nothing is armed: the operator, 20 Nov, "we can even ignore the WhatsApp one for Principals",
  *      so a "1" after it is an ordinary message. Any door that asks for observe (/observe, her bare "observe", the

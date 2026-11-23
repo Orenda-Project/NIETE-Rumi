@@ -192,10 +192,12 @@ describe('GET /config — features.newUi', () => {
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',
-      // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
+      // bd-33wxxi.1 / bd-33wxxi.11 — the principal Home: true for every principal (users.role), a real false otherwise.
       'principalApp',
       // bd-o15qnr.27 (v6) — the flow switch for a principal on the principal app, a real false unless both name her.
       'principalFlowV2',
+      // bd-33wxxi.11 — observing in the app for a principal, a real false unless portal_principal_app names her.
+      'principalObserve',
       'roleSwitch', 'schoolCard', 'selfObservation',
       // The activity Home and My journey: real false unless portal_teacher_home_activity / portal_teacher_journey name her.
       'teacherHomeActivity', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherJourney', 'teacherV2',

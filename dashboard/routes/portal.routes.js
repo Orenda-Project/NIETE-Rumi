@@ -137,7 +137,7 @@ const LpAppSwitches = require('../lib/lp-app-switches');
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole, isPrincipalRole, principalWithoutSchool } = require('../lib/leader-role');
 // bd-33wxxi.1 — the teacher-app switches through one gate (a principal on the principal app is on too).
-const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
+const { teacherAppOnFor, isPrincipalHomeUser, isPrincipalObserveUser } = require('../lib/teacher-app');
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
 const { isRegistered } = require('../../bot/shared/utils/registration-status');
 // This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
@@ -2440,12 +2440,12 @@ async function requireCoachV2(req, res, next) {
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 
 // bd-33wxxi.4 — the two coach-app reads the observation screens need, for a principal too: a PRINCIPAL passes on the
-// principal app (portal_principal_app names her; never portal_coach_v2), everyone else on portal_coach_v2 exactly as
-// coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
+// principal app (portal_principal_app names her; never portal_coach_v2; bd-33wxxi.11: observing, so the observe answer,
+// never the Home's), everyone else on portal_coach_v2 exactly as coachV2. `req.observerRole` tells the service whose teachers to read (her own school, or the coach's schools).
 async function requireCoachV2OrPrincipalApp(req, res, next) {
   const userId = req.session && req.session.portalUserId;
   const principal = isPrincipalRole(req.portalUser && req.portalUser.role);
-  const on = principal ? await isPrincipalAppUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
+  const on = principal ? await isPrincipalObserveUser(supabase, userId) : await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   req.observerRole = principal ? 'principal' : 'coach';
   return next();
@@ -2469,7 +2469,7 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
 }));
-// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
+// bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (bd-33wxxi.11: every principal).
 router.use(require('./portal-principal.routes').createPrincipalRouter({
   guards: [requirePortalAuth],
   supabase,
@@ -8544,7 +8544,7 @@ async function requireCoachObservation(req, res, next) {
   // bd-o15qnr: coach v2's Take observation runs on this pipeline, so either
   // pilot flag opens it (feature-flags.isCoachObservationOn).
   const on = isPrincipalRole(role)
-    ? await isPrincipalAppUser(supabase, userId)
+    ? await isPrincipalObserveUser(supabase, userId) // bd-33wxxi.11: the observe answer, never the Home's
     : await isCoachObservationOn(supabase, userId);
   if (!on) return res.status(404).json({ success: false, error: 'Not found' });
   return next();
@@ -9581,6 +9581,7 @@ router.get('/config', async (req, res) => {
       coachFlowV2Raw,
       coachReportsAppRaw,
       principalApp,
+      principalObserve,
       lpMakeOwnRaw,
       helpVideosRaw,
       lpOwnShelfRaw,
@@ -9637,8 +9638,10 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACH_FLOW_V2_KEY, userId),
       // Coach reports in the app: her debrief report as a page and its Home card; rides with the coach app v2 on.
       isFlagEnabledForUser(supabase, COACH_REPORTS_APP_KEY, userId),
-      // bd-33wxxi.1 — the principal app (portal_principal_app): a principal on it gets the teacher app plus her school.
-      isPrincipalAppUser(supabase, userId),
+      // bd-33wxxi.1 / bd-33wxxi.11 — the principal Home (every principal, no switch: the teacher app plus her school)
+      // and observing in the app (portal_principal_app names her).
+      isPrincipalHomeUser(supabase, userId),
+      isPrincipalObserveUser(supabase, userId),
       // bd-snkn32 — Make my own lesson plan, per user; it rides with the teacher app v2 on.
       isFlagEnabledForUser(supabase, PORTAL_LP_MAKE_OWN_KEY, userId),
       // bd-ik5e8j.4 — the help videos ("?" + More → How to use), per user; it rides with the teacher app v2 on.
@@ -9668,7 +9671,8 @@ router.get('/config', async (req, res) => {
     // upload 404'd as "The internet stopped". The operator: principals observe on WhatsApp unless the principal app
     // names them. observeOnPortal = the gate's answer; a principal off the app also loses the Observations button.
     const principal = isPrincipalRole(configRole);
-    const observeOnPortal = principal ? principalApp === true : (coachObservation === true || coachV2 === true);
+    // bd-33wxxi.11: every principal has the Home now; observing stays the switch's (principalObserve).
+    const observeOnPortal = principal ? principalObserve === true : (coachObservation === true || coachV2 === true);
     // bd-2zopnc — Make my own and the shelf are not live for GB; read only when one is on, and a failed read is off.
     const lpOwnNotGb = teacherV2 && (lpMakeOwnRaw || lpOwnShelfRaw)
       ? !(await isGbTeacher(supabase, userId).catch(() => true))
@@ -9686,7 +9690,7 @@ router.get('/config', async (req, res) => {
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         childTest,
-        coachObservation: principal ? (coachObservation === true && principalApp === true) : coachObservation,
+        coachObservation: principal ? (coachObservation === true && principalObserve === true) : coachObservation,
         observeOnPortal,
         newUi,
         coachV2,
@@ -9706,10 +9710,12 @@ router.get('/config', async (req, res) => {
         // bd-o15qnr.27 (queue #204, v6) — the same switch for a principal on the principal app (the operator 20 Nov: "For the
         // Coach and the Principal both ... On Portal"): Pick the teacher → When? (Now / Later) and the recording that keeps
         // going. Its own key so the coach-only screens never read it.
-        principalFlowV2: principal && principalApp === true && coachFlowV2Raw === true,
+        principalFlowV2: principal && principalObserve === true && coachFlowV2Raw === true,
         coachReportsApp: coachV2 && coachReportsAppRaw,
         roleSwitch,
         principalApp,
+        // bd-33wxxi.11 — observing in the app, for a principal: portal_principal_app names her (principalApp is her Home).
+        principalObserve,
         lpMakeOwn: teacherV2 && lpMakeOwnRaw && lpOwnNotGb,
         helpVideos: teacherV2 && helpVideosRaw,
         lpOwnShelf: teacherV2 && lpOwnShelfRaw && lpOwnNotGb,
@@ -9757,6 +9763,7 @@ router.get('/config', async (req, res) => {
         principalFlowV2: false,
         roleSwitch: false,
         principalApp: false,
+        principalObserve: false,
         lpMakeOwn: false,
         helpVideos: false,
         lpOwnShelf: false,

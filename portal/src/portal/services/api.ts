@@ -747,10 +747,16 @@ export type PortalConfig = {
     /** bd-tacnwy — this user is an internal tester on portal_role_switch (list-only; fail-closed): draw "Profile type". */
     roleSwitch?: boolean;
     /**
-     * bd-33wxxi.1 — this user is a principal on the principal app (portal_principal_app; fail-closed): the teacher app
-     * (teacherV2, teacherHomeCard and teacherHomeLook already answer on for her) plus her school.
+     * bd-33wxxi.1 — this user is a principal with the principal Home (bd-33wxxi.11: every users.role principal, no
+     * switch; fail-closed): the teacher app (teacherV2, teacherHomeCard and teacherHomeLook already answer on for her)
+     * plus her school.
      */
     principalApp?: boolean;
+    /**
+     * bd-33wxxi.11 — observing in the app, for a principal (portal_principal_app names her; fail-closed): the
+     * Observations tile, the Observe item, her observe screens and the v6 Home.
+     */
+    principalObserve?: boolean;
     /** bd-snkn32 — Make my own lesson plan (portal_lp_make_own, with the teacher app on; fail-closed). */
     lpMakeOwn?: boolean;
     /** bd-snkn32.42 — "Made by a teacher" on a chapter page (portal_lp_own_shelf, with the teacher app on; fail-closed). */

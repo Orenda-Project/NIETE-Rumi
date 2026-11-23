@@ -7,13 +7,17 @@
  *   true / "true"       on for every principal
  *   no row, anything else, a failed read, or no session → OFF (fail-closed, isFlagEnabledForUser's rule)
  *
- * It only ever opens the app for users.role principal: a teacher or a coach on the list is unchanged, so a coach who
- * is also a principal at a school keeps the coach app. When it is on for her, the three teacher-app switches
- * (portal_teacher_v2, portal_teacher_home_card, portal_teacher_home_look) answer ON for her, on /config and on every
- * route they gate. Off (every real principal today), every answer is exactly what it was: /portal/leader as today.
+ * It only ever opens anything for users.role principal: a teacher or a coach on the list is unchanged, so a coach who
+ * is also a principal at a school keeps the coach app.
  *
- * The helpers: principalSchoolOf (lib/leader-role.js: is she a principal, and her users.school_id), isPrincipalAppUser
- * and teacherAppOnFor (lib/teacher-app.js).
+ * bd-33wxxi.11 (queue #236, option B; the operator, 23 Nov: "principals should get the new portal without the HITL
+ * because that is not ready yet"): the teacher app is now EVERY principal's, with no switch — the three teacher-app
+ * switches (portal_teacher_v2, portal_teacher_home_card, portal_teacher_home_look) answer ON for any users.role
+ * principal, on /config and on every route they gate. The switch keeps only observing in the app
+ * (isPrincipalObserveUser; bd-33wxxi.11-principal-home-for-all.test.js pins the split).
+ *
+ * The helpers: principalSchoolOf (lib/leader-role.js: is she a principal, and her users.school_id),
+ * isPrincipalHomeUser, isPrincipalObserveUser and teacherAppOnFor (lib/teacher-app.js).
  */
 process.env.FLAG_CACHE_TTL_MS = '0';
 
@@ -119,10 +123,10 @@ describe('principalSchoolOf (lib/leader-role.js)', () => {
   });
 });
 
-/* ── isPrincipalAppUser / teacherAppOnFor ──────────────────────────────── */
+/* ── isPrincipalObserveUser (the switch's own answer) / teacherAppOnFor ─ */
 
-describe('isPrincipalAppUser (lib/teacher-app.js)', () => {
-  const isPrincipalAppUser = (...a) => require('../../dashboard/lib/teacher-app').isPrincipalAppUser(...a);
+describe('isPrincipalObserveUser (lib/teacher-app.js): the switch names her AND she is a principal', () => {
+  const isPrincipalAppUser = (...a) => require('../../dashboard/lib/teacher-app').isPrincipalObserveUser(...a);
 
   test.each([
     ['a list naming her', [PRINCIPAL], PRINCIPAL, true],
@@ -178,21 +182,22 @@ describe('teacherAppOnFor (lib/teacher-app.js)', () => {
     await expect(teacherAppOnFor(fakeSupabase(), flags.PORTAL_COACH_V2_KEY, PRINCIPAL)).rejects.toThrow(/teacher-app/);
   });
 
-  test('the switch absent: every answer is the teacher switch\'s own (teachers on, principal and coach off)', async () => {
+  test('the switch absent (bd-33wxxi.11): teachers and EVERY principal on, a coach off', async () => {
     for (const key of TEACHER_APP_KEYS) settings[key] = 'teachers';
     for (const key of TEACHER_APP_KEYS) {
       expect(await teacherAppOnFor(fakeSupabase(), key, TEACHER)).toBe(true);
-      expect(await teacherAppOnFor(fakeSupabase(), key, PRINCIPAL)).toBe(false);
+      expect(await teacherAppOnFor(fakeSupabase(), key, PRINCIPAL)).toBe(true);
+      expect(await teacherAppOnFor(fakeSupabase(), key, OTHER_PRINCIPAL)).toBe(true);
       expect(await teacherAppOnFor(fakeSupabase(), key, COACH)).toBe(false);
     }
   });
 
-  test('on for her: all three answer ON for the listed principal, and nobody else changes', async () => {
+  test('the switch naming some (bd-33wxxi.11): it no longer decides the teacher app; a coach on it stays off', async () => {
     for (const key of TEACHER_APP_KEYS) settings[key] = 'teachers';
     settings.portal_principal_app = [PRINCIPAL, COACH];
     for (const key of TEACHER_APP_KEYS) {
       expect(await teacherAppOnFor(fakeSupabase(), key, PRINCIPAL)).toBe(true);
-      expect(await teacherAppOnFor(fakeSupabase(), key, OTHER_PRINCIPAL)).toBe(false);
+      expect(await teacherAppOnFor(fakeSupabase(), key, OTHER_PRINCIPAL)).toBe(true);
       expect(await teacherAppOnFor(fakeSupabase(), key, COACH)).toBe(false);
       expect(await teacherAppOnFor(fakeSupabase(), key, TEACHER)).toBe(true);
     }
@@ -206,7 +211,7 @@ describe('teacherAppOnFor (lib/teacher-app.js)', () => {
     expect(userReads).toBe(0);
   });
 
-  test('strict: a principal switch that cannot be read throws', async () => {
+  test('strict: her users row that cannot be read throws; otherwise OFF', async () => {
     settings.portal_principal_app = [PRINCIPAL];
     usersError = true;
     await expect(teacherAppOnFor(fakeSupabase(), flags.PORTAL_TEACHER_V2_KEY, PRINCIPAL, { strict: true })).rejects.toThrow();
@@ -262,13 +267,14 @@ describe('GET /config — the principal app', () => {
     return runStack(findRoute(routes, 'get', '/config'), req);
   }
 
-  test('switch absent: a principal gets today\'s answer — teacher app off, principalApp a real false', async () => {
+  test('switch absent (bd-33wxxi.11): a principal gets the principal Home — teacher app on, principalApp, no observing', async () => {
     const { payload } = await getConfig(PRINCIPAL);
-    expect(payload.features).toMatchObject({ teacherV2: false, teacherHomeCard: false, teacherHomeLook: false });
-    expect(payload.features).toHaveProperty('principalApp', false);
+    expect(payload.features).toMatchObject({ teacherV2: true, teacherHomeCard: true, teacherHomeLook: true });
+    expect(payload.features).toHaveProperty('principalApp', true);
+    expect(payload.features).toHaveProperty('principalObserve', false);
   });
 
-  test('an UNLISTED principal reads exactly as with no row at all (the old /portal/leader, unchanged)', async () => {
+  test('an UNLISTED principal reads exactly as with no row at all', async () => {
     const before = (await getConfig(PRINCIPAL)).payload;
     settings.portal_principal_app = [OTHER_PRINCIPAL];
     jest.resetModules();
@@ -276,11 +282,11 @@ describe('GET /config — the principal app', () => {
     expect(JSON.stringify(after)).toBe(JSON.stringify(before));
   });
 
-  test('the LISTED principal: the teacher app, its Home card and look, and features.principalApp', async () => {
+  test('the LISTED principal: the teacher app, its Home card and look, features.principalApp and principalObserve', async () => {
     settings.portal_principal_app = [PRINCIPAL];
     const { payload } = await getConfig(PRINCIPAL);
     expect(payload.features).toMatchObject({
-      teacherV2: true, teacherHomeCard: true, teacherHomeLook: true, principalApp: true,
+      teacherV2: true, teacherHomeCard: true, teacherHomeLook: true, principalApp: true, principalObserve: true,
       // nothing else opens with it
       coachV2: false, schoolCard: false, coachFullApp: false, teacherHomeOrder: false,
     });
@@ -298,6 +304,8 @@ describe('GET /config — the principal app', () => {
     expect(coachAfter).toEqual(coachBefore);
     expect(teacherAfter.features.principalApp).toBe(false);
     expect(coachAfter.features.principalApp).toBe(false);
+    expect(teacherAfter.features.principalObserve).toBe(false);
+    expect(coachAfter.features.principalObserve).toBe(false);
   });
 
   test('logged out, and the error fallback: principalApp false', async () => {
@@ -308,13 +316,13 @@ describe('GET /config — the principal app', () => {
     Object.defineProperty(req, 'session', { get() { throw new Error('session store down'); } });
     const { statusCode, payload } = await runStack(findRoute(routes, 'get', '/config'), req);
     expect(statusCode).toBe(200);
-    expect(payload.features).toMatchObject({ principalApp: false, teacherV2: false });
+    expect(payload.features).toMatchObject({ principalApp: false, principalObserve: false, teacherV2: false });
   });
 });
 
 /* ── the routes the teacher-app switches gate ──────────────────────────── */
 
-describe('a route gated on portal_teacher_v2 (GET /me/notices) follows the principal switch', () => {
+describe('a route gated on portal_teacher_v2 (GET /me/notices) is open to every principal (bd-33wxxi.11)', () => {
   let listNotices;
   beforeEach(() => {
     jest.resetModules();
@@ -336,15 +344,16 @@ describe('a route gated on portal_teacher_v2 (GET /me/notices) follows the princ
     return runStack(findRoute(router, 'get', '/me/notices'), req);
   }
 
-  test('switch absent: a principal is 404 (as today), a teacher 200', async () => {
-    expect((await notices(PRINCIPAL)).statusCode).toBe(404);
+  test('switch absent: a principal is 200, a teacher 200, a coach 404', async () => {
+    expect((await notices(PRINCIPAL)).statusCode).toBe(200);
     expect((await notices(TEACHER)).statusCode).toBe(200);
+    expect((await notices(COACH)).statusCode).toBe(404);
   });
 
-  test('listed: the principal is 200; an unlisted principal is still 404', async () => {
+  test('listed or not, a principal is 200', async () => {
     settings.portal_principal_app = [PRINCIPAL];
     expect((await notices(PRINCIPAL)).statusCode).toBe(200);
-    expect((await notices(OTHER_PRINCIPAL)).statusCode).toBe(404);
+    expect((await notices(OTHER_PRINCIPAL)).statusCode).toBe(200);
   });
 });
 
@@ -372,7 +381,7 @@ describe('every route gated on a teacher-app switch asks teacherAppOnFor', () =>
 
 /* ── lesson-plan opens: a principal on the principal app is a teacher ──── */
 
-describe('lp-reader readerOf — a principal on the principal app opens as a teacher', () => {
+describe('lp-reader readerOf — a principal (every principal since bd-33wxxi.11) opens as a teacher', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -382,15 +391,16 @@ describe('lp-reader readerOf — a principal on the principal app opens as a tea
   });
   afterEach(() => { jest.restoreAllMocks(); jest.resetModules(); });
 
-  test('switch absent: a principal is a leader reader (as today)', async () => {
+  test('switch absent: a principal is a teacher reader (she has the teacher app)', async () => {
     const { readerOf } = require('../../dashboard/services/lp-reader.service');
-    expect(await readerOf(PRINCIPAL)).toEqual({ leader: true, role: 'principal' });
+    expect(await readerOf(PRINCIPAL)).toEqual({ leader: false, role: 'principal' });
   });
 
-  test('listed: the principal is a teacher reader; an unlisted principal stays a leader', async () => {
+  test('listed or not, a principal is a teacher reader; a coach stays a leader', async () => {
     settings.portal_principal_app = [PRINCIPAL];
     const { readerOf } = require('../../dashboard/services/lp-reader.service');
     expect(await readerOf(PRINCIPAL)).toEqual({ leader: false, role: 'principal' });
-    expect(await readerOf(OTHER_PRINCIPAL)).toEqual({ leader: true, role: 'principal' });
+    expect(await readerOf(OTHER_PRINCIPAL)).toEqual({ leader: false, role: 'principal' });
+    expect(await readerOf(COACH)).toEqual({ leader: true, role: 'coach' });
   });
 });

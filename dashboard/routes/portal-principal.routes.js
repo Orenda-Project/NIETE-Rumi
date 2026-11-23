@@ -1,14 +1,15 @@
 'use strict';
 /**
- * bd-33wxxi.2 — the principal app's school API (the principal portal revamp, behind portal_principal_app).
+ * bd-33wxxi.2 — the principal app's school API (the principal portal revamp; bd-33wxxi.11: every principal's Home,
+ * no switch).
  *
  *   GET /principal/school/card?period=&level=   her OWN school's card: the coach School Card read through her
  *                                               users.school_id (services/coach-school-card.service.js
  *                                               getPrincipalSchoolCard), counts only — the Home's "My school" card
  *                                               and Analytics › My school read it
  *
- * Guards, in order: the ones it is given (portal.routes: requirePortalAuth) → the principal app on for her
- * (lib/teacher-app.js isPrincipalAppUser: the switch names her AND users.role principal) else 404 with nothing read →
+ * Guards, in order: the ones it is given (portal.routes: requirePortalAuth) → she is a principal
+ * (lib/teacher-app.js isPrincipalHomeUser: users.role principal) else 404 with nothing read →
  * her school from her own users row (lib/leader-role.js principalSchoolOf). Her row names no school: 200 { school:
  * null } (192 principals on prod), so the app says so instead of failing. The school is NEVER taken from the request.
  *
@@ -16,7 +17,7 @@
  */
 const express = require('express');
 const { parsePeriodKey } = require('../lib/school-card-period');
-const { isPrincipalAppUser } = require('../lib/teacher-app');
+const { isPrincipalHomeUser } = require('../lib/teacher-app');
 const { principalSchoolOf } = require('../lib/leader-role');
 const { todayOf } = require('./coach-school-card.routes');
 
@@ -33,7 +34,7 @@ function createPrincipalRouter(deps) {
 
   async function requirePrincipalApp(req, res, next) {
     let on = false;
-    try { on = await isPrincipalAppUser(supabase, req.session.portalUserId); } catch (_) { on = false; }
+    try { on = await isPrincipalHomeUser(supabase, req.session.portalUserId); } catch (_) { on = false; }
     if (!on) return notFound(res);
     return next();
   }

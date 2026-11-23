@@ -8,7 +8,7 @@ import type { CoachVisit } from "../../coach/types";
 import type { ObservationScreen } from "../../coach/reports/paths";
 import { OBS_HOME } from "../observations/paths";
 import { getPrincipalSchoolCard } from "./api";
-import { usePrincipalAppState } from "./usePrincipalApp";
+import { usePrincipalObserveState } from "./usePrincipalApp";
 
 /**
  * bd-33wxxi.4 — a principal observing one of her teachers (#55 P3, Observations A), on the coach's own Observe and
@@ -98,7 +98,8 @@ export const PRINCIPAL_OBSERVE_ROUTES: ObserveRoutes = {
  */
 export function PrincipalObserve({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  const on = usePrincipalAppState(user);
+  // bd-33wxxi.11 — observing in the app: portal_principal_app names her (every principal has the Home, not this).
+  const on = usePrincipalObserveState(user);
   if (loading || on === null) return null;
   if (!on) return <Navigate to={OBS_HOME} replace />;
   return <ObserveRoutesProvider value={PRINCIPAL_OBSERVE_ROUTES}>{children}</ObserveRoutesProvider>;

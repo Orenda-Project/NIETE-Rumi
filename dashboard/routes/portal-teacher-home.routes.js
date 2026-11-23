@@ -44,7 +44,7 @@ const {
   PORTAL_SELF_OBSERVATION_KEY, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY,
 } = require('../lib/feature-flags');
 // bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
-const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
+const { teacherAppOnFor, isPrincipalHomeUser } = require('../lib/teacher-app');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
 const Order = require('../services/teacher-home-order.service');
@@ -163,8 +163,9 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId).catch(() => false),
       // the "Quizzes" tile (portal_teacher_home_quiz_tile; a failed read = no tile)
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY, userId).catch(() => false),
-      // bd-33wxxi.9.1 — a principal on the principal app: no first-plan card (a failed read = as for anyone else)
-      isPrincipalAppUser(supabase, userId).catch(() => false),
+      // bd-33wxxi.9.1 — a principal (bd-33wxxi.11: every principal, the principal Home): no first-plan card (a failed
+      // read = as for anyone else)
+      isPrincipalHomeUser(supabase, userId).catch(() => false),
       // the "Last 30 days" block: the store (Redis only) is asked only with its switch on; any failure = no block
       Promise.resolve().then(() => LpAppSwitches.isTeacherHomeActivityOn(supabase, userId))
         .then((on) => (on === true ? ActivityStore.readTeacherActivity(userId) : null)),

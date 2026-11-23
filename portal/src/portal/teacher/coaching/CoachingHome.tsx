@@ -16,7 +16,7 @@ import { readPrefill } from './draft';
 import { COACHING_ALL, COACHING_NEW } from './paths';
 import { WaitingRecording } from './parts';
 import { useAuth } from '../../hooks/useAuth';
-import { usePrincipalAppState } from '../principal/usePrincipalApp';
+import { usePrincipalObserveState } from '../principal/usePrincipalApp';
 import { OBS_HOME } from '../observations/paths';
 
 /**
@@ -57,7 +57,8 @@ export function CoachingHomePage() {
   const making = useMemo(() => lessonGroups(analysing, undefined, C, days).flatMap((g) => g.items), [analysing, C, days]);
   const total = dataOf(history)?.total;
   const { user } = useAuth();
-  const principalApp = usePrincipalAppState(user);
+  // bd-33wxxi.11 — her own lesson is "My own lesson" on Observe, so only a principal who observes in the app is sent there.
+  const principalApp = usePrincipalObserveState(user);
 
   if (prefill.pick || prefill.grade != null) return <Navigate to={`${COACHING_NEW}${location.search}`} replace />;
   if (principalApp === true) return <Navigate to={OBS_HOME} replace />;

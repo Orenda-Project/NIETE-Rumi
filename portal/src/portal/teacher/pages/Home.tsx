@@ -23,7 +23,7 @@ import { QuizFeatureTile } from "../home/QuizTile";
 import { HomeActivity } from "../home/activity/HomeActivity";
 import { StatusChip } from "../ui";
 import { PEOPLE } from "../../coach/people/copy";
-import { usePrincipalApp } from "../principal/usePrincipalApp";
+import { usePrincipalApp, usePrincipalObserve } from "../principal/usePrincipalApp";
 import { SchoolHomeCard } from "../principal/SchoolHomeCard";
 import { PrincipalHomeV6 } from "../principal/HomeV6";
 import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
@@ -55,6 +55,11 @@ type HomeTile = { key: Exclude<TeacherFeature, "home" | "more" | "profile">; art
  */
 const PRINCIPAL_ORDER: HomeTile["key"][] = ["observations", "attendance", "analytics", "lessons", "assessment", "training", "classes"];
 export const PRINCIPAL_TILES: HomeTile[] = PRINCIPAL_ORDER.map((k) => TILES.find((t) => t.key === k) as HomeTile);
+/**
+ * bd-33wxxi.11 (queue #236, option B) — every principal has the principal Home; a principal the observe switch does not
+ * name (portal_principal_app) has no Observations tile, so the same tiles in the same order without it.
+ */
+export const PRINCIPAL_HOME_TILES: HomeTile[] = PRINCIPAL_TILES.filter((t) => t.key !== "observations");
 
 /**
  * The Home card (portal_teacher_home_card, default OFF). OFF, or until /config says otherwise: the tree below the
@@ -72,18 +77,20 @@ export default function Home() {
   const { data, order } = useHomeData(sw.card, sw.order, user?.phoneNumber);
   const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
   const go = useHomeGo();
-  // bd-33wxxi.2 — a principal on the principal app (portal_principal_app): the same Home, plus her role tag in the band
-  // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew.
+  // bd-33wxxi.2 — a principal (bd-33wxxi.11: every principal, no switch): the same Home, plus her role tag in the band
+  // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew. Observing in the app
+  // (the Observations tile, the v6 Home) is only for a principal portal_principal_app names (principalObserve).
   const principalApp = usePrincipalApp(user);
+  const principalObserve = usePrincipalObserve(user);
   const P = useCopy(PEOPLE);
   // bd-o15qnr.28 (queue #204) — a principal on the principal app whom the v6/v7 switch names: her Home in the coach
   // flow's look (principal/HomeV6.tsx, #188's board p9-home). Everyone else: the trees below, unchanged.
   const flowV6 = useFlowV6();
-  if (principalApp && flowV6 === true) return <PrincipalHomeV6 />;
+  if (principalApp && principalObserve && flowV6 === true) return <PrincipalHomeV6 />;
   // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
   if (sw.card && sw.look) {
     return (
-      <LookHome tiles={principalApp ? PRINCIPAL_TILES : TILES} data={data} order={principalApp ? null : order} onGo={go}
+      <LookHome tiles={principalApp ? (principalObserve ? PRINCIPAL_TILES : PRINCIPAL_HOME_TILES) : TILES} data={data} order={principalApp ? null : order} onGo={go}
         role={principalApp ? <StatusChip text={P.rolePrincipal} tone="info" className="bg-white/10 text-white" /> : undefined}
         school={principalApp ? <SchoolHomeCard /> : undefined} />
     );

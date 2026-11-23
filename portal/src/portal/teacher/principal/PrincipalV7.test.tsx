@@ -50,7 +50,7 @@ import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, pr
 vi.setConfig({ testTimeout: 40_000 });
 
 const PRINCIPAL = { firstName: "Saima Sample", lastName: null, role: "principal", phoneNumber: "test-principal-v7", schoolName: "GGPS Sample" };
-const ON = { teacherV2: true, principalApp: true, principalFlowV2: true };
+const ON = { teacherV2: true, principalApp: true, principalObserve: true, principalFlowV2: true };
 const HOME = { success: true, now: new Date().toISOString(), order: null, orderOn: false, card: null, scores: { coach: null, observation: null }, quizHome: null };
 const TODAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
@@ -146,7 +146,7 @@ describe("the principal's Home in the v6 look (p9-home)", () => {
   });
 
   it("switch off: today's principal Home (no Focus card, today's tiles)", async () => {
-    serve({ features: { teacherV2: true, principalApp: true } });
+    serve({ features: { teacherV2: true, principalApp: true, principalObserve: true } });
     at("/portal/teacher", <Home />);
     await screen.findByTestId("feature-tiles");
     await new Promise((r) => setTimeout(r, 50));
@@ -211,7 +211,7 @@ describe("the principal's Observe in the v6 look (p7-observe)", () => {
   });
 
   it("switch off: today's Observe (the tiles, her teachers' observations)", async () => {
-    serve({ features: { teacherV2: true, principalApp: true } });
+    serve({ features: { teacherV2: true, principalApp: true, principalObserve: true } });
     at("/portal/teacher/observations", <PrincipalObservations />);
     await screen.findByTestId("principal-observe-tiles");
     expect(screen.queryByTestId("principal-observe-v6")).toBeNull();
@@ -255,7 +255,7 @@ describe("My observations (p9-observations)", () => {
   });
 
   it("switch off: the page is not there (back to Observe)", async () => {
-    serve({ features: { teacherV2: true, principalApp: true } });
+    serve({ features: { teacherV2: true, principalApp: true, principalObserve: true } });
     at(PRINCIPAL_MY_OBSERVATIONS, <PrincipalMyObservations />);
     await new Promise((r) => setTimeout(r, 100));
     expect(screen.queryByTestId("my-obs")).toBeNull();
@@ -272,7 +272,7 @@ describe("Pick the teacher, v6 (p7-pick)", () => {
   });
 
   it("switch off: no choice row", async () => {
-    serve({ features: { teacherV2: true, principalApp: true } });
+    serve({ features: { teacherV2: true, principalApp: true, principalObserve: true } });
     at(PRINCIPAL_PICK, <PickTeacher />);
     await screen.findByTestId("principal-pick");
     await new Promise((r) => setTimeout(r, 100));
@@ -312,7 +312,7 @@ describe("Pick the teacher, no step chips (bd-o15qnr.40.1)", () => {
   });
 
   it("switch off: today's list keeps its step chip", async () => {
-    serveCard({ teacherV2: true, principalApp: true });
+    serveCard({ teacherV2: true, principalApp: true, principalObserve: true });
     at(PRINCIPAL_PICK, <PickTeacher />);
     const pick = await screen.findByTestId("principal-pick");
     expect(await within(pick).findByText("Feedback Form")).toBeTruthy();

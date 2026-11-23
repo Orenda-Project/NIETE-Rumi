@@ -98,13 +98,15 @@ describe('GET /me/home — guards', () => {
   it('signed out is 401', async () => {
     expect((await home({ userId: null })).status).toBe(401);
   });
-  it('teacher app off is 404 and nothing is read', async () => {
+  it('teacher app off is 404 and nothing is read but her users row', async () => {
     flags.portal_teacher_v2 = false;
     const out = await home();
     expect(out.status).toBe(404);
     expect(out.payload).toEqual({ success: false, error: 'Not found' });
     expect(get).not.toHaveBeenCalled();
-    expect(reads).toHaveLength(0);
+    // bd-33wxxi.11 — every principal has the teacher app with no switch, so the gate asks her role (one users read by
+    // id, lib/teacher-app isPrincipalHomeUser); nothing else is read.
+    expect(reads.map((q) => q.table)).toEqual(['users']);
   });
   it('the card switch off is 404 {success:false, off:true}, the bot not asked', async () => {
     flags.portal_teacher_home_card = false;

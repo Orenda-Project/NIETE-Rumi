@@ -32,7 +32,7 @@
  * (requirePortalAuth loads no user; the session holds the user id only), so this is one indexed read by primary key,
  * BOUNDED: the whole decision is raced against READ_TIMEOUT_MS, and a decision that does not come in time is a
  * teacher's, so a slow or hung read can never hold a teacher's plan. A principal ON the teacher app (portal_teacher_v2,
- * or portal_principal_app for her: lib/teacher-app.js) is a teacher here: she gets the teacher app exactly as a
+ * or every principal since bd-33wxxi.11: lib/teacher-app.js) is a teacher here: she gets the teacher app exactly as a
  * teacher does (operator, 2026-10-09). Anything unreadable —
  * the role, or a principal's teacher-app switch — is a teacher too: today's path is the safe one for the opens that are
  * nearly all teachers', and a leader's stray row is recoverable where a teacher's lost open is not.

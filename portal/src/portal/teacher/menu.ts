@@ -37,6 +37,13 @@ export type PrincipalNavKey = "home" | "observe" | "lessons" | "training" | "mor
 
 export const PRINCIPAL_NAV_KEYS: readonly PrincipalNavKey[] = ["home", "observe", "lessons", "training", "more"];
 
+/**
+ * bd-33wxxi.11 (queue #236, option B) — every principal has her menu; Observe only when portal_principal_app names her
+ * (features.principalObserve). Without it: Home · Lesson Plans · Training · More.
+ */
+export const principalNavKeysFor = (observe: boolean): readonly PrincipalNavKey[] =>
+  observe ? PRINCIPAL_NAV_KEYS : PRINCIPAL_NAV_KEYS.filter((k) => k !== "observe");
+
 /** The teacher feature each principal item opens (its page through teacherPath). */
 export const PRINCIPAL_NAV_FEATURE: Record<PrincipalNavKey, TeacherFeature> = {
   home: "home",
@@ -48,13 +55,15 @@ export const PRINCIPAL_NAV_FEATURE: Record<PrincipalNavKey, TeacherFeature> = {
 
 const PRINCIPAL_SCREENS = "/portal/teacher/principal";
 
-export function currentPrincipalMenuItem(pathname: string): PrincipalNavKey | null {
+export function currentPrincipalMenuItem(pathname: string, { observe = true }: { observe?: boolean } = {}): PrincipalNavKey | null {
+  // bd-33wxxi.11 — without Observe in her menu, the pages it would hold leave Home current (as Observations does for a teacher).
+  const held: PrincipalNavKey = observe ? "observe" : "home";
   const path = pathname.replace(/\/+$/, "") || "/";
-  if (path === PRINCIPAL_SCREENS || path.startsWith(`${PRINCIPAL_SCREENS}/`)) return "observe";
+  if (path === PRINCIPAL_SCREENS || path.startsWith(`${PRINCIPAL_SCREENS}/`)) return held;
   const f = featureOf(path);
-  if (f === "observations" || f === "coaching") return "observe";
+  if (f === "observations" || f === "coaching") return held;
   const item = currentMenuItem(path);
-  return item === "coaching" ? "observe" : item;
+  return item === "coaching" ? held : item;
 }
 
 

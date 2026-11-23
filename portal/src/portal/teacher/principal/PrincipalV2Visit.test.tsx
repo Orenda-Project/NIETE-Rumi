@@ -65,7 +65,7 @@ let where = "";
 function Where() { const l = useLocation(); where = l.pathname; return null; }
 
 function serve() {
-  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp: true } });
+  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp: true, principalObserve: true } });
   api.coach.getReports.mockResolvedValue(REPORTS);
   H.get.mockImplementation(async (url: string) => {
     if (url === "/principal/school/card") return { data: CARD };

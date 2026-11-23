@@ -20,8 +20,8 @@
  * reached through services/teacher-attendance.service.js.
  *
  * bd-33wxxi.10 — THE STAFF REGISTER: `:listId` may also be "staff", the principal's teachers, ONLY for a
- * principal the principal app is on for (lib/teacher-app isPrincipalAppUser: the portal_principal_app switch
- * names her AND users.role principal). For her, /classes and every "staff" call tell the bot `{ staff: true }`;
+ * principal (lib/teacher-app isPrincipalHomeUser: users.role principal; bd-33wxxi.11: every principal, part of her
+ * Home, no switch). For her, /classes and every "staff" call tell the bot `{ staff: true }`;
  * anyone else naming "staff" is 404 before the bot is asked, and a teacher's calls reach the bot as before.
  */
 
@@ -29,7 +29,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const { PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
 // bd-33wxxi.1 — the teacher-app switches go through one gate: a principal on the principal app is on too.
-const { teacherAppOnFor, isPrincipalAppUser } = require('../lib/teacher-app');
+const { teacherAppOnFor, isPrincipalHomeUser } = require('../lib/teacher-app');
 const pool = require('../config/database');
 const Attendance = require('../services/teacher-attendance.service');
 const GradeSubjects = require('../services/grade-subjects.service');
@@ -56,10 +56,10 @@ async function requireTeacherV2(req, res, next) {
   return next();
 }
 
-/** bd-33wxxi.10 — may this user open the staff register? The principal app on for her AND role principal. Fail-closed. */
+/** bd-33wxxi.10 — may this user open the staff register? Role principal (bd-33wxxi.11: no switch). Fail-closed. */
 async function staffAllowed(userId) {
   try {
-    return await isPrincipalAppUser(supabase, userId);
+    return await isPrincipalHomeUser(supabase, userId);
   } catch (error) {
     return false; // a failed read is OFF, as every flag read is
   }

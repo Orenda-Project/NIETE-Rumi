@@ -70,7 +70,8 @@ let where = "";
 function Where() { const l = useLocation(); where = l.pathname; return null; }
 
 function serve(principalApp = true) {
-  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp } });
+  // bd-33wxxi.11 — a principal the switch names has both answers: the Home and observing in the app.
+  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp, principalObserve: principalApp } });
   api.portal.getCoachingSessions.mockResolvedValue({ sessions: [], pagination: { total: 0, page: 1, limit: 50, totalPages: 0 } });
   api.coach.getReports.mockResolvedValue(REPORTS);
   H.get.mockImplementation(async (url: string) => {

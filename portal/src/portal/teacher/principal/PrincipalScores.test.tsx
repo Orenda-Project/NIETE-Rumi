@@ -84,7 +84,8 @@ const DETAIL = {
 };
 
 function serve(principalApp = true) {
-  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp } });
+  // bd-33wxxi.11 — a principal the switch names has both answers: the Home and observing in the app.
+  api.portal.getConfig.mockResolvedValue({ features: { teacherV2: true, principalApp, principalObserve: principalApp } });
   api.coach.getObservation.mockResolvedValue(OBS);
   api.leader.getObservation.mockResolvedValue(VIEW("sent"));
   api.portal.getCoachingProgress.mockResolvedValue({ id: DC_ID, status: "completed", stage: "done", reflection: null, reportReady: true });

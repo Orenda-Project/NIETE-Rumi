@@ -113,8 +113,11 @@ describe('GET /me/home for a principal on the principal app', () => {
     const { payload } = await home();
     expect(payload.card).toEqual({ kind: 'first_plan', title: '', href: '/portal/teacher/lessons' });
   });
-  it('a principal the switch does not name: 404, as before', async () => {
+  // bd-33wxxi.11 (queue #236, option B): every principal has the Home, so the switch no longer decides the card.
+  it('a principal the switch does not name: her Home card all the same, no first_plan card', async () => {
     flags.portal_principal_app = false;
-    expect((await home()).status).toBe(404);
+    const out = await home();
+    expect(out.status).toBe(200);
+    expect(out.payload.card).toBeNull();
   });
 });
