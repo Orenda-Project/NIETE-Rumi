@@ -109,3 +109,122 @@ describe('the webhook', () => {
       /require\('\.\/shared\/services\/inbound-media-failed\.service'\)\.onFailedStatus\(status\)/);
   });
 });
+
+/**
+ * bd-f3b562 (queue #233, 23 Nov) — a coach in the middle of an observation hears it EVERY time WhatsApp refuses her
+ * recording, in words for that step. On prod a coach armed for her debrief sent the recording 6 times (13:32-16:36
+ * PKT); Meta refused each (131052) and the once-a-day rule answered only the first, so the debrief looked stuck.
+ */
+describe('a coach mid-observation (armed for a recording)', () => {
+  function obsDeps({ step = { state: 'awaiting_debrief_audio', sessionId: 's1' }, claimed = {}, user } = {}) {
+    const d = deps(user === undefined ? {} : { user });
+    d.setNX = async (key, value, ttl) => {
+      d.calls.setNX.push({ key, value, ttl });
+      return Object.prototype.hasOwnProperty.call(claimed, key) ? claimed[key] : true;
+    };
+    d.getObserveState = async () => step;
+    return d;
+  }
+  const DAILY = 'inbound_media_failed_notice:923001234567';
+  const BURST = 'inbound_media_failed_notice:923001234567:observe';
+
+  it('tells her the debrief recording did not arrive, that the visit waits, and how to resend', async () => {
+    const d = obsDeps();
+    const r = await svc.onFailedStatus(statusOf(131052, 'Incoming media file validation failed'), d);
+    expect(r).toEqual(expect.objectContaining({ sent: true, key: 'inboundMediaObserveDebrief' }));
+    expect(d.calls.send).toHaveLength(1);
+    expect(d.calls.send[0].text).toBe(UX_STRINGS.inboundMediaObserveDebrief.en);
+    expect(d.calls.send[0].text).toMatch(/debrief/i);
+    expect(d.calls.send[0].text).toMatch(/Document/);
+  });
+
+  it('still tells her after the daily notice was already sent (each refused file gets an answer)', async () => {
+    const d = obsDeps({ claimed: { [DAILY]: false } });
+    const r = await svc.onFailedStatus(statusOf(131052, 'x'), d);
+    expect(r.sent).toBe(true);
+    expect(d.calls.setNX.map((c) => c.key)).not.toContain(DAILY);
+  });
+
+  it('claims a short burst key, so two files refused together are answered once', async () => {
+    const d = obsDeps();
+    await svc.onFailedStatus(statusOf(131052, 'x', '+923001234567'), d);
+    expect(d.calls.setNX[0].key).toBe(BURST);
+    expect(d.calls.setNX[0].ttl).toBe(svc.OBSERVE_BURST_SECONDS);
+    expect(svc.OBSERVE_BURST_SECONDS).toBeLessThanOrEqual(5 * 60);
+
+    const again = obsDeps({ claimed: { [BURST]: false } });
+    const r = await svc.onFailedStatus(statusOf(131052, 'x'), again);
+    expect(r).toEqual(expect.objectContaining({ sent: false, reason: 'told_just_now' }));
+    expect(again.calls.send).toHaveLength(0);
+  });
+
+  it('names the lesson recording when that is what the visit waits for', async () => {
+    const d = obsDeps({ step: { state: 'awaiting_audio' } });
+    const r = await svc.onFailedStatus(statusOf(131052, 'x'), d);
+    expect(r.key).toBe('inboundMediaObserveLesson');
+    expect(d.calls.send[0].text).toBe(UX_STRINGS.inboundMediaObserveLesson.en);
+  });
+
+  it('answers in Urdu when that is her language', async () => {
+    const d = obsDeps({ user: { id: 'u2', preferred_language: 'ur' } });
+    await svc.onFailedStatus(statusOf(131052, 'x'), d);
+    expect(d.calls.send[0].text).toBe(UX_STRINGS.inboundMediaObserveDebrief.ur);
+  });
+
+  it('keeps the too-big line when WhatsApp says the file is too big (a Document fails the same way)', async () => {
+    const d = obsDeps();
+    const r = await svc.onFailedStatus(statusOf(131052, 'Media file size too big 122MB. Max file size we currently support: 100MB.'), d);
+    expect(r.key).toBe('inboundMediaTooBig');
+    expect(d.calls.setNX[0].key).toBe(BURST);
+  });
+
+  it('any other state (or none) keeps the once-a-day notice', async () => {
+    for (const step of [null, { state: 'awaiting_lesson_plan' }]) {
+      const d = obsDeps({ step });
+      const r = await svc.onFailedStatus(statusOf(131052, 'x'), d);
+      expect(r.key).toBe('inboundMediaResend');
+      expect(d.calls.setNX[0].key).toBe(DAILY);
+      expect(d.calls.setNX[0].ttl).toBe(24 * 60 * 60);
+    }
+  });
+
+  it('a failed state lookup falls back to the once-a-day notice, never throws', async () => {
+    const d = obsDeps();
+    d.getObserveState = async () => { throw new Error('redis down'); };
+    const r = await svc.onFailedStatus(statusOf(131052, 'x'), d);
+    expect(r).toEqual(expect.objectContaining({ sent: true, key: 'inboundMediaResend' }));
+  });
+
+  it('a sender with no account is never looked up for a step', async () => {
+    const d = obsDeps({ user: null });
+    let asked = false;
+    d.getObserveState = async () => { asked = true; return { state: 'awaiting_debrief_audio' }; };
+    const r = await svc.onFailedStatus(statusOf(131052, 'x'), d);
+    expect(asked).toBe(false);
+    expect(r.key).toBe('inboundMediaResend');
+  });
+
+  it('the production deps read the observe state', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../../bot/shared/services/inbound-media-failed.service.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(src).toMatch(/getObserveState:[\s\S]{0,200}observe-state\.service/);
+  });
+});
+
+describe('the observe strings', () => {
+  it('exist in English and Urdu, fit a WhatsApp body, and isolate Latin words in the Urdu', () => {
+    for (const key of ['inboundMediaObserveDebrief', 'inboundMediaObserveLesson']) {
+      expect(UX_STRINGS[key]).toBeDefined();
+      for (const lang of ['en', 'ur']) {
+        expect(typeof UX_STRINGS[key][lang]).toBe('string');
+        expect([...UX_STRINGS[key][lang]].length).toBeLessThanOrEqual(1024);
+      }
+      const ur = UX_STRINGS[key].ur;
+      expect(ur).toMatch(/[؀-ۿ]/);
+      for (const m of ur.matchAll(/[A-Za-z]+/g)) {
+        const before = ur.slice(0, m.index);
+        expect(before.lastIndexOf('⁦')).toBeGreaterThan(before.lastIndexOf('⁩'));
+      }
+    }
+  });
+});
