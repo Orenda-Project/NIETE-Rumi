@@ -7,7 +7,7 @@ import {
   Upload, WifiOff, X,
 } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
-import { acceptFor, formatSize, MAX_PHOTOS, SHORT_RECORDING_SECONDS } from '../../lib/coachingUpload';
+import { acceptFor, AUDIO_ACCEPT, formatSize, MAX_PHOTOS, SHORT_RECORDING_SECONDS } from '../../lib/coachingUpload';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../../lib/recordingSession';
 import { clockText } from '../../lib/clockText';
 import { hasHistoryBehind, useMicLevel } from '../../lib/recordFlow';
@@ -147,7 +147,7 @@ export default function RecordPage() {
         hidden
         type="file"
         data-testid="audio-input"
-        accept={`${acceptFor('audio')},audio/*`}
+        accept={AUDIO_ACCEPT}
         onChange={(e) => { void flow.chooseAudio(e.target.files?.[0]); e.target.value = ''; }}
       />
 

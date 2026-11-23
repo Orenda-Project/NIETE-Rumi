@@ -76,7 +76,8 @@ const KINDS = Object.freeze({
   audio: {
     types: {
       '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.aac': 'audio/aac', '.mp3': 'audio/mpeg',
-      '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.wav': 'audio/wav', '.amr': 'audio/amr',
+      // bd-hronni: .oga is Ogg audio by its other name (Ogg Opus/Vorbis), signed like .ogg/.opus.
+      '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/ogg', '.wav': 'audio/wav', '.amr': 'audio/amr',
       '.3gp': 'audio/3gpp', '.webm': 'audio/webm',
     },
     maxBytes: 300 * 1024 * 1024,
@@ -102,7 +103,7 @@ const KINDS = Object.freeze({
   },
   reflection_audio: {
     types: {
-      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
+      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
     },
     maxBytes: 10 * 1024 * 1024,
     key: (uid, ym, id, ext) => `reflection_audio/${uid}/${ym}/portal_${id}${ext}`,
@@ -110,7 +111,7 @@ const KINDS = Object.freeze({
   },
   feedback_audio: {
     types: {
-      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
+      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
     },
     maxBytes: 10 * 1024 * 1024,
     key: (uid, ym, id, ext) => `feedback_audio/${uid}/${ym}/portal_${id}${ext}`,
