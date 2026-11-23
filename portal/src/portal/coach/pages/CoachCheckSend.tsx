@@ -3,14 +3,16 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, BookOpen, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
-import { AudioCard, ChoicePair, ChosenSoFar, ListRow, SelectField } from "../../teacher/ui";
+import { AudioCard, ChoicePair, ChosenSoFar, ClassPicker, ListRow, SelectField, type GradeSubjectPair, type SubjectsByGrade } from "../../teacher/ui";
+import { lessonPlans } from "../../newui/lessons/lessonPlansApi";
+import { LESSONS } from "../../teacher/lessons/copy";
 import { LIST_CARD } from "../../teacher/ui/styles";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { leader, type ObserveLesson, type ObserveLessonQuestion, type ObserveNote, type ObserveRecentPlan } from "../../services/api";
 import { downloadsOnly, isOwnPlan } from "../../lib/observeRecentPlans";
-import { planClassOf, recentForClass } from "../../lib/observePlanClass";
+import { planClassOf, recentForClass, subjectKeyOf } from "../../lib/observePlanClass";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { PLAN_V7 } from "../flow/copyV7plan";
 import { Card, Loading, Failed, useLoad } from "../ui";
@@ -102,6 +104,13 @@ function classOptions(v7: boolean, offered: number[] | undefined, C: Pick<Observ
   return [...PRIMARY_GRADES, ...rest].sort((a, b) => a - b).map((g) => ({ value: String(g), label: C.grade(g) }));
 }
 
+/** bd-o15qnr.40.7 — the picker's grades: 1-5, then the grades the bot offers, each only where the catalogue has subjects. */
+const NO_COMBOS: never[] = [];
+function pickerGrades(offered: number[] | undefined, byGrade: SubjectsByGrade): number[] {
+  const all = [...PRIMARY_GRADES, ...(offered || []).filter((g) => !PRIMARY_GRADES.includes(g))].sort((a, b) => a - b);
+  return all.filter((g) => (byGrade[g] || []).length > 0);
+}
+
 function Tile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
@@ -170,6 +179,15 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const [grade, setGrade] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
   const [lessonProblem, setLessonProblem] = useState<"class" | "subject" | null>(null);
+  // bd-o15qnr.40.7 (queue #229, the operator 23 Nov ~19:22: "WE ALREADY HAVE A PICKER FOR GRADE SUBJECT ON THE LESSON
+  // PLAN JUST USE THAT") — with the switch on, the class step is the Lesson Plan screen's own picker (the kit's
+  // ClassPicker on the same live catalogue, lessonPlans.catalogue): the grade, then its subject. `pair` is what it shows;
+  // the pick fills `grade` (and `subject`, as the question's key, where the bot asks it) as the dropdowns did, and
+  // `planSubject` narrows the plans by the subject too. The catalogue unread or failed: the dropdowns, as before.
+  const [pair, setPair] = useState<GradeSubjectPair | null>(null);
+  const [planSubject, setPlanSubject] = useState<string | null>(null);
+  const [catalogue, setCatalogue] = useState<SubjectsByGrade | null>(null);
+  const LP = useCopy(LESSONS);
   useEffect(() => {
     let live = true;
     Promise.resolve()
@@ -178,6 +196,21 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       .catch(() => { /* not asked */ });
     return () => { live = false; };
   }, []);
+  useEffect(() => {
+    if (!v7 || !question.ask) return undefined;
+    let live = true;
+    Promise.resolve()
+      .then(() => lessonPlans.catalogue())
+      .then((c) => {
+        if (!live) return;
+        const byGrade: Record<number, readonly string[]> = {};
+        for (const [g, list] of Object.entries(c.byGrade)) byGrade[Number(g)] = list.map((x) => x.name);
+        // nothing to pick from (an empty catalogue): the dropdowns stay
+        if (Object.values(byGrade).some((l) => l.length > 0)) setCatalogue(byGrade);
+      })
+      .catch(() => { /* the dropdowns stay */ });
+    return () => { live = false; };
+  }, [v7, question.ask]);
   // bd-ra8xu.40 (operator, 12 Nov): only FDE's grades (6-8) ask the subject; grades 9-12 are FICO lessons, the class alone.
   // An older bot that does not say which grades: every grade 6-12 asks it, as before.
   const needsSubject = (g: string | null) => !!g && g !== "primary" && !isPrimaryGrade(g) && (question.subjectGrades ? question.subjectGrades.includes(Number(g)) : true);
@@ -191,7 +224,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     setNotes(visit.id, next);
   };
   // bd-o15qnr.33 — the class answered above, as the filter for her plans and the library (null: nothing answered).
-  const planClass = v7 && question.ask ? planClassOf(grade, needsSubject(grade) ? subject : null) : null;
+  const planClass = v7 && question.ask ? planClassOf(grade, pair ? planSubject : needsSubject(grade) ? subject : null) : null;
   const classLabel = planClass
     ? [grade === "primary" ? C.gradePrimary : C.grade(Number(grade)),
       planClass.subject ? ((C.subjects as Record<string, string>)[planClass.subject] || planClass.subject) : null].filter(Boolean).join(" · ")
@@ -200,6 +233,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     if (!question.ask || !grade) return null;
     // bd-o15qnr.40.3 — a grade 1-5 named on its own is still the grades 1-5 class to the bot (FICO17 v6): the rubric
     // comes from the grade, never from the coach.
+    // bd-o15qnr.40.7 — picked on the Lesson Plan picker, a grade 1-5 goes with its grade and subject (still FICO17 v6).
+    if (isPrimaryGrade(grade) && pair && planSubject) return { primary: true, grade: Number(grade), subject: planSubject };
     if (grade === "primary" || isPrimaryGrade(grade)) return { primary: true };
     if (!needsSubject(grade)) return { grade: Number(grade) };
     return subject ? { grade: Number(grade), subject } : null;
@@ -343,6 +378,21 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {question.ask && (
         <>
           <SectionHeading>{C.classAndSubject}</SectionHeading>
+          {v7 && catalogue ? (
+            <div className="flex flex-col gap-2.5" data-testid="lesson-class">
+              <ClassPicker label={LP.selectGradeSubject} feature="lessons" combos={NO_COMBOS} allowOther subjectsByGrade={catalogue}
+                grades={pickerGrades(question.grades, catalogue)} value={pair}
+                onChange={(v) => {
+                  const g = String(v.grade);
+                  const key = subjectKeyOf(v.subject) ?? "other";
+                  setPair(v);
+                  setGrade(g);
+                  setPlanSubject(key);
+                  setSubject(needsSubject(g) ? key : null);
+                  setLessonProblem(null);
+                }} />
+            </div>
+          ) : (
           <div className="flex flex-col gap-2.5" data-testid="lesson-class">
             <SelectField label={C.classField} title={C.classField} value={grade}
               options={classOptions(v7, question.grades, C)}
@@ -353,6 +403,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
                 onChange={(v) => { setSubject(v); setLessonProblem(null); }} />
             )}
           </div>
+          )}
           {lessonProblem === "class" && <Alert>{C.chooseClassFirst}</Alert>}
           {lessonProblem === "subject" && <Alert>{C.chooseSubjectFirst}</Alert>}
         </>

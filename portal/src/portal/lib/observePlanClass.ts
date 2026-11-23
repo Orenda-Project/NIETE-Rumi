@@ -45,7 +45,8 @@ const SUBJECT_RULES: ReadonlyArray<readonly [string, RegExp]> = [
   ["maths", /\bmath|numeracy|ریاضی/],
   ["islamiat", /islam|اسلامیات/],
   ["social_studies", /social|pak(istan)?\.? ?st|history|geography|civics|معاشرتی|مطالعہ پاکستان/],
-  ["science", /science|سائنس/],
+  // bd-o15qnr.40.7: a 6-12 science named by its branch (the lesson-plan catalogue's Physics …) is science
+  ["science", /science|physics|chemistry|biology|سائنس|طبیعیات|کیمیا|حیاتیات/],
 ];
 
 /** A subject, however spelled, as the class question's key; null when it is none of them. */
