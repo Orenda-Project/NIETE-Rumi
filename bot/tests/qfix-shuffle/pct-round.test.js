@@ -3,7 +3,7 @@
  * web_quiz_order_seed_pct on an evening round: a link in the pct arm plays exactly as with web_quiz_order_seed on (the
  * child's own 5 + 2, seeded), at start, answers, finish and resume alike; a link out of the arm, with
  * web_quiz_evening_round off, plays the round as an ordinary quiz (today's reply). The arm is the LINK's
- * (OrderSeed.onFor -> HubFlags.inPct), read from the session's share_code_id on every path.
+ * (OrderSeed.onFor -> the shared ab-assign assignArm), read from the session's share_code_id on every path.
  *
  * Runs the real service; Supabase is the fake at the boundary. The fixture is the evening round's own
  * (bot/tests/qfix-class-link/round-sitting.test.js), with the pct row in place of the global switch.
@@ -118,7 +118,9 @@ const asZara = (extra = {}) => WQ.startSession({ code: 'RND234', chip: T.chipId(
 const answerAll = (st, ids, slot = (id) => (id.startsWith('4ec0') ? 'A' : 'B')) => WQ.recordAnswers({ st, a: ids.map((qid) => ({ qid, slot: slot(qid) })) });
 const started = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.session_started').map(([, d]) => d);
 const OrderSeed = require('../../shared/services/quiz/web-quiz-order-seed');
-const ROUND_BUCKET = HubFlags.bucketOf(HubFlags.ORDER_SEED_PCT_KEY, ROUND_SC);
+const AB = require('../../shared/services/ab-assign.service');
+// the largest share that leaves the round link out ('off' holds the low buckets of the shared split)
+const ROUND_OUT_PCT = Math.ceil((10000 - AB.bucket(OrderSeed.ORDER_TEST.salt, ROUND_SC)) / 100) - 1;
 
 describe('a round link IN the pct arm (pct 100): the child plays their own 5 + 2, seeded, as with the global switch', () => {
   beforeEach(() => world({ pct: 100 }));
@@ -146,12 +148,13 @@ describe('a round link IN the pct arm (pct 100): the child plays their own 5 + 2
 });
 
 describe('a round link OUT of the pct arm, web_quiz_evening_round off: an ordinary quiz everywhere', () => {
-  // pct = the link's own bucket: bucket < pct is false, so this link is out while lower buckets are in
-  beforeEach(() => world({ pct: ROUND_BUCKET }));
+  // the largest share that leaves this link out, so the canary runs with this link just out of it
+  beforeEach(() => world({ pct: ROUND_OUT_PCT }));
 
-  test('the arm is really the link\'s: out at pct = its bucket, in at pct = its bucket + 1', () => {
-    expect(OrderSeed.onFor({ orderSeedPct: ROUND_BUCKET }, ROUND_SC)).toBe(false);
-    expect(OrderSeed.onFor({ orderSeedPct: ROUND_BUCKET + 1 }, ROUND_SC)).toBe(true);
+  test('the arm is really the link\'s: out at this share, in at one point more', () => {
+    expect(ROUND_OUT_PCT).toBeGreaterThan(0);
+    expect(OrderSeed.onFor({ orderSeedPct: ROUND_OUT_PCT }, ROUND_SC)).toBe(false);
+    expect(OrderSeed.onFor({ orderSeedPct: ROUND_OUT_PCT + 1 }, ROUND_SC)).toBe(true);
   });
 
   test('no order on the page, every item accepted, finish counts what was played', async () => {
