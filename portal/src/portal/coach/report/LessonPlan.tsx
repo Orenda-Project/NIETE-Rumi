@@ -92,14 +92,14 @@ export function LessonPlanNotes({ lp }: { lp: LpCheck }) {
       {lp.state === "ok" ? (
         <>
           <div className="flex flex-col gap-1 text-[15px] leading-[1.45] text-[#374151]">
-            <p className="m-0"><b className="font-semibold text-[#1d2025]">{C.lpPlanDone}</b> {C.lpPlanDoneLine(lp.done, lp.total)}</p>
+            <p className="m-0 text-[15px] leading-[1.45]"><b className="font-semibold text-[#1d2025]">{C.lpPlanDone}</b> {C.lpPlanDoneLine(lp.done, lp.total)}</p>
             {lp.as_planned ? (
-              <p className="m-0" dir="auto"><b className="font-semibold text-[#1d2025]">{C.lpAsPlanned}</b> <bdi>{`${lp.as_planned.step} — ${lp.as_planned.text}`}</bdi></p>
+              <p className="m-0 text-[15px] leading-[1.45]" dir="auto"><b className="font-semibold text-[#1d2025]">{C.lpAsPlanned}</b> <bdi>{`${lp.as_planned.step} — ${lp.as_planned.text}`}</bdi></p>
             ) : null}
             {lp.most_missed ? (
-              <p className="m-0" dir="auto">
+              <p className="m-0 text-[15px] leading-[1.45]" dir="auto">
                 <b className="font-semibold text-[#1d2025]">{C.lpMostMissed}</b>{" "}
-                <bdi>{`${lp.most_missed.step}, ${lp.most_missed.move}${lp.most_missed.time ? ` (${C.lpAbout(lp.most_missed.time)})` : ""}`}</bdi>
+                <bdi>{`${lp.most_missed.step}${C.lpComma}${lp.most_missed.move}${lp.most_missed.time ? ` (${C.lpAbout(lp.most_missed.time)})` : ""}`}</bdi>
                 {lp.most_missed.text ? <> — <bdi>{lp.most_missed.text}</bdi></> : null}
               </p>
             ) : null}
@@ -186,10 +186,10 @@ export function LessonPlanWeekBlock({ lp, C, lang }: { lp: LessonPlanWeek; C: Co
     <section aria-label={C.lpWeekTitle} data-testid="week-lesson-plan" className={SECTION}>
       <h3 className={LABEL}><BookOpen className="h-4 w-4" aria-hidden="true" />{C.lpWeekTitle}</h3>
       <div className="flex flex-col gap-1.5 text-[15px] leading-[1.45] text-[#374151]">
-        <p className="m-0"><b className="font-semibold text-[#1d2025]">{C.lpFull}</b> <bdi className="font-bold">{C.lpFullOf(lp.week.full, lp.week.of)}</bdi></p>
+        <p className="m-0 text-[15px] leading-[1.45]"><b className="font-semibold text-[#1d2025]">{C.lpFull}</b> <bdi className="font-bold">{C.lpFullOf(lp.week.full, lp.week.of)}</bdi></p>
         {lp.last ? <p className="m-0 text-[14px] text-[#4b5563]"><span aria-hidden="true">{trend}</span>{C.lpLastWeek(lp.last.full, lp.last.of)}</p> : null}
         {lp.mostMissed ? (
-          <p className="m-0"><b className="font-semibold text-[#1d2025]">{C.lpMissedMost}</b> <b className="font-semibold">{pick(lp.mostMissed.name, lang)}</b> — {C.lpMissedIn(lp.mostMissed.n, lp.mostMissed.of)}</p>
+          <p className="m-0 text-[15px] leading-[1.45]"><b className="font-semibold text-[#1d2025]">{C.lpMissedMost}</b> <b className="font-semibold">{pick(lp.mostMissed.name, lang)}</b> — {C.lpMissedIn(lp.mostMissed.n, lp.mostMissed.of)}</p>
         ) : null}
         {lp.noPlan > 0 ? <p className="m-0 text-[13px] text-[#6b7280]">{C.lpNoPlanWeek(lp.noPlan)}</p> : null}
       </div>
