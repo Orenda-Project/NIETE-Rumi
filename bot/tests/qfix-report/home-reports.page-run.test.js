@@ -168,6 +168,19 @@ describe('switch ON', () => {
     expect(texts(li).join(' | ')).toContain('۳۱ میں سے ۱۲ نے کھیلا');
     expect(li.querySelector('.th-late').textContent).toBe('رپورٹ کے بعد +۳');
   });
+
+  // Urdu numerals in Urdu prose (language-protocol §9.4): the whole Urdu home, not only this section, says no number in
+  // ASCII: the top card's count, a story's sent date, the grade, the section's counts and chip, the grade chips.
+  test('the whole Urdu home: no ASCII digit in anything a teacher reads', async () => {
+    const lib = { grade: 4, stories: [{ title: 'جنگل کی سیر', sent: '2026-11-20T09:00:00Z', href: 'https://portal.example/s/S' }] };
+    const rows = [row(1, { title: 'پودے کے حصے', of: 31, onList: 12, played: 13, late: 3 }), row(2, { title: 'کسر', played: 4, reported: false })];
+    const p = await open({ primary: { kind: 'class', played: 7, title: 'موسم', again: { id: 'own1' } }, library: lib, timeline: [], reports: { rows, rounds: null } }, { reports: true, lang: 'ur' });
+    const read = (el) => (/^(SCRIPT|STYLE)$/.test(el.tagName) || el.hidden ? '' : el.text + el.children.map(read).join(''));
+    const t = read(p.q('body'));
+    expect(t).toContain('۳۱ میں سے ۱۲'); // the section ran: the scan is not of an empty page
+    expect(t).toContain('۷'); // the top card's count
+    expect(t.match(/.{0,16}[0-9].{0,8}/g) || []).toEqual([]);
+  });
 });
 
 describe('switch OFF', () => {

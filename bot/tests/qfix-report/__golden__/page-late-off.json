@@ -8,16 +8,16 @@
   "bytes": 4572
  },
  "ur-screen": {
-  "sha256": "70ea09f69868574308a1e5eb97bc42fc188d9fbe3650d7a8b664bb8066904f02",
-  "bytes": 5613
+  "sha256": "2adf355cb03a8d32b67eb744f815bc3561911b843d6376099056aa02dbf3df7a",
+  "bytes": 5377
  },
  "en-print": {
   "sha256": "b21496323e05841f1fd36fd462ccd18f552e8127a740e8d4b3b9216a07352e1f",
   "bytes": 3936
  },
  "ur-print": {
-  "sha256": "a5d75f5a0634cc63e0defa985aa176f812f1ff57365c7d4fc2ce78dac043e4c7",
-  "bytes": 4824
+  "sha256": "d1f33d55b5a4e91e22d9fd336a942dd34692a5a54b50348a9266ec64f3022301",
+  "bytes": 4588
  },
  "story-en": {
   "sha256": "eb94cad753865126bd5b6899e05090d2451663aba335f2bba30bffe14be2a3ed",

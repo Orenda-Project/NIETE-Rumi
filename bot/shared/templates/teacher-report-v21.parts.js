@@ -3,17 +3,20 @@
  * bd-v0toag.9 / .10 — the teacher report page's v21 pieces. Each renders only when
  * teacher-report.data supplied its data, which it does only with app_settings
  * `quiz_slo_retest_enabled` on; otherwise each returns '' and the page is unchanged.
- * NIETE is flat en/ur: every string is in both.
+ * NIETE is flat en/ur: every string is in both. Urdu numbers in Urdu digits (digitsFor), as the page writes its own.
  */
+const { digitsFor } = require('../config/ux-strings');
 
 const STRINGS = {
   en: {
     completed: 'Completed',
+    pct: (p) => `${p}%`,
     tries: (n) => `<span class="num">${n}</span> tries`,
   },
   ur: {
     completed: 'مکمل کیا',
-    tries: (n) => `<span class="num">${n}</span> بار`,
+    pct: (p) => `${digitsFor(p, 'ur')}٪`,
+    tries: (n) => `<span class="num">${digitsFor(n, 'ur')}</span> بار`,
   },
 };
 
@@ -25,7 +28,7 @@ const int = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 0);
 /** The fourth tile: finished of started, beside Average. */
 function completionTile(c, lang) {
   if (!c || !int(c.started)) return '';
-  return `<div class="tile tile-done"><div class="k">${S(lang).completed}</div><div class="v num">${int(c.pct)}%</div><div class="t muted"><span class="num" dir="ltr">${int(c.finished)}/${int(c.started)}</span></div></div>`;
+  return `<div class="tile tile-done"><div class="k">${S(lang).completed}</div><div class="v num">${S(lang).pct(int(c.pct))}</div><div class="t muted"><span class="num" dir="ltr">${digitsFor(int(c.finished), lang)}/${digitsFor(int(c.started), lang)}</span></div></div>`;
 }
 
 /** "N tries" on a child's score row, only when they tried more than once. */
