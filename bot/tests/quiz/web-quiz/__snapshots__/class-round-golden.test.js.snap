@@ -142,28 +142,28 @@ exports[`round off (none): a Challenge run is byte-identical exercise payload, t
 exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
   "bytes": 98379,
-  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
+  "sha256": "dd9d7828 6c489655 2ca7faf2 cf5aae3f 789c03e9 8e22b22a 6abd3a27 d3ebef50",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
   "bytes": 99350,
-  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
+  "sha256": "c8643778 608f7b41 8763988f 3b68141a 3c2e9e55 af6e1670 22920411 53281925",
 }
 `;
 
@@ -373,28 +373,28 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
 exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
   "bytes": 98379,
-  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
+  "sha256": "dd9d7828 6c489655 2ca7faf2 cf5aae3f 789c03e9 8e22b22a 6abd3a27 d3ebef50",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
   "bytes": 99350,
-  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
+  "sha256": "c8643778 608f7b41 8763988f 3b68141a 3c2e9e55 af6e1670 22920411 53281925",
 }
 `;
 
@@ -540,27 +540,27 @@ exports[`round off (parent_off): a Challenge run is byte-identical exercise payl
 exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
   "bytes": 98051,
-  "sha256": "52fa7a10d48a3b651dc1d43771bd8e3c44e35e5fe86af583a228841fdb7c612f",
+  "sha256": "52fa7a10 d48a3b65 1dc1d437 71bd8e3c 44e35e5f e86af583 a228841f db7c612f",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
   "bytes": 98379,
-  "sha256": "dd9d78286c4896552ca7faf2cf5aae3f789c03e98e22b22a6abd3a27d3ebef50",
+  "sha256": "dd9d7828 6c489655 2ca7faf2 cf5aae3f 789c03e9 8e22b22a 6abd3a27 d3ebef50",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
   "bytes": 99350,
-  "sha256": "c8643778608f7b418763988f3b68141a3c2e9e55af6e16702292041153281925",
+  "sha256": "c8643778 608f7b41 8763988f 3b68141a 3c2e9e55 af6e1670 22920411 53281925",
 }
 `;
