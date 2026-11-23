@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 28 (the operator and the 17 Nov evaluation meeting): three switches, each OFF by default, on the battery route.
  *
@@ -145,7 +146,7 @@ describe('the engine route reads the round 28 switches', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, rdfW3Forms: () => true, ...readers }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const res = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G3.A.ur.json`);
       expect(res.status).toBe(200);

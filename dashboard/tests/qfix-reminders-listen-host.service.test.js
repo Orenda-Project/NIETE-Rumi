@@ -69,13 +69,13 @@ describe('why: a second bind on the harness port', () => {
 });
 
 describe('the harness files this change edits keep a host on every listen(0)', () => {
-  // The files edited by bd-w2x3l4, relative to the repo root (listen-host.files.json beside this test). A new host-less
-  // listen(0) in one of them brings back the shared-port 404.
+  // The files edited by bd-w2x3l4 (both parts), relative to the repo root (listen-host.files.json beside this test). A
+  // new host-less listen(0) in one of them brings back the shared-port 404.
   const ROOT = path.join(__dirname, '..', '..');
   const FILES = require('./qfix-reminders-listen-host.files.json');
-  // A bare `.listen(0)` is not this check's: a host makes the bind wait, so a caller reading address() on the next line
-  // would read null. Only the callback form (bind, then the callback) takes the host.
-  const HOSTLESS = /\.listen\(\s*0\s*,\s*(\(?[\w$,\s]*\)?\s*=>|async\s*\(|function\b|[A-Za-z_$][\w$]*\s*\))/;
+  // The callback form with no host, and the bare form: a bare listen(0) binds every interface too. Its caller reading
+  // address() on the next line needs the bind to have happened, so those files wait for 'listening' with the host.
+  const HOSTLESS = /\.listen\(\s*0\s*(\)|,\s*(\(?[\w$,\s]*\)?\s*=>|async\s*\(|function\b|[A-Za-z_$][\w$]*\s*\)))/;
   test.each(FILES)('%s', (f) => {
     const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
     const bad = text.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => HOSTLESS.test(l)).map(([n]) => n);

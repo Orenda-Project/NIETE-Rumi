@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 28 (sa_r28_end_task_copy; the engine reads battery.ui.r28_end_task_copy): the coach's hold menu (press and
  * hold, on every coach-led screen, inside the coach page's frame too) offers "End this task", which ends the test
@@ -66,7 +67,7 @@ describe('sa_r28_end_task_copy: the engine route reads it from app_settings, JSO
     const app = express();
     // only this switch is left to the router's own reader (the default, app_settings)
     app.use(createSaEngineRouter({ on: () => true, switchHold: off, practiceAllMaths: off, passageRotation: off, voiceV2: off }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${NAME}`);
       return r.json();

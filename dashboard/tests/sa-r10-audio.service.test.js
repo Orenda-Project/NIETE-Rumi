@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 10 (the reviewers' 6 Nov list), audio 3 and audio 4:
  *   3. "No audio on 'Which is bigger': the screen that explains the task plays no audio."
@@ -272,7 +273,7 @@ describe('the switches sa_r10_bigger_audio and sa_r10_practice_gap', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, ...flags }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const name = fs.readdirSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa')).find((n) => /^sa\.coach\..*\.ur\.json$/.test(n));
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${name}`);

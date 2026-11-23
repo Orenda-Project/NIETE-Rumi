@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 // the flag cache off: each test reads its own app_settings rows (an ON row cached for 30 s would answer the OFF test)
 process.env.FLAG_CACHE_TTL_MS = '0';
 /**
@@ -50,7 +51,7 @@ describe('the engine route reads them from app_settings', () => {
     const readers = Object.fromEntries(Object.keys(R7B).map((k) => [k, on]));
     const app = express();
     app.use(createSaEngineRouter({ on, practiceAllMaths: off, passageRotation: off, voiceV2: off, ...readers }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const name = fs.readdirSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa')).find((n) => /^sa\.coach\..*\.ur\.json$/.test(n));
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${name}`);
@@ -81,7 +82,7 @@ describe('GET /sa/switches (portal, per coach)', () => {
     const app = express();
     app.use((req, _res, next) => { req.session = { portalUserId: 'coach-1' }; next(); });
     app.use('/', require('../routes/portal-child-test.routes'));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/switches`);
       return { status: r.status, body: await r.json() };

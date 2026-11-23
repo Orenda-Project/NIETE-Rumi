@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 // the flag cache off: each test reads its own app_settings rows (an ON row cached for 30 s would answer the OFF test)
 process.env.FLAG_CACHE_TTL_MS = '0';
 /**
@@ -26,7 +27,7 @@ async function switches() {
   const app = express();
   app.use((req, _res, next) => { req.session = { portalUserId: 'coach-1' }; next(); });
   app.use('/', require('../routes/portal-child-test.routes'));
-  const srv = app.listen(0);
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/switches`);
     return { status: r.status, body: await r.json() };

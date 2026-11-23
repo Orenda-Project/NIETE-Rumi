@@ -1,4 +1,5 @@
 'use strict';
+require('./fixtures/binds-loopback');
 /**
  * Round 8 (the reviewer's 28 Oct list), the child's screens: one app_settings switch per item, each OFF by default.
  * JSON true only; the battery file carries battery.ui.r8_<flag> while ON, nothing while OFF (byte-identical battery).
@@ -46,7 +47,7 @@ describe('the engine route reads the round 8 switches', () => {
     const off = () => false;
     const app = express();
     app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: off, passageRotation: off, voiceV2: off, ...readers }));
-    const srv = app.listen(0);
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const name = fs.readdirSync(path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa')).find((n) => /^sa\.coach\..*\.ur\.json$/.test(n));
       const r = await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/${name}`);
