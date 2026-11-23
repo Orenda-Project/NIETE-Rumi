@@ -300,6 +300,11 @@ const TABLE = [
   { id: 'WQ276', title: 'Once the child has finished the previous school day\'s quiz the row is greyed, is not a link, and shows their stars' },
   { id: 'WQ277', title: 'The Home has no more than one past row, and none unless the previous school day\'s round is this child\'s class\'s' },
   { id: 'WQ278', title: 'A class\'s evening round is never \'From your teacher\' on the hub' },
+  { id: 'WQ279', title: 'A child who finished tonight\'s quiz is never handed it again' },
+  { id: 'WQ280', title: 'The \'Quiz ready\' and \'Done for tonight!\' badges wrap inside their chip' },
+  { id: 'WQ281', title: 'The class link\'s reminder ask comes after a child is picked, never before' },
+  { id: 'WQ282', title: 'A class quiz\'s title drops the lesson plan\'s bracket of answer formats' },
+  { id: 'WQ283', title: 'Without a class-link canary row no class gets an evening round' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
