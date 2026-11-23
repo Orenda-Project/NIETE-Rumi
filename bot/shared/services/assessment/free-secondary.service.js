@@ -113,7 +113,7 @@ function postProcess(examJson, { grade, plan, totalMarks }) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference, contentSource = 'unseen', questionCount,
     questionTypes = [], includeAnswerKey = false, totalMarks = null, seenCount = null, seenTypes = null, slos = null,
-    chapterTitle = null, keySeed = null } = args;
+    chapterTitle = null, keySeed = null, seenPicked = null } = args;
   const checkOpts = { grade, lessonTitle: chapterTitle };
 
   const base = BASE_SUBJECT[String(subject || '').trim().toLowerCase()] || subject;
@@ -144,7 +144,7 @@ async function generateExam(args) {
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
       questionCount: sizedCount + pool.extra, questionTypes: pool.types,
-      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, seenTypes, slos,
+      totalMarks: totalMarks == null ? totalMarks : totalMarks + pool.extra, seenCount, seenTypes, slos, seenPicked,
       standardMarks: false }) }, // 6-12 sizes its own marks (Rules.sizeTypes)
   ];
   logToFile('[assessment] generating (grades 6-12 free)', {

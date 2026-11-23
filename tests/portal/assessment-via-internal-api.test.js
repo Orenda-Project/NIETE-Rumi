@@ -170,9 +170,9 @@ describe('the seven endpoints exist on the bot', () => {
     const src = read(INTERNAL);
     const block = src.slice(src.indexOf('assessment generator'));
     const routes = block.match(/router\.post\('\/assessment\/[a-z]+'/g) || [];
-    expect(routes.length).toBe(7);
+    expect(routes.length).toBe(8); // + exercises (AG row 21)
     // Every one of them names the guard on the same line.
     const guarded = block.match(/router\.post\('\/assessment\/[a-z]+', requireInternalKey/g) || [];
-    expect(guarded.length).toBe(7);
+    expect(guarded.length).toBe(8);
   });
 });
