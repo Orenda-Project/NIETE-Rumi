@@ -65,8 +65,10 @@ function fakeDb({ slots = SLOTS, replica = true, teachers, failBatch = -1 } = {}
       };
       return b;
     },
-    async rpc(name, args) {
+    // The real replica answers GET only (23 Nov 2026: a POST rpc came back HTTP 400), so this fake does too.
+    async rpc(name, args, opts) {
       calls.push([name, args && args.p_user_ids ? args.p_user_ids.length : undefined]);
+      if (!(opts && opts.get === true)) return { data: null, error: { message: 'Read replica does not handle POST requests' } };
       if (name === 'db_is_replica') return { data: replica, error: null };
       if (name === 'teacher_activity_teachers') return { data: list, error: null };
       if (name === 'teacher_activity_batch') {
