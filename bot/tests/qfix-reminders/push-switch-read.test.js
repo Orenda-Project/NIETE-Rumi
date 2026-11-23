@@ -81,7 +81,7 @@ describe('the routes: 503 while unread, 404 {off:true} only on a real off', () =
     const { mountPushRemind, MOUNT_PATH } = require('../../shared/services/first-touch/push-remind.mount');
     const app = express();
     mountPushRemind(app);
-    const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+    const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
     try {
       const r = await fetch(`http://127.0.0.1:${srv.address().port}${MOUNT_PATH}${path}`, { headers: { 'x-api-key': process.env.INTERNAL_API_KEY } });
       return { status: r.status, body: await r.json() };

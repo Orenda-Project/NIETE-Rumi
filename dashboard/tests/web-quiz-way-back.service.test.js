@@ -118,7 +118,7 @@ async function boot({ inject = true, locals = undefined, bot = true } = {}) {
   if (inject) opts.wayBackOn = () => door;
   app.use(createWebQuizRouter(opts));
   app.use((r, res) => res.status(418).send('fell through'));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())).then(() => { srv = null; }));
 
@@ -162,7 +162,7 @@ describe('switch ON, no number configured', () => {
     resetSwitch();
     const app = express();
     app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), wayBackOn: async () => true }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     const r = await req(srv, `/quiz/go/${GO_TOK}`);
     expect(r.status).toBe(503);
     expect(r.body).toContain('data-screen="go.error"');
@@ -189,7 +189,7 @@ describe('switch ON, number configured', () => {
     number('whatsapp');
     const app = express();
     app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), wayBackOn: async () => true }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     const r = await req(srv, `/quiz/go/${GO_TOK}`);
     expectOneTap(r.body, WA, [UR, EN]);
     expect(r.body.match(/wa\.me/g)).toHaveLength(1);
@@ -263,7 +263,7 @@ describe('switch OFF in every state: byte-identical to the page before the chang
         resetSwitch();
         const app = express();
         app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), ...(wayBackOn ? { wayBackOn } : {}) }));
-        await new Promise((r) => { srv = app.listen(0, r); });
+        await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
         const r = await req(srv, `/quiz/go/${GO_TOK}`);
         const bot = which ? WA_BOT : null;
         expect(r.body).toBe(GoPage.buildMessagePage({ id: 'go.error', lang: 'bi', bot }).html);
@@ -401,7 +401,7 @@ describe('every other closed-page kind speaks the link\'s language too (switch O
     resetSwitch();
     const app = express();
     app.use(createQuizGoRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async () => jsonRes(503, {}), ...(wayBackOn ? { wayBackOn } : {}) }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
     return req(srv, p, headers);
   };
   test('ON: the edge\'s go.error + ?lang=ur on an English phone → the Urdu-only page', async () => {

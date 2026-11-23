@@ -219,7 +219,7 @@ describe('the edge forwards a whitelisted lang on /h/<token>', () => {
     body = { lang: 'ur', kids: [{ chip: '0123456789abcdef', first: 'Sana', animal: 'owl', grade: '3' }], kid: '0123456789abcdef', teacher: null, again: [], recs: [], challenge: null, lib: null, brand: 'niete' };
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async (url) => { calls.push(url); return { status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   const get = (p) => new Promise((resolve, reject) => {

@@ -17,7 +17,7 @@ async function boot() {
   const callBot = async (method, path, req, body) => { calls.push({ method, path, body }); return { status: 204, bytes: Buffer.alloc(0), contentType: 'text/plain' }; };
   const app = express();
   app.use(createQuizTeacherRouter({ callBot }));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 function post(body) {

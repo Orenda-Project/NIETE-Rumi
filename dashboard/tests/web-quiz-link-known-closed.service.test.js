@@ -17,7 +17,7 @@ const KEY = 'test-internal-key';
 const DEV = 'dddddddddddddddddddddd';
 const HOME = '/h/eyJrIjoiaCIsImlkcyI6WyJ4Il19.AbCdEfGhIjKlMnOpQrStUv?from=link';
 const jsonRes = (status, body) => ({ status, ok: status < 300, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(body) });
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 function get(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path, headers }, (res) => {

@@ -55,7 +55,7 @@ let srv; let calls; let answer; let clock;
 async function start() {
   const app = express();
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, now: () => clock, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return answer(url); } }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 beforeEach(async () => {
   calls = [];
@@ -203,7 +203,7 @@ describe('several portal workers: what one learned, another can ask the bot for 
     answer = (url) => (url.indexOf('/art/') >= 0 ? jpegRes() : url.indexOf('/api/internal/wq/og/') >= 0 ? jsonRes(200, ogBody()) : jsonRes(200, payload()));
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, now: () => clock, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return answer(url); } }));
-    await new Promise((r) => { srv2 = app.listen(0, r); });
+    await new Promise((r) => { srv2 = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv2.close(r)));
   const ogCalls = () => calls.filter((c) => c.url.indexOf('/api/internal/wq/og/') >= 0).length;

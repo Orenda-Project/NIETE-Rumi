@@ -543,7 +543,7 @@ describe('internal routes /api/internal/wq/ch/*', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     const base = `http://127.0.0.1:${srv.address().port}/api/internal/wq`;
     const H = { 'x-api-key': 'test-internal-key', 'content-type': 'application/json', 'x-wq-device': DEV };
     try {

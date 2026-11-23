@@ -117,7 +117,7 @@ describe('the upload marks the mic notice seen on this phone', () => {
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
     let server;
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     try {
       const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
       const ct = await readCt();

@@ -498,7 +498,7 @@ describe('the page shell answer', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const old = T.sign({ k: 'j', n: T.newNonce(), l: 'ur', exp: Math.floor(Date.now() / 1000) - 5 });
       const res = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/join/page/${old}`, { headers: { 'x-api-key': 'route-key' } });

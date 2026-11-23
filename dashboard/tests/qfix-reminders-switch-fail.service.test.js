@@ -22,7 +22,7 @@ function start({ bot = () => ({ status: 404, body: { off: true } }), on, flagDb,
   app.use(createPushRemindRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl, logEvent, ...(on ? { on } : {}), ...(flagDb ? { flagDb } : {}), ...(flagNow ? { flagNow } : {}) }));
   app.use((req, res) => res.status(404).send('portal'));
   const server = http.createServer(app);
-  return new Promise((r) => server.listen(0, () => r({ server, base: `http://127.0.0.1:${server.address().port}` })));
+  return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, base: `http://127.0.0.1:${server.address().port}` })));
 }
 let s;
 afterEach(() => new Promise((r) => (s ? s.server.close(() => { s = null; r(); }) : r())));

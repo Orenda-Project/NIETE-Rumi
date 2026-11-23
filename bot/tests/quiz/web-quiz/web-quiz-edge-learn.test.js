@@ -70,7 +70,7 @@ describe('GET /api/internal/wq/edge', () => {
     process.env.INTERNAL_API_KEY = 'route-key';
     const app = express();
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   });
   afterAll(() => new Promise((r) => server.close(r)));

@@ -38,7 +38,7 @@ const HUB_UR = (extra = {}) => ({
 });
 const LEARN = (extra = {}) => ({ learn: true, fast: true, brand: 'niete', rt: false, ui: { ur2: true, fl: true }, one_face: false, adv: true, ...extra });
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 const settle = () => new Promise((r) => setTimeout(r, 30));
 
 function get(srv, p, { onChunk, headers = {} } = {}) {

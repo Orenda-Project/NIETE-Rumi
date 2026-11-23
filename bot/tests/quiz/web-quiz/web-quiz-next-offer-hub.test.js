@@ -558,7 +558,7 @@ describe('the routes wrap the results: switch off -> the body is today\'s, byte 
     const app = express();
     app.use(express.json());
     app.use('/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     base = `http://127.0.0.1:${server.address().port}/wq`;
   });
   afterAll(() => new Promise((r) => server.close(r)));
@@ -943,7 +943,7 @@ describe('GET /ch/result/:ct with a FINAL result: off -> byte for byte; on -> pl
     const app = express();
     app.use(express.json());
     app.use('/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    await new Promise((r) => { server = app.listen(0, r); });
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
     server.keepAliveTimeout = 120000;   // the client reuses its socket across these tests: never one closed under it
     base = `http://127.0.0.1:${server.address().port}/wq`;
   });

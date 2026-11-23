@@ -76,7 +76,7 @@ describe('through the route (the bot faked)', () => {
     const app = express();
     const fetchImpl = async () => ({ status: 200, ok: true, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(menu) });
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl }));
-    const srv = app.listen(0, () => r(srv));
+    const srv = app.listen(0, '127.0.0.1', () => r(srv));
   });
   const get = (srv) => new Promise((resolve, reject) => {
     http.get({ host: '127.0.0.1', port: srv.address().port, path: `/c/${TOKEN}` }, (res) => { let o = ''; res.on('data', (c) => { o += c; }); res.on('end', () => resolve(o)); }).on('error', reject);

@@ -105,7 +105,7 @@ async function serve(steps, paths, calls = []) {
     botUrl: 'http://bot.test', apiKey: 'k', logEvent: () => {}, botTimeoutMs: 40, canonicalBase: '',
     fetchImpl: (url, opts) => { calls.push(String(url)); return answer(q.length > 1 ? q.shift() : q[0], opts); },
   }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const out = [];
     for (const p of paths) out.push(shape(await get(srv, p.path, p.headers)));

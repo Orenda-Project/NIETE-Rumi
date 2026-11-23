@@ -59,7 +59,7 @@ async function boot(payload) {
   app.set('trust proxy', true);
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, logEvent: () => {}, fetchImpl: async (url) => { calls.push(url); return answer(url); }, canonicalBase: '' }));
   app.use((r, res) => res.status(418).send('fell through'));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => (srv ? new Promise((r) => srv.close(r)) : null));
 

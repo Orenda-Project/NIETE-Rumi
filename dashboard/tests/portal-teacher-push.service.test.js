@@ -25,7 +25,7 @@ function start({ bot = () => ({ status: 404, body: { off: true } }), session = {
   app.use('/api/portal', createPortalTeacherPushRouter({ botUrl, apiKey, fetchImpl, logEvent: () => {} }));
   app.use((req, res) => res.status(404).send('portal'));
   const server = http.createServer(app);
-  return new Promise((r) => server.listen(0, () => r({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
+  return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
 }
 const post = (base, op, body) => fetch(`${base}/api/portal/push/${op}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 

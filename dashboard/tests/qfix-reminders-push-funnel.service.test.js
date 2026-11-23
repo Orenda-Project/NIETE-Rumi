@@ -53,7 +53,7 @@ describe('delivered: the worker reports a shown reminder', () => {
       botUrl: 'http://bot.test', apiKey: 'k', on: () => true, logEvent: () => {},
       fetchImpl: async (url, init) => { calls.push({ url, body: init.body ? JSON.parse(init.body) : null }); return { status: 200, headers: { get: () => 'application/json' }, text: async () => '{"ok":1}' }; },
     }));
-    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, () => r(x)); });
+    const srv = await new Promise((r) => { const x = http.createServer(app).listen(0, '127.0.0.1', () => r(x)); });
     try {
       const res = await fetch(`http://127.0.0.1:${srv.address().port}/api/wqpush/delivered`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tag: 'jugnu-remind' }) });
       expect(res.status).toBe(200);
@@ -70,7 +70,7 @@ describe('landed: a quiz page opened from a reminder', () => {
     const app = express();
     app.set('trust proxy', 1);
     app.use(R.createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: () => Promise.resolve(jsonRes(QUIZ)), logEvent: (e, d) => events.push([e, d]) }));
-    const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+    const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
     try {
       await new Promise((resolve, reject) => {
         const rq = http.request({ host: '127.0.0.1', port: srv.address().port, path: p, headers: { host: 'portal.example', ...headers } }, (res) => { res.resume(); res.on('end', resolve); });

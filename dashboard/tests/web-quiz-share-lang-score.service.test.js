@@ -55,7 +55,7 @@ async function start({ en = false, quiz, short } = {}) {
       return jsonRes(200, payload(quiz));
     },
   }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   servers.push(srv);
   return srv;
 }

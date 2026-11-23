@@ -46,7 +46,7 @@ const HUB = (lang, extra = {}) => ({
 const LOCKED = (lang, extra = {}) => ({ lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: 'niete', rt: false, fast: true, home_pre: true, home_inline: true, early_unlock: true, adv: true, ui: uiOf(lang), ...extra });
 const LEARN = (lang, extra = {}) => ({ learn: true, fast: true, brand: 'niete', rt: false, ui: uiOf(lang), one_face: false, adv: true, wait_ux: false, home_inline: true, early_unlock: true, home_v3: 1, ...extra });
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 const settle = () => new Promise((r) => setTimeout(r, 20));
 
 function request(srv, method, p, { onFirstChunk, body, cookie } = {}) {

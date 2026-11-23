@@ -138,7 +138,7 @@ describe('switch on: the grown-ups corner\'s «اردو» lasts', () => {
     const app = express();
     app.use(express.json());
     app.use('/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const url = `http://127.0.0.1:${server.address().port}/wq/hub/${T.signHub([KID])}`;
       const H = { 'x-api-key': 'route-key', 'content-type': 'application/json' };

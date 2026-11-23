@@ -86,7 +86,7 @@ async function bootApp() {
 
   process.env.TRANSCRIPT_QUIZ_FLOW_ID = 'flow-123';
   const { app } = require('../../../whatsapp-bot');
-  const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const port = server.address().port;
 
   async function post(interactive) {

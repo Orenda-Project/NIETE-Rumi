@@ -48,7 +48,7 @@ describe('GET /api/wq/book/h/:token', () => {
     calls = [];
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return { status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ name: 'Zara' }) }; } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   test('forwarded to the bot with the phone\'s device; a malformed token never reaches it', async () => {

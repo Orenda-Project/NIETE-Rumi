@@ -191,7 +191,7 @@ describe('the head keeps the offer, written only with the manifest', () => {
     app.set('trust proxy', 1);
     const answers = [jsonRes(answer), jsonRes(answer)];
     app.use(R.createWebQuizRouter({ botUrl: BOT, apiKey: 'test-internal-key', fetchImpl: () => Promise.resolve(answers.shift()) }));
-    const srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    const srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
     try {
       await get(srv, `/h/${TOKEN}`);            // the edge learns `fast` from this answer
       const body = await get(srv, `/h/${TOKEN}`); // flushed: head + frame now, the tail when the bot answers

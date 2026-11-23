@@ -52,7 +52,7 @@ function bot(fast) {
   return (url) => Promise.resolve(String(url).includes('/hub/') ? jsonRes(200, HUB({ fast })) : jsonRes(200, QUIZ({ fast })));
 }
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 // This file is about the brotli copies, not the minified files: the router's own start-up minifying (esbuild over every
 // page file, in the background, competing with the brotli work for the CPU) is stood in for by one that returns each file as is.
 const NO_MINIFY = { transform: async (src) => ({ code: src }) };

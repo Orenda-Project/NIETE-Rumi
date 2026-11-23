@@ -51,7 +51,7 @@ const HUB = (extra = {}) => ({
 const EVERY = { home_every: true };
 const CHILD_B = { kids: [{ chip: KID_B, first: 'Bina Testwala', animal: 'cat', grade: '2' }], kid: KID_B };
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 
 function get(srv, p, { onFirstChunk, onChunk, cookie, lang } = {}) {
   return new Promise((resolve, reject) => {

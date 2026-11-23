@@ -23,7 +23,7 @@ async function boot(answer) {
   calls = [];
   const app = express();
   app.use(createTeacherReportRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async (url, init) => { calls.push({ url, init }); return answer(url, init); } }));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 function req(method, path, form = null, extra = {}) {

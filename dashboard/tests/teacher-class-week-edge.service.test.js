@@ -22,7 +22,7 @@ function botRes(status, { body = '', type = 'text/html; charset=utf-8', location
 }
 
 function start(app) {
-  return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+  return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 }
 function get(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {

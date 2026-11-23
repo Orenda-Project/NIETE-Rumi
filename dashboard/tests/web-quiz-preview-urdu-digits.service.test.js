@@ -40,7 +40,7 @@ beforeEach(async () => {
     if (/\/api\/internal\/wq\/card\/[^/]+$/.test(url)) return jsonRes(404, { error: 'not_found' });
     return jsonRes(200, page);
   } }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 

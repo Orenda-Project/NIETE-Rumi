@@ -283,7 +283,7 @@ describe('POST /api/wq/hub/grade', () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'test-internal-key', fetchImpl: async (url, opts) => { calls.push({ url, opts }); return jsonRes(answer[0], answer[1]); } }));
     app.use((r, res) => res.status(418).send('fell through'));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   const dv = 'wq_dv=AAAAAAAAAAAAAAAAAAAAAA';

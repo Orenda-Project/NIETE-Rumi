@@ -258,7 +258,7 @@ describe('GET /api/internal/wq/ch/:token/back: where the hand-back button goes',
     const express = require('express');
     const a = express();
     a.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = a.listen(0, '127.0.0.1', () => r(s)); });
     return { srv, base: `http://127.0.0.1:${srv.address().port}/api/internal/wq` };
   }
   const KEY = { 'x-api-key': 'test-internal-key' };
@@ -293,7 +293,7 @@ describe('GET /api/internal/wq/ch/:token/back: where the hand-back button goes',
     const express = require('express');
     const a = express();
     a.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
-    const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = a.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const page = await fetch(`http://127.0.0.1:${srv.address().port}/api/internal/tr/round/${rt}?lang=en`, { headers: { ...KEY, 'x-wq-device': DEV } });
       expect(page.status).toBe(200);

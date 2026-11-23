@@ -35,7 +35,7 @@ async function start() {
   const app = express();
   app.set('trust proxy', true);
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', logEvent: () => {}, fetchImpl: async (url) => { calls.push(url); return jsonRes(200, FACTS); }, storyEnv: 'sandbox', cardReadyOn: async () => true, cardFastOn: async () => fast, cardObject: async (key) => { asked.push(key); return store.get(key) || null; }, cardCache: { get: async (k) => { gets.push(k); return redisGet(k); }, set: async (k, v, ttl) => { sets.push([k, v, ttl]); redis.set(k, v); return true; } } }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 beforeEach(async () => {
   calls = []; fast = true; store = new Map(); asked = []; redis = new Map(); gets = []; sets = [];

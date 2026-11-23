@@ -108,7 +108,7 @@ async function boot(store, { userLookupFails = false, redis = memRedis() } = {})
     detectIntent: jest.fn(async () => ({ intent: 'general' })),
   }));
   const { app } = require('../../whatsapp-bot');
-  const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const port = server.address().port;
   async function text(body) {
     const before = sent.length;

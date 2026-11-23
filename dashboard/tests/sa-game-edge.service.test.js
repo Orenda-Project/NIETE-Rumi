@@ -22,7 +22,7 @@ function start({ bot, on = () => true, botUrl = 'http://bot.test', apiKey = 'k',
   app.use(createSaGameRouter({ botUrl, apiKey, fetchImpl, on, holdMs, logEvent: () => {} }));
   app.use((req, res) => res.status(404).send('portal'));
   const server = http.createServer(app);
-  return new Promise((r) => server.listen(0, () => r({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
+  return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
 }
 
 let s;

@@ -94,7 +94,7 @@ async function postUndo(body, device = DEVICE) {
   const a = express();
   a.use(express.json());
   a.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  const server = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+  const server = await new Promise((r) => { const s = a.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const res = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/bind/undo`, {
       method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': 'unit-internal-key', ...(device ? { 'x-wq-device': device } : {}) }, body: JSON.stringify(body),

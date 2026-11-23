@@ -25,7 +25,7 @@ let srv;
 async function boot(answer) {
   const app = express();
   app.use(createTeacherReportRouter({ botUrl: BOT, apiKey: 'k', fetchImpl: async () => answer() }));
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())));
 function get(path) {

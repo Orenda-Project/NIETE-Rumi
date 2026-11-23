@@ -37,7 +37,7 @@ async function withPage(status, body, fn) {
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, canonicalBase: '' }));
   app.use(createQuizJoinRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, logEvent: () => {} }));
   app.use((r, res) => res.status(418).send('the portal page'));
-  const srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   try { return await fn(srv); } finally { await new Promise((r) => srv.close(r)); }
 }
 

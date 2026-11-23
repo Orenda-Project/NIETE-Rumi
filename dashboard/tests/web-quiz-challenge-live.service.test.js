@@ -370,7 +370,7 @@ describe('the challenge shell loads the live module before the page (an HTTP ren
   test('wq-read-live.js is served versioned, before wq-challenge.js; the page sends no CSP that would block the Soniox socket', async () => {
     const app = express();
     app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => ({ status: 200, ok: true, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(MENU) }) }));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const res = await new Promise((resolve, reject) => {
         http.get({ host: '127.0.0.1', port: srv.address().port, path: `/c/${TOKEN}?lang=en` }, (r) => { let b = ''; r.on('data', (c) => { b += c; }); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body: b })); }).on('error', reject);

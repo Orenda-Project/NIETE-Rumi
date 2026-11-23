@@ -54,7 +54,7 @@ async function walk(lang) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: 'k', fetchImpl, canonicalBase: '' }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   try {
     const page = await req(srv, 'GET', `/j/${CODE}`);
     const boot = JSON.parse(page.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);

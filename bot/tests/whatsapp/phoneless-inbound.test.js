@@ -225,7 +225,7 @@ describe('the real webhook (POST /webhook), edges doubled', () => {
       detectIntent: jest.fn(async () => ({ intent: 'general' })),
     }));
     const { app } = require('../../whatsapp-bot');
-    const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+    const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
     const post = async (payload) => {
       const before = sent.length;
       const res = await fetch(`http://127.0.0.1:${server.address().port}/webhook`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });

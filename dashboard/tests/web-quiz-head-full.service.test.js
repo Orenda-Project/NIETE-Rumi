@@ -48,7 +48,7 @@ async function boot(on) {
   const opts = { botUrl: BOT, apiKey: KEY, now: () => t, fetchImpl: async (u) => { calls.push(String(u)); return jsonRes(200, URDU()); } };
   if (on !== undefined) opts.headFullOn = async () => on;
   const app = express(); app.set('trust proxy', 1); app.use(createWebQuizRouter(opts));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 afterEach(() => new Promise((r) => (srv ? srv.close(r) : r())).then(() => { srv = null; }));
 

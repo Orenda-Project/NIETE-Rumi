@@ -44,7 +44,7 @@ beforeEach(async () => {
   answer = () => jsonRes(200, payload());
   const app = express();
   app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return answer(url); } }));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 

@@ -24,7 +24,7 @@ function botRes(status, { body = '', type = 'application/json', location = null 
     arrayBuffer: async () => { const b = Buffer.from(body); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); },
   };
 }
-function start(app) { return new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); }); }
+function start(app) { return new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); }); }
 function req(srv, method, path, { headers = {}, body = null } = {}) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method, path, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...headers } }, (res) => {

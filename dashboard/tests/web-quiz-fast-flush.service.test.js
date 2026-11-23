@@ -40,7 +40,7 @@ const URDU = (extra = {}) => {
   return { ...q, quiz: { ...q.quiz, code: 'UR12CD', topic: 'پودے کے حصے', lang: 'ur', dir: 'rtl' }, ui: { ur2: true } };
 };
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 
 /** GET path; resolves with the status, headers, the chunks as they came, and the whole body at the end. */
 function get(srv, path, { onFirstChunk } = {}) {

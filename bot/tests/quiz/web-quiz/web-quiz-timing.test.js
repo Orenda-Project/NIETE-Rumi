@@ -23,7 +23,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
   Timing = require('../../../shared/services/quiz/web-quiz-timing');
-  await new Promise((r) => { server = app.listen(0, r); });
+  await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
   base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
 });
 afterAll(() => new Promise((r) => server.close(r)));

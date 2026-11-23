@@ -42,7 +42,7 @@ const HUB = (extra = {}) => ({
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
 
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 
 function get(srv, path, headers = {}) {
   return new Promise((resolve, reject) => {

@@ -166,7 +166,7 @@ async function serve(fn) {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   const ask = async (q = '') => {
     const res = await fetch(`${base}/quiz/AB12CD${q}`, { headers: { 'x-api-key': 'test-key' } });

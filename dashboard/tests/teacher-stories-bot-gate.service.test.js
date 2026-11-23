@@ -72,7 +72,7 @@ function bot(kind) {
   return { calls, fetchImpl };
 }
 
-function start(app) { return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); }); }
+function start(app) { return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); }); }
 function stop(srv) { return new Promise((r) => srv.close(r)); }
 function req(srv, method, p, body, headers = {}) {
   return new Promise((resolve, reject) => {

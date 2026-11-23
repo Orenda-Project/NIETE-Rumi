@@ -45,7 +45,7 @@ beforeAll(async () => {
   Object.assign(process.env, ENV);
   const app = express();
   expect(mountPushRemind(app)).toBe(true);
-  srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   base = `http://127.0.0.1:${srv.address().port}`;
 });
 afterAll(() => srv && srv.close());

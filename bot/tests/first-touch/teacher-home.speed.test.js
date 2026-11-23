@@ -87,7 +87,7 @@ function setup({ report = null } = {}) {
 async function boot(deps) {
   const app = express();
   app.use('/api/internal/th', createRouter(deps));
-  await new Promise((r) => { srv = app.listen(0, r); });
+  await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
 }
 async function home(t = tokenFor()) {
   t0 = Date.now(); log = {};

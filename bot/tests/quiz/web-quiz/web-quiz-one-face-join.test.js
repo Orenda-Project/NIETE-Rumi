@@ -80,7 +80,7 @@ async function realRoute(settings, fn) {
   const express = require('express');
   const app = express(); app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const ask = async (o = {}) => { const r = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/join/page/${o.stale ? old : tok}`, { headers: { 'x-api-key': 'route-key' } }); return { status: r.status, body: JSON.parse(await r.text()) }; };
   const settle = () => new Promise((r) => setTimeout(r, 30));
   const real = Date.now; let shift = 0; Date.now = () => real() + shift;

@@ -79,7 +79,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  await new Promise((r) => { server = app.listen(0, r); });
+  await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
   base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
 });
 afterAll(() => new Promise((r) => server.close(r)));
@@ -264,7 +264,7 @@ describe('another writer\'s Server-Timing on the same answer is kept, in one hea
       if (order === 'append') res.append('Server-Timing', OTHER);
       res.status(200).json({ ok: true });
     });
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       return await new Promise((resolve, reject) => {
         http.get({ host: '127.0.0.1', port: srv.address().port, path: '/x' }, (res) => { res.resume(); res.on('end', () => resolve(res)); }).on('error', reject);
@@ -331,7 +331,7 @@ describe('switch on: only a route that writes its timings carries the header', (
     expect(p.headers.get('server-timing')).toBeNull();
     const app = express();
     app.get('/th', (req, res) => res.json({ ok: true }));
-    const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const t = await fetch(`http://127.0.0.1:${srv.address().port}/th`);
       expect(t.headers.get('server-timing')).toBeNull();

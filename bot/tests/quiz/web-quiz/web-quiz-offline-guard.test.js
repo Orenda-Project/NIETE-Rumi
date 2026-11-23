@@ -164,7 +164,7 @@ async function serve(fn, warm) {
   const app = express();
   app.use(express.json());
   app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-  const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   const h = { 'x-api-key': 'route-key' };
   const ask = async () => ({
@@ -230,7 +230,7 @@ describe('the routes', () => {
     const spy = jest.spyOn(WebQuiz, 'getQuiz').mockImplementation(async () => { throw new WebQuiz.WqError(404, { error: 'not_found' }); });
     const app = express();
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
-    const server = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
     try {
       const res = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/wq/quiz/AB12CD`, { headers: { 'x-api-key': 'route-key' } });
       expect(res.status).toBe(404);

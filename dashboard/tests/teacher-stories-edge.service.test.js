@@ -21,7 +21,7 @@ function htmlRes(status, html) {
   return { status, ok: status === 200, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) },
     arrayBuffer: async () => Buffer.from(html), text: async () => html };
 }
-function start(app) { return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); }); }
+function start(app) { return new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); }); }
 function req(srv, method, p, body) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? null : JSON.stringify(body);

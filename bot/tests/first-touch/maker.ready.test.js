@@ -112,7 +112,7 @@ describe('the question-language mark on the topic chips (through GET /m/:token)'
     IdFlags._resetCache(); HubFlags._resetCache(); Bank._resetCache();
     const app = express();
     app.use('/api/internal/ft', require('../../shared/services/first-touch/maker.routes'));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
 

@@ -69,7 +69,7 @@ async function start({ on = false, quiz } = {}) {
     botUrl: BOT, apiKey: 'k', now: () => 1_000_000, linkLangOn: async () => false, linkLangEnOn: async () => false, pageLangOn: async () => on === true,
     fetchImpl: async () => jsonRes(200, payload(quiz)),
   }));
-  const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
+  const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   servers.push(srv);
   return srv;
 }

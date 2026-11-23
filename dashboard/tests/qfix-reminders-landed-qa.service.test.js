@@ -23,7 +23,7 @@ async function open(p, headers = {}) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(R.createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: () => Promise.resolve(jsonRes({ off: true })), logEvent: (e, d) => events.push([e, d]) }));
-  const srv = await new Promise((r) => { const x = app.listen(0, () => r(x)); });
+  const srv = await new Promise((r) => { const x = app.listen(0, '127.0.0.1', () => r(x)); });
   try {
     await new Promise((resolve, reject) => {
       const rq = http.request({ host: '127.0.0.1', port: srv.address().port, path: p, headers: { host: 'portal.example', ...headers } }, (res) => { res.resume(); res.on('end', resolve); });

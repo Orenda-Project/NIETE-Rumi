@@ -229,7 +229,7 @@ describe('BIDI-2: the class link preview (og:title)', () => {
       if (/\/api\/internal\/wq\/card\/[^/]+$/.test(url)) return jsonRes(404, { error: 'not_found' });
       return jsonRes(200, payload);
     } }));
-    await new Promise((r) => { srv = app.listen(0, r); });
+    await new Promise((r) => { srv = app.listen(0, '127.0.0.1', r); });
   });
   afterEach(() => new Promise((r) => srv.close(r)));
   const get = (p) => new Promise((resolve, reject) => {

@@ -30,7 +30,7 @@ const HUB = (extra = {}) => ({
   lang: 'en', kids: [{ chip: '0123456789abcdef', first: 'Sana Testwala', animal: 'owl', grade: '3' }], kid: '0123456789abcdef',
   teacher: null, again: [], recs: [], challenge: null, brand: 'niete', rt: false, ...extra,
 });
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 function get(srv, path) {
   return new Promise((resolve, reject) => {
     const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'GET', path, headers: { host: 'portal.example' } }, (res) => {

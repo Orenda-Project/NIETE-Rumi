@@ -19,7 +19,7 @@ const QUIZ = {
   quiz: { id: 'q-1', code: 'AB12CD', topic: 'Plants', lang: 'en', dir: 'ltr', grade: '3', subject: 'Science', n: 1, questions: [{ qid: 'x1', i: 1, text: 'Q?', options: [{ slot: 'A', text: 'a' }], correct_slot: 'A' }] },
   cls: { label: 'Class 3', teacher: 'Teacher', chips: [] }, live: { class_today: 0 }, video: null, preview: false,
 };
-const start = (app) => new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
+const start = (app) => new Promise((resolve) => { const srv = app.listen(0, '127.0.0.1', () => resolve(srv)); });
 function req(srv, method, path, body, headers = {}) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? null : JSON.stringify(body);

@@ -27,7 +27,7 @@ beforeEach(async () => {
   const app = express();
   app.use(createWebQuizRouter({ botUrl: 'http://bot.test', apiKey: 'k', fetchImpl: async () => { throw new Error('no bot in this test'); } }));
   app.use((err, req, res, next) => res.status(500).send('Server Error')); // the portal's own last resort
-  srv = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  srv = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 });
 afterEach(() => new Promise((r) => srv.close(r)));
 
