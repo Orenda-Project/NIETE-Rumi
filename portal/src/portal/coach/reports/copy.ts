@@ -59,6 +59,8 @@ export const REPORTS_EN = {
   working: "Working",
   continueOnWhatsApp: "Continues on WhatsApp",
   stopped: "Observation stopped",
+  /* bd-k8uh1r — stopped because this coach's recording was already analysed (bd-erpvf); the title is problems.duplicate. */
+  stoppedDuplicateLine: "This recording was already analysed for another observation. Start a new observation with a new recording.",
   whatYouMade: "What you made",
   formRowSub: "Your ratings",
   debriefRowSub: "Guide and your talk",
@@ -289,6 +291,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   working: "جاری",
   continueOnWhatsApp: "آگے واٹس ایپ پر",
   stopped: "مشاہدہ روک دیا گیا",
+  stoppedDuplicateLine: "اس ریکارڈنگ کا تجزیہ کسی اور مشاہدے میں پہلے ہی ہو چکا ہے۔ نئی ریکارڈنگ کے ساتھ نیا مشاہدہ شروع کریں۔",
   whatYouMade: "آپ نے بنایا",
   formRowSub: "آپ کی ریٹنگز",
   debriefRowSub: "گائیڈ اور گفتگو",
@@ -470,5 +473,6 @@ export const COPY_ENTRY = {
   same: ["dash", "pct"],
   /** Sentences that mirror a screen's name word for word. */
   /** bd-ra8xu.60 — notesHeading: «آپ کے مشاہدے کے نوٹس» is five Urdu words for the operator's four English ones. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading"],
+  /** bd-k8uh1r — stoppedDuplicateLine: the stopped card's one plain line (board m9-errors), why it stopped and what to do. */
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading", "stoppedDuplicateLine"],
 };

@@ -174,9 +174,9 @@ export function ErrorCard({ testId, title, line, children }: { testId: string; t
   );
 }
 
-/** A stopped observation (board m9-errors). */
-export function StoppedStage({ text, children }: { text: string; children?: ReactNode }) {
-  return <ErrorCard testId="stage-stopped" title={text}>{children}</ErrorCard>;
+/** A stopped observation (board m9-errors); `line` says why, when the visit knows (bd-k8uh1r: a recording already used). */
+export function StoppedStage({ text, line, children }: { text: string; line?: string; children?: ReactNode }) {
+  return <ErrorCard testId="stage-stopped" title={text} line={line}>{children}</ErrorCard>;
 }
 
 const ERROR_BUTTON = "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8]";

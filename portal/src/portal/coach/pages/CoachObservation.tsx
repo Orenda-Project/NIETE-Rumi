@@ -114,6 +114,7 @@ const CoachObservation = () => {
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
+  const dupStop = stopped && view?.problem === "duplicate";
   const at = view ? stepAt(view.step) : indexFromRow(data?.step);
   const allDone = at >= OBSERVATION_STEPS;
   // bd-ewbzns.4.4 — Send was pressed with WhatsApp's window closed: she has the invite, not yet the report (bd-2675: the
@@ -213,13 +214,16 @@ const CoachObservation = () => {
 
           <LessonPlanRow lp={view?.lessonPlan} />
 
-          {stopped && v7 ? (
+          {stopped && v7 && dupStop ? (
+            // bd-k8uh1r (queue #238) — a recording this coach already had analysed (bd-erpvf) says so, and what to do.
+            <StoppedStage text={C.problems.duplicate} line={C.stoppedDuplicateLine} />
+          ) : stopped && v7 ? (
             <StoppedStage text={C.stopped}>
               {routes.coachGate && <ContinueOnWhatsApp trouble="load" />}
             </StoppedStage>
           ) : stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{C.stopped}</span>
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{dupStop ? C.stoppedDuplicateLine : C.stopped}</span>
             </Card>
           ) : v7 ? (
             <>
