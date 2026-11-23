@@ -1,3 +1,4 @@
 {"ts":"2026-11-23T07:07:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"aa93de39c952","branch":"bd-uxzi8c.1-17450","user":""}
 {"ts":"2026-11-23T07:07:13Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: menu,training,lesson-plan,coaching,observe,attendance owe their Gherkin","sha":"aa93de39c952","branch":"bd-uxzi8c.1-17450","user":""}
 {"ts":"2026-11-23T07:07:14Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"aa93de39c952","branch":"bd-uxzi8c.1-17450","user":""}
+{"ts":"2026-11-23T07:07:37Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"aa93de39c952","branch":"bd-uxzi8c.1-17450","user":""}
