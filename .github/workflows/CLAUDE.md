@@ -13,7 +13,7 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `qa-impact.yml` | On PRs into sandbox/staging/main: Gherkin spec-freshness gate (blocking) and E2E proof (warning), one PR comment |
 | `android*` | 3 files; most used `android-release.yml`: Builds, signs and ships the NIETE Android app to Play on android-v* tags or manual dispatch (bd-2553) |
-| `data-standards.yml` | Data Standards schema gate on every PR and push to main/staging/sandbox; ownership check blocks, report job is advisory |
+| `data-standards.yml` | Data Standards schema gate on every PR and push to main/staging/sandbox; ownership check blocks, report job ("schema findings") blocks on a violation since 2026-11-18 |
 | `deploy.yml` | On push to main touching bot/, deploys the bot to Railway with RAILWAY_TOKEN; skips cleanly when the token is unset |
 | `branch-guard.yml` | Fails any PR or push to main/staging/sandbox if tooling still references the retired develop branch |
 | `ci.yml` | Main CI on PRs and pushes to main/staging/sandbox: root jest test job, lint, and portal newui vitest job |
