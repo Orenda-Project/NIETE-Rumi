@@ -26,7 +26,8 @@ import { leave } from "./leave";
  * The role is read once per load, so nothing short of a reload would move her.
  *
  * Placed on every app a tester can land in, so she can always switch back: the teacher's My profile, the coach's
- * My profile, and My Patch (where a principal lands).
+ * My profile, My Patch (where a principal lands), and My account (bd-qae1f1: the page the leader menu's Other leads
+ * to, where a principal off the principal app looks for it; on a phone My Patch is tucked in that same Other).
  */
 
 type Role = "teacher" | "coach" | "principal";
