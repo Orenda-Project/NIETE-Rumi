@@ -124,3 +124,52 @@ describe('listExercises', () => {
     expect([...mockCache.keys()][0]).toMatch(/gb/);
   });
 });
+
+/**
+ * bd-vqqa7o (prod, 23 Nov): the job's model reasons before it answers and the reasoning spends the same
+ * budget. At 12,000 tokens 33 lists came back cut off (11,986 tokens out on every one, some after only
+ * ~1,100 characters of JSON), and one cut-off chapter failed the teacher's whole list, every retry.
+ */
+describe('a long chapter, or one that fails', () => {
+  const CUT_OFF = '{"exercises":[{"heading":"Exercise 3.1","number":"1","text":"What do plants';
+
+  test('the read asks for low reasoning effort and the room the paper generator gets', async () => {
+    const Ex = load();
+    await Ex.listExercises({ grade: 4, subject: 'science', chapterNumbers: [3] });
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.reasoning).toEqual({ effort: 'low' });
+    expect(params.max_tokens).toBeGreaterThanOrEqual(32000);
+  });
+
+  test('one cut-off chapter leaves the others on her list, marked failed and not cached', async () => {
+    const Ex = load();
+    mockCreate.mockImplementation(async (p) => ({
+      choices: [{ finish_reason: /chapter 5/.test(p.messages[1].content) ? 'length' : 'stop',
+        message: { content: /chapter 5/.test(p.messages[1].content) ? CUT_OFF : JSON.stringify(REPLY) } }],
+    }));
+    const out = await Ex.listExercises({ grade: 4, subject: 'science', chapterNumbers: [3, 5] });
+    expect(out.chapters.map((c) => c.chapterNumber)).toEqual([3, 5]);
+    expect(out.chapters[0].exercises).toHaveLength(4);
+    expect(out.chapters[1]).toEqual({ chapterNumber: 5, title: 'Plants', exercises: [], failed: true });
+    expect([...mockCache.keys()].some((k) => k.endsWith(':5'))).toBe(false);
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith('[assessment] exercises read failed',
+      expect.objectContaining({ key: expect.stringMatching(/:4:science:5$/) }), 'error');
+  });
+
+  test('when every chapter fails the list fails (the page says try again)', async () => {
+    const Ex = load();
+    mockCreate.mockResolvedValue({ choices: [{ finish_reason: 'length', message: { content: CUT_OFF } }] });
+    await expect(Ex.listExercises({ grade: 4, subject: 'science', chapterNumbers: [3, 5] })).rejects.toThrow();
+  });
+
+  test('two teachers asking for one chapter at once share one model call', async () => {
+    const Ex = load();
+    const [a, b] = await Promise.all([
+      Ex.listExercises({ grade: 4, subject: 'science', chapterNumbers: [3] }),
+      Ex.listExercises({ grade: 4, subject: 'science', chapterNumbers: [3] }),
+    ]);
+    expect(a).toEqual(b);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+});
