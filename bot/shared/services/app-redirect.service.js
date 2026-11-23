@@ -249,7 +249,9 @@ const COACH_FULL_APP_KEY = 'portal_coach_full_app';
  * sentence on its own (no way back to WhatsApp is offered), the button the nudge's words (its own keys, so this needs
  * none of the nudge's code).
  */
-const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe' });
+// bd-uxzi8c (queue #205): an exam paper too. The teacher app's own paper page and words (APP_LINK_COPY), since the
+// principal app opens the teacher app's pages; before this a principal got the WhatsApp Flow and the PDF in chat.
+const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe', assessment_generator: 'assessment_generator' });
 const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
 
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
