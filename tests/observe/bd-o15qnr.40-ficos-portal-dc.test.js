@@ -76,3 +76,20 @@ describe('FICO-S portal: the pre-fill lines are tagged and name the Digital Coac
     expect(JSON.stringify(c1)).toMatch(/NIETE Teaching Assistant chose/);
   });
 });
+
+/*
+ * bd-o15qnr.40.4 (1b) — staging and production still word the Flow's change-reason help "Only if you changed Rumi's
+ * level", and the portal's "Why you changed" box took it as its label. The portal's label has its own words (p_help_chg),
+ * whatever the Flow says; the Flow's help is left as it is.
+ */
+describe('FICO-S portal: the change-reason label has the portal\'s own words', () => {
+  test('English and Urdu: the chg_ field text is lbl_chg + the portal help, never the Flow\'s help', () => {
+    for (const lang of ['en', 'ur']) {
+      const chgField = screenOf(secsOf(lang), 'C1').parts.find((p) => p.type === 'field' && p.name === 'chg_C1');
+      const s = FF.STR[lang];
+      expect(s.p_help_chg).toBeTruthy();
+      expect(chgField.text).toBe(`${s.lbl_chg}: ${s.p_help_chg}`);
+      expect(s.p_help_chg).not.toMatch(/Rumi|رومی|NIETE|ٹیچنگ اسسٹنٹ/);
+    }
+  });
+});
