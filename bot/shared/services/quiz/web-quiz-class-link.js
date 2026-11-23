@@ -17,10 +17,12 @@
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
- *   arrive / letter (body, push)    the two answers whose screens draw the reminder slot ("Whose turn?" and the chips)
- *                                   spread `push`, the route's push field ({push_remind: true} or {}); with it on, also
- *                                   remind_code: tonight's round share code for the class when a ready round exists,
- *                                   else this link's code (remindFields). No `push` → the answers are today's.
+ *   arrive / pick (body, push)      the reminder ask comes only once a child is picked: "Whose turn?" (a phone that
+ *                                   already holds a child here) and the pick's answer spread `push`, the route's push
+ *                                   field ({push_remind: true} or {}); with it on, also remind_code: tonight's round
+ *                                   share code for the class when a ready round exists, else this link's code
+ *                                   (remindFields). The steps before a pick (teacher, letter, the chips) never carry
+ *                                   it. No `push` → the answers are today's.
  *   pick({code, s, chip, device_ref})  → {href: /h/<token>}: a hub token for that child carrying the pick
  *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row.
  *                                   A HIGH pick (not the teacher's own visit) is remembered on that phone for
@@ -353,10 +355,11 @@ const MARKED_VIA = new Set(['forward', 'reminder', 'hub']);
 const SHARE_CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 
 /**
- * The reminder ask's fields on a step whose screen draws the slot: `push` is the bot's push decision the route hands in
- * (web-quiz-push-field pushField(): {push_remind: true} or {}; read there, never here). On → push_remind and
- * remind_code, the code the ask subscribes with: tonight's ready round's share code for the class (the evening round's
- * own cached read; the evening round off → no round read), else this link's code. Off → {} (today's answer).
+ * The reminder ask's fields on an answer that comes once a child is picked ("Whose turn?", the pick itself): `push` is
+ * the bot's push decision the route hands in (web-quiz-push-field pushField(): {push_remind: true} or {}; read there,
+ * never here). On → push_remind and remind_code, the code the ask subscribes with: tonight's ready round's share code
+ * for the class (the evening round's own cached read; the evening round off → no round read), else this link's code.
+ * Off → {} (today's answer).
  * Never throws: a failed round read falls back to the link's code.
  */
 async function remindFields(link, push, now = new Date()) {
@@ -469,7 +472,7 @@ async function playedHereAs(d, k) {
   return played.map((id) => canon.get(id) || id).some((id) => id === k.id || k.ids.includes(id));
 }
 
-async function letter({ code, s, letter: l } = {}, push = {}) {
+async function letter({ code, s, letter: l } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const step = stepOf(code, s, ['letter', 'chips']);
@@ -480,12 +483,11 @@ async function letter({ code, s, letter: l } = {}, push = {}) {
     s: stepToken(code, { st: 'chips', l, ...(step.p ? { p: 1 } : {}) }),
     // FIRST NAMES ONLY on the stranger path (IDENTITY §2(b)): no surname, no initial, no father's name.
     kids: chips.map((c) => ({ chip: c.chip, first: c.first })),
-    // the reminder ask under the chips (web_quiz_push_remind): nothing with the push field off
-    ...(await remindFields(link, push)),
+    // no reminder ask here: nobody is picked yet (it comes with the pick's answer)
   };
 }
 
-async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
+async function pick({ code, s, chip, device_ref: deviceRef } = {}, push = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const step = stepOf(code, s, ['who', 'chips']);
@@ -534,7 +536,8 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   // The teacher's own preview is not a child's door: no door_tap.
   if (!step.p) emit('door_tap', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: hit.id });
   // ?from=class_link: the hub (the one writer of hub_open) logs the source; this module emits no hub_open.
-  return { href: `/h/${token}?from=class_link` };
+  // A child is picked: the reminder ask's fields ride beside the link (web_quiz_push_remind; nothing with it off).
+  return { href: `/h/${token}?from=class_link`, ...(await remindFields(link, push)) };
 }
 
 // ── the teacher's side ─────────────────────────────────────────────────────────────────────────────
