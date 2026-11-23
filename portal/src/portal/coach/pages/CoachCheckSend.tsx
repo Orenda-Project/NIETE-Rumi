@@ -188,6 +188,15 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const [planSubject, setPlanSubject] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<SubjectsByGrade | null>(null);
   const LP = useCopy(LESSONS);
+  // A grade the bot offers that the lesson-plan catalogue has no subjects for (no plans yet) is still pickable, with the
+  // bot's own subjects in the screen's words, so every observed lesson can be named.
+  const pickerSubjects = useMemo<SubjectsByGrade | null>(() => {
+    if (!catalogue) return null;
+    const out: Record<number, readonly string[]> = { ...catalogue };
+    const own = (question.subjects || []).map((k) => (C.subjects as Record<string, string>)[k] || k);
+    for (const g of question.grades || []) if (!(out[g] || []).length && own.length) out[g] = own;
+    return out;
+  }, [catalogue, question.grades, question.subjects, C.subjects]);
   useEffect(() => {
     let live = true;
     Promise.resolve()
@@ -378,10 +387,10 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {question.ask && (
         <>
           <SectionHeading>{C.classAndSubject}</SectionHeading>
-          {v7 && catalogue ? (
+          {v7 && pickerSubjects ? (
             <div className="flex flex-col gap-2.5" data-testid="lesson-class">
-              <ClassPicker label={LP.selectGradeSubject} feature="lessons" combos={NO_COMBOS} allowOther subjectsByGrade={catalogue}
-                grades={pickerGrades(question.grades, catalogue)} value={pair}
+              <ClassPicker label={LP.selectGradeSubject} feature="lessons" combos={NO_COMBOS} allowOther subjectsByGrade={pickerSubjects}
+                grades={pickerGrades(question.grades, pickerSubjects)} value={pair}
                 onChange={(v) => {
                   const g = String(v.grade);
                   const key = subjectKeyOf(v.subject) ?? "other";

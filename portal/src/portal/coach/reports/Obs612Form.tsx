@@ -156,6 +156,12 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
   const fsOn = v7 && draft.tool === "ficos" && draft.sections.some((x) => x.kind === "indicator");
   const fsGroups = useMemo(() => fsGroupsOf(draft.sections, { checks: F.checksShort, feedback: F.feedbackShort }), [draft.sections, F.checksShort, F.feedbackShort]);
   const [fsAt, setFsAt] = useState<FsAt>({ at: "sections" });
+  // bd-o15qnr.40.9 — an indicator's one line (its item field's `about`), for the "Indicator to work on" rows.
+  const aboutByCode = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const x of draft.sections) for (const f of fieldsOf(x.parts)) if (f.role === "item" && f.about) out[f.name] = f.about;
+    return out;
+  }, [draft.sections]);
   const [agreed, setAgreed] = useState<Set<string>>(() => new Set(heldV7(id)?.checked ?? []));
   useEffect(() => { if (fsOn && !readOnly && agreed.size) keepV7(id, agreed, {}); }, [fsOn, id, agreed, readOnly]);
   const total = draft.sections.length;
@@ -454,7 +460,13 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       input = (
         <div className="flex flex-col gap-1.5">
           <SelectField label={label} title={label} value={v || null} onChange={set(f.name)} className={bad ? BAD : undefined}
-            options={(f.options || []).map((o) => ({ value: o.id, label: o.title, sub: o.description }))} />
+            options={(f.options || []).map((o) => {
+              // bd-o15qnr.40.9: an indicator's code is the row's tile ("A" over "1"); its second line is the indicator's
+              // own line, never its name again
+              const code = /^([A-Z])(\d{1,2})$/.exec(o.id);
+              const again = !!o.description && o.title.includes(o.description);
+              return { value: o.id, label: o.title, sub: aboutByCode[o.id] || (again ? undefined : o.description), ...(code ? { prefix: code[1], number: code[2] } : {}) };
+            })} />
           {!f.required && v ? (
             <button type="button" onClick={() => set(f.name)("")} className={cn("min-h-[44px] self-start rounded-xl px-3 text-[14px] font-semibold text-[#33374a] underline", FOCUS)}>{W.clear}</button>
           ) : null}
@@ -608,7 +620,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       .filter(Boolean).join(" · ");
     const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
     const frame = (crumb: string, dock: ReactNode, body: ReactNode) => (
-      <ReportsFrame title={C.formTitle} crumb={crumb} onBack={fsBack} dock={dock} testId="coach-fde-form">
+      <ReportsFrame title={C.formTitle} crumb={crumb} onBack={fsBack} dock={dock} testId="coach-fde-form" dockSpace>
         <div ref={top} />
         {body}
         {note && (
@@ -654,7 +666,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       const dock = (
         <DockV7 single>
           {next && !(next.key === g.key && !next.code)
-            ? <BottomButton onClick={() => saveThen(() => { show(F.toCheck(yellow.length)); open(next); }, names)} disabled={busy}>{next.label}</BottomButton>
+            ? <BottomButton onClick={() => saveThen(() => open(next), names)} disabled={busy}>{next.label}</BottomButton>
             : <BottomButton onClick={() => saveThen(() => moveTo({ at: "sections" }), names)} disabled={busy}>{F.doneChecking}</BottomButton>}
         </DockV7>
       );
@@ -688,7 +700,26 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     const lv = values[ind.item.name] ?? "";
     const options = (ind.item.options || []).map((o) => ({ id: o.id, label: o.title, description: o.description }));
     const isChanged = changed(ind);
-    const problem = (k: string | undefined) => (k && shown[k] ? W.errors[shown[k]] ?? null : null);
+    // bd-o15qnr.40.8 (queue #229, the operator 23 Nov): a box with a minimum says the real reason with its count, under a
+    // live counter; the reason shows after Agree and next or leaving the box, never while typing.
+    const minOf = (k: string) => (k === ind.ev?.name ? FS_EVIDENCE_MIN : k === ind.chg?.name ? FS_CHANGE_MIN : 0);
+    const problem = (k: string | undefined) => {
+      if (!k || !shown[k]) return null;
+      const min = minOf(k);
+      if (min && ["evidence", "change", "text"].includes(shown[k])) return F.tooShort(chars(values[k]), min);
+      return W.errors[shown[k]] ?? null;
+    };
+    const counter = (k: string, min: number) => {
+      const n = chars(values[k]);
+      return <span data-testid="char-count" className={cn("px-1 text-[13px] tabular-nums", n >= min ? "text-[#2f7a52]" : "text-[#6b7280]")}>{F.charCount(n, min)}</span>;
+    };
+    const typing = (k: string) => (v: string) => {
+      set(k)(v);
+      setShown((cur) => { if (!cur[k]) return cur; const next = { ...cur }; delete next[k]; return next; });
+    };
+    const leave = (k: string, min: number, code: Obs612ErrorCode) => () => {
+      if (chars(values[k]) < min) setShown((cur) => ({ ...cur, [k]: code }));
+    };
     const dcEv = ind.item.dcEvidence && (ind.item.dcEvidence.because || ind.item.dcEvidence.items.length) ? ind.item.dcEvidence : null;
     const dcBox = ind.star || ind.none || dcEv ? (
       <DcEvidenceBox boxId="dc-box">
@@ -740,11 +771,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
             )}
           {ind.chg && ((isChanged && !readOnly) || (readOnly && values[ind.chg.name])) ? (
             <div data-testid="why-changed" className="flex flex-col gap-2.5 rounded-2xl border border-[#fde7b0] bg-[#fffbeb] p-3">
-              <TextBox id={`fde-${ind.chg.name}`} label={F.whyChanged} value={values[ind.chg.name] ?? ""} onChange={set(ind.chg.name)} readOnly={readOnly} problem={problem(ind.chg.name)} />
+              <TextBox id={`fde-${ind.chg.name}`} label={F.whyChanged} value={values[ind.chg.name] ?? ""} onChange={typing(ind.chg.name)} readOnly={readOnly}
+                problem={problem(ind.chg.name)} hint={readOnly ? null : counter(ind.chg.name, FS_CHANGE_MIN)} onBlur={leave(ind.chg.name, FS_CHANGE_MIN, "change")} />
             </div>
           ) : null}
           {dcBox}
-          {ind.ev ? <TextBox id={`fde-${ind.ev.name}`} label={F.evidence} value={values[ind.ev.name] ?? ""} onChange={set(ind.ev.name)} readOnly={readOnly} problem={problem(ind.ev.name)} /> : null}
+          {ind.ev ? (
+            <TextBox id={`fde-${ind.ev.name}`} label={F.evidence} value={values[ind.ev.name] ?? ""} onChange={typing(ind.ev.name)} readOnly={readOnly}
+              problem={problem(ind.ev.name)} hint={readOnly || !ind.ev.required ? null : counter(ind.ev.name, FS_EVIDENCE_MIN)}
+              onBlur={ind.ev.required ? leave(ind.ev.name, FS_EVIDENCE_MIN, "evidence") : undefined} />
+          ) : null}
         </div>
         {readOnly ? <button type="button" onClick={fsBack} className={cn(OUTLINE_WIDE, FOCUS)}>{F.doneChecking}</button> : null}
       </section>
@@ -759,7 +795,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       .filter(Boolean).join(" · ");
     const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
     return (
-      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={backSaving} dock={dock} testId="coach-fde-form">
+      <ReportsFrame title={C.formTitle} crumb={name ? v7Crumb(W7, name, readOnly) : C.observation} onBack={backSaving} dock={dock} testId="coach-fde-form" dockSpace>
         <div ref={top} />
         {section && (
           <>

@@ -314,7 +314,8 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", ()
     expect(await screen.findByText("Changed from Developing")).toBeInTheDocument();
     expect(screen.getByLabelText("Why you changed it")).toHaveValue("short"); // the part's one reason (chg_C)
     agree();
-    expect(await screen.findAllByText("At least 20 letters")).not.toHaveLength(0);
+    // bd-o15qnr.40.8: the real reason with its count
+    expect(await screen.findAllByText("Too short: at least 20 characters (5/20)")).not.toHaveLength(0);
   });
 
   it("one of the six: the Digital Coach's evidence read only, the level, N/A as a 5th card and Couldn't tell as a pill, Why this level", async () => {

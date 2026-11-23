@@ -106,6 +106,9 @@ export const FORM_V7_COPY = {
   submitLeft: (n: number) => (n === 1 ? "Submit (1 section to finish)" : `Submit (${n} sections to finish)`),
   checksShort: "Checks",
   feedbackShort: "Feedback",
+  /* bd-o15qnr.40.8: a box with a minimum says the real reason, and counts as she types */
+  tooShort: (n: number, min: number) => `Too short: at least ${min} characters (${n}/${min})`,
+  charCount: (n: number, min: number) => `${n}/${min} characters`,
 } as const;
 
 export type FormV7Copy = Words<typeof FORM_V7_COPY>;
@@ -177,6 +180,9 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   submitLeft: (n: number) => `جمع کریں (${n} ${n === 1 ? "حصہ" : "حصے"} باقی)`,
   checksShort: "چیک لسٹ",
   feedbackShort: "فیڈبیک",
+  // NATIVE-CHECK (bd-o15qnr.40.8, machine-drafted)
+  tooShort: (n: number, min: number) => `بہت مختصر: کم از کم ${min} حروف (${n}/${min})`,
+  charCount: (n: number, min: number) => `${n}/${min} حروف`,
 };
 
 export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
@@ -185,7 +191,7 @@ export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
 const LONG_OK: readonly string[] = [
   "whyLevelMin", "changedSummary", "savedPartByPart", "noRumiLevels",
   "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "pauseAt", "needLevel", "needAnswer", "toCheck",
-  "cantCount", "recIe", "recNa", "recStarred", "d2Turns", "submitLeft",
+  "cantCount", "recIe", "recNa", "recStarred", "d2Turns", "submitLeft", "tooShort",
 ];
 const SAME: readonly string[] = [];
 
