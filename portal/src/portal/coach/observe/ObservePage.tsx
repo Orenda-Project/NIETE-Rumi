@@ -9,6 +9,7 @@ import CoachGate from "../CoachGate";
 import { readPending, type Pending } from "../ui";
 import { OBSERVE } from "./copy";
 import { useObserveRoutes } from "./observeRoutes";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
 import ContinueOnWhatsApp from "./ContinueOnWhatsApp";
 import { TroubleContext, type TroubleKind } from "./trouble";
 import { ObserveHelp, ObserveHelpButton } from "../../teacher/help/observe/ObserveHelp";
@@ -37,6 +38,10 @@ function useAnnouncing(): boolean {
 
 export function CoachAttention() {
   const C = useCopy(OBSERVE);
+  // bd-o15qnr.45 (the operator 23 Nov ~20:20: "The X observations need you are on too many pages. They should be maximum
+  // at the home and main Observation page.") — on the visit flow switch this bar is Home's only (the main Observe page
+  // opens with Needs you). Off: as before; while the switch is read, nothing (no flash).
+  const flow = useFlowV6();
   const [pending, setPending] = useState<Pending | null>(null);
   const announcing = useAnnouncing();
   useEffect(() => {
@@ -44,7 +49,7 @@ export function CoachAttention() {
     readPending().then((p) => { if (live) setPending(p); });
     return () => { live = false; };
   }, []);
-  if (announcing || !pending || pending.waiting < 1) return null;
+  if (flow !== false || announcing || !pending || pending.waiting < 1) return null;
   const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
   return <AttentionBanner testId="pending-banner" text={C.reportsWaiting(pending.waiting)} to={to} />;
 }

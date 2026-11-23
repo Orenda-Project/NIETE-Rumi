@@ -23,6 +23,8 @@
 const { getOverall } = require('./coaching-frameworks.service');
 // bd-pni007 — an FDE (obs612) visit's result as every portal surface shows it (pure; frameworks/obs612 data only).
 const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
+// bd-o15qnr.45 — the fine step the observation page shows (pure, no requires), for a list row's stage.
+const { observeStep, talkOf } = require('../../bot/shared/services/observe/portal-observe-step');
 const { getPatchTeachers } = require('./leader-patch.service');
 const { ACTIVITY_CTE } = require('./lp-activity.service');
 // bd-o15qnr.23: "today" is the day in Pakistan, not the UTC date — overdue, Home's
@@ -176,7 +178,10 @@ const SQL = {
                                 'duplicate_refused_at', c.analysis_data->'observer_debrief'->'duplicate_refused_at',
                                 'feedback', jsonb_typeof(c.analysis_data->'observer_debrief'->'feedback') = 'object'),
                               'obs612', jsonb_build_object('rubric_id', c.analysis_data->'obs612'->'rubric_id',
-                                                           'result', c.analysis_data->'obs612'->'result')) AS analysis_data,
+                                                           'result', c.analysis_data->'obs612'->'result',
+                                                           'grade', c.analysis_data->'obs612'->'grade',
+                                                           'subject', c.analysis_data->'obs612'->'subject'),
+                              'observed_lesson', c.analysis_data->'observed_lesson') AS analysis_data,
            u.name           AS teacher_name,
            u.phone_number   AS teacher_phone,
            os.teacher_name  AS sched_teacher_name,
@@ -523,6 +528,47 @@ function debriefListening(r) {
   return !(o.too_short_at || o.failed_at || o.feedback_failed_at);
 }
 
+/**
+ * bd-o15qnr.45 (queue #240) — the step the observation page shows (the bot's portal-observe-step), from the list read's
+ * slices: analysing · draft · talk · listening · feedback · report · sending · waiting_teacher · sent · done. The Form's
+ * statuses read as stepOf reads them (observe2_checked, an FDE form) so the two never disagree on `draft`.
+ */
+function stageOf(r) {
+  if (stepOf(r) === 'draft') return 'draft';
+  const ad = r.analysis_data || {};
+  const td = ad.teacher_delivery || {};
+  return observeStep({
+    status: r.status,
+    debriefStatus: r.debrief_status,
+    deliveryStatus: deliveryStatusOf(r),
+    sendRequested: !!td.send_requested_at,
+    talk: talkOf(ad.observer_debrief),
+  }).step;
+}
+
+/**
+ * bd-o15qnr.45 — Observe's In progress (switch on): started, not finished, and not waiting on her. Her own steps (the
+ * Form, the Debrief, Send report) are Needs you's or the visit's; the debrief being analysed stays in Needs you (the
+ * operator approved its "Debrief: analysing" line there, bd-o15qnr.39).
+ */
+const IN_PROGRESS_STAGES = new Set(['analysing', 'sending', 'waiting_teacher']);
+
+/**
+ * bd-o15qnr.45 (the operator 23 Nov ~23:20: each card shows the grade and subject, never the rubric) — the class the visit
+ * named: an FDE / FICO 6-12 visit's own block, else the grades 1-5 class named on Check and send (observed_lesson,
+ * bd-o15qnr.40.7). The subject is a key (english, maths …); the page has the words. Nothing named: nulls.
+ */
+function classOf(analysis) {
+  const a = analysis && typeof analysis === 'object' ? analysis : {};
+  const fromObs = a.obs612 && typeof a.obs612 === 'object' ? a.obs612 : {};
+  const fromLesson = a.observed_lesson && typeof a.observed_lesson === 'object' ? a.observed_lesson : {};
+  const gradeOf = (g) => { const n = Number(g); return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null; };
+  const subjectOf = (x) => (typeof x === 'string' && /^[a-z_]{2,32}$/.test(x.trim().toLowerCase()) ? x.trim().toLowerCase() : null);
+  const fdeGrade = gradeOf(fromObs.grade);
+  const src = fdeGrade !== null ? fromObs : fromLesson;
+  return { grade: gradeOf(src.grade), subject: subjectOf(src.subject) };
+}
+
 /** bd-pni007 — an FDE visit's list row: the tool, its result and the label ('FDE v1'); null for every other row. */
 function obs612Row(analysis) {
   const s = portalSummary(analysis);
@@ -548,6 +594,8 @@ function shapeReport(r, leaderUserId, teacherByUser) {
     portal: PORTAL_KEY_RX.test(audio),
     obs612: obs612Row(r.analysis_data),
     listening: debriefListening(r),
+    stage: stageOf(r),
+    ...classOf(r.analysis_data),
   };
 }
 
@@ -921,7 +969,8 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
 
   const out = {
     waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !notToDo.has(r.id)),
-    inProgress: shaped.filter((r) => r.step === 'analysing' && !notToDo.has(r.id)),
+    // bd-o15qnr.45 — switch on: everything under way that does not wait on her (Observe's In progress); off: as before.
+    inProgress: shaped.filter((r) => (opts.v7 ? IN_PROGRESS_STAGES.has(r.stage) : r.step === 'analysing') && !notToDo.has(r.id)),
     all: {
       total: matched.length,
       page,
