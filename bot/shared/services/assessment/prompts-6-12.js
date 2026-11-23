@@ -47,7 +47,9 @@ function levelValues(tos) {
 
 /**
  * The system string for one call: the cell's system key, the secondary format, the Urdu format for
- * an Urdu-medium cell, the board-section task in board mode, and the safety key last. Parts are
+ * an Urdu-medium cell, and the safety key last. The board-section task is NOT here: it differs per
+ * section, so it goes in the user turn after the cached book block (`boardTask`), keeping this string
+ * byte-identical across a paper's sections (bd-i9yhrz). Parts are
  * filled from `values` and joined with a blank line.
  */
 function assemble({ row, kind = 'free', values }) {
@@ -56,10 +58,15 @@ function assemble({ row, kind = 'free', values }) {
     row.prompt_key,
     'eg.format.secondary',
     ...(row.medium === 'ur' ? ['eg.format.secondary_urdu'] : []),
-    ...(kind === 'board' ? ['eg.task.board_section'] : []),
     'eg.safety.policies.6_12',
   ];
   return keys.map((key) => fill(key, promptFor(key), values)).join('\n\n');
 }
 
-module.exports = { promptFor, fill, assemble, levelValues };
+/** The per-section task text (eg.task.board_section), filled; sent after the book block, never in the system prompt. */
+function boardTask(values) {
+  const key = 'eg.task.board_section';
+  return fill(key, promptFor(key), values);
+}
+
+module.exports = { promptFor, fill, assemble, boardTask, levelValues };
