@@ -1,0 +1,1 @@
+{"ts":"2026-11-23T13:44:33Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-97daxo.34-gbquiz: training spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"adca8e0ca3c8","branch":"bd-97daxo.34-gbquiz","user":""}
