@@ -8,6 +8,7 @@ import { FOCUS } from './styles';
 import { StatusChip } from './StatusChip';
 import { TimeStamp } from './TimeStamp';
 import { useKitCopy } from './useKitCopy';
+import { initialsOf } from './initials';
 
 /**
  * bd-4404s7.1 — SlotGroup: one time of day that opens to the visits booked at it (the coach's Team schedule: 20 at a slot is
@@ -43,10 +44,6 @@ export interface SlotGroupProps {
   className?: string;
 }
 
-const initialsOf = (name: string): string => {
-  const w = String(name || '').trim().split(/\s+/).filter(Boolean);
-  return w.length ? (Array.from(w[0])[0] + (w.length > 1 ? Array.from(w[w.length - 1])[0] : '')).toUpperCase() : '·';
-};
 
 function Avatar({ p, size, you, className }: { p: SlotPerson; size: 'sm' | 'md'; you: string; className?: string }) {
   return (

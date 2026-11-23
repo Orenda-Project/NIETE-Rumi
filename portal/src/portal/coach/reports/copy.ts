@@ -37,6 +37,10 @@ export const REPORTS_EN = {
   segments: ["Analysed", "Feedback Form", "Debrief", "Sent"],
   /** The chip on a row, by where it is. */
   chip: { analysing: "Analysing", draft: "Feedback Form", talk: "Debrief", report: "Send report", sent: "Sent" },
+  /* bd-o15qnr.45 (queue #240) — Observe's In progress: what the system is doing (nothing waits on her), and the card's
+     one line for what is hers next. The upload's chip is the strip's own words (the kit's notify.sending). */
+  stageChip: { analysing: "Analysing", sending: "Sending report", waiting_teacher: "Waiting for teacher" },
+  nextLine: (step: string) => `Next: ${step}`,
   kpiObservations: "Observations",
   kpiAvg: "Coach score (avg.)",
   kpiWaiting: "Waiting for you",
@@ -268,6 +272,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   analysing: "تجزیہ جاری",
   segments: ["تجزیہ ہو گیا", "فیڈبیک فارم", "ڈی بریف", "بھیجی گئی"],
   chip: { analysing: "تجزیہ جاری", draft: "فیڈبیک فارم", talk: "ڈی بریف", report: "رپورٹ بھیجیں", sent: "بھیجی گئی" },
+  stageChip: { analysing: "تجزیہ جاری", sending: "رپورٹ جا رہی ہے", waiting_teacher: "استاد کا انتظار" },
+  nextLine: (step: string) => `اگلا قدم: ${step}`,
   kpiObservations: "مشاہدات",
   kpiAvg: "کوچ اسکور (اوسط)",
   kpiWaiting: "آپ کے منتظر",
