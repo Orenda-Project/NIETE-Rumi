@@ -23,7 +23,7 @@
  *                          as ONE row under it (next.past_round: weekday title, done, the child's stars)
  *   tonightMarks(classId, kids)  "Whose turn?": who has tonight's quiz waiting, who is done for tonight
  *   roundSetEmpty(questions, { skip })  pure: "Done for tonight!" (nothing left for this child tonight)
- *   viaOf(query) / classLinkOpen(...)   web_quiz.class_link_open{class_link_code, via, dh?}
+ *   viaOf(query) / classLinkOpen(...)   web_quiz.class_link_open{class_link_code, via, dh?, qa?}
  *   roundsReadyForPhone   in web-quiz-evening-round-phone.js (re-exported from web-quiz-class-link.js)
  *
  * Multi-teacher class: the lesson of whichever class teacher took one for the day; two -> the earlier delivered;
@@ -1098,15 +1098,18 @@ function viaOf(q = {}) {
   return null;
 }
 /**
- * web_quiz.class_link_open{class_link_code, via, dh?}: a code and a word, never a name or a phone. `dh` is the phone's
+ * web_quiz.class_link_open{class_link_code, via, dh?, qa?}: a code and a word, never a name or a phone. `qa` only on a
+ * walk's open (the route reads the user agent's " QFIXQA" mark), so a read drops walks exactly. `dh` is the phone's
  * device hash (web-quiz-telemetry deviceHash: sha256('wqd|'+ref), 16 hex) when the open carries a well-formed device
- * ref, else absent; the raw ref is never logged. All three are data fields (data_json), never top-level columns.
+ * ref, else absent; the raw ref is never logged. All of them are data fields (data_json), never top-level columns.
  * The standing link's own telemetry (web_quiz_class_link): it reads no switch of the evening round.
  */
-function classLinkOpen(code, via, { deviceRef = null } = {}) {
+function classLinkOpen(code, via, { deviceRef = null, qa = false } = {}) {
   if (!LINK_CODE_RX.test(String(code || '')) || !VIAS.has(via)) return false;
   const ref = deviceRef ? require('./web-quiz-token').cleanDeviceRef(deviceRef) : null;
-  logEvent('web_quiz.class_link_open', { class_link_code: code, via, ...(ref ? { dh: require('./web-quiz-telemetry').deviceHash(ref) } : {}) });
+  logEvent('web_quiz.class_link_open', {
+    class_link_code: code, via, ...(ref ? { dh: require('./web-quiz-telemetry').deviceHash(ref) } : {}), ...(qa === true ? { qa: true } : {}),
+  });
   return true;
 }
 
