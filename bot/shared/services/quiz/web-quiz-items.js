@@ -39,6 +39,7 @@ const {
 } = require('./web-quiz-items-rules');
 
 const AuthorGates = require('./quiz-author-gates');
+const Count = require('./quiz-stem-count');
 const ITEMS_KEY = 'web_quiz_items_v2';
 const SLOTS = ['A', 'B', 'C', 'D'];
 
@@ -357,6 +358,8 @@ function normaliseItem(raw, row, index, ctx = {}) {
       wa: { from: 'projected' },
     };
     if (!item.stem) return { item: null, reason: 'shape' };
+    // A stem that names a count of things ("the four steps") must have that many cards; else the MCQ plays.
+    if ((type === 'order' || type === 'match') && Count.mismatch(item.stem, item.options.length)) return { item: null, reason: 'count_word' };
     if (!distinctFeedback(item.options.map((o) => o.fb))) item.options.forEach((o) => { delete o.fb; });
     if (band === '1-2' && item.stem.split(/\s+/).filter(Boolean).length > PRE_READER_STEM_WORDS) return { item: null, reason: 'stem_too_long' };
   }
