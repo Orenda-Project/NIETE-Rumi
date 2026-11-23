@@ -129,13 +129,14 @@ function renderReport(principal = false) {
 }
 
 describe("the one feedback page (v7)", () => {
-  it("the top card: 38% of behaviours seen, one 5-star row (2 lit), the teacher line; no 3/8", async () => {
+  // Queue #230 (the operator, 23 Nov ~16:00): "remove stars from the report, just the percentage is enough".
+  it("the top card: 38% of behaviours seen, no stars, the teacher line; no 3/8", async () => {
     renderReport();
     const hero = await screen.findByTestId("report-hero");
     expect(within(hero).getByTestId("report-pct")).toHaveTextContent("38%");
     expect(hero).toHaveTextContent("behaviours seen");
-    expect(hero.querySelectorAll("[data-star]").length).toBe(5);
-    expect(hero.querySelectorAll('[data-star="on"]').length).toBe(2);
+    expect(hero.querySelectorAll("[data-star], svg").length).toBe(0);
+    expect(hero.textContent).not.toMatch(/[★☆]/);
     expect(hero).toHaveTextContent("Lubna Arif");
     expect(hero.textContent).not.toContain("3/8");
   });
@@ -236,6 +237,7 @@ describe("the visit (v7): the line, the due day, the current step's card", () =>
     renderVisit();
     const fb = await screen.findByTestId("visit-feedback");
     await waitFor(() => expect(fb).toHaveTextContent("38%"));
+    expect(fb.textContent).not.toMatch(/[★☆]/); // queue #230: the percentage, no stars
     expect(fb.closest("a")).toHaveAttribute("href", "/portal/coach/report/cs-1");
     const send = screen.getByTestId("stage-send");
     expect(send).toHaveTextContent("Send Lubna the report");
