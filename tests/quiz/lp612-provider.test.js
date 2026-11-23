@@ -297,3 +297,33 @@ describe('the queue refusing the job', () => {
     expect(failed && failed[1]).toEqual(expect.objectContaining({ source: 'lp612', reason: 'queue_failed' }));
   });
 });
+
+// bd-97daxo.34 (queue #216): a GB grade 1-5 lesson is delivered through 6-12's send, so it is in this
+// ledger; its document lives in GB's own lane, so the quiz row says so (lane gb) and the reader goes there.
+describe('a GB grade 1-5 lesson', () => {
+  const GB_SEG = { segment_id: 'gb_g3_english_nbf.u02.l04', grade: 3, subject: 'English', subtopic_title: 'My family', menu_title: 'My family', lp_type: 'content', is_religious: false, curriculum: 'nbf_snc' };
+  const GB_ID = '11111111-0000-4000-8000-0000000000a1';
+  const seedGb = () => seed({
+    niete_lp612_segments: [...SEGMENTS, GB_SEG],
+    niete_lp612_deliveries: [...DELIVERIES, d(GB_ID, T, GB_SEG.segment_id, 'en', 2, { render_id: null, template_version: 'gb_k5_v9' })],
+  });
+
+  test('is listed in /quiz, and its quiz row carries lane gb with the exact GB version', async () => {
+    seedGb();
+    const items = await Provider.list(T);
+    expect(items.find((i) => i.lessonRef === GB_ID)).toEqual(expect.objectContaining({ grade: 3, subject: 'english', topic: 'My family' }));
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, GB_ID, { phone: PHONE, via: 'list' });
+    expect(['queued', 'asked']).toContain(out.outcome);
+    const quiz = mockDb.table('quizzes').find((q) => q.id === out.quizId);
+    expect(quiz.meta.lessons[0]).toEqual(expect.objectContaining({
+      segment_id: GB_SEG.segment_id, lang: 'en', template_version: 'gb_k5_v9', lane: 'gb',
+    }));
+  });
+
+  test('an ICT lesson\'s quiz row carries no lane (unchanged)', async () => {
+    seedGb();
+    const out = await Provider.start({ id: T, preferred_language: 'en' }, '11111111-0000-4000-8000-000000000003', { phone: PHONE, via: 'list' });
+    const quiz = mockDb.table('quizzes').find((q) => q.id === out.quizId);
+    expect(quiz.meta.lessons[0].lane).toBeUndefined();
+  });
+});

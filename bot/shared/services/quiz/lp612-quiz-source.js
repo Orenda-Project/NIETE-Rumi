@@ -58,7 +58,17 @@ const LEVEL_BLOOM = { K: 'remember', U: 'understand', A: 'apply' };
 const arr = (v) => (Array.isArray(v) ? v : []);
 const str = (v) => (v == null ? '' : String(v).trim());
 
-function docKey({ segment_id: segmentId, lang, template_version: tv }) {
+/**
+ * A GB lesson (bd-97daxo.34): GB's grades 1-5 plans are written by the same author and delivered
+ * through 6-12's send, so they reach the 6-12 ledger and this reader, but GB keeps each document in
+ * its OWN lane (gb-lp-serving keyFor). The provider stamps `lane: 'gb'` from the segment's
+ * curriculum; a row made before that stamp is known by GB's template versions, which are all `gb_*`.
+ */
+const isGbLesson = (l) => l.lane === 'gb' || /^gb_/.test(String(l.template_version || ''));
+
+function docKey(lesson) {
+  const { segment_id: segmentId, lang, template_version: tv } = lesson;
+  if (isGbLesson(lesson)) return require('../gb-lp-serving.service').keyFor(segmentId, lang, tv, 'lp.json');
   // The ONE definition of the key (Serving.docKeyFor), so this reader and the
   // worker that writes the object cannot disagree about where it lives.
   const Serving = require('../lp612-serving.service');
