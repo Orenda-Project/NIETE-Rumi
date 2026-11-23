@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T12:41:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"7a30ddac1100","branch":"HEAD","user":""}
+{"ts":"2026-11-23T12:41:09Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,coaching,language,status,observe,child-test owe their Gherkin","sha":"7a30ddac1100","branch":"HEAD","user":""}
