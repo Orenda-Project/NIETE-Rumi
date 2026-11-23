@@ -81,9 +81,32 @@ describe('queue #230 · keysToWords / feedbackInWords (observe-coach-rubric)', (
     expect(fb.try.move).toBe('one_improvement_only'); // the input is untouched
   });
 
+  // Today's real FICO-S debrief: English lines quoting the officer's Urdu ("You said 'شاباش'…"). It is an English
+  // debrief; a key in it is named in English, inside a line and as a bare move.
+  it('an English debrief that quotes Urdu speech is English: the key is named in English', () => {
+    const fb = storedFeedback({
+      try: { move: 'one_improvement_only', evidence: "You said 'آج ہم نے کہانی پڑھی' and moved on to three changes.", instead: 'Pick the one that matters most.' },
+      focus_why: "You told the teacher 'یہ بھی ٹھیک کریں' twice, so elicited_if_then never came.",
+    });
+    const out = R.feedbackInWords(fb);
+    expect(R.feedbackLanguage(fb)).toBe('en');
+    expect(out.try.move).toBe(EN.one_improvement_only);
+    expect(out.focus_why).toContain(EN.elicited_if_then);
+  });
+
   it('an Urdu debrief names a bare-key move in Urdu', () => {
-    const fb = storedFeedback({ try: { move: 'one_improvement_only', evidence: 'آپ نے ایک ساتھ تین تبدیلیاں بتائیں۔', instead: 'ایک چنیں۔' } });
-    expect(R.feedbackInWords(fb).try.move).toBe(UR.one_improvement_only);
+    const fb = storedFeedback({
+      praise_line: 'آپ نے سبق کی اصل خوبی سے بات شروع کی۔',
+      wins: [{ behaviour: 'opened_with_specific_praise', evidence: 'آپ نے کہانی کا ذکر کیا' }, { behaviour: 'asked_and_waited', evidence: 'آپ نے انتظار کیا' }],
+      try: { move: 'one_improvement_only', evidence: 'آپ نے ایک ساتھ تین تبدیلیاں بتائیں۔', instead: 'سب سے اہم ایک چنیں۔' },
+      reflection_question: 'کون سی ایک تبدیلی سب سے اہم ہے؟',
+      focus_why: 'ایک تبدیلی سے elicited_if_then کی جگہ بنتی ہے۔',
+      missed: { one_improvement_only: 'آپ نے تین تبدیلیاں بتائیں۔' },
+      did: { opened_with_specific_praise: 'آپ نے کہانی کی تعریف کی۔' },
+    });
+    const out = R.feedbackInWords(fb);
+    expect(out.try.move).toBe(UR.one_improvement_only);
+    expect(out.focus_why).toBe(`ایک تبدیلی سے ${UR.elicited_if_then} کی جگہ بنتی ہے۔`);
   });
 });
 
