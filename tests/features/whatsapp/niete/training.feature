@@ -128,13 +128,18 @@ Feature: NIETE (ICT) Teacher Training
 
   @e2e @flow @P3 @T08
   Scenario: For an Oxbridge programme a level is certified from module scores, with no exam
-    Given a teacher in an Oxbridge programme who has finished every module with each best score at least 70%
-    Then the level detail states "🎓 No level exam — finish all sessions to complete this level." with no grand-quiz row
-    And on finishing the last module the bot congratulates me "with 70%+ on each quiz", gives a certificate code, and sends the certificate PDF — no exam is ever shown
+    Given a teacher in an Oxbridge programme who has passed every module but the last with a best score of at least 70%
+    When she opens the level
+    Then the level detail offers no exam: no "Take exam" button and no line about a missing level exam
+    And on passing the last module the bot sends the certificate PDF captioned with "Module check — passed", the congratulation "with 70%+ on each quiz" and a certificate code — no exam is ever shown
     # maybeIssueQuizScoreCertificate (QUIZ_CERT_PASS_PCT=0.7, vendor unlock_logic=all_modules, no capstone).
     # Verified live on PROD (2026-08-06): Oxbridge L17 (1 course · 7 modules SESSION#1-7 · no grand_quizzes).
     # Module bar is 70% ("10 questions. You need 70%…") vs NIETE 100%. Cert NIETE-20260805-YA5IU7 + PDF issued
     # off the final module pass — no exam step. See F-OXB-examcopy (post-completion still nudges "take the level exam").
+    # UPDATED 2026-11-23 (bd-kbo9h0.11): 1a930fa24 (18 Sep, bd-60130) removed the "🎓 No level exam — finish all
+    # sessions…" line: I-SAPS assesses per module, and narrating the missing exam read as breakage. An unfinished
+    # no-exam level now shows a blank slot; a finished one "🏆 Level complete — you have finished every session."
+    # with "✓ Complete". The step had kept the old line for two months; stale_text.py (engine 2.2.3) found it.
 
   @e2e @wip @draft @quiz @destructive @P1 @T26
   Scenario: For an I-SAPS programme passing the ninth module exam certifies the level
