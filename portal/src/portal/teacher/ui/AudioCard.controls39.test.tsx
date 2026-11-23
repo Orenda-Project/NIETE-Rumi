@@ -62,8 +62,9 @@ describe("AudioCard controls (bd-o15qnr.39)", () => {
     fireEvent.click(back); fireEvent.click(back); expect(m.now()).toBe(0);
   });
 
-  it("speed: 1× → 1.5× → 2× → 1×, applied to the audio and kept for the next player", () => {
-    expect(PLAYBACK_RATES).toEqual([1, 1.5, 2]);
+  // bd-o15qnr.40.2 (queue #229, the operator 23 Nov: "speeds incl. 2x and add 4x"): 4× after 2×, then back to 1×.
+  it("speed: 1× → 1.5× → 2× → 4× → 1×, applied to the audio and kept for the next player", () => {
+    expect(PLAYBACK_RATES).toEqual([1, 1.5, 2, 4]);
     const { unmount } = render(<AudioCard title="Class recording" src="https://r2/x.webm" controls />);
     const speed = screen.getByRole("button", { name: /speed/i });
     expect(speed).toHaveTextContent("1×");
@@ -77,6 +78,9 @@ describe("AudioCard controls (bd-o15qnr.39)", () => {
     render(<AudioCard title="Debrief recording" src="https://r2/t.webm" controls />);
     expect(screen.getByRole("button", { name: /speed/i })).toHaveTextContent("2×");
     expect(audioEl().playbackRate).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: /speed/i }));
+    expect(screen.getByRole("button", { name: /speed/i })).toHaveTextContent("4×");
+    expect(audioEl().playbackRate).toBe(4);
     fireEvent.click(screen.getByRole("button", { name: /speed/i }));
     expect(screen.getByRole("button", { name: /speed/i })).toHaveTextContent("1×");
   });
