@@ -1,3 +1,5 @@
 {"ts":"2026-11-23T04:37:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9292d74c464f","branch":"bd-3kshar.17-08259","user":""}
 {"ts":"2026-11-23T04:37:33Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"9292d74c464f","branch":"bd-3kshar.17-08259","user":""}
 {"ts":"2026-11-23T04:37:33Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"9292d74c464f","branch":"bd-3kshar.17-08259","user":""}
+{"ts":"2026-11-23T04:37:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"9292d74c464f","branch":"bd-3kshar.17-08259","user":""}
+{"ts":"2026-11-23T04:37:47Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"12b367af-babd-4922-b3f7-5a8489f2d48d","sha":"9292d74c464f","branch":"bd-3kshar.17-08259","user":""}
