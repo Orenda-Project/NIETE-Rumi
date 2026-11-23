@@ -14,7 +14,13 @@
 const CACHE_VERSION = 'v1';
 const CACHE_TTL_SECONDS = 30 * 24 * 3600;
 const MAX_CHAPTERS = 12;
-const MAX_OUTPUT_TOKENS = 12000;
+/**
+ * bd-vqqa7o: the job's model reasons before it answers and the reasoning spends this same budget. At 12,000
+ * (no effort set) 33 prod lists were cut off on 23 Nov, every one at 11,986 tokens, some after ~1,100
+ * characters of JSON. Copying questions out needs little thought: low effort, and the paper generator's room.
+ */
+const MAX_OUTPUT_TOKENS = 32000;
+const REASONING = { effort: 'low' };
 const URDU_MEDIUM = new Set(['urdu', 'islamiat', 'genk', 'sst', 'general_knowledge', 'social_studies']);
 
 /** Letters and digits only, any script, lowercased: what survives OCR spacing and punctuation. */
@@ -98,10 +104,17 @@ async function readChapter({ grade, subject, chapterNumber, curriculum }) {
     temperature: 0,
     response_format: { type: 'json_object' },
     max_tokens: MAX_OUTPUT_TOKENS,
+    reasoning: REASONING,
   });
   const raw = response?.choices?.[0]?.message?.content || '';
   const { extractJsonFromResponse } = require('./assessment-json.util');
-  const reply = extractJsonFromResponse(raw);
+  let reply;
+  try {
+    reply = extractJsonFromResponse(raw);
+  } catch (err) {
+    err.chapterTitle = source.chapterTitle || null; // her list still names the chapter that failed
+    throw err;
+  }
   return { chapterNumber, title: source.chapterTitle || null, exercises: parseExercises(reply, source.content, types) };
 }
 
@@ -127,10 +140,31 @@ async function chapterExercises(args) {
   return { chapterNumber: chapter.chapterNumber, title: chapter.title, exercises: chapter.exercises };
 }
 
-/** Her chapters' exercise questions, chapters in book order, each chapter read once. */
+/** A chapter being read right now, by key: a second teacher asking at once waits for the same read (bd-vqqa7o). */
+const inFlight = new Map();
+function sharedRead(args) {
+  const key = cacheKey(args);
+  if (!inFlight.has(key)) inFlight.set(key, chapterExercises(args).finally(() => inFlight.delete(key)));
+  return inFlight.get(key);
+}
+
+/**
+ * Her chapters' exercise questions, chapters in book order, each chapter read once. A chapter whose read
+ * fails comes back empty and `failed` (not cached, so the next ask reads it again) and the others still
+ * show; only when every chapter fails does the list fail (bd-vqqa7o).
+ */
 async function listExercises({ grade, subject, chapterNumbers, curriculum = null }) {
   const chapters = [...new Set((chapterNumbers || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b).slice(0, MAX_CHAPTERS);
-  const out = await Promise.all(chapters.map((chapterNumber) => chapterExercises({ grade, subject, chapterNumber, curriculum })));
+  const settled = await Promise.allSettled(chapters.map((chapterNumber) => sharedRead({ grade, subject, chapterNumber, curriculum })));
+  const failed = settled.filter((r) => r.status === 'rejected');
+  if (failed.length && failed.length === settled.length) throw failed[0].reason;
+  const { logToFile } = require('../../utils/logger');
+  const out = settled.map((r, i) => {
+    if (r.status === 'fulfilled') return r.value;
+    const chapterNumber = chapters[i];
+    logToFile('[assessment] exercises read failed', { key: cacheKey({ grade, subject, chapterNumber, curriculum }), error: r.reason?.message }, 'error');
+    return { chapterNumber, title: r.reason?.chapterTitle ?? null, exercises: [], failed: true };
+  });
   return { chapters: out };
 }
 
