@@ -17,8 +17,8 @@ A row stays behind (a 'skip') only where the database itself would refuse the mo
 the survivor's row for the same key (the runner reads every such index from the catalog, partial and expression
 ones included), or a sealed observation form, whose observer the seal trigger keeps.
 
-A class link or class list left behind that way is folded into the survivor's row for the same key, its twin
-(bd-4jlu31.8.9), the way the app's class hand-over treats an outgoing teacher (bot/database/migrations/
+A class link or class list left behind that way is folded into the survivor's row for the same key, its twin,
+the way the app's class hand-over treats an outgoing teacher (bot/database/migrations/
 roster_hand_over_class.sql): the rows depending on it follow the twin, the class-teacher flag moves to the twin when
 only the duplicate's row holds it, and the row is retired the app's way, then moves to the survivor like any other.
 What cannot follow (attendance or quizzes on the duplicate's list, a subject on both links) is left for a human.

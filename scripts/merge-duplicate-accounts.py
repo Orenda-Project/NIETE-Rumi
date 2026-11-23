@@ -20,7 +20,7 @@ every row the retired account owns, by primary key (a row stays only where a uni
 survivor's row for its key, or a sealed form keeps its observer); move booked visits with the number; retire the
 duplicate (soft delete, number freed); give the survivor the number in use with its portal login and WhatsApp
 session, and any fact it lacks; write one edit_phone audit row per retired account. A class link or class list the
-survivor already has for the same class is folded into the survivor's (bd-4jlu31.8.9), as the app's class hand-over
+survivor already has for the same class is folded into the survivor's, as the app's class hand-over
 does, under the class's roster lock: its subjects or children follow, the class-teacher flag moves when only the
 duplicate's link holds it, and the duplicate's row retires, then moves like any other. Every write asserts its rowcount,
 then the result is re-read and checked, else ROLLBACK. A serialization failure or lock timeout (the teacher chatting

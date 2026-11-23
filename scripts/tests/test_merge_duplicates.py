@@ -280,8 +280,8 @@ CLASS_KEYS = {("class_teachers", "teacher_user_id"): [ix("idx_class_teachers_uni
 
 class FindTwins(unittest.TestCase):
     """A row that stays behind because the survivor already holds its unique key has a twin: the survivor's row for
-    that key. On prod, three teachers each had two class links and two class lists for one class, one per account
-    (bd-4jlu31.8.9). Only a table the tool knows how to fold lists its twins."""
+    that key. On prod, three teachers each had two class links and two class lists for one class, one per account.
+    Only a table the tool knows how to fold lists its twins."""
 
     def test_a_class_link_left_behind_has_the_survivors_link_for_the_same_class_as_its_twin(self):
         owned = {("class_teachers", "teacher_user_id"): [
