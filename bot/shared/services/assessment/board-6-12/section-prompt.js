@@ -74,8 +74,9 @@ function promptValues({ grade, row, P, variant, unit, done, slotsAll, sloList })
   };
 }
 
-function userPrompt({ content, pageReference, note }) {
-  const head = `Write the section named in the task from this book text.\nPages: ${pageReference || 'whole selection'}\n\n**Book Text Content:**\n\`\`\`\n${content}\n\`\`\`\n\nReturn JSON only.`;
+/** `task`: the filled eg.task.board_section; it follows the book block so the text before it is the same for every section. */
+function userPrompt({ content, pageReference, note, task = '' }) {
+  const head = `Write the section named in the task from this book text.\nPages: ${pageReference || 'whole selection'}\n\n**Book Text Content:**\n\`\`\`\n${content}\n\`\`\`\n${task}\nReturn JSON only.`;
   return note ? `${head}\n\n${note}` : head;
 }
 
