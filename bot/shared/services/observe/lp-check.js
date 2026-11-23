@@ -269,25 +269,24 @@ async function readSwitch(observerUserId, db) {
 }
 
 /**
- * The notes with their lesson plan check, for an observer on the HITL switch; anything else exactly as it came.
- * Never throws: a failed read or model call leaves the notes as they are (switch) or falls back to code's words.
- * @param {object} guide    the notes as buildDebriefGuide wrote them
+ * The notes' lesson plan check for this visit, or null when the observer is off the HITL switch (or the language has no
+ * rubric-shaped notes). Never throws: a failed switch read is off; a failed words call falls back to code's words.
+ * buildDebriefGuide starts it beside the notes' own model call, so the notes take no longer to write.
  * @param {object} session  coaching_sessions row (analysis_data, observer_user_id)
  * @param {string} lang     the coach's language
  * @param {object} [deps]   { switchOn(session) → bool, complete(prompt) → {result} } for tests
  */
-async function attachLpCheck(guide, session, lang, deps = {}) {
-  if (!guide || typeof guide !== 'object' || typeof guide.text === 'string' || !Array.isArray(guide.conversation)) return guide;
-  if (lang !== 'ur' && lang !== 'en') return guide;
+async function lpCheckFor(session, lang, deps = {}) {
+  if (lang !== 'ur' && lang !== 'en') return null;
   try {
     const switchOn = deps.switchOn || ((s) => (s && s.observer_user_id ? readSwitch(s.observer_user_id, require('../../config/supabase')) : false));
-    if (!(await switchOn(session))) return guide;
+    if (!(await switchOn(session))) return null;
   } catch (err) {
     log('[lp-check] switch read failed — the notes go without the section', { sessionId: session && session.id, error: err && err.message });
-    return guide;
+    return null;
   }
   const s = planState((session && session.analysis_data) || {});
-  if (s.state !== 'ok') return { ...guide, lp_check: buildLpCheck(s) };
+  if (s.state !== 'ok') return buildLpCheck(s);
   let words;
   try {
     const complete = deps.complete || ((prompt) => require('../gpt5-mini.service').completeJson(prompt, {
@@ -299,7 +298,23 @@ async function attachLpCheck(guide, session, lang, deps = {}) {
     log('[lp-check] words call failed — the fallback writes them', { sessionId: session && session.id, error: err && err.message });
     words = fallbackWords(s, lang);
   }
-  return { ...guide, lp_check: buildLpCheck(s, words) };
+  return buildLpCheck(s, words);
+}
+
+/**
+ * The notes with their lesson plan check, for an observer on the HITL switch; anything else exactly as it came: a guide
+ * written whole (the /observe2 brief, an FDE talk), the Swahili steps, an observer off the switch. Never throws.
+ * `deps.lpCheck`: the check already started (a promise of lpCheckFor's answer).
+ */
+async function attachLpCheck(guide, session, lang, deps = {}) {
+  if (!guide || typeof guide !== 'object' || typeof guide.text === 'string' || !Array.isArray(guide.conversation)) return guide;
+  let lp = null;
+  try {
+    lp = deps.lpCheck ? await deps.lpCheck : await lpCheckFor(session, lang, deps);
+  } catch (err) {
+    log('[lp-check] could not be added to the notes', { sessionId: session && session.id, error: err && err.message });
+  }
+  return lp ? { ...guide, lp_check: lp } : guide;
 }
 
 // ── WhatsApp: the section as its own message ───────────────────────────────
@@ -462,6 +477,6 @@ function summariseWeek(thisWeek, lastWeek) {
 
 module.exports = {
   STEPS, STEP_NAMES, PARTS,
-  planState, fallbackWords, wordsFrom, buildLpCheck, wordsPrompt, attachLpCheck, renderLpCheckMessage,
+  planState, fallbackWords, wordsFrom, buildLpCheck, wordsPrompt, lpCheckFor, attachLpCheck, renderLpCheckMessage,
   isGenericPlanLine, discussionPrompt, discussionFrom, judgeDiscussion, summariseWeek,
 };
