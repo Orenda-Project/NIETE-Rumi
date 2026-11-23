@@ -1806,7 +1806,7 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
     logToFile('Error scheduling the answer-key review flag (non-fatal)', { error: error && error.message }, 'error');
   }
   try {
-    // The A/B tracker's nightly rollup into its own ab_ tables; a no-op until ab_tracker_rollup_enabled is set.
+    // The A/B tracker's rollup into its own ab_ tables; a no-op until ab_tracker_rollup_enabled is set.
     require('./ab-tracker-schedule').scheduleAbTracker({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
   } catch (error) {
     logToFile('Error scheduling the A/B tracker rollup (non-fatal)', { error: error && error.message }, 'error');

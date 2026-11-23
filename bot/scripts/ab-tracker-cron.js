@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * One night's A/B tracker rollup, for the tracker's own Railway project (bd-3kshar.6.5). Railway's cron starts this
- * at 22:00 UTC = 03:00 Pakistan time (railway.ab-tracker-cron.json); it runs the rollup once
- * (shared/services/ab-tracker/ab-tracker-rollup.service.js, which keeps every guard: replica only, the
- * ab_tracker_rollup_enabled switch, one run per Pakistan date), closes Redis and exits.
+ * One A/B tracker rollup tick, for the tracker's own Railway project (bd-3kshar.6.5). Railway's cron starts this
+ * every 15 minutes (railway.ab-tracker-cron.json); the rollup runs once per slot — 15 minutes in school hours, 2 hours
+ * outside them (shared/services/ab-tracker/ab-tracker-cadence.js) — and keeps every guard (replica only, the
+ * ab_tracker_rollup_enabled switch, one caller per tick). Then it closes Redis and exits.
  * Exit 1 on a refused, partial or failed run so the Railway run shows red; exit 0 on every quiet outcome.
  */
 const { logToFile } = require('../shared/utils/logger');
@@ -12,6 +12,8 @@ const { logToFile } = require('../shared/utils/logger');
 const QUIET = new Set(['ran', 'off', 'not_due', 'skipped', 'done_already']);
 
 function exitCodeFor(result) {
+  // No Redis means the tick claim can never succeed, so the job would skip every run in silence: show it red.
+  if (result && result.outcome === 'skipped' && result.reason === 'unavailable') return 1;
   return result && QUIET.has(result.outcome) ? 0 : 1;
 }
 
