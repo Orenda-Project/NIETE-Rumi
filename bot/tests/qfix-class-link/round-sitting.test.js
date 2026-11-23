@@ -508,3 +508,47 @@ describe('a round serves only its lesson and recall items: a held (or dropped) i
     expect(page.quiz.questions.map((q) => q.qid)).toEqual(PLAIN_ROWS.map((q) => q.id));
   });
 });
+
+describe('the page names what a sitting serves: a round\'s count is the child\'s set, never the pool it ships', () => {
+  const HELD = '4e550000-0000-4000-8000-0000000000h2';
+  // 10 rows as written: 5 lesson items, 4 recall items and 1 held one (never served). The page ships the 9 served rows
+  // (the start's order picks the child's own from them); every sitting serves 5 + 2 = 7, the round's meta.n_items.
+  function tenRows(sw) {
+    world(sw);
+    db.quiz_questions = db.quiz_questions.filter((q) => q.id !== rid(5) && q.id !== rid(6));
+    db.quiz_questions.push(base({ id: HELD, quiz_id: ROUND_Q, external_id: `tq:${ROUND_Q}:S1:9`, sort_order: 0, question_text: 'Held stem?', correct_option: 'C', media: { round: 'held', round_key: KEY } }));
+    db.quizzes[0].meta.n_items = 7;
+  }
+
+  test.each([
+    ['web_quiz_order_seed on', { seed: true, round: false }],
+    ['web_quiz_order_seed off, web_quiz_evening_round on', { seed: false, round: true }],
+  ])('%s: quiz.n is 7, the count every start serves (the 9 rows still ship)', async (_l, sw) => {
+    tenRows(sw);
+    const page = await WQ.getQuiz('RND234');
+    expect(page.quiz.questions).toHaveLength(9);
+    expect(page.quiz.n).toBe(7);
+    const a = await asZara();
+    expect(a.order.q).toHaveLength(page.quiz.n);
+  });
+
+  test('a named child (the link\'s chip): that child\'s set size', async () => {
+    tenRows({ seed: false, round: true });
+    const page = await WQ.getQuiz('RND234', { k: T.chipId(ROUND_SC, ZARA) });
+    expect(page.quiz.n).toBe(7);
+  });
+
+  test('both switches off: the round plays as an ordinary quiz, so the count is every row it serves', async () => {
+    tenRows({ seed: false, round: false });
+    const page = await WQ.getQuiz('RND234');
+    expect(page.quiz.n).toBe(9);
+    expect((await asZara()).order).toBeUndefined();
+  });
+
+  test('any other quiz: every question, as today', async () => {
+    tenRows({ seed: false, round: true });
+    const page = await WQ.getQuiz('PLAIN1');
+    expect(page.quiz.n).toBe(4);
+    expect(page.quiz.questions).toHaveLength(4);
+  });
+});
