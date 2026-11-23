@@ -47,18 +47,56 @@ function answerRows() {
   ];
 }
 
+const Q_WRONG_KEY_LATE = 'ffffffff-0000-4000-8000-000000000001';
+
+/** `n` items that are fine (key A right for 21 of 25), ids in question_id order, then `suspect` (key C, 16 of 25 on A)
+ *  with the highest id: the row a read that stops at the server's cap never sees. */
+function manyRows(n, suspect = Q_WRONG_KEY_LATE) {
+  const rows = [];
+  for (let i = 1; i <= n; i += 1) {
+    rows.push({ question_id: `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`, correct_option: 'A', option_a: 'x', option_b: 'y',
+      option_c: 'z', option_d: null, media: {}, counts: { A: 21, B: 4 }, answers_n: 25 });
+  }
+  rows.push({ question_id: suspect, correct_option: 'C', option_a: 'Maa, Maa', option_b: 'put-tur-hoo', option_c: 'Bhaoo, Bhaoo', option_d: null,
+    media: {}, counts: { A: 16, B: 2, C: 7 }, answers_n: 25 });
+  return rows;
+}
+
+/** A PostgREST call: filters, order and limit apply to the function's rows, and no response holds more than maxRows
+ *  (the server's max-rows; 1,000 on the NIETE prod replica), cut with no error. ignorePaging: a server that answers
+ *  every call with the same first rows. */
+function query(result, { maxRows = Infinity, ignorePaging = false } = {}) {
+  const q = { gt: null, order: null, offset: 0, limit: Infinity };
+  return {
+    gt(col, v) { q.gt = [col, v]; return this; },
+    order(col) { q.order = col; return this; },
+    limit(n) { q.limit = n; return this; },
+    range(from, to) { q.offset = from; q.limit = to - from + 1; return this; },
+    then(resolve, reject) {
+      if (!Array.isArray(result.data)) return Promise.resolve(result).then(resolve, reject);
+      let out = result.data.slice();
+      if (!ignorePaging) {
+        if (q.gt) out = out.filter((r) => r[q.gt[0]] > q.gt[1]);
+        if (q.order) out.sort((a, b) => (a[q.order] < b[q.order] ? -1 : a[q.order] > b[q.order] ? 1 : 0));
+        out = out.slice(q.offset, q.offset + q.limit);
+      }
+      return Promise.resolve({ data: out.slice(0, maxRows), error: null }).then(resolve, reject);
+    },
+  };
+}
+
 /** The replica: db_is_replica, the switch row, and the counts function. Like the NIETE prod replica, it
- *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400. */
-function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows() } = {}) {
+ *  answers rpc over GET only and refuses POST (supabase-js's default) with a 400, and cuts every response at 1,000 rows. */
+function fakeReader({ switchValue = { at: '02:00' }, rows = answerRows(), maxRows = 1000, ignorePaging = false } = {}) {
   const calls = [];
   return {
     calls,
-    async rpc(name, args, opts) {
+    rpc(name, args, opts) {
       calls.push({ name, args });
-      if (!opts || opts.get !== true) return { data: null, error: { message: `400: replica refuses POST rpc ${name}` } };
-      if (name === 'db_is_replica') return { data: true, error: null };
-      if (name === 'quiz_key_answer_counts') return { data: rows, error: null };
-      return { data: null, error: { message: `unexpected rpc ${name}` } };
+      if (!opts || opts.get !== true) return query({ data: null, error: { message: `400: replica refuses POST rpc ${name}` } });
+      if (name === 'db_is_replica') return query({ data: true, error: null });
+      if (name === 'quiz_key_answer_counts') return query({ data: rows, error: null }, { maxRows, ignorePaging });
+      return query({ data: null, error: { message: `unexpected rpc ${name}` } });
     },
     from(table) {
       if (table !== 'app_settings') throw new Error(`reader touched ${table}`);
@@ -178,5 +216,27 @@ describe('nightly answer-key review flag', () => {
     writer.store.get(`${Q_WEB_KEY}|dominant_wrong_option`).status = 'key_ok';
     const held = await Review.heldQuestionIds(writer, [Q_WRONG_KEY, Q_WEB_KEY, Q_FINE]);
     expect([...held]).toEqual([Q_WRONG_KEY]);
+  });
+
+  // Production, 23 Nov: quiz_key_answer_counts(20, 47) has 6,739 rows and one GET came back with exactly 1,000, no error.
+  test('reads every count row past the server\'s 1,000-row cap, and logs the true number scanned', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(2345) }), writer: () => writer });
+    expect(out.outcome).toBe('ran');
+    expect([...writer.store.values()].map((r) => r.question_id)).toEqual([Q_WRONG_KEY_LATE]);
+    expect(mockLogEvent).toHaveBeenCalledWith('quiz_keys.flagged', expect.objectContaining({ scanned: 2346, n_new: 1 }));
+  });
+
+  test('a server cap below the page size still reads every row', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(1000), maxRows: 400 }), writer: () => writer });
+    expect(out).toMatchObject({ outcome: 'ran', scanned: 1001, n_new: 1 });
+  });
+
+  test('a server that ignores the paging stops the run with an error and writes nothing, never loops', async () => {
+    const writer = fakeWriter();
+    const out = await Review.run({ now: NOW, redis: fakeRedis(), reader: fakeReader({ rows: manyRows(2345), ignorePaging: true }), writer: () => writer });
+    expect(out).toEqual({ outcome: 'error' });
+    expect(writer.store.size).toBe(0);
   });
 });

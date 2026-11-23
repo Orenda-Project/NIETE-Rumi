@@ -18,7 +18,8 @@
  *   3. app_settings quiz_key_review_job, read on the replica: true (02:00 PKT) or
  *      {"at":"HH:MM","min_answers":20,"min_share":0.6,"recent_days":3}. No row, a malformed value or a failed read → off.
  *   4. Due from that time for DUE_WINDOW_MIN minutes; one worker per tick (claimTick), once per Pakistan date (marker).
- *   5. The answer counts (rpc quiz_key_answer_counts) for items answered in the last recent_days — on the replica.
+ *   5. The answer counts (rpc quiz_key_answer_counts) for items answered in the last recent_days — on the replica,
+ *      every row: paged, because one response stops at the server's max-rows (1,000) with no error.
  *   6. Writes on the PRIMARY, to quiz_item_reviews only: a new suspect is inserted 'open'; an open one has its counts
  *      refreshed; a reviewed one (any other status) is left exactly as the reviewer left it, except last_seen_on.
  * Logged with a correlation id: counts only (quiz_keys.flagged). Never throws.
@@ -38,6 +39,9 @@ const REASONS = Object.freeze([REASON, 'blind_solve']);
 const DEFAULTS = Object.freeze({ at: 2 * 60, min_answers: 20, min_share: 0.6, recent_days: 3 });
 const DUE_WINDOW_MIN = 90;
 const CHUNK = 200;
+/** Rows asked for per counts page (the server's max-rows may cut a page shorter), and the most pages one run reads. */
+const PAGE = 1000;
+const MAX_PAGES = 200;
 /** Queue states that still keep an item out of new uses (class-link's recall round reads these). */
 const HELD = ['open', 'key_wrong', 'ambiguous'];
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -104,12 +108,34 @@ async function heldQuestionIds(db, ids) {
   return held;
 }
 
-/** Reads the counts (replica, over GET: the replica refuses POST rpc), then writes the queue (primary). Returns the counts. */
+/**
+ * Every count row, on the replica over GET (it refuses POST rpc), in pages by question_id. One call stops at the server's
+ * max-rows (1,000 on the NIETE production replica) with no error, and night 1 alone is ~6,700 rows. Each page asks for the
+ * rows after the last id read, and the read ends at an empty page, so a server cap below PAGE only makes pages smaller.
+ */
+async function readCounts(reader, cfg) {
+  const rows = [];
+  let after = null;
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    let q = reader.rpc('quiz_key_answer_counts', { p_min_answers: cfg.min_answers, p_recent_days: cfg.recent_days }, { get: true });
+    if (after !== null) q = q.gt('question_id', after);
+    const { data, error } = await q.order('question_id', { ascending: true }).limit(PAGE);
+    if (error) throw new Error(error.message || 'quiz_key_answer_counts failed');
+    if (!data || !data.length) return { rows, pages: page };
+    const last = String(data[data.length - 1].question_id);
+    // A server that ignored the filter would hand back the same rows forever.
+    if (after !== null && !(last > after)) throw new Error('quiz_key_answer_counts paging did not move past ' + after);
+    rows.push(...data);
+    after = last;
+  }
+  throw new Error(`quiz_key_answer_counts paging did not end in ${MAX_PAGES} pages`);
+}
+
+/** Reads the counts (replica), then writes the queue (primary). Returns the counts. */
 async function flag({ reader, writer, cfg, today }) {
-  const { data, error } = await reader.rpc('quiz_key_answer_counts', { p_min_answers: cfg.min_answers, p_recent_days: cfg.recent_days }, { get: true });
-  if (error) throw new Error(error.message || 'quiz_key_answer_counts failed');
-  const suspects = (data || []).map((r) => suspectOf(r, cfg)).filter(Boolean);
-  const counts = { scanned: (data || []).length, n_total: suspects.length, n_new: 0, n_open_refreshed: 0, n_reviewed_skipped: 0 };
+  const { rows: data, pages } = await readCounts(reader, cfg);
+  const suspects = data.map((r) => suspectOf(r, cfg)).filter(Boolean);
+  const counts = { scanned: data.length, pages, n_total: suspects.length, n_new: 0, n_open_refreshed: 0, n_reviewed_skipped: 0 };
   if (!suspects.length) return counts;
   const db = writer();
   const existing = new Map();
@@ -189,4 +215,4 @@ async function run(deps = {}) {
   });
 }
 
-module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN };
+module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, readCounts, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, DEFAULTS, HELD, DUE_WINDOW_MIN };
