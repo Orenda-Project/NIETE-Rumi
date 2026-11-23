@@ -1,3 +1,4 @@
 {"ts":"2026-11-23T14:22:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"083946264ce1","branch":"bd-97daxo.34-stg","user":""}
 {"ts":"2026-11-23T14:22:40Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"083946264ce1","branch":"bd-97daxo.34-stg","user":""}
 {"ts":"2026-11-23T14:51:51Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (same GB lp612 quiz-source fix, earlier sha/cherry-pick; fan-out mapping, no training surface changed)","sha":"083946264ce1","branch":"bd-97daxo.34-main","user":""}
+{"ts":"2026-11-23T14:51:52Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-083946264ce1","sha":"083946264ce1","branch":"bd-97daxo.34-main","user":""}
