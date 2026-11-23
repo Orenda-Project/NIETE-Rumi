@@ -4,31 +4,31 @@
     "bytes": 101762
   },
   "week_off.ur": {
-    "sha256": "a1c5945bf9d609878fafd8727e1cb44bc8d46952ab043fe53d18157b2950ff0d",
-    "bytes": 102236
+    "sha256": "1ea266d88784f4562dd7b6a51b86742f004774eef5c42d816a1b0df5fd3978f5",
+    "bytes": 102268
   },
   "round_off.en": {
     "sha256": "71f189b88aef5db3c4a203fb7cf8a983966a20e754c9f7620ede13ad48a01d08",
     "bytes": 101762
   },
   "round_off.ur": {
-    "sha256": "a1c5945bf9d609878fafd8727e1cb44bc8d46952ab043fe53d18157b2950ff0d",
-    "bytes": 102236
+    "sha256": "1ea266d88784f4562dd7b6a51b86742f004774eef5c42d816a1b0df5fd3978f5",
+    "bytes": 102268
   },
   "link_off.en": {
     "sha256": "71f189b88aef5db3c4a203fb7cf8a983966a20e754c9f7620ede13ad48a01d08",
     "bytes": 101762
   },
   "link_off.ur": {
-    "sha256": "a1c5945bf9d609878fafd8727e1cb44bc8d46952ab043fe53d18157b2950ff0d",
-    "bytes": 102236
+    "sha256": "1ea266d88784f4562dd7b6a51b86742f004774eef5c42d816a1b0df5fd3978f5",
+    "bytes": 102268
   },
   "v2_off.en": {
     "sha256": "34951ecb35c3b9a51ef0600fe3c99a969521f16f4a49548825345067318956f2",
     "bytes": 98861
   },
   "v2_off.ur": {
-    "sha256": "662dd11db9627694bfe0d14ca025a5216e3726a18c0a5763dbc07adee043f864",
-    "bytes": 99513
+    "sha256": "ee5f503963732ca8a21330fc0b990beaf40be3d970cdd99b8cfec4b6cc299991",
+    "bytes": 99376
   }
 }
