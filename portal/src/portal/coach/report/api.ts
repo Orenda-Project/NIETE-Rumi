@@ -19,6 +19,28 @@ export interface CoachReport {
   did: { key: string; name: Both; line: string | null }[];
   missed: { key: string; name: Both; line: string | null; why: Both }[];
   focus: { key: string; move: string | null; why: string | null; tryLine: { en: string; ur: string } | null } | null;
+  /** The lesson plan discussion, the report's last block (never scored); null when the notes carried no check. */
+  lessonPlan?: LessonPlanReport | null;
+}
+
+/** The five parts of the coach's talk about the plan (dashboard coach-report.service lessonPlanOf). */
+export type LessonPlanReport =
+  | { state: "no_plan" }
+  | { state: "not_assessed"; reason: string }
+  | {
+    state: "ok"; covered: number; total: number;
+    parts: { key: string; name: Both; covered: boolean; quote: string | null; what: string | null }[];
+    nextTime: { key: string; line: string } | null;
+    moves: import("./LessonPlan").LpStep[] | null;
+    moveCount: number;
+  };
+
+/** The week's lesson plan discussions (dashboard coach-week.service lessonPlanWeek). */
+export interface LessonPlanWeek {
+  week: { full: number; of: number };
+  last: { full: number; of: number } | null;
+  mostMissed: { key: string; n: number; of: number; name: Both } | null;
+  noPlan: number;
 }
 
 export interface ReadyDebrief {
@@ -65,6 +87,8 @@ export interface CoachWeek {
   strengths: (Count & { key: string; name: Both })[];
   keepInMind: (Count & { key: string; name: Both; why: Both })[];
   table: { key: string; name: Both; week: Count; last: Count | null }[];
+  /** The week's last block; null when no debrief this week carries the lesson plan check. */
+  lessonPlan?: LessonPlanWeek | null;
 }
 
 /** Why a report could not be shown, from the route's status. */
