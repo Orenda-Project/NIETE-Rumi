@@ -1,1 +1,2 @@
 {"ts":"2026-11-22T17:38:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"6e18f8f4516d","branch":"bd-dp9ipc-stg2","user":""}
+{"ts":"2026-11-23T04:22:32Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (change only fixes the band of a grades 1-5 Recent row; covered by teacher-lessons @RLP01; nothing portal-smoke checks changes)","sha":"6e18f8f4516d","branch":"bd-dp9ipc-main2","user":""}
