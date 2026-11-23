@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T17:34:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"38363c3ac71d","branch":"bd-rzjnjp.1-49165","user":""}
+{"ts":"2026-11-23T17:34:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"38363c3ac71d","branch":"bd-rzjnjp.1-49165","user":""}
