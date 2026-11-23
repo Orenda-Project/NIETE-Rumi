@@ -9,3 +9,4 @@
 {"ts":"2026-11-22T02:16:43Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"b59238a230c3","branch":"bd-e1qvrf-staging","user":""}
 {"ts":"2026-11-23T12:30:22Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"b59238a230c3","branch":"bd-p3gk97-e1qvrf-stg","user":""}
 {"ts":"2026-11-23T12:38:36Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of Amena b59238a; its commit already carries the @T1184 scenario, validated OK; scenario is @wip, mock cassettes lack transcript)","sha":"b59238a230c3","branch":"bd-p3gk97-e1qvrf-stg","user":""}
+{"ts":"2026-11-23T12:38:37Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"7c1683ec-ed1b-4fb4-9631-695e761d5278","sha":"b59238a230c3","branch":"bd-p3gk97-e1qvrf-stg","user":""}
