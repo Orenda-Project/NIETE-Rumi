@@ -10,7 +10,8 @@
  *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
  *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
  *   arrive({code, device_ref, jt})  a device that played as (or whose hub was opened for) a child enrolled in this class →
- *                                   "Whose turn?" with ONLY those children; any other device → "Tap your teacher's name"
+ *                                   "Whose turn?" with ONLY those children (and `other`: the teacher step, for a child
+ *                                   not listed); any other device → "Tap your teacher's name"
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
  *                                   letters present); a wrong one → the teacher step again, no children
  *   letter({code, s, letter})       the chips whose canon first name starts with that letter, FIRST NAMES ONLY
@@ -138,7 +139,7 @@ function stepOf(code, s, want) {
 // ── the phone's memory of a high pick ──────────────────────────────────────────────────────────────
 // One Redis record per (link, phone): {studentId: exp} for the children a HIGH pick named there, each kept until its
 // own exp (min(the link's expires_at, the pick + 28 days)). Only pick() writes it, only for a high pick; nothing here
-// reads or sets a confidence. Redis down → {} (the phone's memory falls back to today's 7 days).
+// reads or sets a confidence. Redis down → {}, and pick() then mints today's 7 days (it checks redisUp itself).
 const redisUp = () => {
   const redis = require('../cache/railway-redis.service');
   return redis && typeof redis.isAvailable === 'function' && redis.isAvailable() ? redis : null;
@@ -336,17 +337,23 @@ async function arrive({ code, device_ref: deviceRef, jt } = {}) {
   const kids = await rosterKids(link);
   const lang = langOf(await teacherRow(link.teacher_id));
   const mine = await rememberedInClass(link, deviceRef, kids);
+  const teachers = await teacherChips(link);
+  const teacherStep = teachers.length
+    ? { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) }
+    : null;
   if (mine.length) {
     const script = scriptOf(kids, lang);
     return {
       step: 'who',
       s: stepToken(code, { st: 'who', ...(practice ? { p: 1 } : {}) }),
       kids: mine.map((k) => ({ chip: kidChip(code, k.id), first: firstNameOf(shownName(k, script)).shown, animal: T.animalFor(k.id) })),
+      // A shared phone: a child who is not listed (a sibling) takes the stranger path from here, the teacher step a
+      // fresh phone gets. Their high pick joins this phone's record, so the next "Whose turn?" lists them too.
+      other: teacherStep,
     };
   }
-  const teachers = await teacherChips(link);
-  if (!teachers.length) return notFound();
-  return { step: 'teacher', s: stepToken(code, { st: 'teacher', ...(practice ? { p: 1 } : {}) }), teachers: teachers.map(({ tk, name }) => ({ tk, name })) };
+  if (!teacherStep) return notFound();
+  return teacherStep;
 }
 
 async function teacher({ code, s, tk } = {}) {
@@ -450,11 +457,15 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   // as the link (≤ 28 days) from now; a "Whose turn?" pick of a child a high pick left on this phone keeps THAT exp (the
   // memory is never stretched by being used). Anything else (a low pick, the teacher's visit, a phone remembered only by
   // its played sessions or another hub): today's 7 days.
+  // Redis down: nothing can remember the phone, so the token keeps today's 7 days too.
   const d = T.cleanDeviceRef(deviceRef);
-  const kept = d && !step.p && cl.q === 'high' ? await memoryOf(code, d) : null;
+  const kept = d && !step.p && cl.q === 'high' && redisUp() ? await memoryOf(code, d) : null;
   const long = Boolean(kept) && (step.st === 'chips' || Boolean(kept[String(hit.id)]));
   const exp = long ? horizonExp(link, step.st === 'who' ? kept[String(hit.id)] : null) : nowS() + T.HUB_TTL_S;
-  const token = T.sign({ k: 'h', ids: [hit.id], exp, src: 'cl', cl });
+  // The class's Urdu rides to the hub as the link's language (below a child's own choice and class quiz history in
+  // the hub's ladder); an English or unknown class adds nothing, so the hub's own order decides as before.
+  const ur = langOf(await teacherRow(link.teacher_id)) === 'ur';
+  const token = T.sign({ k: 'h', ids: [hit.id], ...(ur ? { l: 'ur' } : {}), exp, src: 'cl', cl });
   if (!token) fail(503, 'web_quiz_off');
   if (long) await remember(code, d, hit.id, exp);
   // The teacher's own preview is not a child's door: no door_tap.
