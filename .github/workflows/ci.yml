@@ -35,6 +35,12 @@ on:
     # `lint` is a REQUIRED check on staging — so the PR sits blocked for
     # ever on a check that can never report.
     branches: [main, staging, sandbox]
+    # `labeled`/`unlabeled` are here because the baseline-recut escape below reads labels
+    # off the event payload, which is fixed when the run starts. Without them, applying the
+    # label changes nothing until someone pushes again — an escape hatch you need a trick to
+    # use is not one. `unlabeled` re-runs too, so removing the label restores the guard
+    # rather than leaving a stale green behind it.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:        # so the gate can be proven green before it guards PRs
 
 jobs:
@@ -76,6 +82,25 @@ jobs:
       - name: E2E engine bridge
         run: bash scripts/qa/engine-bridge.test.sh
 
+      # bot/ and dashboard/ deps go in BEFORE the gate (bd-nij2nd). Root suites that load the real
+      # express/pg/aws-sdk/bcryptjs from dashboard/node_modules, or @supabase/supabase-js and dotenv from
+      # bot/node_modules (coachip, coachip-media, portal assets, fflp seams, cert scripts), died at
+      # require() here when these ran after it: 17 suites red on a harness gap, not on a behaviour.
+      - name: Install canvas system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
+
+      # SKIP_PLAYWRIGHT_INSTALL: bot's postinstall downloads chromium, and Playwright has no build for
+      # ubuntu-latest (26.04) yet — `npm ci` exited 1 on it. No root suite drives a real browser.
+      - name: Install bot dependencies
+        working-directory: bot
+        env:
+          SKIP_PLAYWRIGHT_INSTALL: '1'
+        run: npm ci
+
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+
       # `npm test` IS the baseline gate — it runs every suite via tests/run.js and
       # then judges the delta against tests/baseline.snapshot.json. Use
       # `npm run test:raw` for unfiltered jest output when debugging a failure.
@@ -99,19 +124,27 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_REF: origin/${{ github.base_ref }}
+          # A re-cut after the base branch has drifted legitimately GROWS the snapshot, and
+          # until now the check had no way to hear that: --allow-growth was reachable only
+          # for PRs into `main`, so the one operation BASELINE.md documents as legitimate --
+          # "re-record it in its own commit, explain why in the PR, and re-run with
+          # --allow-growth" -- could not be performed on `sandbox`, which is where all work
+          # lands. bd-ym59h hit exactly that: a re-cut that made `npm test` CLEAN could not
+          # be merged, because recording nine days of other people's accumulated failures
+          # reads as growth.
+          #
+          # The label is the explicit human act the check asks for. It is applied on the PR,
+          # visible in its timeline, and has to be added deliberately -- "the intent is
+          # recorded rather than inferred". Default behaviour is unchanged: no label, no
+          # growth.
+          ALLOW_GROWTH: ${{ github.base_ref == 'main' || contains(github.event.pull_request.labels.*.name, 'baseline-recut') }}
         run: |
-          if [ "${{ github.base_ref }}" = "main" ]; then
+          if [ "$ALLOW_GROWTH" = "true" ]; then
+            echo "baseline-growth: growth permitted (base=${{ github.base_ref }}, baseline-recut label or main)"
             npm run test:baseline:growth -- --allow-growth
           else
             npm run test:baseline:growth
           fi
-
-      - name: Install canvas system dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev libpixman-1-dev
-
-      - name: Install bot dependencies
-        working-directory: bot
-        run: npm ci
 
       - name: Verify no hardcoded credentials
         run: |

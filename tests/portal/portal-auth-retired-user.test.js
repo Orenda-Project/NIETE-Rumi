@@ -233,7 +233,7 @@ describe('ONE check, on every portal router', () => {
   test.each([
     'attendance', 'hcp', 'portal-child-test', 'training-library', 'portal-share',
     'portal-teacher-attendance', 'portal-teacher-coaching', 'portal-teacher-home', 'portal-teacher-lessons',
-    'portal-teacher-notices', 'portal-teacher-thing-to-try', 'portal',
+    'portal-teacher-notices', 'portal-teacher-push', 'portal-teacher-thing-to-try', 'portal',
   ])('%s.routes.js takes requirePortalAuth from lib/portal-auth', (name) => {
     const src = fs.readFileSync(path.join(ROOT, 'dashboard/routes', `${name}.routes.js`), 'utf8');
     expect(src).toMatch(/require\(['"]\.\.\/lib\/portal-auth['"]\)/);

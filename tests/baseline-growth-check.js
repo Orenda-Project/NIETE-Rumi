@@ -12,7 +12,7 @@
  * branch and fails if it grew, at all three of the levels the gate compares.
  *
  * Usage:
- *   node tests/baseline-growth-check.js                  # vs origin/develop
+ *   node tests/baseline-growth-check.js                  # vs origin/sandbox
  *   node tests/baseline-growth-check.js --base=origin/main
  *   BASELINE_BASE_REF=origin/main node tests/baseline-growth-check.js
  *
@@ -32,7 +32,7 @@ const SNAPSHOT_REL = 'tests/baseline.snapshot.json';
 function baseRef(argv) {
   const flag = argv.find((a) => a.startsWith('--base='));
   if (flag) return flag.slice('--base='.length);
-  return process.env.BASELINE_BASE_REF || 'origin/develop';
+  return process.env.BASELINE_BASE_REF || 'origin/sandbox';
 }
 
 /** The snapshot as it exists on the base branch, or null if the ref is unreachable. */
