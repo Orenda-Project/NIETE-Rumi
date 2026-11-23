@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T16:18:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,portal-smoke spec_sync=true","sha":"11f81bc89669","branch":"bd-sm4xdn-main","user":""}
+{"ts":"2026-11-23T16:19:30Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-sm4xdn-main: E-DUPID:child-test;E-NODRIVER:registration","sha":"11f81bc89669","branch":"bd-sm4xdn-main","user":""}
