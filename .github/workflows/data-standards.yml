@@ -23,18 +23,26 @@ name: data-standards
 # and posts no comment. That is safe to make a required check, and there is no
 # path list to forget to update.
 #
-# ADVISORY, FOR NOW
-# -----------------
-# The `report` job never fails the build. Two known upstream detection gaps make
-# blocking premature, both measured against this repo:
-#   1. The D8 destructive check does not strip SQL comments, so a commented-out
-#      rollback line (`-- DROP TABLE IF EXISTS x;`) reads as live destructive SQL.
-#      23 of our 85 findings are this — 27%.
-#   2. D4's PII pattern is `\b(phone|cnic|email|dob)\b`, and `_` is a word
-#      character, so `parent_phone` / `teacher_phone` / `work_email` are NOT
-#      detected. 3 of our 6 real PII column names are invisible to it.
-# Both live in the Data Team's skill, which this repo vendors verbatim and does
-# not patch. Drop `continue-on-error` once upstream addresses them.
+# BLOCKING (since 2026-11-18)
+# ---------------------------
+# The `report` job ("schema findings") FAILS on a blocking finding (validator
+# exit 1) and when the validator cannot run (exit 2: failing closed, so a broken
+# gate never waves a change through). It was advisory until both upstream gaps
+# it waited for were fixed in the Data Team's skill (agent-skills-taleemabad
+# PR #115), which this repo vendors verbatim:
+#   1. D8 now ignores commented-out SQL (`-- DROP TABLE IF EXISTS x;`): 23 of
+#      our 85 findings were this.
+#   2. D4 now reads PII words inside column names (`parent_phone`, `work_email`).
+# Also fixed there: rollback files (`ROLLBACK_V1.2__x.sql`) are undo code, so
+# dropping and deleting what their migration created no longer blocks (20 of
+# our 63 rollback files would have).
+#
+# Only what a PR ADDS can block; problems already in a file never do. A check
+# this repo is not ready for stays a warning via "warn_only" in
+# .data-standards.json (today: D9-no-deleted-at). A one-off fair exception can
+# be marked in the SQL (`-- destructive: reviewed`, `-- breaking: reviewed`).
+# For this check to stop a merge it must be a REQUIRED status check in the
+# branch rulesets for sandbox, staging and main (repo admin setting).
 #
 # The `ownership` job is NOT advisory — it fails hard. It proves nobody edited the
 # vendored skill, which is the entire basis for calling it the Data Team's.
@@ -90,7 +98,7 @@ jobs:
         run: node tests/run.js --testPathPattern="source-hygiene" -t "vendored-skill exemption"
 
   report:
-    name: schema findings (advisory)
+    name: schema findings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,7 +164,6 @@ jobs:
       - name: Validate changed schema files
         id: validate
         if: steps.scope.outputs.relevant != '0'
-        continue-on-error: true
         run: |
           set +e
           python3 .claude/skills/data-standards/scripts/validate_schema.py \
@@ -164,6 +171,11 @@ jobs:
             --head "${{ steps.refs.outputs.head }}" > report.json 2>err.txt
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          warnings=0
+          if [ -s report.json ]; then
+            warnings=$(python3 -c "import json;print(len(json.load(open('report.json')).get('warnings',[])))")
+          fi
+          echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
           python3 .claude/skills/data-standards/scripts/validate_schema.py \
             --mode diff --base "${{ steps.refs.outputs.base }}" \
             --head "${{ steps.refs.outputs.head }}" --markdown > report.md 2>/dev/null
@@ -174,10 +186,12 @@ jobs:
           # Guard the reads with a file test instead.
           if [ -f report.md ]; then cat report.md; fi
           if [ -s err.txt   ]; then cat err.txt;   fi
-          # Exit with the validator's real code so the step's status tells the
-          # truth in the UI, and let `continue-on-error` above absorb it rather
-          # than faking a green with `exit 0`. Findings show as a visible warning;
-          # the job still proceeds to comment.
+          # Blocking: exit 1 (a blocking finding) and exit 2 (the validator could
+          # not run) fail this step and the check. 0 = pass (warnings, if any, are
+          # in the comment); 3 = nothing schema-relevant after all = pass. The
+          # steps below use always() so the comment and the Slack post still go
+          # out when this fails.
+          if [ "$code" = "3" ]; then exit 0; fi
           exit "$code"
 
       - name: Upload report
@@ -201,12 +215,13 @@ jobs:
       # exists — otherwise a comment from an earlier push stays visible and lies
       # about the current state (e.g. after a fix removes the last schema file).
       - name: Comment on the PR
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const code = '${{ steps.validate.outputs.exit_code }}';
+            const nWarn = '${{ steps.validate.outputs.warnings }}' || '0';
             const nRel = '${{ steps.scope.outputs.relevant }}';
             const nAmb = '${{ steps.scope.outputs.ambiguous }}';
             const marker = '<!-- data-standards -->';
@@ -224,19 +239,20 @@ jobs:
               if (!stale) return;                     // nothing to say, nothing to correct
               await github.rest.issues.updateComment({
                 owner: context.repo.owner, repo: context.repo.repo, comment_id: stale.id,
-                body: [marker, '### Data standards — advisory',
+                body: [marker, '### Data standards',
                        'This PR no longer changes any schema file in scope. Nothing to report.'].join('\n'),
               });
               return;
             }
             const head =
-              code === '1' ? `Findings on ${nRel} schema file(s) this PR touches. **Advisory — does not block the merge.** About a quarter of D8 findings are known false positives (commented-out SQL read as live destructive statements).`
-              : code === '2' ? 'The validator could not run — see the job log.'
-              : `No findings on the ${nRel} schema file(s) this PR touches.`;
+              code === '1' ? `❌ **Blocked** — this PR adds data-standards violations in the ${nRel} schema file(s) it touches. Fix them and push again. Only what this PR adds can block; problems already in a file are listed but never do. A fair one-off exception can be marked in the SQL (\`-- destructive: reviewed\` / \`-- breaking: reviewed\`) — say why in the PR.`
+              : code === '2' ? '❌ **Blocked** — the validator could not run, so nothing was checked. See the job log; re-run once fixed.'
+              : nWarn !== '0' ? `✅ No blocking findings on the ${nRel} schema file(s) this PR touches, but ${nWarn} warning(s) (checks this repo keeps as warnings in .data-standards.json). Each says why.`
+              : `✅ No findings on the ${nRel} schema file(s) this PR touches.`;
             const amb = nAmb !== '0'
               ? `\n\n⚠️ ${nAmb} file(s) could not be classified as schema vs. data dump — see \`detect.json\` in the run artifacts.`
               : '';
-            const body = [marker, '### Data standards — advisory', head + amb, '',
+            const body = [marker, '### Data standards', head + amb, '',
               fs.existsSync('report.md') ? fs.readFileSync('report.md', 'utf8') : ''].join('\n');
             const existing = await findExisting();
             if (existing) {
@@ -258,10 +274,9 @@ jobs:
       # finding (exit 1) — not on exit 2 (validator error), which is a CI/infra
       # problem for whoever's watching Actions, not a data-standards finding.
       #
-      # This step deliberately does NOT gate the job (this workflow is
-      # advisory-only today, per the header above) and continue-on-error is
-      # set so even an outright failure here can never turn this into a
-      # blocking step later by accident.
+      # The validate step above is what blocks. This step only notifies:
+      # continue-on-error is set so a Slack outage can never fail the check,
+      # and always() so it still runs after validate has failed.
       #
       # Needs two repository secrets to actually deliver — Settings → Secrets
       # and variables → Actions:
@@ -270,7 +285,7 @@ jobs:
       # Without them, notify.py still runs and exits 0, reporting "not sent" —
       # same never-block guarantee as every other call site for this script.
       - name: Notify Slack on a confirmed violation
-        if: steps.validate.outputs.exit_code == '1'
+        if: always() && steps.validate.outputs.exit_code == '1'
         continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -282,5 +297,5 @@ jobs:
             --branch "${{ github.head_ref || github.ref_name }}" \
             --commit "${{ steps.refs.outputs.head }}" \
             --actor "${{ github.actor }}" \
-            --result "FAIL (CI, advisory)" \
+            --result "FAIL (CI)" \
             --pr "${{ github.event.pull_request.html_url || '' }}"
