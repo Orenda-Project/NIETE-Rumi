@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T18:27:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
 {"ts":"2026-11-22T18:30:44Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
 {"ts":"2026-11-22T18:35:13Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
+{"ts":"2026-11-23T04:05:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"a3ecf4386458","branch":"bd-snkn32.70-stg","user":""}
