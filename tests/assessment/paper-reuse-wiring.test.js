@@ -94,6 +94,12 @@ jest.mock('../../bot/shared/services/assessment/paper-reuse', () => ({
   findDonor: (...a) => mockFindDonor(...a),
 }));
 
+const mockPrevious = jest.fn();
+jest.mock('../../bot/shared/services/assessment/repeat-guard', () => ({
+  ...jest.requireActual('../../bot/shared/services/assessment/repeat-guard'),
+  previousQuestions: (...a) => mockPrevious(...a),
+}));
+
 const { applyLayout } = require('../../bot/shared/services/assessment/fde-layout');
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 const Reuse = require('../../bot/shared/services/assessment/paper-reuse');
@@ -111,6 +117,7 @@ const KEY = Reuse.reuseKey({
   readerPass: false, splitRetry: false, stemCheck: false,
 });
 const setting = (value) => { mockState.rows.app_settings = value === undefined ? [] : [{ key: 'assessment_paper_reuse', value }]; };
+const plainSetting = (value) => { mockState.rows.app_settings = [{ key: 'assessment_paper_reuse_plain', value }]; };
 const firstPatch = () => mockState.calls.find((c) => c.op === 'update' && c.table === 'assessment_papers' && c.payload?.exam_json).payload;
 
 beforeEach(() => {
@@ -120,6 +127,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockGeneratePatternExam.mockResolvedValue({ examJson: exam(), questionCount: 48, tokenData: { model: 'm', inputTokens: 9, outputTokens: 9 }, pageReference: '1-40', layout: { placed: 48, unplaced: 0 } });
   mockFindDonor.mockResolvedValue(null);
+  mockPrevious.mockResolvedValue([]);
   mockHtmlToPdf.mockResolvedValue(Buffer.from('%PDF-1.4\n%%EOF'));
   mockUpload.mockResolvedValue({ key: 'k' });
 });
@@ -164,4 +172,105 @@ test('setting on, no donor: written fresh and stamped', async () => {
   expect(mockFindDonor).toHaveBeenCalledTimes(1);
   expect(mockGeneratePatternExam).toHaveBeenCalledTimes(1);
   expect(firstPatch().exam_json._reuse).toEqual({ key: KEY, page_reference: '1-40' });
+});
+
+// ── Plain (non-board) papers (bd-h8zy3q) ─────────────────────────────────────────────────────────
+const PLAIN = {
+  userId: 'teacher-1', requestId: 'req-plain', grade: 5, subject: 'science', pageRanges: '10-20', chapterNumber: undefined,
+  questionTypes: ['mcq'], contentSource: 'unseen', questionCount: 10, totalMarks: 20, outputFormat: 'pdf', deliver: 'none',
+};
+const PLAIN_KEY = Reuse.plainReuseKey({
+  grade: 5, subject: 'science', chapterNumber: undefined, pageRanges: '10-20', questionTypes: ['mcq'], contentSource: 'unseen',
+  questionCount: 10, totalMarks: 20, seenCount: null, seenTypes: null, scope: null, compact: false, curriculum: undefined,
+});
+const plainExam = () => JSON.parse(JSON.stringify({ title: 'T', sections: [{ type: 'mcq', questions: [{ id: 'q1', text: 'Q?', marks: 1, options: ['a', 'b'] }] }] }));
+const buildPlain = (job = {}) => Orchestrator.buildPaper({ ...PLAIN, ...job }, {}).catch((e) => ({ threw: e }));
+
+describe('plain papers', () => {
+  beforeEach(() => {
+    mockLoadContent.mockResolvedValue({ content: 'text', pageReference: 'pp. 10-20', chapterTitle: null });
+    mockGenerateExam.mockResolvedValue({ examJson: plainExam(), questionCount: 10, tokenData: { model: 'm', inputTokens: 7, outputTokens: 8 } });
+  });
+
+  test('setting off: written as before, no donor read, and the stored row is stamped', async () => {
+    setting(undefined);
+    await buildPlain();
+    expect(mockGenerateExam).toHaveBeenCalledTimes(1);
+    expect(mockFindDonor).not.toHaveBeenCalled();
+    expect(firstPatch().exam_json._reuse).toEqual({ key: PLAIN_KEY, page_reference: 'pp. 10-20' });
+    expect(firstPatch().input_tokens).toBe(7);
+  });
+
+  test('the board switch alone does not re-serve plain papers', async () => {
+    setting(true);
+    mockFindDonor.mockResolvedValue({ id: 'paper-old', examJson: { ...plainExam(), title: 'DONOR' }, questionCount: 9, model: 's', pageReference: null });
+    await buildPlain();
+    expect(mockFindDonor).not.toHaveBeenCalled();
+    expect(mockGenerateExam).toHaveBeenCalledTimes(1);
+  });
+
+  test('the stamp never reaches the paper handed on', async () => {
+    setting(undefined);
+    const out = await buildPlain();
+    expect(out.examJson._reuse).toBeUndefined();
+  });
+
+  test('setting on, a donor: the writer is not called, the donor paper is used and stamped from it', async () => {
+    plainSetting(true);
+    const donorExam = { ...plainExam(), title: 'DONOR' };
+    mockFindDonor.mockResolvedValue({ id: 'paper-old', examJson: donorExam, questionCount: 9, model: 'sonnet', pageReference: 'pp. 10-20' });
+    const out = await buildPlain();
+    expect(mockFindDonor).toHaveBeenCalledWith(expect.objectContaining({ key: PLAIN_KEY, userId: 'teacher-1' }));
+    expect(mockGenerateExam).not.toHaveBeenCalled();
+    expect(firstPatch().exam_json).toMatchObject({ title: 'DONOR', _reuse: { key: PLAIN_KEY, from: 'paper-old' } });
+    expect(firstPatch()).toMatchObject({ question_count: 9, model: 'sonnet', input_tokens: 0, output_tokens: 0 });
+    expect(out.status).toBe('ready');
+    expect(out.examJson.title).toBe('DONOR');
+  });
+
+  test('setting on, no donor: written fresh and stamped', async () => {
+    plainSetting(true);
+    await buildPlain();
+    expect(mockFindDonor).toHaveBeenCalledTimes(1);
+    expect(mockGenerateExam).toHaveBeenCalledTimes(1);
+    expect(firstPatch().exam_json._reuse.key).toBe(PLAIN_KEY);
+  });
+
+  test('a request that differs in any input looks for a different key', async () => {
+    plainSetting(true);
+    await buildPlain({ questionCount: 11 });
+    await buildPlain({ requestId: 'req-2', questionTypes: ['short'] });
+    const keys = mockFindDonor.mock.calls.map((c) => c[0].key);
+    expect(keys).toHaveLength(2);
+    expect(new Set([...keys, PLAIN_KEY]).size).toBe(3);
+  });
+
+  test('a topic paper (scope topics) and its oral part are re-served together', async () => {
+    plainSetting(true);
+    mockFindDonor.mockResolvedValue({ id: 'paper-old', examJson: { ...plainExam(), _topics: ['t1'], _oral: { x: 1 } }, questionCount: 9, model: 's', pageReference: null });
+    const out = await buildPlain({ scope: { kind: 'topics', slos: ['s1'] } });
+    expect(mockGenerateExam).not.toHaveBeenCalled();
+    expect(firstPatch().exam_json._oral).toEqual({ x: 1 });
+    expect(out.status).toBe('ready');
+  });
+
+  test('setting on, her earlier questions exist: no donor lookup, the writer runs with the avoid list', async () => {
+    plainSetting(true);
+    mockPrevious.mockResolvedValue(['Old question one?']);
+    mockFindDonor.mockResolvedValue({ id: 'paper-old', examJson: { ...plainExam(), title: 'DONOR' }, questionCount: 9, model: 's', pageReference: null });
+    await buildPlain();
+    expect(mockFindDonor).not.toHaveBeenCalled();
+    expect(mockGenerateExam).toHaveBeenCalledTimes(1);
+    expect(mockGenerateExam.mock.calls[0][0].avoidQuestions).toEqual(['Old question one?']);
+    expect(firstPatch().exam_json.title).not.toBe('DONOR');
+  });
+
+  test('setting on, nothing earlier to avoid: the donor is still served', async () => {
+    plainSetting(true);
+    mockPrevious.mockResolvedValue([]);
+    mockFindDonor.mockResolvedValue({ id: 'paper-old', examJson: { ...plainExam(), title: 'DONOR' }, questionCount: 9, model: 's', pageReference: null });
+    await buildPlain();
+    expect(mockFindDonor).toHaveBeenCalledTimes(1);
+    expect(mockGenerateExam).not.toHaveBeenCalled();
+  });
 });
