@@ -109,6 +109,7 @@ describe('the endpoint', () => {
   jest.mock('../../bot/shared/services/queue', () => ({ queueJob: jest.fn() }));
   jest.mock('../../bot/shared/config/feature-flags', () => ({
     isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(true),
+    isFlagEnabled: jest.fn().mockResolvedValue(false), // assessment_paper_reuse off (bd-h8zy3q)
     isAssessmentEditingEnabled: jest.fn().mockResolvedValue(false),
     // The old KEEP/PICK path: versioned editing explicitly OFF.
     isAssessmentVersionsEnabled: jest.fn().mockResolvedValue(false),

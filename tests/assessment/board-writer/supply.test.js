@@ -49,13 +49,13 @@ describe('written items with an empty options list', () => {
 describe('long slots are asked in chunks of 20 or fewer', () => {
   test('A.Q1-40 is two calls of 20; the second is told the stems and keys already written', async () => {
     const { res, calls } = await write(physics50);
-    const mcq = calls.filter((c) => c.section === 'A' && !c.topUp && /\[slot A\.Q1-40\]/.test(c.system));
+    const mcq = calls.filter((c) => c.section === 'A' && !c.topUp && /\[slot A\.Q1-40\]/.test(c.user));
     expect(mcq).toHaveLength(2);
-    mcq.forEach((c) => expect(c.system).toMatch(/\[slot A\.Q1-40\]: 20 x mcq/));
+    mcq.forEach((c) => expect(c.user).toMatch(/\[slot A\.Q1-40\]: 20 x mcq/));
     expect(mcq[0].user).not.toMatch(/CHUNK/);
     expect(mcq[1].user).toMatch(/CHUNK: items 21-40 of slot A\.Q1-40/);
     expect(mcq[1].user).toMatch(/already keys in this paper/);
-    expect(mcq[1].system).toMatch(/Item 20: choose/);
+    expect(mcq[1].user).toMatch(/Item 20: choose/);
     expect(slotLeaves(res.examJson, 'A.Q1-40')).toHaveLength(40);
   });
 });
