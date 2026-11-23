@@ -1,3 +1,4 @@
 {"ts":"2026-11-22T17:24:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,portal-smoke spec_sync=true","sha":"854730efc4c1","branch":"bd-dp9ipc-staging","user":""}
 {"ts":"2026-11-22T17:31:13Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"854730efc4c1","branch":"bd-dp9ipc-staging","user":""}
 {"ts":"2026-11-23T04:33:50Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (change only fixes the band of a grades 1-5 Recent row; covered by teacher-lessons @RLP01)","sha":"854730efc4c1","branch":"bd-dp9ipc-main2","user":""}
+{"ts":"2026-11-23T04:33:50Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-854730efc4c1","sha":"854730efc4c1","branch":"bd-dp9ipc-main2","user":""}
