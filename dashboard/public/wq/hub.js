@@ -23,6 +23,13 @@
   // it as ?src=, but a phone's FIRST open renders as no phone, so the unlocking call carries it once (hub_open.src).
   var URL_SRC = (/[?&]from=(card|home|door|wa|link|hs|class_link|guest|friend|quiz|bind|join|push)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
   var TOKEN = String(B.token || '');
+  // The weak-skill nudge's link (bd-ptl6x9.7) names one game (?ex=missing|numbers|bigger): with this phone's child already
+  // picked, go straight to that game on the challenge page (wq-trail.js opens #<game>; #numbers is the warm-up).
+  var EX = (/[?&]ex=(missing|numbers|bigger)(&|$)/.exec(String((typeof location !== 'undefined' && location.search) || '')) || [])[1] || null;
+  if (EX && B.kid && !B.locked && !B.practice && TOKEN) {
+    location.replace('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '#' + EX);
+    return;
+  }
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };

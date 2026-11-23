@@ -15,8 +15,11 @@ const up = fs.readFileSync(path.join(dir, 'V1.8.4__topic_end_nudge.sql'), 'utf8'
 const down = fs.readFileSync(path.join(dir, 'ROLLBACK_V1.8.4__topic_end_nudge.sql'), 'utf8');
 const checkKinds = (sql) => sql.match(/CHECK \(kind IN \(([^)]*)\)\)/)[1].match(/'[^']+'/g).map((s) => s.slice(1, -1));
 
-test('the widened CHECK allows exactly the store kinds', () => {
-  expect(checkKinds(up).sort()).toEqual(Object.values(KINDS).sort());
+// The kinds the store had when V1.8.4 shipped; later kinds (V1.10.10's weak_skill_jugnu) widen the CHECK in their own migration.
+const V184_KINDS = [KINDS.COACHING_AFTER_LP, KINDS.LP_QUIZ_OFFER, KINDS.WEEKLY_USAGE_REPORT, KINDS.TOPIC_END_NUDGE];
+
+test('the widened CHECK allows exactly the store kinds of its time', () => {
+  expect(checkKinds(up).sort()).toEqual([...V184_KINDS].sort());
 });
 
 test('the assignment table is the one the arm reads: one A or B per school', () => {
@@ -34,7 +37,7 @@ test('the rollback removes the nudge rows before narrowing the CHECK back, and d
   expect(down).toMatch(/destructive: reviewed/);
   expect(down.indexOf("DELETE FROM teacher_nudges WHERE kind = 'topic_end_nudge'"))
     .toBeLessThan(down.indexOf('ADD CONSTRAINT'));
-  expect(checkKinds(down).sort()).toEqual(Object.values(KINDS).filter((k) => k !== KINDS.TOPIC_END_NUDGE).sort());
+  expect(checkKinds(down).sort()).toEqual(V184_KINDS.filter((k) => k !== KINDS.TOPIC_END_NUDGE).sort());
   expect(down).toMatch(new RegExp(`DELETE FROM app_settings WHERE key = '${FLAG_KEY}'`));
   expect(down).toMatch(new RegExp(`DROP TABLE IF EXISTS ${TABLE}`));
 });
