@@ -1,0 +1,2 @@
+{"ts":"2026-11-23T12:45:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test,web-quiz-child-page,portal-smoke spec_sync=true","sha":"9e132fbba46a","branch":"HEAD","user":""}
+{"ts":"2026-11-23T12:45:02Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,status,observe,child-test,portal-smoke owe their Gherkin","sha":"9e132fbba46a","branch":"HEAD","user":""}
