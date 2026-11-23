@@ -627,7 +627,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     let seeded = [];            // hoisted: the finally below MUST be able to undo the seed
     try {
     const oxMods = dbJson('level-modules', ['--level', String(OX_LEVEL)]) || [];
-    let band = null, card = null, run = null, cert = null, examOffered = null, title = null;
+    let band = null, card = null, run = null, cert = null, examOffered = null, noExamNote = null, title = null;
     if (oxMods.length >= 2) {
       for (const mm of oxMods.slice(0, -1)) {
         const r = api.db('seed-module-pass', ['--module', String(mm.id)]);
@@ -638,6 +638,8 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       if (band.ok) {
         // The level screen must NOT be offering an exam — that IS the scenario.
         examOffered = /Take exam|Ready for exam/.test((band.probe && band.probe.text) || '');
+        // ...nor narrating its absence: "No level exam — finish all sessions" left in 1a930fa24 (bd-kbo9h0.11)
+        noExamNote = /No level exam/i.test((band.probe && band.probe.text) || '');
         // With every earlier module seeded passed, the last one is the only \u25b6 Next up row.
         const nextRow = band.rows.find(x => /\u25b6\s*Next up/.test((x && x.text) || ''));
         if (nextRow) {
@@ -683,9 +685,9 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     const verdict = (run && run.last && run.last.verdict) || null;
     rec('T08', 'For an Oxbridge programme a level is certified from module scores, with no exam',
         ...(cert
-            ? V(!!cert.ok && verdict === 'passed' && examOffered === false,
+            ? V(!!cert.ok && verdict === 'passed' && examOffered === false && noExamNote === false,
                 { module: title, seededModules: seeded.length, drivenLive: 1, verdict,
-                  examOfferedOnLevelScreen: examOffered,
+                  examOfferedOnLevelScreen: examOffered, missingExamNoteOnLevelScreen: noExamNote,
                   certificate: (cert.hit && (cert.hit.txt || '')).slice(0, 160),
                   asDocument: !!(cert.hit && (cert.hit.doc || cert.hit.pdf)) })
             : ['BLOCKED', { reason: !oxMods.length ? 'level-modules returned nothing for the Oxbridge level'
