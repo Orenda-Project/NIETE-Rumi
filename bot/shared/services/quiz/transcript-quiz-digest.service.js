@@ -35,6 +35,7 @@ const { pupilTokens, scrubPupils, PUPILS_DIGEST_RULE } = require('./transcript-q
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const AppOpens = require('./lp-app-opens.store');
 const { taughtOf } = require('./web-quiz-grade-pick');
+const { flnLessonFor } = require('./fln-lesson-hint');
 
 /** The lesson hint reads at most this many rows per surface (downloads; app opens). */
 const LP_HINT_ROWS = 10;
@@ -293,13 +294,15 @@ async function run({ session, user = null }) {
   const { json, model, costUsd, latencyMs } = await completeJson({ prompt, label: 'transcript_quiz.digest' });
   const digest = normaliseDigest(json, { storedSubject });
   const { grade, source } = resolveGrade({ user, lpHint, digest });
+  // bd-chz35n.26: the FLN plan behind a Grades 1-2 lesson, for the evals only — after the prompt, never in it.
+  const flnLesson = await flnLessonFor({ userId: session.user_id, sessionCreatedAt: session.created_at, subject: digest.subject });
 
   logEvent('transcript_quiz.digest_done', {
     coachingSessionId: session.id, model, costUsd, latencyMs,
     subject: digest.subject, slos: digest.slos.length, confidence: digest.confidence,
     language: digest.language_of_instruction, grade, gradeSource: source, hadLpHint: Boolean(lpHint),
   });
-  return { digest, grade, gradeSource: source, lpHint, model, costUsd, latencyMs };
+  return { digest, grade, gradeSource: source, lpHint, flnLesson, model, costUsd, latencyMs };
 }
 
 module.exports = { run, buildDigestPrompt, normaliseDigest, resolveGrade, lpHintFor, MAX_TRANSCRIPT_CHARS };

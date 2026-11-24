@@ -243,6 +243,9 @@ describe('GET /fln/plan/:id', () => {
     const opens = opensWritten();
     expect(opens).toHaveLength(1);
     expect(opens[0].params.slice(0, 5)).toEqual([TEACHER, 'fln', '900010', 'ur', 'viewer']);
+    // bd-chz35n.26: the open carries the plan's lesson + skill key; the body the teacher gets is unchanged.
+    expect(opens[0].sql).toMatch(/lesson_key/);
+    expect(opens[0].params[6]).toBe('fln1:rh-ur:daily:u1:l1:none:p900010');
   });
 
   it('404 for hidden, unknown and malformed ids — and NO open logged', async () => {
@@ -441,6 +444,38 @@ describe('lp-activity writer admits fln (SPEC §5)', () => {
     expect((await cleaned({ userId: TEACHER, kind: 'k5', ref: 'L1', lang: 'ur', source: 'viewer' })).out.open.lang).toBe(null);
     expect((await cleaned({ userId: TEACHER, kind: 'g612', ref: 'S1', lang: 'ur', source: 'viewer' })).out.open.lang).toBe('ur');
     expect((await cleaned({ userId: TEACHER, kind: 'fln', ref: '1', lang: 'fr', source: 'viewer' })).out.open.lang).toBe(null);
+  });
+
+  // bd-chz35n.26 — the lesson key rides only on an fln open; a database without the column still stores the open.
+  it('an fln open with a lesson key uses the keyed insert; k5/g612 and bad keys never do', async () => {
+    const KEY = 'fln1:rh-ur:daily:u1:l1:none:p900010';
+    const { recordOpen } = require('../../dashboard/services/lp-activity.service');
+    const run = async (open, impl) => {
+      const seen = [];
+      const out = await recordOpen(async (sql, params) => { seen.push({ sql, params }); return impl ? impl(sql, params) : { rows: [{ id: 7 }] }; }, open);
+      return { out, seen };
+    };
+    const keyed = await run({ userId: TEACHER, kind: 'fln', ref: '900010', lang: 'ur', source: 'viewer', lessonKey: KEY });
+    expect(keyed.seen).toHaveLength(1);
+    expect(keyed.seen[0].sql).toMatch(/plan_ref, lang, source, lesson_key\)/);
+    expect(keyed.seen[0].params[6]).toBe(KEY);
+    expect(keyed.out.open.lessonKey).toBe(KEY);
+    for (const open of [
+      { userId: TEACHER, kind: 'k5', ref: 'L1', source: 'viewer', lessonKey: KEY },
+      { userId: TEACHER, kind: 'fln', ref: '900010', lang: 'ur', source: 'viewer', lessonKey: 'grade_1_urdu_ch1_seg1' },
+      { userId: TEACHER, kind: 'fln', ref: '900010', lang: 'ur', source: 'viewer' },
+    ]) {
+      const plain = await run(open);
+      expect(plain.seen[0].sql).not.toMatch(/lesson_key/);
+      expect(plain.seen[0].params).toHaveLength(6);
+    }
+    const legacy = await run({ userId: TEACHER, kind: 'fln', ref: '900010', lang: 'ur', source: 'viewer', lessonKey: KEY },
+      (sql) => { if (/lesson_key/.test(sql)) { const e = new Error('column "lesson_key" does not exist'); e.code = '42703'; throw e; } return { rows: [{ id: 8 }] }; });
+    expect(legacy.seen).toHaveLength(2);
+    expect(legacy.seen[1].sql).not.toMatch(/lesson_key/);
+    expect(legacy.out).toMatchObject({ recorded: true, id: 8 });
+    await expect(run({ userId: TEACHER, kind: 'fln', ref: '900010', lang: 'ur', source: 'viewer', lessonKey: KEY },
+      () => { const e = new Error('boom'); e.code = '57014'; throw e; })).rejects.toThrow('boom');
   });
 });
 

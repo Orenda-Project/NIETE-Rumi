@@ -28,6 +28,7 @@
 const fs = require('fs');
 const zlib = require('zlib');
 const supabase = require('../config/supabase');
+const LessonKey = require('../../bot/shared/services/fln-lesson-key');
 
 // Last resort only: app_settings `fln_corpus_version` is the source of truth on every tier; a missing or
 // garbled row degrades to bundle v1 instead of hiding the band, and says so in the log.
@@ -358,6 +359,15 @@ function placementOf(id) {
   return out;
 }
 
+/**
+ * bd-chz35n.26 — the plan's stable lesson + skill key (bot/shared/services/fln-lesson-key.js) from its served
+ * placement rows, or null. Recorded with the open; never sent to the page.
+ */
+function lessonKey(id) {
+  const i = idx();
+  return LessonKey.lessonKeyOf(String(id), (i && i.rowsById.get(String(id))) || []);
+}
+
 /** The levels of a subject (count, screener id/minutes/note from the bundle or computed), for a list's "Other levels". */
 function levels(subject) {
   const i = idx();
@@ -443,6 +453,7 @@ module.exports = {
   catalogue,
   plan,
   placementOf,
+  lessonKey,
   levels,
   isHidden,
   subjectOf,
