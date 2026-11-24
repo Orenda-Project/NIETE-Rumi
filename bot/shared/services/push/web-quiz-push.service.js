@@ -709,6 +709,9 @@ const SRCS = new Set(['result', 'class_link', 'landing']);
 const DWELL_STEPS = new Set(['yes', 'later', 'escape', 'gone']);
 const DWELL_MAX_MS = 864e5;
 const dwellOf = (step, ms) => (DWELL_STEPS.has(step) && Number.isInteger(ms) && ms >= 0 && ms <= DWELL_MAX_MS ? { dwell_ms: ms } : {});
+// perm on denied: 'denied' (Block) or 'default' (the prompt was closed); after on gone: 'yes' (left with the prompt up)
+const permOf = (step, perm) => (step === 'denied' && (perm === 'denied' || perm === 'default') ? { perm } : {});
+const afterOf = (step, after) => (step === 'gone' && after === 'yes' ? { after } : {});
 /** A page step event, allow-listed enums only; `ua` is the phone's user agent (the walk mark). */
 function stepEvent(body = {}, { ua } = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
@@ -720,6 +723,8 @@ function stepEvent(body = {}, { ua } = {}) {
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
     ...dwellOf(body.step, body.dwell_ms),
+    ...permOf(body.step, body.perm),
+    ...afterOf(body.step, body.after),
     ...psOf(body.ps),
     ...qaOf(ua),
   });
