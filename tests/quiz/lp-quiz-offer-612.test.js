@@ -213,3 +213,15 @@ describe('the tap on a 6-12 offer', () => {
     expect(said).toMatch(/already/i);
   });
 });
+
+describe('15:00 offer: a 6-12 failure never stops the K-5 offer (bd-97daxo.34.10)', () => {
+  test('a failed 6-12 read is logged and the cohort still builds, with no 6-12 rows', async () => {
+    install();
+    jest.spyOn(Provider, 'segmentsById').mockRejectedValue(new Error('segments read failed'));
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+
+    await expect(build()).resolves.toEqual(expect.objectContaining({ inserted: 0 }));
+    expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.cohort_612_failed',
+      expect.objectContaining({ nudgeDate: NUDGE_DATE, error: 'segments read failed' }));
+  });
+});
