@@ -2465,10 +2465,10 @@ const guide = {
        "ur": "پانچوں اچھا جواب دیتے ہیں، پیچھے بیٹھنے والے بھی"
       }
      ],
-     "who": "self",
+     "who": "pre",
      "how": {
-      "en": "You fill this yourself in the app, in every observation: it comes from your own check at the end of the lesson, not from the recording.",
-      "ur": "یہ آپ ہر مشاہدے میں ایپ میں خود بھرتے ہیں: یہ سبق کے آخر میں آپ کی اپنی جانچ سے آتا ہے، ریکارڈنگ سے نہیں۔"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2666,7 +2666,7 @@ const guide = {
    ]
   }
  ],
- "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-24, part 's'), with the form's own indicator, section and level names and N/A (FICO-S v1.1 as on NIETE-Rumi sandbox (77cca0683; the Drive s…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here."
+ "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-24, part 's'), with the form's own indicator, section and level names and N/A (FICO-S v1.1 as on NIETE-Rumi sandbox (77cca0683; the Drive s…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here. E2 reads pre-filled, as the bot does (queue #267, the operator 24 Nov), where her canvas says by hand."
 };
 
 export default guide;
