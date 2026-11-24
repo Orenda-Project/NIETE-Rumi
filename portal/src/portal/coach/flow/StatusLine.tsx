@@ -8,7 +8,7 @@ import { FLOW_V7, type FlowV7Copy } from "./copyV7";
  * four segments (Analysed · Feedback Form · Debrief · Send), each with words that say whether the step happened:
  *
  *   done      green segment     Analysed / Form filled / Debriefed / Sent
- *   current   half orange       Analysing / Fill the form / Record the debrief / Send the report
+ *   current   half orange       Analysing / Fill the form / Take the debrief / Send the report (bd-o15qnr.49: was Record)
  *   later     grey              Form to fill / Debrief to do / Yet to send
  *
  * Under it, "Now: <current>" in place of "Step n of 4"; all four done, "Done" with a tick. `at` is the visit's step:
@@ -22,7 +22,7 @@ export function stepWords(i: number, W: FlowV7Copy): { done: string; current: st
 
 /**
  * `current` (bd-o15qnr.39): other words for the current step while the Digital Coach works on it — "Debrief: analysing"
- * once her debrief is in and being listened to (the visit and every list card), so it never says "Record the debrief".
+ * once her debrief is in and being listened to (the visit and every list card), so it never says "Take the debrief".
  */
 /**
  * `hideNow` (bd-o15qnr.47): the visit draws its "Next: <step>" card right above the line, so the line does not say the
