@@ -1,3 +1,4 @@
 {"ts":"2026-11-24T01:58:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"6f11280629f3","branch":"bd-chz35n.10.3-84993","user":""}
 {"ts":"2026-11-24T01:59:20Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"6f11280629f3","branch":"bd-chz35n.10.3-84993","user":""}
 {"ts":"2026-11-24T01:59:37Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (quiz-only change behind app_settings quiz_anchor_items, off by default; no training path touched; covered by tests/quiz/quiz-anchors*.test.js)","sha":"6f11280629f3","branch":"bd-chz35n.10.3-84993","user":""}
+{"ts":"2026-11-24T01:59:38Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-6f11280629f3","sha":"6f11280629f3","branch":"bd-chz35n.10.3-84993","user":""}
