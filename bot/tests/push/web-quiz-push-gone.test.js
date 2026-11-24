@@ -84,3 +84,22 @@ describe('dwell_ms', () => {
     expect(logged()).toEqual([]);
   });
 });
+
+describe('perm on denied, after on gone (which "no", and a page gone with the prompt up)', () => {
+  test.each(['denied', 'default'])('denied with perm %s is logged with it', async (perm) => {
+    expect((await call({ step: 'denied', lang: 'en', src: 'result', ps: PS, perm })).status).toBe(200);
+    expect(logged()).toEqual([{ step: 'denied', lang: 'en', src: 'result', ps: PS, perm }]);
+  });
+  test('gone with after yes is logged with it (and no dwell_ms)', async () => {
+    expect((await call({ step: 'gone', lang: 'ur', src: 'landing', after: 'yes' })).status).toBe(200);
+    expect(logged()).toEqual([{ step: 'gone', lang: 'ur', src: 'landing', after: 'yes' }]);
+  });
+  test.each([
+    ['perm on granted', { step: 'granted', perm: 'denied' }], ['perm granted on denied', { step: 'denied', perm: 'granted' }],
+    ['perm junk', { step: 'denied', perm: 'x' }], ['after on yes', { step: 'yes', after: 'yes' }],
+    ['after junk on gone', { step: 'gone', after: 'later' }], ['after true', { step: 'gone', after: true }],
+  ])('%s is dropped; the step is logged exactly as before', async (_n, b) => {
+    expect((await call({ ...b, lang: 'en', src: 'result' })).status).toBe(200);
+    expect(logged()).toEqual([{ step: b.step, lang: 'en', src: 'result' }]);
+  });
+});
