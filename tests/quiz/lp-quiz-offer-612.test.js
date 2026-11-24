@@ -111,6 +111,7 @@ beforeEach(() => {
   process.env.LP_QUIZ_OFFER_SEND_MINUTE_PKT = '0';
   process.env.LP_QUIZ_OFFER_CUTOFF_HOUR_PKT = '14';
   process.env.QUIZ_LP612_SOURCE = 'on';
+  process.env.LP_QUIZ_OFFER_ICT612 = 'on';
   delete process.env.LP_QUIZ_OFFER_SECTORS;
   delete process.env.TRANSCRIPT_QUIZ_SUBJECTS;
   delete process.env.LP_612_RELIGIOUS_ENABLED;
@@ -177,6 +178,39 @@ describe('15:00 offer: Grades 6-12 and GB lessons', () => {
     const res = await build();
     expect(res.inserted).toBe(0);
     expect(mockStore.rows).toHaveLength(0);
+  });
+});
+
+// q250 (24 Nov): production offers GB grade 1-5 only; ICT 6-12 waits behind LP_QUIZ_OFFER_ICT612.
+describe('LP_QUIZ_OFFER_ICT612 not on: GB grade 1-5 only', () => {
+  beforeEach(() => { delete process.env.LP_QUIZ_OFFER_ICT612; });
+
+  test('the GB grade 3 lesson is offered; the ICT grade 8 teacher is skipped as no_lesson', async () => {
+    install();
+    const res = await build();
+    expect(res.inserted).toBe(1);
+    expect(rowOf(GB).status).toBe('pending');
+    expect(rowOf(GB).context.classes[0].lessons[0]).toEqual(expect.objectContaining({ lesson_ref: 'dl-gb' }));
+    expect(rowOf(ICT).status).toBe('skipped');
+    expect(rowOf(ICT).context.skip_reason).toBe('no_lesson');
+  });
+
+  test('a GB grade 7 lesson (GB 6-12 is design pending) is not offered', async () => {
+    install({
+      niete_lp612_deliveries: [delivery({ id: 'dl-gb7', user_id: GB, segment_id: 'gb_grade_7_science.c01.p001' })],
+      niete_lp612_segments: [segment('gb_grade_7_science.c01.p001', { grade: 7, subject: 'Science', curriculum: 'gb' })],
+    });
+    const res = await build();
+    expect(res.inserted).toBe(0);
+    expect(rowOf(GB).context.skip_reason).toBe('no_lesson');
+  });
+
+  test('`off` keeps ICT 6-12 out too', async () => {
+    process.env.LP_QUIZ_OFFER_ICT612 = 'off';
+    install();
+    const res = await build();
+    expect(res.inserted).toBe(1);
+    expect(rowOf(ICT).status).toBe('skipped');
   });
 });
 
