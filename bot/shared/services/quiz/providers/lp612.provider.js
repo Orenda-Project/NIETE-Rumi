@@ -176,10 +176,14 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
   }
 }
 
-/** One of the teacher's 6-12 lessons by its delivery id — only if a quiz can be made from it. */
-async function get(teacherId, lessonRef) {
+/**
+ * One of the teacher's 6-12 lessons by its delivery id — only if a quiz can be made from it.
+ * The 15:00 offer (via 'lp_offer') offers portal lessons too, so it may start from one.
+ */
+async function get(teacherId, lessonRef, { via } = {}) {
   if (!teacherId || !lessonRef || !enabled()) return null;
-  const row = await Deliveries.byIdForTeacher(lessonRef, teacherId);
+  const opts = via === 'lp_offer' ? { surfaces: Deliveries.SURFACES } : {};
+  const row = await Deliveries.byIdForTeacher(lessonRef, teacherId, opts);
   if (!row) return null;
   const segments = await segmentsById([row.segment_id]);
   return toItem(row, segments.get(row.segment_id));
@@ -265,7 +269,7 @@ async function start(teacher, lessonRef, { phone, quizLanguage = null, via = 'li
     return { outcome, ...(quizId ? { quizId } : {}) };
   };
 
-  const item = userId ? await get(userId, lessonRef) : null;
+  const item = userId ? await get(userId, lessonRef, { via }) : null;
   if (!item) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return done('unavailable');
@@ -308,4 +312,10 @@ module.exports = {
   start,
   quizSubject,
   enabled,
+  // The 15:00 offer's cohort reads 6-12 lessons the way the list does (nudges/lp-quiz-offer-612).
+  toItem,
+  segmentsById,
+  coveringQuizzes,
+  covers,
+  lessonKey,
 };
