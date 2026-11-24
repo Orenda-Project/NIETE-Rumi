@@ -2,3 +2,4 @@
 {"ts":"2026-11-24T02:01:13Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
 {"ts":"2026-11-24T02:02:16Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
 {"ts":"2026-11-24T02:29:22Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (new path behind app_settings.quiz_offer_auto, off by default; off = today byte-for-byte; on path unit-tested 9/9 and checked on the sandbox DB)","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
+{"ts":"2026-11-24T02:29:22Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2c1ba0fa-c162-4f18-87bd-d4dae1296c45","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
