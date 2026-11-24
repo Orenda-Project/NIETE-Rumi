@@ -66,7 +66,9 @@ describe('switch ON: In progress = started, not finished, not waiting on her', (
 
   test('no observation is in both Needs you and In progress; the debrief being analysed stays in Needs you', async () => {
     const out = await SVC.getCoachReports(fake(), ME, { v7: true, today: TODAY });
-    expect(ids(out.waiting).sort()).toEqual(['ficos-debrief', 'form', 'listening']);
+    // bd-o15qnr.53 (queue #246) — a debriefed report she has not sent is hers too: no report started (feedback) and the
+    // preview ready (send-ready) join Needs you; once she pressed Send (sending) it stays In progress.
+    expect(ids(out.waiting).sort()).toEqual(['feedback', 'ficos-debrief', 'form', 'listening', 'send-ready']);
     const both = ids(out.waiting).filter((id) => ids(out.inProgress).includes(id));
     expect(both).toEqual([]);
   });
