@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T06:28:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"34d6f00087c6","branch":"bd-bodycs.2-01711","user":""}
+{"ts":"2026-11-24T06:28:47Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern owe their Gherkin","sha":"34d6f00087c6","branch":"bd-bodycs.2-01711","user":""}
