@@ -11,6 +11,8 @@ const mockRpc = jest.fn();
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: (...a) => mockSendMessage(...a) }));
 jest.mock('../../bot/shared/services/queue', () => ({ queueJob: (...a) => mockQueueJob(...a) }));
 jest.mock('../../bot/shared/services/lp612-serving.service', () => ({ deliverRender: (...a) => mockDeliverRender(...a) }));
+const mockRecordDelivery = jest.fn().mockResolvedValue(true);
+jest.mock('../../bot/shared/services/lp612-deliveries.store', () => ({ record: (...a) => mockRecordDelivery(...a) }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
@@ -212,5 +214,19 @@ describe('an app (portal) ask', () => {
     expect(insert.payload.waiters).toEqual([expect.objectContaining({ user_id: 'user-1', phone: null, surface: 'portal' })]);
     expect(mockQueueJob).toHaveBeenCalledWith(SEG.segment_id, 'gb_lp_author', expect.objectContaining({ renderId: 'gb-new' }), expect.anything());
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+  // bd-97daxo.34.15: an app open is the delivery the 15:00 quiz offer reads (ICT 6-12 records it the same way).
+  test('a written lesson opened in the app is recorded as her portal delivery (render id null: GB rows)', async () => {
+    mockDbResults.push({ data: { id: 'gb-r1', status: 'ready', r2_key: `gb-lp/gb_k5_v10/ur/${SEG.segment_id}.pdf` }, error: null });
+    process.env.LP_GB_TEMPLATE_VERSION = 'gb_k5_v10';
+    await GbLane.requestLesson(APP);
+    expect(mockRecordDelivery).toHaveBeenCalledWith({
+      userId: 'user-1', renderId: null, segmentId: SEG.segment_id, lang: 'ur', templateVersion: 'gb_k5_v10', surface: 'portal',
+    });
+  });
+  test('a WhatsApp hit records nothing here (deliverRender records it after the send)', async () => {
+    mockDbResults.push({ data: { id: 'g1', status: 'ready', r2_key: 'gb-lp/gb_k5_v9/ur/x.pdf' }, error: null });
+    await GbLane.requestLesson(REQ);
+    expect(mockRecordDelivery).not.toHaveBeenCalled();
   });
 });

@@ -128,6 +128,17 @@ async function deliver({ phone, userId, r2Key, segment, lang, askedAt, generated
   });
 }
 
+/**
+ * A GB lesson that reached her in the app, in the 6-12 delivery ledger (surface 'portal'). renderId null: GB
+ * rows never enter lp612's renders. Never throws (the store soft-fails); /quiz still lists only WhatsApp rows.
+ */
+async function recordAppDelivery({ userId, segmentId, lang, tv }) {
+  if (!userId) return;
+  await require('./lp612-deliveries.store').record({
+    userId, renderId: null, segmentId, lang, templateVersion: tv, surface: 'portal',
+  });
+}
+
 async function join(renderId, entry) {
   const { data, error } = await supabase.rpc('gb_lp_join_waiters', { p_render_id: renderId, p_entry: entry });
   if (error) logToFile('LP GB: could not join waiter list', { renderId, error: error.message });
@@ -173,6 +184,8 @@ async function requestLesson(req, depth = 0) {
   // hit — GB's own cached PDF, sent like ICT's; the app gets the render to open.
   if (row && row.status === 'ready' && row.r2_key) {
     if (!toWhatsApp) {
+      // bd-97daxo.34.15: her app open is the delivery the 15:00 quiz offer reads, as on ICT 6-12's portal hit.
+      if (surface === 'portal') await recordAppDelivery({ userId, segmentId, lang, tv });
       logEvent('gb_lp.serve.hit', { segmentId, lang, tv, renderId: row.id, surface, ms: Date.now() - t0, correlationId });
       return { outcome: 'cache_hit', renderId: row.id, r2Key: row.r2_key };
     }
@@ -262,5 +275,5 @@ async function renderStatus(renderId, userId) {
 
 module.exports = {
   requestLesson, deliver, keyFor, isGbKey, assertGbKey, isStranded, templateVersion, waiterEntry, isAuthorEnabled,
-  renderStatus, RENDERS, JOB_TYPE, R2_PREFIX,
+  renderStatus, recordAppDelivery, RENDERS, JOB_TYPE, R2_PREFIX,
 };
