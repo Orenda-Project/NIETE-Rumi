@@ -39,6 +39,7 @@ const WebQuiz = require('./web-quiz.service');
 const T = require('./web-quiz-token');
 const { UX_STRINGS } = require('../../config/ux-strings');
 const { underWatchRoot } = require('./watch-root');
+const League = require('./web-quiz-league');
 
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -47,7 +48,7 @@ const MAP_TTL_MS = 60 * 60 * 1000;
 const SCHOOLS_TTL_MS = 10 * 60 * 1000;
 const OVERLAP_MS = 2 * 60 * 1000;
 const PAGE = 1000;
-const SESSION_COLS = 'id, share_code_id, student_id, invited_by_student_id, mastery_percentage, completed_at, device_ref';
+const SESSION_COLS = 'id, share_code_id, quiz_id, student_id, invited_by_student_id, mastery_percentage, completed_at, device_ref';
 const IN_CHUNK = 200;
 const DAY_CAP = 5;
 const FRIEND_CAP = 5;
@@ -150,11 +151,14 @@ function rankFrom(counted, schoolById, shown) {
  * previous day (none when nothing was played before `splitAt`, i.e. on a
  * Monday); my school marked, or a ghost when it has no points. Pure.
  */
-function scoreSchools({ plays, schools, mySchoolId, splitAt }) {
+function scoreSchools({ plays, schools, mySchoolId, splitAt, league }) {
   const schoolById = new Map((schools || []).map((s) => [s.id, s]));
   // A probable test school is seen only by itself (a tester sees their own school ranked; nobody else does).
   const shown = (x) => eligible(x) || Boolean(x && mySchoolId && x.id === mySchoolId && x.is_active !== false);
-  const counted = countedPlays(plays);
+  // GB ranks in its own league; on ICT's board a GB school counts only its grade 6-10 plays (web-quiz-league).
+  // The caps run over every play first, so a league never changes which plays count.
+  const lg = league || League.leagueOf(mySchoolId && schoolById.get(mySchoolId), null);
+  const counted = countedPlays(plays).filter((p) => League.playInLeague(lg, schoolById.get(p.schoolId), p.grade));
   const now = rankFrom(counted, schoolById, shown);
   // The caps keep the earliest plays, so yesterday's board is the counted plays before midnight.
   const before = counted.filter((p) => String(p.at) < String(splitAt));
@@ -177,7 +181,7 @@ function scoreSchools({ plays, schools, mySchoolId, splitAt }) {
     mine = { place: null, name: me.name || '', sector: me.region || null, points: 0, kids: 0, move: null, ghost: true };
   }
   const ranked = new Set(now.map((r) => r.id));
-  const zero = (schools || []).filter((x) => shown(x) && !ranked.has(x.id));
+  const zero = (schools || []).filter((x) => shown(x) && League.schoolInLeague(lg, x) && !ranked.has(x.id));
   const zeroNames = zero.filter((x) => x.id !== mySchoolId).map((x) => x.name || '').filter(Boolean).sort((a, b) => a.localeCompare(b));
   return { rows, mine, ranked_n: rows.length, zero_n: zero.length, zero_names: zeroNames };
 }
@@ -203,7 +207,7 @@ let teacherSchool = new Map();
 let mapsAt = 0;
 let mapsRoot;   // the watch root the code map was built under
 
-function _reset() { studentInfo = new Map(); cappedLogged = new Set(); snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; mapsRoot = undefined; weekRows = null; schoolsCache = null; }
+function _reset() { quizGrade = new Map(); studentInfo = new Map(); cappedLogged = new Set(); snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; mapsRoot = undefined; weekRows = null; schoolsCache = null; }
 
 /** Finished sessions from `since` on, appended to `acc` (ids in `seen` are skipped); returns the new cursor. */
 async function finishedSince(since, acc, seen) {
@@ -260,14 +264,14 @@ async function schoolsOfCodes(codeIds, now) {
   return codeSchool;
 }
 
-function playOf(s, code, student) {
+function playOf(s, code, student, grade) {
   if (!code || !code.schoolId) return null;
   // A child "minted" by this finish: a student row with no class list, created the same Pakistan day.
   const minted = Boolean(student && !student.list_id && student.created_at && pktDay(student.created_at) === pktDay(s.completed_at));
   return {
     sessionId: s.id, schoolId: code.schoolId, kid: s.student_id || `s:${s.id}`, codeId: code.root,
     inviter: s.invited_by_student_id || code.inviter || null, pct: s.mastery_percentage, at: s.completed_at,
-    device: s.device_ref || null, minted,
+    device: s.device_ref || null, minted, grade: grade == null ? null : grade,
   };
 }
 
@@ -292,6 +296,19 @@ function logCapped(capped) {
   }
 }
 
+// quiz id -> grade, read only for GB schools' plays (the 6-10 rule needs nothing else), once per quiz.
+let quizGrade = new Map();
+async function gbGrades(sessions, map, schools) {
+  const gb = new Set(schools.filter(League.isGb).map((x) => x.id));
+  const want = [...new Set(sessions.filter((s) => s.quiz_id && gb.has((map.get(s.share_code_id) || {}).schoolId)).map((s) => s.quiz_id))]
+    .filter((id) => !quizGrade.has(id));
+  if (want.length) {
+    for (const q of await inChunks('quizzes', 'id, grade', want)) quizGrade.set(q.id, q.grade);
+    for (const id of want) if (!quizGrade.has(id)) quizGrade.set(id, null);
+  }
+  return quizGrade;
+}
+
 // The week so far, kept between loads: each load reads only the finishes since the last one.
 let weekRows = null; // { week, sessions, seen, cursor }
 let schoolsCache = null; // { at, rows }
@@ -312,7 +329,8 @@ async function load(week, now) {
   }
   const schools = schoolsCache.rows;
   const info = await studentsOf(sessions.map((s) => s.student_id));
-  const plays = sessions.map((s) => playOf(s, map.get(s.share_code_id), info.get(s.student_id))).filter(Boolean);
+  const grades = await gbGrades(sessions, map, schools);
+  const plays = sessions.map((s) => playOf(s, map.get(s.share_code_id), info.get(s.student_id), grades.get(s.quiz_id))).filter(Boolean);
   logCapped(countedPlays(plays).capped);
   const placed = new Set(plays.map((p) => p.schoolId));
   logEvent('web_quiz.school_board_loaded', { sessions: sessions.length, fresh: sessions.length - before, plays: plays.length, schools: placed.size, ms: Date.now() - t0 });
@@ -367,15 +385,20 @@ async function board(code, { now = Date.now(), st } = {}) {
   const twinP = doors.then((on) => (on ? require('./web-quiz-class-twin').twinOf(ctx, null) : null));
   const data = await snapshot(now);
   let mySchoolId = null;
+  let teacherRegion = null;
   if (ctx.teacherUserId) {
-    if (teacherSchool.has(ctx.teacherUserId)) mySchoolId = teacherSchool.get(ctx.teacherUserId);
+    if (teacherSchool.has(ctx.teacherUserId) && teacherSchool.get(ctx.teacherUserId)) mySchoolId = teacherSchool.get(ctx.teacherUserId);
     else {
-      const { data: u } = await supabase.from('users').select('id, school_id, is_test_user').eq('id', ctx.teacherUserId).maybeSingle();
+      // No school known: the teacher's own region still picks the league (a GB teacher with no school sees GB).
+      const { data: u } = await supabase.from('users').select('id, school_id, is_test_user, region').eq('id', ctx.teacherUserId).maybeSingle();
       mySchoolId = (u && !u.is_test_user && u.school_id) || null;
+      teacherRegion = (u && u.region) || null;
     }
   }
+  const mySchool = mySchoolId ? data.schools.find((x) => x.id === mySchoolId) : null;
+  const league = League.leagueOf(mySchool, teacherRegion);
   const fresh = st ? await addedBy(st, data, weekStartIso(now), now) : { added: undefined, plays: data.plays };
-  const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
+  const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now), league });
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
   // web_quiz_end_copy_fix (the card switch's cached read): the viewer's sector chip by its display name in both
   // languages, from the catalog, and `end_copy` so the page says a move of one place in its one form. Off: today's answer.
