@@ -122,7 +122,8 @@ async function generateExam(args) {
   if (typeof ensureCurrent === 'function') await ensureCurrent();
   const cfg = configForRequest() || {};
   // G6-8 may run on their own job (assessment.generate.secondary, bd-t8eevw); G9-12 stay on JOB.
-  const { model, job } = writerModel(grade, family, cfg);
+  const { model, job } = writerModel(grade, resolveModelForJob(JOB, { cfg, family }),
+    resolveModelForJob('assessment.generate.secondary', { cfg: cfg, family }));
   const ownModel = resolveModelForJob(JOB, { family }).model;
 
   // The teacher's count is kept (a7 ruling on A5e): sizing only converts and lightens items.
