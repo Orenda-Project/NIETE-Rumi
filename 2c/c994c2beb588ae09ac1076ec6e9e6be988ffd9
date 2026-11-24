@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T17:05:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"2cc994c2beb5","branch":"bd-zrdvmi.50.7-main","user":""}
 {"ts":"2026-11-24T17:13:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (writer prompt gains one FDE thinking-mix line + a log line; no teacher-facing step, screen or message changes; same declaration as the sandbox/staging commits)","sha":"2cc994c2beb5","branch":"bd-zrdvmi.50.7-main","user":""}
+{"ts":"2026-11-24T17:13:45Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-2cc994c2beb5","sha":"2cc994c2beb5","branch":"bd-zrdvmi.50.7-main","user":""}
