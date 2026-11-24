@@ -957,6 +957,11 @@ export type Obs612Field = {
   /** bd-o15qnr.40.5 (FICO-S on a Digital Coach visit): the level it set ('1'..'4' | 'NA'), marked on that card. Absent: none. */
   dcLevel?: string;
   /**
+   * Queue #256 (FICO-S on a Digital Coach visit, "Indicator to work on"): the option it picked (its lowest level), which
+   * the form opens on and marks on that option. Absent: none.
+   */
+  dcChoice?: string;
+  /**
    * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
    * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
    */
