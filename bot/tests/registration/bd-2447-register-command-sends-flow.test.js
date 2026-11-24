@@ -1,7 +1,7 @@
 /**
  * bd-2447 — `/register` must ALWAYS open the registration Flow
  *
- * Live repro (operator, +92 320 6281951, user 923365709413, role NULL,
+ * Live repro (operator, +92 320 6281951, user: a staff test number, role NULL,
  * first_name NULL, 0 completed features): typing `/register` replied with the
  * deprecated deferred-onboarding text ("I'll ask for your name after you try
  * one of my features!") instead of sending the Registration v4 Flow.
@@ -150,7 +150,7 @@ const { getOrCreateUser } = require('../../shared/database/bot-helpers');
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
 
 const REGISTRATION_FLOW_ID = '2010172012940869';
-const FROM = '923365709413';
+const FROM = '923001234567';
 const MESSAGE = { id: 'wamid.bd2447.test' };
 const DEFERRED_TEXT_MARKER = "I'll ask for your name after you try one of my features";
 

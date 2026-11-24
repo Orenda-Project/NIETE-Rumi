@@ -678,6 +678,37 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And if an offer for it had already arrived, tapping "Make the quiz" says I already have a quiz for this lesson and makes nothing new
     # lp-quiz-offer: the cohort drops lessons an lp_v8 quiz covers; accept() goes through lp-lesson-claim. @wip.
 
+  # ADDED 2026-11-24 (bd-97daxo.34.6). @no-mock-driver: the mock lane cannot seed niete_lp612_deliveries rows.
+  # Executed through the real cohort and tap in tests/quiz/lp-quiz-offer-612.test.js.
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @P1 @L62
+  Scenario: A Grades 6-12 or GB teacher who took a lesson today is offered the afternoon quiz on it
+    Given the NIETE bot chat is open on a teacher who took one Grades 6-12 or GB lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
+    And the teacher has not made a quiz from that lesson
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot offers a short quiz on that lesson's topic, with the buttons "Make the quiz" and "No thanks"
+    When I tap "Make the quiz"
+    Then the quiz is made from that lesson exactly as "/quiz" makes it, and the offer is tied to that quiz
+    # lp-quiz-offer-612 classesFor: niete_lp612_deliveries (every surface) on the cohort day, newest lesson per
+    # class, never an assessment, a held lesson or one an lp612 quiz already covers; acceptLp612 starts the quiz
+    # through lp612.provider with via lp_offer. Off with QUIZ_LP612_SOURCE. No new message, string or button.
+
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P2 @L63
+  Scenario: A Grades 6-12 lesson already made into a quiz is not offered again
+    Given the NIETE bot chat is open on a teacher who took one Grades 6-12 lesson plan today before 14:00 PKT
+    And the teacher already made its quiz from "/quiz"
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer names that lesson
+    And if an offer for it had already arrived, tapping "Make the quiz" says I already have a quiz for this lesson and makes nothing new
+
+  # ADDED 2026-11-24 (bd-97daxo.34.10). Executed in tests/quiz/lp-quiz-offer-612.test.js (failed 6-12 read).
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L64
+  Scenario: A failure reading Grades 6-12 lessons does not stop the Grades 1-5 afternoon offer
+    Given the NIETE bot chat is open on a Grades 1-5 teacher who took a lesson plan today before 14:00 PKT
+    And reading today's Grades 6-12 and GB lessons fails at the send hour
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot still offers this teacher the afternoon quiz on that lesson
+    # lp-quiz-offer-612 classesFor catches, logs lp_quiz_offer.cohort_612_failed and returns no 6-12 classes.
+
   @e2e @quiz @language @wip @draft @config-gated @P1
   Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived

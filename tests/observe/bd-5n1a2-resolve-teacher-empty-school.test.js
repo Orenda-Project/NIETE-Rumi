@@ -18,7 +18,7 @@
 const rows = {
   // leader_teachers fixture: the test teacher lives under school "test:9001"
   teachers: [
-    { teacher_ext_id: 'name:test-bilal-ahmed', teacher_name: 'Bilal Ahmed (TEST)', teacher_phone_e164: '923365709413', school_ext_id: 'test:9001', level: null },
+    { teacher_ext_id: 'name:test-bilal-ahmed', teacher_name: 'Bilal Ahmed (TEST)', teacher_phone_e164: '923001234567', school_ext_id: 'test:9001', level: null },
     { teacher_ext_id: '923165100453', teacher_name: 'Adeela Gulshan', teacher_phone_e164: '923165100453', school_ext_id: 'niete:909', level: null },
   ],
 };

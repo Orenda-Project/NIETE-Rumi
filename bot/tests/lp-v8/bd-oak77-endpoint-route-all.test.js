@@ -57,7 +57,7 @@ jest.mock('../../shared/config/supabase', () => ({
   from: jest.fn((table) => {
     if (table === 'pre_generated_lps') return mockBuilder(mockPreGenRows);
     if (table === 'lesson_plan_catalog') return mockBuilder(mockOxRows);
-    if (table === 'users') return mockBuilder([{ id: 'user-1', phone_number: '923365709413', preferred_language: 'en' }]);
+    if (table === 'users') return mockBuilder([{ id: 'user-1', phone_number: '923001234567', preferred_language: 'en' }]);
     return mockBuilder([]);
   }),
 }));

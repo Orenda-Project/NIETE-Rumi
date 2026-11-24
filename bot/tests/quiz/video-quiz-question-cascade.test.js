@@ -88,7 +88,7 @@ describe('bd-2477 #1 — a rate-limit storm must not silently burn through every
     const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
 
     const state = freshState(15);
-    const promise = vq.sendNextQuestion('923365709413', state);
+    const promise = vq.sendNextQuestion('923001234567', state);
     await jest.runAllTimersAsync();
     await promise;
 
@@ -106,7 +106,7 @@ describe('bd-2477 #1 — a rate-limit storm must not silently burn through every
     });
 
     const state = freshState(15);
-    const promise = vq.sendNextQuestion('923365709413', state);
+    const promise = vq.sendNextQuestion('923001234567', state);
     await jest.runAllTimersAsync();
     await promise;
 
@@ -133,7 +133,7 @@ describe('bd-2477 #1 — a rate-limit storm must not silently burn through every
     });
 
     const state = freshState(3);
-    const promise = vq.sendNextQuestion('923365709413', state);
+    const promise = vq.sendNextQuestion('923001234567', state);
     await jest.runAllTimersAsync();
     await promise;
 
