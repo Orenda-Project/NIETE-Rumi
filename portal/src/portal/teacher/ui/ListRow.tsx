@@ -100,7 +100,12 @@ export function ListRow({
       ? cn('py-2.5 pe-3.5 ps-3', !first && ROW_DIVIDER, selected ? ROW_SELECTED : 'bg-white')
       : selected ? cn(CARD_SELECTED, 'py-[9px] pe-[13px] ps-[11px]') : cn(CARD, 'py-2.5 pe-3.5 ps-3'),
     locked && 'opacity-[.55]',
-    dcTag && (variant === 'row' ? 'shadow-[inset_0_0_0_2px_#6e52e0]' : 'border-[#6e52e0] shadow-[0_0_0_3px_#e9e3ff]'),
+    // The Digital Coach's row: a purple edge. Picked as well: ROW_SELECTED's start bar and the edge in ONE shadow, in both
+    // directions (its rtl: bar would otherwise replace the edge on an Urdu screen).
+    dcTag && variant === 'row' && (selected
+      ? 'shadow-[inset_3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0] rtl:shadow-[inset_-3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0]'
+      : 'shadow-[inset_0_0_0_2px_#6e52e0]'),
+    dcTag && variant !== 'row' && 'border-[#6e52e0] shadow-[0_0_0_3px_#e9e3ff]',
     className,
   );
 

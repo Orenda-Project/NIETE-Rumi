@@ -149,5 +149,12 @@ describe("queue #256: Indicator to work on opens on the Digital Coach's pick", (
     L.getObservationDraft.mockResolvedValue(DRAFT({ dcChoice: "B1", values: { fs_focus: "B1" } }));
     const sec = await openFeedback();
     expect(within(focusField(sec)).getByTestId("dc-tag")).toHaveTextContent("ڈیجیٹل کوچ");
+    // Picked AND the Digital Coach's: its purple edge must survive right-to-left too (the selected row's rtl: start
+    // bar once replaced it on Urdu screens), and the selected start bar stays, in both directions.
+    const tray = await openSheet(sec);
+    const row = rowOf(tray, "B1");
+    expect(within(row).getByTestId("dc-tag")).toHaveTextContent("ڈیجیٹل کوچ");
+    expect(row.className).toMatch(/(^|\s)shadow-\[inset_3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0\]/);
+    expect(row.className).toMatch(/(^|\s)rtl:shadow-\[inset_-3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0\]/);
   });
 });
