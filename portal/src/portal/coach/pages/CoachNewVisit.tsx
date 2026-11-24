@@ -202,7 +202,8 @@ export function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone, li
   const teacherPhone = formatPhone(teacher?.phone || teacher?.teacherExtId);
   return (
     <>
-      <StepBar total={3} current={3} label={c.stepOf(3)} />
+      {/* bd-o15qnr.48 (#244): the principal app never shows steps 1 and 2 (she picks the teacher at once): no "Step 3 of 3" */}
+      {links === COACH_LINKS && <StepBar total={3} current={3} label={c.stepOf(3)} />}
       {visitId ? (
         <Card className="overflow-hidden">
           <HistoryRow lead="person" action="none" title={teacher?.name || c.dash} extra={schoolName ?? undefined} />
@@ -308,7 +309,8 @@ export function WhenStep({ teacher, schoolName, changeTo, laterTo, onNow }: {
   const BIG = "flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8] disabled:opacity-60";
   return (
     <>
-      <StepBar total={3} current={3} label={c.stepOfN(3, 3)} />
+      {/* bd-o15qnr.48 (#244): Now comes from the principal app (onNow): she never saw steps 1 and 2, so no "Step 3 of 3" */}
+      {!onNow && <StepBar total={3} current={3} label={c.stepOfN(3, 3)} />}
       <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }}
         items={[{ label: c.teacher, value: name || c.dash, sub: sub || undefined, to: changeTo }]} />
       <SectionLabel>{F.when}</SectionLabel>
