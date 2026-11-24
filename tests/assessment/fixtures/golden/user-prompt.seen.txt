@@ -14,6 +14,7 @@ Equivalent fractions name the same part.
 **GENERATE THE FOLLOWING:**
 • Seen questions — exactly 8, taken directly from the textbook's own exercises on these pages (objective and subjective)
 • In total the paper must have exactly 8 questions — no more
+• Thinking levels: across the whole paper, by marks, aim for Remember 30%, Understand 30%, Apply 40% (Apply includes Analyze, Evaluate and Create) — FDE's target for this grade and subject (FDE Table of Specification 2023-24). Tag each question's blooms honestly to the thinking it asks for; reach the split by choosing what the questions ask, never by mislabelling them.
 
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
