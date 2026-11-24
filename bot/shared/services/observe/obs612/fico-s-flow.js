@@ -43,6 +43,10 @@ const TITLE = 'FICO 6-12 · مشاہدہ';
 
 const LRI = '⁦';
 const PDI = '⁩';
+// Queue #271: the Digital Coach as this form names it, in the portal's own words (copyV7form.ts rumiTag, EN + UR;
+// the operator 23 Nov: "It should be Digital Coach."). A role, not the bot's name, so it is not routed through botName.
+const DC_NAME_EN = 'Digital Coach';
+const DC_NAME_UR = 'ڈیجیٹل کوچ';
 const urDigits = (n) => String(n).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)));
 const cp = (s) => Array.from(String(s == null ? '' : s));
 const clip = (s, max) => {
@@ -81,8 +85,9 @@ const STR = {
     rumi_none: 'The NIETE Teaching Assistant could not set a level from the recording. Choose the level you saw.',
     rumi_none_why: (why) => `The NIETE Teaching Assistant could not set a level from the recording (${why}). Choose the level you saw.`,
     star_line: '★ Starred: yours alone. The NIETE Teaching Assistant never scores this one; set it from what you saw.',
-    // Queue #256: the "Indicator to work on" option the Digital Coach picked (its lowest level) says so, in its line.
-    dc_pick: "NIETE Teaching Assistant's pick",
+    // Queue #256: the "Indicator to work on" option the Digital Coach picked (its lowest level) says so, in its line;
+    // queue #271: as the form names it everywhere else (DC_NAME_EN), never the bot's own name.
+    dc_pick: `${DC_NAME_EN}'s pick`,
     // bd-o15qnr.40.4 (queue #229, the operator 23 Nov: "Rumi is appearing in 6-12. It should be Digital Coach.") — the
     // PORTAL's words for the pre-fill, as the grades 1-5 form names it; the Flow above keeps its own (WhatsApp /observe
     // is being turned off).
@@ -173,8 +178,8 @@ const STR = {
     rumi_none: `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     rumi_none_why: (why) => `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ ریکارڈنگ سے لیول نہیں چن سکی (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     star_line: `★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ ${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ اسے کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔`,
-    // Queue #256. NATIVE-CHECK (machine-drafted).
-    dc_pick: `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ کا انتخاب`,
+    // Queue #256; queue #271: the form's Digital Coach (DC_NAME_UR), as the portal names it. NATIVE-CHECK (machine-drafted).
+    dc_pick: `${DC_NAME_UR} کا انتخاب`,
     // bd-o15qnr.40.4 — the portal's words: ڈیجیٹل کوچ, as the grades 1-5 form (copyV7form.ts). NATIVE-CHECK (machine-drafted).
     p_dc_chose: (level) => `ڈیجیٹل کوچ نے ریکارڈنگ سے ${level} چنا اور نیچے شواہد لکھے۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔`,
     p_dc_none: 'ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا۔ جو لیول آپ نے دیکھا وہ چنیں۔',
