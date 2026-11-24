@@ -9,6 +9,8 @@ import type { CopyEntry } from "../../teacher/copyRegistry";
 
 export const COACH_TRAINING_EN = {
   title: "Coach Training",
+  /* bd-v04lsh (queue #257) — the same modules for a principal, under her own name (the operator, 24 Nov 2026) */
+  principalTitle: "Principal Training",
   crumb: "Home",
   /* bd-rlxkkt.12 — ten since Module 10 (No evidence, no level), which is not a debrief module */
   coachIntro: "Ten coaching modules",
@@ -28,6 +30,8 @@ export const COACH_TRAINING_EN = {
 
 const COACH_TRAINING_UR: typeof COACH_TRAINING_EN = {
   title: "کوچ ٹریننگ",
+  // the ontology's word for principal (ہیڈ ٹیچر, decided 9 Oct), as «کوچ ٹریننگ» is the coach's. MACHINE-DRAFTED: NATIVE-CHECK
+  principalTitle: "ہیڈ ٹیچر ٹریننگ",
   crumb: "ہوم",
   coachIntro: "کوچنگ کے دس ماڈیول",
   coachModule: "ماڈیول",

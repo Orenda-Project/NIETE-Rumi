@@ -1,6 +1,7 @@
 import type { TeacherRoute } from '../routes';
 import { lazyPage as page } from '@/lib/lazyPage';
 import { PrincipalObserve } from './observe';
+import { PRINCIPAL_TRAINING_PATH, PRINCIPAL_MODULE_PATH } from '../../coach/coachTraining/audience';
 
 // bd-33wxxi.4 — each page is its own chunk (lib/lazyPage). The observe and observation pages are the coach app's own,
 // drawn inside PrincipalObserve (the principal's visit source and links; a non-principal is sent to Observations).
@@ -22,6 +23,9 @@ const PrincipalFeedbackRoute = page(() => import('./FeedbackRoute').then((m) => 
 const CoachSendReport = page(() => import('../../coach/reports/SendReport'));
 // bd-o15qnr.28 (v6/v7) — My observations: every observation she made and her own lessons (Observe's History).
 const PrincipalMyObservations = page(() => import('./ObserveV6').then((m) => ({ default: m.PrincipalMyObservations })));
+// bd-v04lsh (queue #257) — Principal Training: the coach's Coach Training pages for a principal (training.tsx).
+const PrincipalTrainingPage = page(() => import('./training').then((m) => ({ default: m.PrincipalTrainingPage })));
+const PrincipalTrainingModulePage = page(() => import('./training').then((m) => ({ default: m.PrincipalTrainingModulePage })));
 
 const P = '/portal/teacher/principal';
 const as = (el: JSX.Element) => <PrincipalObserve>{el}</PrincipalObserve>;
@@ -38,6 +42,10 @@ const as = (el: JSX.Element) => <PrincipalObserve>{el}</PrincipalObserve>;
  *   /observe/:id                         Check and send for that teacher (:id = her teacherExtId; no visit)
  *   /observe/:id/record | attach | sending
  *   /observation/:id (+ /form, /debrief, /feedback, /send)   one observation she made
+ *
+ * bd-v04lsh (queue #257) — Principal Training, OUTSIDE PrincipalObserve (every principal, not only the principal app's):
+ *   /portal/teacher/principal-training(/:n)   the coach's ten modules, "Principal Training"; `leaders` lets a principal
+ *                                             on My Patch (no teacher app) in; training.tsx admits principals only
  */
 const routes: TeacherRoute[] = [
   { path: `${P}/pick`, element: as(<PickTeacher />) },
@@ -54,6 +62,8 @@ const routes: TeacherRoute[] = [
   { path: `${P}/observation/:id/debrief`, element: as(<CoachDebrief />) },
   { path: `${P}/observation/:id/feedback`, element: as(<PrincipalFeedbackRoute off={<CoachYourFeedback />} />) },
   { path: `${P}/observation/:id/send`, element: as(<CoachSendReport />) },
+  { path: PRINCIPAL_TRAINING_PATH, element: <PrincipalTrainingPage />, leaders: true },
+  { path: PRINCIPAL_MODULE_PATH, element: <PrincipalTrainingModulePage />, leaders: true },
 ];
 
 export default routes;
