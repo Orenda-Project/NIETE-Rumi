@@ -19,6 +19,9 @@ import { MemoryRouter } from 'react-router-dom';
  *                                   or where to look, levels 1–4 each with its example (closed until tapped) and why,
  *                                   her watch-outs; with the form's own name, level names and N/A (#216: v6.1 C2 C3 C5
  *                                   D4; FICO-S v1.2 C2 C3), and a link to that indicator in her manual
+ *   Who sets a level                1–5: "Digital Coach suggests · you check" or "Set from the room"; 6–12 (her 24 Nov
+ *                                   edit, queue #259): "Pre-filled in the app · you review" for 21, "You fill this
+ *                                   yourself" for E2 and E3
  *   The data                        loads only when a guide opens (the coach's first-open budget); the form knows the
  *                                   codes from a small index
  *   In Urdu                         the same, from the guide's own Urdu
@@ -87,6 +90,10 @@ const GUIDE: Record<'1-5' | '6-12', Guide> = { '1-5': V6 as unknown as Guide, '6
 const items = (g: Guide) => g.sections.flatMap((s) => s.items);
 const MANUAL = 'https://claude.ai/artifact/S8YWPruD7MhtcSGttXXByJ?sk=KLt0neaCUZQKQRmcNnEb5A';
 const C2_LOOK = 'It only applies when an answer was actually wrong.';
+/** Rifat's FICO M/H "how", 24 Nov (queue #259): 21 indicators pre-filled from the recording, E2 + E3 the observer's own. */
+const MH_PRE = 'The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.';
+const MH_SELF = 'You fill this yourself in the app, in every observation: it comes from your own check at the end of the lesson, not from the recording.';
+const MH_PRE_UR = 'ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔';
 
 describe('the switch', () => {
   it('off (no coachFlowV2 / principalFlowV2): no "?"', async () => {
@@ -226,7 +233,7 @@ describe("the guide (Dr Rifat Yasmeen's FICO Observer Manual)", () => {
     expect(here.getAttribute('target')).toBe('_blank');
   });
 
-  it('a level she sets from the room says so; a 6–12 card has what to look for and where to look', async () => {
+  it('a level she sets from the room says so; a 6–12 card has what to look for, and who sets it (her 24 Nov edit, queue #259)', async () => {
     page();
     const tray = await openTray();
     fireEvent.click(within(tray).getAllByTestId('observe-guide-row')[0]);
@@ -237,9 +244,19 @@ describe("the guide (Dr Rifat Yasmeen's FICO Observer Manual)", () => {
     const a2 = await screen.findByTestId('guide-card-A2');
     expect(within(a2).getByText('What to look for')).toBeTruthy();
     expect(within(a2).getAllByTestId('guide-look-for')).toHaveLength(4);
-    expect(within(a2).getByText('Where to look')).toBeTruthy();
-    expect(within(a2).queryByText('Digital Coach suggests · you check')).toBeNull();
+    // Rifat, 24 Nov: the app pre-fills 21 of the 23 levels and their evidence from the recording; the observer reviews.
+    expect(within(a2).getByText('Pre-filled in the app · you review')).toBeTruthy();
+    expect(within(a2).getByText('How it is scored')).toBeTruthy();
+    expect(within(a2).queryByText('Where to look')).toBeNull();
+    expect(within(a2).queryByText('Set from the room')).toBeNull();
+    expect(a2.textContent).toContain(MH_PRE);
     expect(within(a2).getByTestId('guide-card-manual').getAttribute('href')).toBe(`${MANUAL}#s-ind-A2`);
+    // E2 and E3 come from the observer's own check at the end of the lesson.
+    fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E2')!);
+    const e2 = await screen.findByTestId('guide-card-E2');
+    expect(within(e2).getByText('You fill this yourself')).toBeTruthy();
+    expect(within(e2).queryByText('Pre-filled in the app · you review')).toBeNull();
+    expect(e2.textContent).toContain(MH_SELF);
   });
 
   it('search: a code narrows to that card; a word searches names and meanings; nothing found says so', async () => {
@@ -269,6 +286,27 @@ describe("the guide (Dr Rifat Yasmeen's FICO Observer Manual)", () => {
     expect(card.textContent).toContain('یہ صرف تب لاگو ہوتا ہے جب واقعی کوئی جواب غلط ہو');
     expect(screen.getByText('ڈیزائن اور نظرِ ثانی: ڈاکٹر رفعت یاسمین')).toBeTruthy();
     await act(async () => { await i18n.changeLanguage('en'); });
+  });
+
+  it('in Urdu, a 6–12 card says who sets it in her Urdu (24 Nov): pre-filled, or yours', async () => {
+    if (!i18n.isInitialized) await i18n.init({ lng: 'en', resources: {} });
+    await act(async () => { await i18n.changeLanguage('ur'); });
+    try { // English again even when it fails, so the tests after it read English
+      page('6-12');
+      const tray = await openTray();
+      fireEvent.click(within(tray).getAllByTestId('observe-guide-row')[0]);
+      fireEvent.click((await screen.findAllByTestId('guide-code')).find((c) => c.textContent === 'A1')!);
+      const a1 = await screen.findByTestId('guide-card-A1');
+      expect(within(a1).getByText('ایپ میں پہلے سے بھرا · آپ جانچتے ہیں')).toBeTruthy();
+      expect(within(a1).getByText('لیول کیسے لگتا ہے')).toBeTruthy();
+      expect(a1.textContent).toContain(MH_PRE_UR);
+      fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E3')!);
+      const e3 = await screen.findByTestId('guide-card-E3');
+      expect(within(e3).getByText('یہ آپ خود بھرتے ہیں')).toBeTruthy();
+      expect(e3.textContent).toContain('ریکارڈنگ سے نہیں');
+    } finally {
+      await act(async () => { await i18n.changeLanguage('en'); });
+    }
   });
 });
 
@@ -341,6 +379,18 @@ describe('the guide data', () => {
     }
     expect(items(GUIDE['1-5']).find((i) => i.code === 'C2')!.means.en).toContain(C2_LOOK);
     expect(JSON.stringify([V6, MH])).not.toMatch(/claude\.ai\/artifact\/(?!S8YWPruD7MhtcSGttXXByJ)/);
+  });
+
+  it('who sets each level, as her manual says (24 Nov, queue #259): 1–5 Digital Coach or the room; 6–12 pre-filled but E2 E3', () => {
+    const who = (b: '1-5' | '6-12') => Object.fromEntries(items(GUIDE[b]).map((i) => [i.code, i.who]));
+    expect(who('1-5')).toEqual({
+      C1: 'dc', C2: 'dc', C3: 'hitl', C4: 'dc', C5: 'hitl', C6: 'dc', C7: 'hitl', C8: 'dc',
+      D1: 'dc', D2: 'hitl', D3: 'hitl', D4: 'hitl', D5: 'dc', F1: 'dc', F2: 'dc', F3: 'dc', F4: 'dc',
+    });
+    const mh = items(GUIDE['6-12']);
+    expect(mh.filter((i) => i.who === 'self').map((i) => i.code)).toEqual(['E2', 'E3']);
+    expect(mh.filter((i) => i.who === 'pre')).toHaveLength(21);
+    for (const i of mh) expect(i.how.en, i.code).toBe(i.who === 'self' ? MH_SELF : MH_PRE);
   });
 
   it('N/A sits exactly where #216 approved it', () => {

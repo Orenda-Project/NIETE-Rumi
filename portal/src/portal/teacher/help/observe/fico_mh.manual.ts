@@ -64,10 +64,10 @@ const guide = {
        "ur": "آخر میں استاد دیکھتا ہے کہ بچوں نے مقصد حاصل کیا یا نہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class + teacher's planner",
-      "ur": "کلاس میں + استاد کا پلانر"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -179,10 +179,10 @@ const guide = {
        "ur": "آغاز دلچسپ ہے (پہیلی، کہانی، کوئی چیز، حیران کن سوال) اور بچے جواب دیتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -294,10 +294,10 @@ const guide = {
        "ur": "ہوم ورک میں ایسا کام ہے جس میں سیکھی بات استعمال ہو، صرف کتاب سے نقل نہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class + homework diary",
-      "ur": "کلاس میں + ہوم ورک ڈائری"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -414,10 +414,10 @@ const guide = {
        "ur": "استاد عام غلطی ہونے سے پہلے خبردار کرتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -529,10 +529,10 @@ const guide = {
        "ur": "الجھے ہوئے طلبہ کے لیے دوسرے طریقے سے سمجھاتا ہے، یا کسی طالب علم سے وجہ بتواتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -640,10 +640,10 @@ const guide = {
        "ur": "طلبہ سے اصطلاحات استعمال کروائی جاتی ہیں، اور ڈھیلے لفظ کی جگہ صحیح اصطلاح دی جاتی ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -751,10 +751,10 @@ const guide = {
        "ur": "طلبہ اسے آگے بڑھاتے ہیں: اپنی مثال دیتے ہیں، سوال کرتے ہیں، یا اپنے الفاظ میں سمجھاتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -862,10 +862,10 @@ const guide = {
        "ur": "کوئی طالب علم اس سے اپنی سوچ سمجھاتا ہے، اور استاد اسے آگے بڑھاتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -982,10 +982,10 @@ const guide = {
        "ur": "اسی طالب علم کے جواب پر اگلا سوال"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1093,10 +1093,10 @@ const guide = {
        "ur": "طالب علم خود جواب درست کرتا ہے، اور اٹکنے پر استاد نیا طریقہ آزماتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1209,10 +1209,10 @@ const guide = {
        "ur": "استاد ان طلبہ کو شامل کرتا ہے جو نہیں بولے: پچھلی قطاریں، لڑکیاں اور لڑکے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1329,10 +1329,10 @@ const guide = {
        "ur": "کوئی طالب علم یا گروپ سبق کا ایک حصہ چلاتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1440,10 +1440,10 @@ const guide = {
        "ur": "طلبہ بغیر کہے معمول پر چلتے ہیں، اور پورا پیریڈ پڑھائی میں لگتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class (note the clock at each change)",
-      "ur": "کلاس میں (ہر تبدیلی پر گھڑی کا وقت لکھیں)"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1555,10 +1555,10 @@ const guide = {
        "ur": "طلبہ یقین نہ ہو تب بھی جواب دینے کی کوشش کرتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1670,10 +1670,10 @@ const guide = {
        "ur": "گروپ اپنا کام کلاس کو بتاتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1781,10 +1781,10 @@ const guide = {
        "ur": "استاد فوری جانچ سے گروپ بناتا یا دوبارہ سمجھاتا ہے، اور تیز طلبہ کو مشکل کام ملتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -1901,10 +1901,10 @@ const guide = {
        "ur": "کوئی طالب علم اپنی مثال یا ربط دیتا ہے جو استاد نے نہیں دیا"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2012,10 +2012,10 @@ const guide = {
        "ur": "کم از کم 2 طلبہ جو پہلے آدھے حصے میں خاموش تھے، دوسرے آدھے میں بولتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class (tally on a seating sketch)",
-      "ur": "کلاس میں (بیٹھنے کے خاکے پر گنتی)"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2123,10 +2123,10 @@ const guide = {
        "ur": "وہ ایک مشترکہ جواب پر پہنچتے ہیں"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2234,10 +2234,10 @@ const guide = {
        "ur": "ایک سوال آج کے سبق سے آگے کی بات پر ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2354,10 +2354,10 @@ const guide = {
        "ur": "جانچ میں جو نظر آیا، اس کی وجہ سے استاد پڑھانے کا طریقہ بدلتا ہے"
       }
      ],
-     "who": null,
+     "who": "pre",
      "how": {
-      "en": "In class",
-      "ur": "کلاس میں"
+      "en": "The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.",
+      "ur": "ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔ اسے اپنے نوٹس سے ملائیں۔ آپ چاہیں تو لیول بدل سکتے ہیں؛ بدلیں تو ثبوت بھی درست کریں تاکہ وہ نئے لیول کی تائید کرے۔"
      },
      "levels": [
       {
@@ -2465,10 +2465,10 @@ const guide = {
        "ur": "پانچوں اچھا جواب دیتے ہیں، پیچھے بیٹھنے والے بھی"
       }
      ],
-     "who": null,
+     "who": "self",
      "how": {
-      "en": "Principal asks 5 random students (last 5 minutes or right after)",
-      "ur": "پرنسپل 5 بلا ترتیب طلبہ سے پوچھتا ہے (آخری 5 منٹ یا فوراً بعد)"
+      "en": "You fill this yourself in the app, in every observation: it comes from your own check at the end of the lesson, not from the recording.",
+      "ur": "یہ آپ ہر مشاہدے میں ایپ میں خود بھرتے ہیں: یہ سبق کے آخر میں آپ کی اپنی جانچ سے آتا ہے، ریکارڈنگ سے نہیں۔"
      },
      "levels": [
       {
@@ -2580,10 +2580,10 @@ const guide = {
        "ur": "طالب علم نے درستیاں کر لی ہیں، یا کسی ہم جماعت نے چیک کیا ہے"
       }
      ],
-     "who": null,
+     "who": "self",
      "how": {
-      "en": "Principal checks 3 random notebooks",
-      "ur": "پرنسپل 3 بلا ترتیب کاپیاں دیکھتا ہے"
+      "en": "You fill this yourself in the app, in every observation: it comes from your own check at the end of the lesson, not from the recording.",
+      "ur": "یہ آپ ہر مشاہدے میں ایپ میں خود بھرتے ہیں: یہ سبق کے آخر میں آپ کی اپنی جانچ سے آتا ہے، ریکارڈنگ سے نہیں۔"
      },
      "levels": [
       {
@@ -2666,7 +2666,7 @@ const guide = {
    ]
   }
  ],
- "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-23, part 's'), with the form's own indicator, section and level names and N/A (FICO-S v1.1 as on NIETE-Rumi sandbox (77cca0683; the Drive s…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here."
+ "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-24, part 's'), with the form's own indicator, section and level names and N/A (FICO-S v1.1 as on NIETE-Rumi sandbox (77cca0683; the Drive s…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here."
 };
 
 export default guide;
