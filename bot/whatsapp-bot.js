@@ -472,10 +472,11 @@ app.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   console.log('Webhook verification request received');
-  console.log('Mode:', mode);
-  console.log('Token:', token);
+  const tokenMatches = token === constants.WEBHOOK_VERIFY_TOKEN;
+  // Never log the presented token: on a genuine Meta check it IS the secret (bd-04od7).
+  console.log('Mode:', mode, '| verify token matches:', tokenMatches);
 
-  if (mode === 'subscribe' && token === constants.WEBHOOK_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && tokenMatches) {
     console.log('Webhook verified successfully!');
     res.status(200).send(challenge);
   } else {

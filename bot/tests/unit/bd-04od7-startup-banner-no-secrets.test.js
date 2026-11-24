@@ -52,4 +52,16 @@ describe('bd-04od7 startup banner', () => {
     expect(src).not.toMatch(/--authtoken \$\{process\.env\.NGROK_AUTHTOKEN\}/);
     expect(src).toMatch(/buildStartupMessage\(/);
   });
+
+  // Second site (bead comment 2026-09-23): GET /webhook logged the presented
+  // hub.verify_token, which on a genuine Meta check IS the real token.
+  test('GET /webhook never logs the presented verify token', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../../whatsapp-bot.js'), 'utf8');
+    const start = src.indexOf("app.get('/webhook'");
+    expect(start).toBeGreaterThan(-1);
+    const handler = src.slice(start, src.indexOf('\n});', start));
+    // The `token` variable passed as an argument, or interpolated into a template.
+    expect(handler).not.toMatch(/console\.\w+\([^)]*(,\s*token\s*[,)]|\$\{token\})/);
+    expect(handler).not.toMatch(/console\.\w+\([^)]*hub\.verify_token'\]/);
+  });
 });
