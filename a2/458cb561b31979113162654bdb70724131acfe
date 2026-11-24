@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T16:43:50Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"a2458cb561b3","branch":"HEAD","user":""}
+{"ts":"2026-11-24T16:51:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,coaching=none-needed (abandoned rebase copy, on no branch; pushed 98e7dfa carries Spec-Sync)","sha":"a2458cb561b3","branch":"bd-6jaq0i-29715","user":""}
