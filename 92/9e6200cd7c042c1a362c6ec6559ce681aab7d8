@@ -1,3 +1,4 @@
 {"ts":"2026-11-24T07:26:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"929e6200cd7c","branch":"bd-chz35n.10.3-main","user":""}
 {"ts":"2026-11-24T07:26:21Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"929e6200cd7c","branch":"bd-chz35n.10.3-main","user":""}
 {"ts":"2026-11-24T07:28:26Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-929e6200cd7c","sha":"929e6200cd7c","branch":"bd-chz35n.10.3-main","user":""}
+{"ts":"2026-11-24T09:42:45Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"929e6200cd7c","branch":"bd-chz35n.10.3-main","user":""}
