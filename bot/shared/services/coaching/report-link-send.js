@@ -17,6 +17,28 @@ const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { groupFor } = require('./ab-v10-arms');
 
 const PART = 'link';
+const TIP_MAX = 120; // code points of the tip in the message; the body stays far under WhatsApp's 1024
+
+/**
+ * bd-chz35n.25 (2) — the message names her one thing to try (prioritized_action.thing_to_try.text), only while
+ * report_delivery_fixes.tip_wording is on. Off, no tip stored, or any failure → null: today's wording.
+ */
+async function tipBody(coachingSessionId, lang) {
+  try {
+    const { current } = require('./report-delivery-switch');
+    if (!(await current()).tipWording) return null;
+    const { data } = await require('../../config/supabase').from('coaching_sessions')
+      .select('prioritized_action').eq('id', coachingSessionId).maybeSingle();
+    const t = data && data.prioritized_action && data.prioritized_action.thing_to_try;
+    const text = t && typeof t.text === 'string' ? t.text.replace(/\s+/g, ' ').trim() : '';
+    if (!text) return null;
+    const cp = [...text];
+    const tip = cp.length > TIP_MAX ? `${cp.slice(0, TIP_MAX - 1).join('').trimEnd()}…` : text;
+    return resolveUx('coachingReportLinkBodyTip', { language: lang, params: { tip } });
+  } catch (_) {
+    return null;
+  }
+}
 
 /** true when the link went out (button or text). */
 async function sendReportLinkIfNew({ coachingSessionId, userId, phone, language, track }) {
@@ -35,7 +57,11 @@ async function sendReportLinkIfNew({ coachingSessionId, userId, phone, language,
   }
 
   const lang = clampLanguage(language);
-  const body = resolveUx('coachingReportLinkBody', { language: lang });
+  const tipped = await tipBody(coachingSessionId, lang);
+  const body = tipped || resolveUx('coachingReportLinkBody', { language: lang });
+  if (tipped) {
+    try { require('../../utils/structured-logger').logEvent('coaching.report.link_wording', { coachingSessionId, userId, wording: 'tip', language: lang }); } catch (_) { /* logging never decides */ }
+  }
   let ok = false;
   let error = null;
   try {
