@@ -82,7 +82,7 @@ async function _paperContext(paperId) {
 }
 
 // The 🙏 reaction helper is not on every tier yet; where it is missing, the thanks goes as a text.
-const _deps = { loadAck: () => require('../coaching/ack-reaction') };
+const _deps = { loadAck: () => require('../coaching/ack-reaction') }; // optional-require: _thank catches MODULE_NOT_FOUND and sends the thanks as a text
 
 async function _thank(phone, messageId, userId) {
   const text = async () => resolveUx('assessmentFeedbackReasonThanks', { language: await _voiceOf(userId) });
