@@ -53,6 +53,7 @@ const { statedType } = require('./free-secondary-grammar');
 const { stripInstructions, scenarioParts, oneDigitSystem } = require('./free-secondary-tidy');
 const { isRtl } = require('./assessment-paper.renderer');
 
+const { writerModel } = require('./secondary-writer-model');
 const JOB = 'assessment.generate';
 const MAX_OUTPUT_TOKENS = 32000;
 const REVIEW_TOKENS = 16000;
@@ -120,7 +121,8 @@ async function generateExam(args) {
   const family = familyOf(grade, subject, base);
   if (typeof ensureCurrent === 'function') await ensureCurrent();
   const cfg = configForRequest() || {};
-  const model = resolveModelForJob(JOB, { cfg, family }).model;
+  // G6-8 may run on their own job (assessment.generate.secondary, bd-t8eevw); G9-12 stay on JOB.
+  const { model, job } = writerModel(grade, family, cfg);
   const ownModel = resolveModelForJob(JOB, { family }).model;
 
   // The teacher's count is kept (a7 ruling on A5e): sizing only converts and lightens items.
@@ -156,9 +158,9 @@ async function generateExam(args) {
     const row = !cfg.killSwitch && cfg.perJob && cfg.perJob[job];
     return typeof row === 'string' && row.includes('/') ? row : site;
   };
-  const writerThinking = brief(firstModel(JOB, model));
+  const writerThinking = brief(firstModel(job, model));
   const ask = (msgs, thinking = writerThinking) => getClient().chat.completions.create({
-    model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+    model, job, ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
     messages: msgs, temperature: 0.7, response_format: { type: 'json_object' }, max_tokens: MAX_OUTPUT_TOKENS,
     ...(thinking ? { reasoning: thinking } : {}),
   });
@@ -202,11 +204,11 @@ async function generateExam(args) {
   // share the writer's blind spots: the job's model in force, else its registered alternative (a Sonnet
   // writer gets a Gemini review), with the writer's model as the fallback; on the writer's own job and
   // model when neither differs. Every item, MCQ and written (a8). Families are compared on the models in force.
-  const reviewer = Review.pickReviewer(inForce(JOB, model),
+  const reviewer = Review.pickReviewer(inForce(job, model),
     [inForce(REVIEW_JOB, resolveModelForJob(REVIEW_JOB).model), fallbackForJob(REVIEW_JOB)]
       .map((m) => ({ job: REVIEW_JOB, model: m })));
   const reviewCall = reviewer ? { model: reviewer.model, job: reviewer.job, fallbackModel: model }
-    : { model, job: JOB, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
+    : { model, job, ...(model !== ownModel ? { fallbackModel: ownModel } : {}) };
   const reviewThinking = quick(firstModel(reviewCall.job, reviewCall.model));
   logToFile('[assessment] distractor review model', { job: reviewCall.job, model: reviewCall.model, thinking: reviewThinking || 'default' });
   const reviewed = await Review.review({
