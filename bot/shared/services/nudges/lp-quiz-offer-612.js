@@ -26,8 +26,11 @@ const { lp612SourceOn } = require('../quiz/quiz-sources');
 const WINDOW_DAYS = 4;
 const KEY_PREFIX = 'lp612_';
 
-// Lazy: the offer service requires this module, and the provider requires the offer service.
-const Offer = () => require('./lp-quiz-offer.service');
+// The offer's pure rules come from their own module, never the offer service, which
+// requires this one (bd-97daxo.34.12: that closed an import cycle).
+const Rules = require('./lp-quiz-offer-rules');
+const { tk } = require('../quiz/web-quiz-kid');
+// Lazy: the provider's own requires reach the lp612 feedback/serving services.
 const Provider = () => require('../quiz/providers/lp612.provider');
 
 /**
@@ -48,7 +51,7 @@ async function classesFor(nudgeDate) {
 async function read612(nudgeDate) {
   const out = new Map();
   if (!lp612SourceOn()) return out;
-  const offer = Offer();
+  const offer = Rules;
   const provider = Provider();
   const upper = PktTime.atPkt(nudgeDate, offer.cutoffHour(), 0);
   const lower = new Date(PktTime.atPkt(nudgeDate, 0, 0).getTime() - WINDOW_DAYS * 86400000);
@@ -117,7 +120,7 @@ async function acceptLp612({ row, cls, from, user, language, reply }) {
   }
   if (out.quizId) await Store.claimQuiz(row.id, out.quizId);
   logEvent('lp_quiz_offer.accepted_612', {
-    nudgeId: row.id, userId: row.user_id, class: cls.key, outcome: out.outcome, quizId: out.quizId || null,
+    nudgeId: row.id, tk: tk(row.user_id), class: cls.key, outcome: out.outcome, quizId: out.quizId || null,
   });
   return true;
 }
