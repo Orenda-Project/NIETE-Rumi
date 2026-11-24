@@ -489,7 +489,10 @@ class SQSQueueService {
         MaxNumberOfMessages: Math.min(maxMessages, 10),  // AWS max is 10
         WaitTimeSeconds: 20,  // Long polling (reduces costs, increases efficiency)
         VisibilityTimeout: 900,  // 15 minutes to process (matches coaching job duration)
-        MessageAttributeNames: ['All']
+        MessageAttributeNames: ['All'],
+        // bd-3itk00: how many times SQS has delivered this message, so a job cut off mid-call knows
+        // whether the queue still has an attempt left (RedrivePolicy maxReceiveCount) before it fails.
+        AttributeNames: ['ApproximateReceiveCount']
       };
 
       const result = await this.sqs.receiveMessage(params).promise();
@@ -505,6 +508,7 @@ class SQSQueueService {
             receiptHandle: msg.ReceiptHandle,
             body: JSON.parse(msg.Body),
             attributes: msg.MessageAttributes || {},
+            receiveCount: parseInt((msg.Attributes || {}).ApproximateReceiveCount, 10) || null,
             receivedAt: new Date().toISOString()
           };
         } catch (parseError) {

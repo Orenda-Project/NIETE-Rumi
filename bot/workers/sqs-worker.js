@@ -43,6 +43,7 @@ const ExamGradingWorker = require('./exam-grading.worker');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { startVisibilityHeartbeat } = require('../shared/utils/sqs-visibility-heartbeat');
 const { heartbeatCeilingMs, lp612DrainTimeoutMs } = require('../shared/config/lp612-flags');
+const JobInterruption = require('../shared/utils/job-interruption');
 const os = require('os');
 
 // Configuration
@@ -55,6 +56,26 @@ const CONCURRENCY_PER_WORKER = parseInt(process.env.SQS_WORKER_CONCURRENCY || '3
 const WEB_AUDIO_SLOTS = 2;
 const POLL_INTERVAL_MS = parseInt(process.env.SQS_POLL_INTERVAL || '100'); // Short poll between batches
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT || '30000');
+
+/**
+ * bd-3itk00 — how long a draining worker keeps finishing an in-flight ANALYSIS before handing it back.
+ *
+ * Measured on NIETE production, 14 days to 24 Nov 2026 (4,399 analysis jobs, claim to delete):
+ * p50 150 s, p95 231 s, p99 275 s, max 565 s. The 30 s coaching window could only ever cut one off,
+ * and the cut came after the model had replied: the next replica paid for the same analysis again.
+ * 8 minutes covers the tail and a portal plan still being read (_awaitPortalPlan waits up to 3).
+ *
+ * The ceiling is the platform's: Railway gives the production and staging sqs-worker
+ * drainingSeconds = 660 before SIGKILL. 30 s (phase 1) + 600 s leaves 30 s to release and flush.
+ * Read at call time so a test, or an env change, is seen.
+ */
+const DEFAULT_ANALYSIS_DRAIN_TIMEOUT_MS = 8 * 60 * 1000;
+const MAX_DRAIN_TIMEOUT_MS = 10 * 60 * 1000;
+function analysisDrainTimeoutMs() {
+  const n = parseInt(process.env.ANALYSIS_DRAIN_TIMEOUT_MS, 10);
+  const ms = Number.isInteger(n) && n > 0 ? n : DEFAULT_ANALYSIS_DRAIN_TIMEOUT_MS;
+  return Math.min(ms, MAX_DRAIN_TIMEOUT_MS);
+}
 
 /**
  * Keep a long job's SQS message invisible for as long as the job is ACTUALLY
@@ -146,6 +167,9 @@ class SQSCoachingWorker {
     // the subset whose message it handed back. See _handBackPapers.
     this.detachedHandles = new Set();
     this.releasedHandles = new Set();
+    // bd-3itk00: every message shutdown has handed back. Its job's visibility heartbeat must not
+    // hide it again from the replica that is meant to pick it up.
+    this.handedBackHandles = new Set();
     this.isShuttingDown = false;
     this.isRunning = false;
     this.stats = {
@@ -307,8 +331,12 @@ class SQSCoachingWorker {
         const free = limit - this._activeCount((m) => m.sourceQueue === 'quiz');
         if (free > 0) {
           const jobs = await SQSQueueService.receiveQuizJobs(Math.min(free, 10));
+          (jobs || []).forEach((job) => { job.sourceQueue = 'quiz'; });
+          if (this.isShuttingDown && jobs && jobs.length) {
+            await this._handBackUnstarted(jobs);
+            break;
+          }
           for (const job of jobs || []) {
-            job.sourceQueue = 'quiz';
             this.processJob(job);
           }
         }
@@ -391,6 +419,13 @@ class SQSCoachingWorker {
         return;
       }
 
+      // bd-3itk00: SIGTERM landed while this long poll was open (it waits up to 20 s). A replica that
+      // is going away starts nothing new: the messages go straight back for a replica that is not.
+      if (this.isShuttingDown) {
+        await this._handBackUnstarted(allJobs);
+        return;
+      }
+
       logToFile('📥 Received batch from SQS', {
         workerId: this.workerId,
         batchSize: allJobs.length,
@@ -464,7 +499,8 @@ class SQSCoachingWorker {
     // All logs within the job will automatically include correlationId
     const jobPromise = runWithCorrelation(correlationId, async () => {
       if (sessionOwned) await nameSessionOwner(sessionId, requester);
-      return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body)
+      return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body,
+        { messageId: job.messageId, receiveCount: job.receiveCount })
         .then(async () => {
           // Handed back at shutdown: the message may already be another worker's. Deleting it
           // here would take the paper away from the run that now owns it.
@@ -494,6 +530,13 @@ class SQSCoachingWorker {
           });
         })
         .catch(async (error) => {
+          // bd-3itk00: the job says it was cut off (a dropped connection, or this replica shutting
+          // down) and left the row as it was. Put the message straight back for another replica
+          // instead of failing it; the job decided this only while the queue has attempts left.
+          if (error && error.retryable) {
+            await this._handBackForRetry(job, error);
+            return;
+          }
           // Job failed
           await this.handleJobFailure(job, error);
           this.stats.jobsFailed++;
@@ -536,8 +579,10 @@ class SQSCoachingWorker {
    * @param {object} payload - Job payload
    * @param {string} receiptHandle - SQS receipt handle
    * @param {string} sourceQueue - Source queue ('main' or 'video')
+   * @param {object} body - the message envelope
+   * @param {{messageId?: string, receiveCount?: number}} meta - which delivery of which message this is
    */
-  async executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue = 'main', body = null) {
+  async executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue = 'main', body = null, meta = {}) {
     logToFile(`🔄 Executing ${jobType} job`, {
       workerId: this.workerId,
       sessionId,
@@ -561,7 +606,8 @@ class SQSCoachingWorker {
         // heartbeat for the tail.
         await SQSQueueService.extendJobTimeout(receiptHandle, 1200); // 20 min
         await withVisibilityHeartbeat(receiptHandle, sessionId, 'transcription',
-          () => CoachingService.processTranscription(sessionId, payload));
+          () => CoachingService.processTranscription(sessionId, payload),
+          { isReleased: () => this.handedBackHandles.has(receiptHandle) });
         break;
 
       case 'analysis':
@@ -573,8 +619,12 @@ class SQSCoachingWorker {
         // stalls on "Step 2/5", sees the earlier steps again when the second
         // worker restarts from zero, and we pay for the analysis twice.
         await SQSQueueService.extendJobTimeout(receiptHandle, 900); // 15 min
+        // bd-3itk00: the message id lets a later run of the SAME message find the analysis this one
+        // saved (no second model call); the receive count tells a cut-off run whether attempts remain.
         await withVisibilityHeartbeat(receiptHandle, sessionId, 'analysis',
-          () => CoachingService.processAnalysis(sessionId, payload));
+          () => CoachingService.processAnalysis(sessionId, payload,
+            { messageId: meta && meta.messageId, receiveCount: meta && meta.receiveCount }),
+          { isReleased: () => this.handedBackHandles.has(receiptHandle) });
         break;
 
       case 'observe_debrief':
@@ -983,6 +1033,21 @@ class SQSCoachingWorker {
   static LONG_JOB_TYPES = new Set(['lp612_author', 'gb_lp_author', 'lp612_own']);
 
   /**
+   * How long shutdown keeps finishing a job of this type before handing it back; 0 = hand it back at
+   * the 30 s coaching deadline, as always.
+   *
+   * bd-3itk00 adds `analysis`. Handing one back throws away whatever the model has already written:
+   * the next replica calls the model again from zero (paid twice, ~2.5 more minutes for the teacher).
+   * On 24 Nov a deploy did that to two analyses that were 0.1 s and ~2 s from done. Production and
+   * staging give this service 660 s to drain, so finishing them costs only the old container's time.
+   */
+  static drainDeadlineMs(jobType) {
+    if (SQSCoachingWorker.LONG_JOB_TYPES.has(jobType)) return lp612DrainTimeoutMs();
+    if (jobType === 'analysis') return analysisDrainTimeoutMs();
+    return 0;
+  }
+
+  /**
    * Hand every in-flight paper back at once: row to `queued` FIRST, then the message to
    * visibility 0, so the next worker takes it over straight away instead of ~15 minutes later.
    *
@@ -1029,7 +1094,7 @@ class SQSCoachingWorker {
     const long = [];
     const short = [];
     for (const [receiptHandle, meta] of this._managedJobs()) {
-      const bucket = SQSCoachingWorker.LONG_JOB_TYPES.has(meta && meta.jobType) ? long : short;
+      const bucket = SQSCoachingWorker.drainDeadlineMs(meta && meta.jobType) > 0 ? long : short;
       bucket.push([receiptHandle, meta]);
     }
     return { long, short };
@@ -1046,6 +1111,7 @@ class SQSCoachingWorker {
    */
   async _releaseInFlight(entries, reason) {
     if (!entries.length) return 0;
+    for (const [receiptHandle] of entries) this.handedBackHandles.add(receiptHandle);
     logToFile(`⚠️ Releasing ${entries.length} in-flight message(s) back to SQS — ${reason}`, {
       workerId: this.workerId,
       inFlightCount: entries.length,
@@ -1080,6 +1146,39 @@ class SQSCoachingWorker {
   }
 
   /**
+   * bd-3itk00: messages a long poll returned after SIGTERM. None of them was started, so each goes
+   * straight back to its own queue for a replica that is not shutting down.
+   */
+  async _handBackUnstarted(jobs) {
+    const entries = jobs.map((j) => [j.receiptHandle, { sourceQueue: j.sourceQueue || 'main', jobType: j.body && j.body.jobType }]);
+    return this._releaseInFlight(entries, 'received after shutdown began: not started');
+  }
+
+  /**
+   * bd-3itk00: a job that was cut off (a dropped connection, or this replica shutting down) and said
+   * so with `error.retryable`. Its row is untouched and the teacher was told nothing; the message goes
+   * back now, so the next attempt starts in seconds rather than when the visibility window (up to
+   * 15 minutes, heartbeat-extended) runs out. A failed release falls back to that window.
+   */
+  async _handBackForRetry(job, error) {
+    const { receiptHandle, body, sourceQueue } = job;
+    const { sessionId, jobType } = body || {};
+    this.handedBackHandles.add(receiptHandle);
+    try {
+      await SQSQueueService.releaseInFlightMessage(receiptHandle, sourceQueue || 'main');
+      this.stats.messagesRequeued++;
+      logToFile('🔁 Job cut off — handed back to SQS for another attempt (not failed)', {
+        workerId: this.workerId, replicaId: REPLICA_ID, messageId: job.messageId, sessionId, jobType,
+        receiveCount: job.receiveCount || null, reason: error.retryReason || null, error: error.message,
+      });
+    } catch (err) {
+      logToFile('⚠️ Could not hand the cut-off job back; it returns when its visibility window ends', {
+        workerId: this.workerId, messageId: job.messageId, sessionId, jobType, error: err.message,
+      });
+    }
+  }
+
+  /**
    * Initiate graceful shutdown.
    *
    * TWO PHASES, because this worker runs two populations of job with wildly different durations
@@ -1090,12 +1189,16 @@ class SQSCoachingWorker {
    *             jobs finish here and the deploy is exactly as fast as it is today.
    *   Phase 2 — whatever is left is split. Everything that is NOT a long job is released back to
    *             SQS immediately, which is today's behaviour and right for it. The long jobs are
-   *             WAITED ON for a further lp612DrainTimeoutMs() (10 min default), during which the
-   *             per-job visibility heartbeat is still running inside the job promise and keeps the
-   *             message invisible, so nothing else can claim it while we finish it.
-   *   Phase 3 — a long job still in flight at that final deadline has its message released too, so
+   *             WAITED ON for a further drainDeadlineMs(jobType) — lp612DrainTimeoutMs() (10 min
+   *             default) for a lesson, analysisDrainTimeoutMs() (8 min) for an analysis (bd-3itk00) —
+   *             during which the per-job visibility heartbeat is still running inside the job promise
+   *             and keeps the message invisible, so nothing else can claim it while we finish it.
+   *   Phase 3 — a long job still in flight at its deadline has its message released too, so
    *             if we do run out of time the handover is at least immediate rather than waiting out
    *             the remaining visibility window.
+   *
+   * Polling stops at SIGTERM: a long poll already open when it lands hands whatever it returns
+   * straight back (bd-3itk00), so a replica that is going away starts nothing new.
    *
    * NOTE: none of this runs at all unless the platform gives the process time. Railway's default is
    * `RAILWAY_DEPLOYMENT_DRAINING_SECONDS = 0` — SIGTERM then SIGKILL — and Axiom shows 24 shutdowns
@@ -1110,6 +1213,8 @@ class SQSCoachingWorker {
     });
 
     this.isShuttingDown = true;
+    // bd-3itk00: job code reads this to tell "the process is going away" from "my work failed".
+    JobInterruption.markShuttingDown();
 
     // Phase 0 — papers go back at once; the platform may give us only seconds.
     await this._handBackPapers();
@@ -1129,28 +1234,31 @@ class SQSCoachingWorker {
 
     if (!long.length) return;
 
-    const drainMs = lp612DrainTimeoutMs();
-    logToFile(`⏳ Draining ${long.length} long-running job(s) — the lesson is being finished, not abandoned`, {
+    // Phase 2b — finish each long job up to ITS OWN deadline (an analysis 8 min, a lesson 10 min),
+    // in parallel; Phase 3 — one still running at its deadline is handed back at once.
+    logToFile(`⏳ Draining ${long.length} long-running job(s) — the work is being finished, not abandoned`, {
       workerId: this.workerId,
       jobTypes: long.map(([, m]) => (m && m.jobType) || 'unknown'),
-      drainTimeoutMs: drainMs,
+      drainTimeoutMs: long.map(([, m]) => SQSCoachingWorker.drainDeadlineMs(m && m.jobType)),
     });
 
-    await Promise.race([
-      Promise.allSettled(long.map(([, m]) => m.promise)),
-      this.sleep(drainMs),
-    ]);
+    let handedBack = 0;
+    await Promise.all(long.map(async ([receiptHandle, meta]) => {
+      await Promise.race([
+        Promise.resolve(meta && meta.promise).catch(() => {}),
+        this.sleep(SQSCoachingWorker.drainDeadlineMs(meta && meta.jobType)),
+      ]);
+      if (!this.activeJobs.has(receiptHandle)) return;
+      handedBack += 1;
+      await this._releaseInFlight([[receiptHandle, meta]], `long-job drain deadline reached (${(meta && meta.jobType) || 'unknown'})`);
+    }));
 
-    // Phase 3 — anything the drain could not finish is handed back immediately.
-    const stillHeld = long.filter(([rh]) => this.activeJobs.has(rh));
-    if (!stillHeld.length) {
+    if (!handedBack) {
       logToFile('✅ Long-running jobs drained to completion before exit', {
         workerId: this.workerId,
         count: long.length,
       });
-      return;
     }
-    await this._releaseInFlight(stillHeld, 'long-job drain deadline reached');
   }
 
   /**
