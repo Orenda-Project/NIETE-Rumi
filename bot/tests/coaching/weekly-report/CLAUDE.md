@@ -1,6 +1,6 @@
 # weekly-report — Jest suites for the weekly usage report and its fake supabase
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching/weekly-report kg=fad7cc0ce0f8 gen=e1240fecaaed overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching/weekly-report kg=f98ad05e2d92 gen=68b9678b8fd2 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.test.js` — prepare and send behaviour
@@ -10,8 +10,8 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `migration.test.js` | Pins migration V1.6.12 allowing every nudge kind and seeding the weekly report switch off with empty templates |
 | `message.test.js` | Pins buildMessage: weekly_usage_v1 for active weeks, quiet template with no numbers, teacher name handling |
+| `migration.test.js` | Pins migration V1.6.12 allowing every nudge kind and seeding the weekly report switch off with empty templates |
 | `weekend.test.js` | Pins weekend rows counting only for lesson plans and activation, not days used (bd-v0toag.32.1) |
 | `job.test.js` | Pins weekly-report job prepare (one row per group B teacher per week) and send (template or logged skip) |
 | `reader.test.js` | Pins weekly-report reader: group B cohort and bounded per-teacher week reads incl. weekend look-back |

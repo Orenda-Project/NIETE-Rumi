@@ -1,7 +1,7 @@
 # helpers — Shared stubs and fixtures for quiz suites: Supabase fakes, lesson fixtures
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz/helpers kg=00731f28e817 gen=6be2570af3b0 overflow=2 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz/helpers kg=ebe21e376fdf gen=6f515c9b689d overflow=2 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `memory-supabase.js` — stateful Supabase stand-in for chained services
@@ -15,13 +15,13 @@ Full index: `CLAUDE.index.md`
 | `supabase-chain.js` | Helper: chainable Supabase query stub recording calls and replaying a canned result for the transcript-quiz suites |
 | `key-verify-agree.js` | Helper: a blind key-solver stub that agrees with every answer key, installed into the generate step's verifyKeys seam |
 | `memory-db.js` | Helper: stateful Supabase stub that remembers writes, so a second /quiz lesson claim (double tap) sees the first |
-| `memory-supabase.js` | Helper: stateful in-memory Supabase client for suites driving a chain of real services against one set of rows |
 | `no-picture-repair.js` | Helper: disables the extra add-a-picture model call (runFigureDensity) in suites whose subject is something else |
 | `filtering-chain.js` | Helper: Supabase query stub that APPLIES filters, for the lp_v8 offer suites (vs supabase-chain's canned replay) |
 | `nudge-contract-mocks.js` | Helper: in-memory teacher-nudges store with the UNIQUE (user_id, nudge_date, kind) and conditional quiz_id-null claim |
+| `memory-supabase.js` | Helper: stateful in-memory Supabase client for suites driving a chain of real services against one set of rows |
 | `lp-key-check-fixture.js` | Helper: Grade 3 Urdu singular/plural lesson fixture whose quiz keyed the lesson's own planted misconception as correct |
-| `lp-offer-scenarios.js` | Helper: the LP quiz offer's send shapes (en/ur) as shared fixtures for the golden and its guarding suite |
 | `key-verify-fixture.js` | Helper: Urdu letters-lesson fixture whose sandbox quiz shipped two wrong answer keys, for key-verify tests |
+| `lp-offer-scenarios.js` | Helper: the LP quiz offer's send shapes (en/ur) as shared fixtures for the golden and its guarding suite |
 | `g1-numbers-urdu-fixture.js` | Helper: synthetic Grade 1 numbers 0-4 lesson quizzed in Urdu, shaped like a sandbox quiz that failed validation |
 | … | 2 more → `CLAUDE.index.md` |
 

@@ -1,7 +1,7 @@
 # scripts — Operator scripts: LP corpus builds, backfills, template and Flow registration
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=84590cddf188 gen=98734d49f35e overflow=109 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=0ff83e118c62 gen=a978f24a4b2a overflow=119 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `check-syntax.js` — parse every tracked JS file before deploy
@@ -12,14 +12,14 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 18 sub-dirs, each with `CLAUDE.md` | `assessment/` · `assets/` · `audit/` · `child-test/` · `deployment/` · `docs/` · `e2e/` · `load/` · `migration/` · `onboarding/` · `ops/` · `quiz/` · `render/` · `setup/` · `sheet-lps/` · `templates/` · `testing/` · `video-reco/` |
+| 19 sub-dirs, each with `CLAUDE.md` | `assessment/` · `assets/` · `audit/` · `child-test/` · `data-analyst/` · `deployment/` · `docs/` · `e2e/` · `load/` · `migration/` · `onboarding/` · `ops/` · `quiz/` · `render/` · `setup/` · `sheet-lps/` · `templates/` · `testing/` · `video-reco/` |
 | `build*` | 4 files; most used `build-lp-catalog.js`: Offline build of bot/data/lp_catalog.json from the K-5 ingestion tree; the LP Flow endpoint reads the output at runtime |
-| … | 80 more → `CLAUDE.index.md` |
+| … | 83 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `niete_lp_assets` (written by `sync-sheet-lps.js` (+1)) ← read by `bot/shared/calls/call-tools.repo.js:179:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:51:c7464c20`? (+15)
 - column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:182:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:54:6d6b56b2` (+13)
-- … 52 more → `CLAUDE.index.md`
+- … 58 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Parse-check all JS before a push; an unbootable entry file once shipped green (check-syntax.js:4, bd-wpx18)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/lp-v8/catalog-splits.test.js` (build-lp-catalog.js, lp-catalog-splits.js)
 - `bot/tests/lp-v8/elective-catalog-merge.test.js` (build-lp-catalog.js, lp-catalog-merge.js)
-- … 51 more → `CLAUDE.index.md`
+- … 53 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/fico17-v6.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/video-enhancement-test.md`?
+- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/ab-tracker-store.md`? · `docs/e2e-mock-lane.md`? · `docs/fico17-v6.md`? · `docs/lesson-plan-data-model-debt.md`? (+1)

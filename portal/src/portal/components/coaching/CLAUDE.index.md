@@ -14,6 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `CoachingHome.live.test.tsx` | bd-v0toag.31.1: older Coaching home checks live-moves eligibility on arrival, off Record's path |
 | `CoachingHome.tsx` | Older teacher Coaching home: send-a-lesson entry, lesson list, needs-answer banner, live-moves eligibility |
 | `LessonPage.tsx` | bd-5rz1v: one page per coached lesson, always openable, showing analysis state, plan and feedback |
+| `LibraryPicker.only.test.tsx` | (unmapped) |
 | `LibraryPicker.recent.test.tsx` | bd-5rz1v.6: LibraryPicker shows recent plans first; a coach passes the observed teacher's loader |
 | `LibraryPicker.tsx` | bd-5rz1v: "From our library" lesson-plan chooser: recent plans, then grade, subject, chapter, lesson |
 | `NeedsAnswerBanner.tsx` | bd-5rz1v: navy edge-to-edge bar "N lessons need your answer" opening the oldest waiting lesson |
@@ -31,7 +32,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ChalkboardIcon.tsx` ← imported by `portal/src/portal/components/coaching/SendLessonButton.tsx:2:724bd433`
 - `CoachingHome.tsx` ← imported by `portal/src/portal/newui/coaching/CoachingMain.tsx:5:834bd6a7` · `portal/src/portal/newui/coaching/useSendFlow.ts:3:834bd6a7` · `portal/src/portal/pages/PortalCoaching.tsx:15:acd2e5d7` · `portal/src/portal/pages/PortalCoachingRecord.tsx:20:1f5b6183`
 - `LessonPage.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:16:92dcd2ce`
-- `LibraryPicker.tsx` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:15:21554af0` · `portal/src/portal/pages/LeaderObserveRecord.tsx:11:a2b5b96a` · `portal/src/portal/pages/PortalCoachingRecord.tsx:13:a2b5b96a`
+- `LibraryPicker.tsx` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:21:21554af0` · `portal/src/portal/pages/LeaderObserveRecord.tsx:11:a2b5b96a` · `portal/src/portal/pages/PortalCoachingRecord.tsx:13:a2b5b96a`
 - `NeedsAnswerBanner.tsx` ← imported by `portal/src/portal/components/coaching/CoachingHome.tsx:5:5f4621d4` · `portal/src/portal/components/coaching/LessonPage.tsx:5:5f4621d4`
 - `Obs612Block.tsx` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:14:68561ebd` · `portal/src/portal/coach/pages/CoachObservation.tsx:26:68561ebd` · `portal/src/portal/teacher/coaching/ReportPage.tsx:27:f6b363a7`
 - `RecordIcon.tsx` ← imported by `portal/src/portal/pages/LeaderObserveTalk.tsx:8:00c65e2a` · `portal/src/portal/components/coaching/SendLessonSheet.tsx:4:c6c7407e`
@@ -42,7 +43,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `BottomSheet.tsx` ← `portal/src/portal/components/coaching/BottomSheet.test.tsx`
 - `CoachingHome.tsx` ← `portal/src/portal/components/coaching/CoachingHome.live.test.tsx` · `portal/src/portal/pages/PortalCoachingRecord.session.test.tsx`
-- `LibraryPicker.tsx` ← `portal/src/portal/components/coaching/LibraryPicker.recent.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx`
+- `LibraryPicker.tsx` ← `portal/src/portal/components/coaching/LibraryPicker.only.test.tsx` · `portal/src/portal/components/coaching/LibraryPicker.recent.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx`
 - `Obs612Block.tsx` ← `portal/src/portal/components/coaching/Obs612Block.test.tsx`
 - `SendLessonButton.tsx` ← `portal/src/portal/components/coaching/SendLessonButton.test.tsx`
 

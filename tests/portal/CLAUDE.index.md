@@ -39,6 +39,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assessment-generator-flag.test.js` | Pins bd-2460: portal /config reports the Assessment Generator unavailable until its flag is on, with the bot's wording |
 | `assessment-multi-chapter-create.test.js` | Pins bd-ix9uhr: bot internal-api assessment/create accepts chapterNumbers for a multi-chapter portal paper |
 | `assessment-paper-file.test.js` | Pins GET /assessment/paper/:id/file: portal streams the paper PDF/answer key for the signed-in owner, else 404 |
+| `assessment-portal-book-picker.test.js` | (unmapped) |
 | `assessment-portal-every-option.test.js` | Pins bd-fmf24g.6: assessment/create passes seenCount, per-type questionTypes and totalMarks like the WhatsApp Flow |
 | `assessment-portal-seen-types.test.js` | (unmapped) |
 | `assessment-via-internal-api.test.js` | Pins bd-60067: the portal owns no assessment logic or assessment_papers/textbook reads; it relays to the bot |
@@ -69,9 +70,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-97daxo.22-gb-school-without-emis.test.js` | (unmapped) |
 | `bd-9br45q-share-transient-retry.test.js` | (unmapped) |
 | `bd-aqotzx-class-check-history.test.js` | Pins bd-aqotzx: teacher DC history shows not-a-class recordings as Needs your answer / stopped, outside the numbers |
+| `bd-bfagiy-school-search.test.js` | (unmapped) |
 | `bd-bmc9a0.2-save-recording-route.test.js` | Pins bd-bmc9a0.2: /coaching-upload/start forwards saveForLater only as a real boolean true to the bot |
 | `bd-c5reix-pending-portal-routes.test.js` | Pins bd-c5reix: /coaching-upload/pending and /check-duplicate relay to the bot, dark when off, 502 when bot is down |
+| `bd-dp9ipc-k5-open-band.db.test.js` | (unmapped) |
 | `bd-eygg2f-reflection-voice-client.test.js` | Pins bd-eygg2f: portal-coaching.client submitReflection posts the audio key and waits 90s+ for transcription |
+| `bd-f5a245-failed-analysis-listed.test.js` | (unmapped) |
 | `bd-fmf24g-teacher-v2-flag.test.js` | Pins bd-fmf24g.1: portal_teacher_v2 flag shape (all, pilot list, fail closed) in feature-flags and portal routes |
 | `bd-fmf24g.10-report-narrative-view.test.js` | Pins bd-fmf24g.10: report-narrative-view maps analysis_data.report_narrative to the report page shape, else null |
 | `bd-fmf24g.15-ready-link.test.js` | Pins bd-fmf24g.15: signed /t/<token> ready link names one paper or lesson item for one teacher (portal-link-token) |
@@ -106,12 +110,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-o15qnr.23-today-in-karachi.test.js` | Pins bd-o15qnr.23: today for visit booking is the Asia/Karachi day, so past-date checks and notices are right 00-05 PKT |
 | `bd-o15qnr.26-coach-flow-v2.test.js` | (unmapped) |
 | `bd-o15qnr.27-coach-flow-v6.test.js` | (unmapped) |
+| `bd-o15qnr.28-v7-report-access.test.js` | (unmapped) |
+| `bd-o15qnr.28.1-coach-progress.test.js` | (unmapped) |
+| `bd-o15qnr.30-stale-home-items.test.js` | (unmapped) |
+| `bd-o15qnr.38-form-save-funnel.test.js` | (unmapped) |
+| `bd-o15qnr.45-observe-in-progress.test.js` | (unmapped) |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-o15qnr.9-visit-last.test.js` | Pins bd-o15qnr.9: coach-v2 Visit page Last visit row (id, observer, step, link) via TEACHER_FACTS |
 | `bd-pw1ccr.26-held-topic-nudge.test.js` | (unmapped) |
 | `bd-pw1ccr.26-topic-paper-routes.test.js` | (unmapped) |
 | `bd-pw1ccr.39-skip-held-topic-nudge.test.js` | (unmapped) |
 | `bd-q4g7s-android-mic-camera.test.js` | Pins bd-q4g7s: Android manifest declares only mic and network, optional mic, and the KeepScreen plugin keeps screen on |
+| `bd-r2uzg1.21.4-principal-no-school.test.js` | (unmapped) |
 | `bd-rj6w0n.14.2-teacher-region.test.js` | (unmapped) |
 | `bd-rlxkkt.9-coach-training-progress.test.js` | (unmapped) |
 | `bd-s42dye-1-training-library.test.js` | Pins bd-s42dye.1 coach-only read-only Training Library API: role re-read each request, catalogue, module, readings |
@@ -173,6 +183,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fln-links-routes.real-corpus.test.js` | Runs FLN leader routes on the real fln-corpus service and fixture; cold 503, grade 1 list, grade 8 400 |
 | `fln-links-routes.test.js` | Pins GET /fln/links and /fln/title/:id (leader-only link builder, public banner title) over real Express |
 | `fln-media-presign.test.js` | Pins FLN plan media presigned on the portal's private R2 bucket, daily-stable URLs, never the public mirror |
+| `fln-pdf-render.test.js` | (unmapped) |
+| `fln-pdf-route.test.js` | (unmapped) |
+| `fln-pdf-template.test.js` | (unmapped) |
 | `fln-readers.test.js` | Pins that every lesson-plan-open reader (lp-describe, lp-activity, lp-history) copes with an fln plan_kind open |
 | `fln-routes.test.js` | Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
 | `fln-send-routes.test.js` | Pins GET /fln/teachers and POST /fln/send: portal route to in-process bot fln-send route, patch-scoped, keyed ids |
@@ -190,6 +203,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-app-switches-config.test.js` | (unmapped) |
 | `lp-app-switches.test.js` | (unmapped) |
 | `lp-catalogue-via-internal-api.test.js` | Pins bd-60063: portal LP catalogue routes delegate to the bot catalogue client, no lesson-plan table reads |
+| `lp-check-report.test.js` | (unmapped) |
 | `lp-engagement-gb-ids.test.js` | (unmapped) |
 | `lp-engagement.service.test.js` | Pins lp-engagement.service: Active/Non-Active teachers per band and sector from RDF populations (analytics v8) |
 | `lp-feedback-bar-open-survey.test.js` | (unmapped) |
@@ -198,6 +212,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-leader-open.test.js` | Pins bd-4joiqz: a leader's lesson-plan open is not logged as a teacher's use, for K-5, 6-12 and FLN plans |
 | `lp-open-logging.test.js` | Pins bd-5rz1v.15: viewer open of a lesson plan writes one deduped niete_lp_opens row; 404 records none |
 | `lp-open-survey-trigger.test.js` | Pins bd-qvevax.2: a recorded viewer open asks the bot's internal API for the lesson-plan survey with only the open id |
+| `lp-own-unit-route.test.js` | (unmapped) |
 | `lp-render-endpoint-retired.test.js` | Pins bd-60063: POST /curriculum/lp/:uuid/render stays retired; portal enqueues no render and never requires bot queue |
 | `lp-viewer-slim-switch.test.js` | (unmapped) |
 | `lp-whatsapp-send-config.test.js` | (unmapped) |
@@ -250,6 +265,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `progress-counts.db.test.js` | Pins bd-5rz1v.17/.15 Home count rules as real SQL in a rolled-back transaction (progress.service, lp-activity.service) |
 | `progress-range.test.js` | Pins bd-5rz1v.17 pk-range: Home date presets resolved as calendar periods in Asia/Karachi, default this month |
 | `progress-routes.test.js` | Pins GET /progress and /progress/:metric: five counts per range, one statement, items behind each count |
+| `qfix-offers-app-quiz-card.test.js` | (unmapped) |
 | `r2-presign-content-disposition.test.js` | Pins bd-2492 generatePresignedUrl: inline disposition and inferred content type for PDF, video, audio, image |
 | `r2-schools-analytics.test.js` | (unmapped) |
 | `resolve-media-url-disposition.test.js` | Pins bd-2492 _resolveMediaUrl in portal.routes: forwards disposition options, passes non-R2 public URLs through |

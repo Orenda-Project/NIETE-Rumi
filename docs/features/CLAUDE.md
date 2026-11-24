@@ -1,7 +1,7 @@
 # features — Per-feature explainer pages from the open-source template plus design notes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=docs/features kg=d90b703741ce gen=6eae17cdd9aa overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=docs/features kg=3e48a531909f gen=8e44abb27821 overflow=5 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — feature index with the API keys that switch each on
@@ -34,5 +34,5 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- skills: `ab-testing`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
+- skills: `ab-bandit`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
 - docs: `README.md`? · `bot/database/migrations/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.md`? (+20)

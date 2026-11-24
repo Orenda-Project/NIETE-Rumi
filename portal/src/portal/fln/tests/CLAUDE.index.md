@@ -14,6 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bidi.test.tsx` | Vitest porting red-team bidi check: Urdu plan DOM has no bare ASCII runs outside <bdi> and no «·» separator |
 | `clips.test.ts` | Vitest for player/clips.ts: label chain (label_ur/en), clip ids, first-appearance order, grid clips |
 | `counts.test.tsx` | Vitest (R5 Q1): band, list and plan kicker use the placement count of the grade the teacher is viewing |
+| `downloadPdf.test.tsx` | (unmapped) |
 | `fln-ab-isolation.client.test.ts` | Vitest: FLN client folder must not import K-5 lesson-plan A/B code (lessonPlansApi, useOpenLesson); server half separate |
 | `gate.test.tsx` | Vitest for FlnGate and FlnRoutes: /me each mount, 401 to sign-in, 404/lessons:false shows unavailable notice |
 | `gbBand.test.tsx` | (unmapped) |
@@ -45,4 +46,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`? · `portal/src/portal/newui/lessons/CLAUDE.md`?
+- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? · `portal/src/portal/fln/player/CLAUDE.md`? · `portal/src/portal/fln/share/CLAUDE.md`? · `portal/src/portal/newui/home/CLAUDE.md`?

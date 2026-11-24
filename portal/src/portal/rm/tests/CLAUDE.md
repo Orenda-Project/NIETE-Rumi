@@ -1,7 +1,7 @@
 # tests — Goldens and rules tests for the RM screens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=c65ed39e6f50 gen=9b786bd21014 overflow=6 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/rm/tests kg=776f18ae87b6 gen=7003993cde80 overflow=6 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `harness.tsx` — rmWorld and renderRm on top of the coach insights harness
@@ -40,4 +40,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.md`? · `portal/src/portal/rm/pages/CLAUDE.md`?
+- docs: `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.md`? · `portal/src/portal/rm/pages/CLAUDE.md`?

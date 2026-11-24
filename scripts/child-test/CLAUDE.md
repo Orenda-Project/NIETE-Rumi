@@ -1,7 +1,7 @@
 # child-test — Child reading/maths test: scoring evals and sandbox simulation helpers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=f52d110f02a8 gen=3d617410f357 overflow=47 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=db2c6de764b8 gen=220adcb49fe9 overflow=47 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `eval-scoring.js` — offline eval of the scoreBlock pipeline against fixture keys
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | `smoke-sandbox.js` | Live smoke of the child-test draw and store on the sandbox DB; refuses production, deletes what it wrote (bd-s1oo0.3) |
 
 ## Who reads this (generated)
-- table `users` (written by `seed-sandbox.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+209)
-- table `students` (written by `seed-sandbox.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+44)
-- column `users.school_id` (written by `seed-sandbox.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+36)
+- table `users` (written by `seed-sandbox.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
+- table `students` (written by `seed-sandbox.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+46)
+- column `users.school_id` (written by `seed-sandbox.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+37)
 - … 43 more → `CLAUDE.index.md`
 
 ## Never (human)

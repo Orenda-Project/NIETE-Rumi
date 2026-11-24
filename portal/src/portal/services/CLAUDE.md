@@ -1,7 +1,7 @@
 # services — Portal HTTP client: every API call the portal makes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/services kg=7f3ca7ff9b4d gen=d6bf27741724 overflow=341 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/services kg=10f656f8f71c gen=b2432c5fa1cb overflow=379 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — axios client with namespaces auth, portal, leader, coach, analytics, childTest
@@ -14,7 +14,7 @@ Full index: `CLAUDE.index.md`
 | `api*` | 6 files; most used `api.ts`: Portal axios client: auth, language, portal, analytics, leader, coach, classes, child test namespaces |
 
 ## Who reads this (generated)
-- `api.ts` ← imported by `portal/src/App.tsx:35:53c61c93` · `portal/src/components/LanguageSwitcher.tsx:12:8d38d8b5` (+217)
+- `api.ts` ← imported by `portal/src/App.tsx:35:53c61c93` · `portal/src/components/LanguageSwitcher.tsx:12:8d38d8b5` (+225)
 
 ## Never (human)
 - Native builds need an absolute API base URL; getApiBaseUrl fails loudly if missing (api.ts:19)
@@ -37,11 +37,11 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/coach/feedback/FeedbackPage.test.tsx` (api.ts)
 - `portal/src/portal/coach/flow/concept1.test.tsx` (api.ts)
 - `portal/src/portal/coach/flow/flowV2.test.tsx` (api.ts)
+- `portal/src/portal/coach/flow/inProgress45.test.tsx` (api.ts)
+- `portal/src/portal/coach/flow/schoolSearch.bfagiy.test.tsx` (api.ts)
+- `portal/src/portal/coach/flow/stopped245.test.tsx` (api.ts)
 - `portal/src/portal/coach/flow/v6.test.tsx` (api.ts)
-- `portal/src/portal/coach/home/CoachHome.test.tsx` (api.ts)
-- `portal/src/portal/coach/insights/tests/harness.tsx` (api.ts)
-- `portal/src/portal/coach/insights/tests/more.flagOff.test.tsx` (api.ts)
-- … 341 more → `CLAUDE.index.md`
+- … 379 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `docs/migration/09a-capacitor-wrapping.md`? · `portal/src/portal/CLAUDE.md`?

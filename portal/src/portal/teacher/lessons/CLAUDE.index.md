@@ -59,31 +59,31 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `viewerFlags.ts` | (unmapped) |
 
 ## Who reads this (all, generated)
-- `ChaptersPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:8:4c2309bc`
-- `FeedbackBar.tsx` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:28:bf87902c`
-- `LessonsAll.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:9:da48a382`
-- `LessonsHome.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:10:08b40a36`
-- `LessonsPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:11:14473588` · `portal/src/portal/teacher/lessons/routes.tsx:11:b209f078`
-- `LoadState.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:3:9f537cfa` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:5:9f537cfa` · `portal/src/portal/coach/pages/CoachObservation.tsx:12:9f537cfa` · `portal/src/portal/coach/pages/CoachReports.tsx:8:9f537cfa` (+15: `python3 kg/kg.py who-reads LoadState.tsx`)
-- `NewLessonPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:13:0edbbad9` · `portal/src/portal/teacher/lessons/routes.tsx:12:f40ea9dd`
-- `OpenPlanPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:13:156fa8c9`
-- `PreparingPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:14:6698d38b` · `portal/src/portal/teacher/lessons/routes.tsx:14:2102f6ec`
+- `ChaptersPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:9:4c2309bc`
+- `FeedbackBar.tsx` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:27:bf87902c`
+- `LessonsAll.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:10:da48a382`
+- `LessonsHome.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:11:08b40a36`
+- `LessonsPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:11:14473588` · `portal/src/portal/teacher/lessons/routes.tsx:12:b209f078`
+- `LoadState.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:3:9f537cfa` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:5:9f537cfa` · `portal/src/portal/coach/pages/CoachObservation.tsx:12:9f537cfa` · `portal/src/portal/coach/pages/CoachReports.tsx:8:9f537cfa` (+17: `python3 kg/kg.py who-reads LoadState.tsx`)
+- `NewLessonPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:13:0edbbad9` · `portal/src/portal/teacher/lessons/routes.tsx:13:f40ea9dd`
+- `OpenPlanPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:14:156fa8c9`
+- `PreparingPage.tsx` ← imported by `portal/scripts/chapter-shot/harness.tsx:14:6698d38b` · `portal/src/portal/teacher/lessons/routes.tsx:15:2102f6ec`
 - `RegionCard.tsx` ← imported by `portal/src/portal/teacher/lessons/LessonsHome.tsx:14:cdfe3cb0`
 - `StartCard.tsx` ← imported by `portal/src/portal/teacher/lessons/StartChoice.tsx:10:b5735408` · `portal/src/portal/teacher/lessons/own/OwnHomeCard.tsx:4:0822fedc` · `portal/src/portal/teacher/lessons/own/OwnStartChoice.tsx:3:0822fedc`
 - `StartChoice.tsx` ← imported by `portal/src/portal/teacher/lessons/LessonsHome.tsx:16:62021e98`
 - `Steps.tsx` ← imported by `portal/src/portal/teacher/lessons/ChaptersPage.tsx:12:d48f4d82` · `portal/src/portal/teacher/lessons/LessonsPage.tsx:15:d48f4d82` · `portal/src/portal/teacher/lessons/NewLessonPage.tsx:12:d48f4d82`
-- `ThingToTryStrip.tsx` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:22:a37017c3`
-- `ViewerPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:15:f2987502`
-- `audience.ts` ← imported by `portal/src/portal/teacher/lessons/LessonsHome.tsx:12:4b523f14` · `portal/src/portal/teacher/lessons/StartChoice.tsx:7:4b523f14` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:24:4b523f14` · `portal/src/portal/teacher/lessons/own/OwnHomeCard.tsx:3:969a901b` (+1: `python3 kg/kg.py who-reads audience.ts`)
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:9:8fc97b6c` · `portal/src/portal/coach/pages/CoachReports.tsx:6:8fc97b6c` · `portal/src/portal/coach/pages/CoachVisit.tsx:21:8fc97b6c` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:7:8fc97b6c` (+32: `python3 kg/kg.py who-reads copy.ts`)
-- `days.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:11:10ae0f6b` · `portal/src/portal/coach/pages/CoachReports.tsx:7:75e1c76a` · `portal/src/portal/coach/pages/CoachVisit.tsx:22:10ae0f6b` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:8:dfeab019` (+11: `python3 kg/kg.py who-reads days.ts`)
-- `feedbackApi.ts` ← imported by `portal/src/portal/teacher/lessons/FeedbackBar.tsx:11:8ddfc6ae` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:29:336b33f7`
-- `feedbackCopy.ts` ← imported by `portal/src/portal/teacher/lessons/FeedbackBar.tsx:7:1670e6e5` · `portal/src/portal/teacher/lessons/copy.ts:213:d685145e`
+- `ThingToTryStrip.tsx` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:21:a37017c3`
+- `ViewerPage.tsx` ← imported by `portal/src/portal/teacher/lessons/routes.tsx:16:f2987502`
+- `audience.ts` ← imported by `portal/src/portal/teacher/lessons/LessonsHome.tsx:12:4b523f14` · `portal/src/portal/teacher/lessons/StartChoice.tsx:7:4b523f14` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:23:4b523f14` · `portal/src/portal/teacher/lessons/own/OwnHomeCard.tsx:3:969a901b` (+1: `python3 kg/kg.py who-reads audience.ts`)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:8:8fc97b6c` · `portal/src/portal/coach/pages/CoachObservation.tsx:9:8fc97b6c` · `portal/src/portal/coach/pages/CoachReports.tsx:6:8fc97b6c` · `portal/src/portal/coach/pages/CoachVisit.tsx:26:8fc97b6c` (+34: `python3 kg/kg.py who-reads copy.ts`)
+- `days.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:11:10ae0f6b` · `portal/src/portal/coach/pages/CoachReports.tsx:7:75e1c76a` · `portal/src/portal/coach/pages/CoachVisit.tsx:27:10ae0f6b` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:8:dfeab019` (+12: `python3 kg/kg.py who-reads days.ts`)
+- `feedbackApi.ts` ← imported by `portal/src/portal/teacher/lessons/FeedbackBar.tsx:11:8ddfc6ae` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:28:336b33f7`
+- `feedbackCopy.ts` ← imported by `portal/src/portal/teacher/lessons/FeedbackBar.tsx:7:1670e6e5` · `portal/src/portal/teacher/lessons/copy.ts:214:d685145e`
 - `lessonHistory.ts` ← imported by `portal/src/portal/teacher/lessons/LessonsAll.tsx:15:21afae3d`
-- `paths.ts` ← imported by `portal/src/portal/coach/training/appReady.ts:1:354ad124` · `portal/src/portal/components/PortalNavigation.tsx:21:58529f73` · `portal/src/portal/fln/FlnGate.tsx:20:62e12e9c` · `portal/src/portal/fln/PlanPage.tsx:34:62e12e9c` (+34: `python3 kg/kg.py who-reads paths.ts`)
+- `paths.ts` ← imported by `portal/src/portal/coach/training/appReady.ts:1:354ad124` · `portal/src/portal/components/PortalNavigation.tsx:21:58529f73` · `portal/src/portal/fln/FlnGate.tsx:20:62e12e9c` · `portal/src/portal/fln/PlanPage.tsx:35:62e12e9c` (+36: `python3 kg/kg.py who-reads paths.ts`)
 - `recent.ts` ← imported by `portal/src/portal/teacher/lessons/LessonsHome.tsx:11:8d34a793`
 - `useOpenLesson.ts` ← imported by `portal/src/portal/teacher/notices/useOpenNotice.ts:7:706efc51` · `portal/src/portal/teacher/lessons/LessonsPage.tsx:14:c7d6fb3a` · `portal/src/portal/teacher/lessons/PreparingPage.tsx:17:a239b2b6`
-- `viewerFlags.ts` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:27:2f86a7f5`
+- `viewerFlags.ts` ← imported by `portal/src/portal/fln/share/ShareSheet.tsx:12:6d656a4a` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:26:59b872fa`
 
 ## Tests (all, generated)
 - `ChaptersPage.tsx` ← `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/frame.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnStart.test.tsx`
@@ -92,7 +92,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LessonsHome.tsx` ← `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` · `portal/src/portal/teacher/lessons/StartChoice.test.tsx` · `portal/src/portal/teacher/lessons/frame.test.tsx` · `portal/src/portal/teacher/lessons/leaders.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx`
 - `LessonsPage.tsx` ← `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/frame.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnPage.goal.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnPage.senior.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnPage.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/LessonsPage.tsx`)
 - `LoadState.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/teacher/lessons/checks.test.tsx`
-- `NewLessonPage.tsx` ← `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnStart.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnTwoStarts.test.tsx`
+- `NewLessonPage.tsx` ← `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnStart.test.tsx` · `portal/src/portal/teacher/lessons/own/OwnTwoStarts.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/NewLessonPage.tsx`)
 - `OpenPlanPage.tsx` ← `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hooks.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx`
 - `PreparingPage.tsx` ← `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/PreparingPage.goal.test.tsx` · `portal/src/portal/teacher/lessons/PreparingPage.retry.test.tsx` · `portal/src/portal/teacher/lessons/PreparingPage.wait.test.tsx` · `portal/src/portal/teacher/lessons/frame.test.tsx` · `portal/src/portal/teacher/lessons/lessons.ur.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/PreparingPage.tsx`)
 - `RegionCard.tsx` ← `portal/src/portal/teacher/lessons/RegionCard.test.tsx`
@@ -100,7 +100,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `StartChoice.tsx` ← `portal/src/portal/teacher/lessons/StartChoice.test.tsx`?
 - `ThingToTryStrip.tsx` ← `portal/src/portal/teacher/lessons/ThingToTryStrip.test.tsx`
 - `ViewerPage.tsx` ← `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/ViewerPage.feedback.test.tsx` · `portal/src/portal/teacher/lessons/ViewerPage.slim.test.tsx` · `portal/src/portal/teacher/lessons/ViewerPage.step.test.tsx` · `portal/src/portal/teacher/lessons/checks.test.tsx` · `portal/src/portal/teacher/lessons/frame.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/ViewerPage.tsx`)
-- `copy.ts` ← `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/libraryPick.test.tsx` · `portal/src/portal/teacher/coaching/reflectionChip.test.ts` · `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/LessonsAll.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` (+18: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/copy.ts`)
+- `copy.ts` ← `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/libraryPick.test.tsx` · `portal/src/portal/teacher/coaching/reflectionChip.test.ts` · `portal/src/portal/teacher/lessons/LessonPages.test.tsx` · `portal/src/portal/teacher/lessons/LessonsAll.test.tsx` · `portal/src/portal/teacher/lessons/LessonsHome.test.tsx` (+19: `python3 kg/kg.py who-reads portal/src/portal/teacher/lessons/copy.ts`)
 - `days.ts` ← `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`
 - `feedbackApi.ts` ← `portal/src/portal/teacher/lessons/FeedbackBar.test.tsx`
 - `feedbackCopy.ts` ← `portal/src/portal/teacher/lessons/FeedbackBar.test.tsx` · `portal/src/portal/teacher/lessons/ViewerPage.feedback.test.tsx`

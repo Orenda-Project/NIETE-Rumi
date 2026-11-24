@@ -1,6 +1,6 @@
 # profile — Coach More page and own profile
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=6fb0cdbbdf38 gen=4db47ca556a9 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/profile kg=a20970fe1bcd gen=2bd331212a5c overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachMore.tsx` — identity, Language toggle, My profile, Log out
@@ -21,8 +21,8 @@
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:19:8f191f80` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:8:d008c2de` (+4)
 - `useCoachCounts.ts` ← imported by `portal/src/portal/coach/profile/CoachMore.tsx:12:01da9c4b` · `portal/src/portal/coach/profile/CoachProfile.tsx:14:01da9c4b`
-- `CoachMore.tsx` ← imported by `portal/src/App.tsx:155:78a58fe5`
-- `CoachProfile.tsx` ← imported by `portal/src/App.tsx:160:00acb213`
+- `CoachMore.tsx` ← imported by `portal/src/App.tsx:157:78a58fe5`
+- `CoachProfile.tsx` ← imported by `portal/src/App.tsx:162:00acb213`
 
 ## Never (human)
 - Privacy policy and Delete account must stay findable in-app for Google Play (profile/CoachProfile.tsx:20, bd-3wb0s)

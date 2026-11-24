@@ -1,7 +1,7 @@
 # tests — Tests for the FLN pages, player, gate, share and flag-off goldens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/tests kg=ccb59cbbdb7b gen=13acdf0c1d3c overflow=21 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/tests kg=62903d012e10 gen=951ec9eb8fdd overflow=22 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.flagOff.test.tsx` — snapshots: FLN off leaves K-5 pages byte-identical
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `counts.test.tsx` | Vitest (R5 Q1): band, list and plan kicker use the placement count of the grade the teacher is viewing |
 | `ui.test.tsx` | Vitest for SoundPill and SoundTile states (idle/loading/playing/error) against a recording fake player |
 | `golden.flagOff.test.tsx` | Vitest with recorded snapshots: with FLN off, NewLessonPage and OpenPlanPage render byte-identical to pre-FLN |
-| … | 21 more → `CLAUDE.index.md` |
+| … | 22 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? (+4)
+- docs: `portal/src/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/fln/CLAUDE.md`? · `portal/src/portal/fln/lib/CLAUDE.md`? · `portal/src/portal/fln/login/CLAUDE.md`? · `portal/src/portal/fln/plan/CLAUDE.md`? (+3)

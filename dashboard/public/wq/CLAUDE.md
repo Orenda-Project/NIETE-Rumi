@@ -1,7 +1,7 @@
 # wq — Browser code and assets for Jugnu's child web pages: quiz, hub, home, stories, challenge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=deeb66e53556 gen=f8188169bae8 overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=cd87c52a248d gen=bb66855ebd66 overflow=64 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `wq.js` — quiz page /q/<code>; wq.css is the base stylesheet all child pages share
@@ -32,9 +32,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
-- `dashboard/tests/web-quiz-items.service.test.js` (wq.js)
-- `dashboard/tests/web-quiz-look-latin-feedback.service.test.js` (wq.js)
-- … 9 more → `CLAUDE.index.md`
+- `dashboard/tests/qfix-voice/web-quiz-letters-capitals.service.test.js` (wq.js)
+- `dashboard/tests/qfix-voice/web-quiz-read-self.service.test.js` (wq.js)
+- … 12 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/public/CLAUDE.md`?

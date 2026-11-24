@@ -1,7 +1,7 @@
 # portal — Root jest tests pinning the portal's dashboard routes, services and Android shell
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=0f3637784cf9 gen=9970e3576dee overflow=167 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=183bd71f8c84 gen=72968096c712 overflow=207 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-teacher-home.routes.test.js` — typical route suite: real Express over dashboard/routes, injected boundaries
@@ -16,13 +16,14 @@ Full index: `CLAUDE.index.md`
 | `helpers/` | Shared fake of the supabase query builder for portal route and service tests → `helpers/CLAUDE.md` |
 | `analytics*` | 13 files; most used `analytics-organization-scope.test.js`: (unmapped) |
 | `bd-33wxxi.1-principal-app-switch.test.js` | (unmapped) |
-| `fln*` | 14 files; most used `fln-routes.test.js`: Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
+| `fln-routes.test.js` | Pins portal-fln.routes over real Express: access gating, /me, plan, events, funnel logging with real fln-access |
+| `fln-send-routes.test.js` | Pins GET /fln/teachers and POST /fln/send: portal route to in-process bot fln-send route, patch-scoped, keyed ids |
 | `bd-97daxo.22-gb-school-without-emis.test.js` | (unmapped) |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-tacnwy-role-switch.test.js` | (unmapped) |
+| `bd-bfagiy-school-search.test.js` | (unmapped) |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
-| `coaching*` | 4 files; most used `coaching-report-page.video.test.js`: Pins bd-gzfdu9: /cr report page adds Watch this next card only with a recommendation, else byte-identical to golden |
-| … | 259 more → `CLAUDE.index.md` |
+| … | 274 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

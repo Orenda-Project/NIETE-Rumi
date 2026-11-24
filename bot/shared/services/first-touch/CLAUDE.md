@@ -1,7 +1,7 @@
 # first-touch — One-door /quiz entry, quiz-maker and teacher-home pages, all switch-gated
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=b30211a13bcd gen=b78ec31e0cb0 overflow=163 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=c76c23298266 gen=fa84be0d6b60 overflow=179 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `one-door.service.js` — the single reply for any quiz request
@@ -14,13 +14,13 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `teacher-home.flags.js` | Reads the teacher home switches quiz_teacher_home, _paged and server_timing; JSON-true semantics, 30s cache |
 | `maker*` | 13 files; most used `maker.bank.js`: Builds the quiz-maker chip tree (grade, subject, topic) from the live video-bank quizzes and makes the quiz |
-| `one*` | 4 files; most used `one-door.flags.js`: Reads the quiz_one_door switch and reply ceiling app_settings in one cached, fail-closed read |
-| … | 52 more → `CLAUDE.index.md` |
+| `teacher-home.token.js` | Signs and verifies the 24h kind-th teacher home bearer token via the web-quiz token signer |
+| … | 53 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `quiz_share_codes` (written by `teacher-home.send.js`) ← read by `bot/shared/services/quiz/child-identity-reuse.js:31:2111be10`? · `bot/shared/services/quiz/handout-class.service.js:193:5b028a07`? (+28)
+- table `quiz_share_codes` (written by `teacher-home.send.js`) ← read by `bot/shared/services/push/web-quiz-push.service.js:172:f7c412e9`? · `bot/shared/services/quiz/child-identity-reuse.js:31:2111be10`? (+31)
 - column `quiz_share_codes.active` (written by `teacher-home.send.js`) ← read by `bot/shared/services/quiz/story-teacher.service.js:193:2c3900c5` · `bot/shared/services/quiz/web-quiz-bank.js:148:49548c18` (+9)
-- … 49 more → `CLAUDE.index.md`
+- … 50 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Never put phone or user id in a URL, page or log (`bot/shared/services/first-touch/go-nonce.js:3`)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `bot/tests/first-touch/teacher-home.routes.test.js` (maker.bank.js, maker.page.js, teacher-home-counts.flag.js, teacher-home.copy.js, teacher-home.flags.js, teacher-home.model.js, teacher-home.more-flags.js, teacher-home.page.js, teacher-home.routes.js, teacher-home.sent.js, teacher-home.strings.js, teacher-home.token.js, teacher-stories-stale.flag.js)
-- … 84 more → `CLAUDE.index.md`
+- … 98 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`?

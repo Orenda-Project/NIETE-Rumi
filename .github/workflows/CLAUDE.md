@@ -1,7 +1,7 @@
 # workflows — CI gates and deploy jobs; branch ladder is sandbox to staging to main
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=.github/workflows kg=cc6f70bc240d gen=48671ae36e88 overflow=5 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=.github/workflows kg=1c946327f6e2 gen=7eb6238a0a01 overflow=4 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `ci.yml` — root jest, lint and portal vitest on PRs; qa-impact.yml gates spec freshness
@@ -13,14 +13,16 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `qa-impact.yml` | On PRs into sandbox/staging/main: Gherkin spec-freshness gate (blocking) and E2E proof (warning), one PR comment |
 | `android*` | 3 files; most used `android-release.yml`: Builds, signs and ships the NIETE Android app to Play on android-v* tags or manual dispatch (bd-2553) |
-| `data-standards.yml` | Data Standards schema gate on every PR and push to main/staging/sandbox; ownership check blocks, report job is advisory |
 | `branch-guard.yml` | Fails any PR or push to main/staging/sandbox if tooling still references the retired develop branch |
 | `ci.yml` | Main CI on PRs and pushes to main/staging/sandbox: root jest test job, lint, and portal newui vitest job |
+| `data-standards.yml` | Data Standards schema gate on every PR and push to main/staging/sandbox; ownership check blocks, report job is advisory |
 | `fresh-clone-smoke.yml` | Weekly Monday and manual smoke test that a fresh clone passes npm install and npm test |
 | `kg-check.yml` | On every PR rebuilds the knowledge graph and fails if committed door files or kg summaries drift from the graph |
 | `logger-level.yml` | Fast gate for the logger-severity ratchet on PRs and pushes to main/staging/sandbox touching bot/ |
+| `main-source-branch.yml` | Fails any pull request into main whose head branch is not staging |
+| `promotion-invariant-staging.yml` | (unmapped) |
 | `syntax.yml` | Cheap required check that every tracked JS under bot/ parses, on PRs and pushes to main/staging/sandbox (PR #1008) |
-| … | 7 more → `CLAUDE.index.md` |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -36,4 +38,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `portal/ANDROID.md`?
+- docs: `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `portal/ANDROID.md`?

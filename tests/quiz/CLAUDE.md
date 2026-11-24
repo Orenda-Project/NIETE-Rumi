@@ -1,7 +1,7 @@
 # quiz — Tests for the quiz stack: authoring, validator, offers, class reports, web quiz
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz kg=43f32f116e96 gen=1c1d31108eb8 overflow=235 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/quiz kg=03105eee330b gen=379341e3a48e overflow=243 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `transcript-quiz-validator.test.js` — the deterministic validator all quizzes pass
@@ -21,8 +21,8 @@ Full index: `CLAUDE.index.md`
 | `transcript-quiz-summary-truth.test.js` | The teacher's sheet never presents a mistake made in class as what was taught: summary-truth check through generate |
 | `lp-quiz-cache.test.js` | LP quiz cache: same lesson version reuses a donor quiz's questions with no digest/author/checks; no teacher data leaks |
 | `quiz-daily-cap.test.js` | Runaway guard: at most QUIZ_DAILY_CAP quizzes per teacher per PKT day, counted before any model call, in Redis |
-| `web*` | 6 files; most used `web-quiz-items-generate.test.js`: SCHEMA_v2 web items at generation: media.web stored only on the web arm with web_quiz_items_v2 on; else unchanged |
-| … | 265 more → `CLAUDE.index.md` |
+| `web*` | 7 files; most used `web-quiz-items-generate.test.js`: SCHEMA_v2 web items at generation: media.web stored only on the web arm with web_quiz_items_v2 on; else unchanged |
+| … | 274 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? (+7)
+- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? (+5)

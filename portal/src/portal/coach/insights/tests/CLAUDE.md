@@ -1,7 +1,7 @@
 # tests — Goldens for each COACHIP coach page plus shared harness and fixtures
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/tests kg=43057e759f05 gen=e5ba85f5080f overflow=10 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/insights/tests kg=019719111a62 gen=862872e037f2 overflow=10 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `harness.tsx` — mocks, serve() and boot() every page test starts from
@@ -16,9 +16,9 @@ Full index: `CLAUDE.index.md`
 | `harness.tsx` | Shared harness for coach insight page tests: mocks, serve(), boot(), renderAt, contract checks |
 | `routing.flagOff.test.tsx` | Pins coach routing with COACHIP off versus on: home, menu, reachable pages (B7/B8) |
 | `r6b_fix.test.tsx` | (unmapped) |
-| `more.flagOff.test.tsx` | Pins coach More with and without COACHIP: extra rows, RM link and the .cp look |
 | `r6b_more.test.tsx` | (unmapped) |
 | `ThisWeek.test.tsx` | Pins S1 This week in both languages: first card, note posts, step strip, phonics, empty states |
+| `more.flagOff.test.tsx` | Pins coach More with and without COACHIP: extra rows, RM link and the .cp look |
 | `Listen.test.tsx` | Pins Listen tab: base line, W chips, newest-first rows, one inline player, empty and error states |
 | `Move.test.tsx` | Pins S5 move page: library words verbatim, check rule, FLN send, debrief line, flag-off redirect |
 | `Results.test.tsx` | Pins S7 Results: counts at five tested, send links, debrief line, empty states |
@@ -38,4 +38,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? (+3)
+- docs: `portal/src/portal/coach/insights/CLAUDE.md`? · `portal/src/portal/coach/insights/components/CLAUDE.md`? · `portal/src/portal/coach/insights/pages/CLAUDE.md`? · `portal/src/portal/coach/profile/CLAUDE.md`? · `portal/src/portal/coach/training/CLAUDE.md`? · `portal/src/portal/coachip-ui/CLAUDE.md`? (+1)

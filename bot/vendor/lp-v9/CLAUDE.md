@@ -1,7 +1,7 @@
 # lp-v9 — Hand-vendored Grades 6-12 LP pipeline: brief, schema, lint, renderer, diagram engine
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9 kg=1051b728bbeb gen=07182fd8691c overflow=19 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9 kg=856378fae5cf gen=890ba2ebe88e overflow=19 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `SYNC.md` — upstream source and every divergence
@@ -21,9 +21,9 @@ Full index: `CLAUDE.index.md`
 | … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `render_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:74:70fb282b` · `bot/shared/services/lp612-render.service.js:45:88b652f0` (+1)
+- `render_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:76:70fb282b` · `bot/shared/services/lp612-render.service.js:45:88b652f0` (+1)
 - `lint_lp.js` ← imported by `bot/shared/services/lp612-author.service.js:63:ff56f646` · `bot/workers/lp612-author.worker.js:57:b3b531df`
-- `visual_check.js` ← imported by `bot/shared/services/lp612-author.service.js:65:cbe13de2` · `bot/vendor/lp-v9/lint_lp.js:56:ed2674cf`
+- `visual_check.js` ← imported by `bot/shared/services/lp612-author.service.js:67:cbe13de2` · `bot/vendor/lp-v9/lint_lp.js:56:ed2674cf`
 - `g5c_cleared_names.json` ← imported by `bot/vendor/lp-v9/lint_lp.js:1192:41cb7ef9`
 - … 3 more → `CLAUDE.index.md`
 

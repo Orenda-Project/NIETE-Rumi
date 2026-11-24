@@ -1,6 +1,6 @@
 # scripts — Local developer scripts for the portal (not part of the build)
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/scripts kg=1cb295e9656d gen=1e30d9520505 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/scripts kg=db81821fd21c gen=5129f0ae98bf overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `urdu-fit/run.mjs` — measures Urdu clipping in headless Chromium
@@ -10,7 +10,9 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `attach-shot/` | (no description yet) → `attach-shot/CLAUDE.md` |
 | `chapter-shot/` | (no description yet) → `chapter-shot/CLAUDE.md` |
+| `coach-shot/` | (no description yet) → `coach-shot/CLAUDE.md` |
 | `urdu-fit/` | Measures whether Urdu (Nastaliq) text fits its boxes in the teacher kit → `urdu-fit/CLAUDE.md` |
 
 ## Who reads this (generated)

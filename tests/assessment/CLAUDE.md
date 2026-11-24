@@ -1,7 +1,7 @@
 # assessment — Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=24f93a3f180a gen=0e80168137d6 overflow=498 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/assessment kg=1730180918d2 gen=70c4c14fc4e3 overflow=504 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `golden.test.js` — start here: pins today's prompts, printed papers/keys, options payloads against fixtures/golden
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `fde-r6s2.test.js` | Round 6 second pass: pins that appended source/chapter/level tags never print and the pages-paper covers line |
 | `fde-v25-g1-pictures.test.js` | (unmapped) |
 | `fde-v34-layout.test.js` | (unmapped) |
-| … | 514 more → `CLAUDE.index.md` |
+| … | 525 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

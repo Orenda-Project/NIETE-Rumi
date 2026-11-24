@@ -22,8 +22,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `detector.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:19:8d400068`
 - `disagreements.js` ← imported by `dashboard/services/coaching-report-view.js:12:d63ab42f`
 - `live-key.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:18:2319e99b`
-- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:3261:dbdf1d67`
-- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:310:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
+- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:3323:dbdf1d67`
+- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:311:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
 - `stream-cap.js` ← imported by `bot/shared/services/coaching/live-moves/live-key.js:7:876367f7`
 - `switch.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:16:47ee8455`
 - table `coaching_sessions` (written by `live-moves.service.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1982:5911672a`? (+96: `python3 kg/kg.py who-reads coaching_sessions`)

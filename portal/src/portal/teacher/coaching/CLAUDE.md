@@ -1,7 +1,7 @@
 # coaching — Teacher Digital Coaching: hub, one-screen observation, report, All DC observations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/coaching kg=088f3e81f3c6 gen=fb6fde8f0059 overflow=91 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/coaching kg=fd7e86a02edf gen=0359bbcda04a overflow=92 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `NewObservation.tsx` — the one screen at /coaching/new; `ReportPage.tsx` — shared report (also coach visits)
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:4:dd128a06` (+19)
-- `paths.ts` ← imported by `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:26:d1a155d5` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:16:98e26fb0` (+13)
+- `paths.ts` ← imported by `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:26:d1a155d5` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:16:98e26fb0` (+15)
 - … 16 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` (CoachingAll.tsx, CoachingHome.tsx, NewObservation.tsx, ReportPage.tsx, SendPage.tsx, api.ts, copy.ts, draft.ts, paths.ts, report.ts)
 - `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` (CoachingHome.tsx, NewObservation.tsx, SendPage.tsx, copy.ts, draft.ts, paths.ts, routes.tsx)
-- … 35 more → `CLAUDE.index.md`
+- … 36 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

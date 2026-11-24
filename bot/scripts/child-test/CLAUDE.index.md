@@ -19,7 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `purge-sa-game-audio.js` ← `bot/tests/sa-game/sa-game-audio-purge.test.js`
-- `record-sa-voice.js` ← `bot/tests/child-test/record-sa-voice-v4-english-ops.test.js` · `bot/tests/child-test/record-sa-voice-v4-equals.test.js` · `bot/tests/child-test/record-sa-voice-v4-held-words.test.js` · `bot/tests/child-test/record-sa-voice-v4-letter-names.test.js` · `bot/tests/child-test/record-sa-voice-v4-line-fixes.test.js` · `bot/tests/child-test/record-sa-voice-v4-praise.test.js` (+9: `python3 kg/kg.py who-reads bot/scripts/child-test/record-sa-voice.js`)
+- `record-sa-voice.js` ← `bot/tests/child-test/record-sa-voice-v4-english-ops.test.js` · `bot/tests/child-test/record-sa-voice-v4-equals.test.js` · `bot/tests/child-test/record-sa-voice-v4-held-words.test.js` · `bot/tests/child-test/record-sa-voice-v4-letter-names.test.js` · `bot/tests/child-test/record-sa-voice-v4-line-fixes.test.js` · `bot/tests/child-test/record-sa-voice-v4-praise.test.js` (+10: `python3 kg/kg.py who-reads bot/scripts/child-test/record-sa-voice.js`)
 - `sa-voice-providers.js` ← `bot/tests/child-test/record-sa-voice-v4-english-ops.test.js` · `bot/tests/child-test/record-sa-voice-v4-equals.test.js` · `bot/tests/child-test/record-sa-voice-v4-held-words.test.js` · `bot/tests/child-test/record-sa-voice-v4-letter-names.test.js` · `bot/tests/child-test/record-sa-voice-v4-line-fixes.test.js` · `bot/tests/child-test/record-sa-voice-v4-praise.test.js` (+4: `python3 kg/kg.py who-reads bot/scripts/child-test/sa-voice-providers.js`)
 
 ## Related (all, generated)

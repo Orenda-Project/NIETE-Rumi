@@ -17,6 +17,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `child-refusals-once-a-day.test.js` | NQ6: a child hears each refusal line once a day; repeats get a free reaction, stickers nothing (student-ingress) |
 | `e2e-cassette-faults.test.js` | Tests E2E_CASSETTE_FAULTS: scripted vendor replies or throws for matching requests, N times, instead of cassette or live |
 | `feature-intro-count.test.js` | Tests FeatureIntro.introShownCount and markVideoShown's incrementIntroCount path against a mocked supabase chain |
+| `gb-k5-quiz-source.test.js` | (unmapped) |
+| `gb-quiz-readiness.test.js` | (unmapped) |
 | `handoff-class-binding.test.js` | Tests the lesson/coaching quiz hand-out (sendHandoff) asks one class question: known binds, ambiguous asks after sending |
 | `language-ask-examples.test.js` | Quiz language ask names English terms taken from the lesson itself, not hardcoded fraction/numerator examples |
 | `lesson-label-gloss-subphrase.test.js` | bd-1r3k2h: lessonLabel drops a bracketed gloss that only repeats part of the lesson name; keeps real translations |
@@ -40,10 +42,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-quiz-handoff.test.js` | R8 lane D 3.3: resend-link on an lp_v8 quiz with no coaching session still states the lesson date via lessonSessionFor |
 | `lp-quiz-key-check.test.js` | An LP-born quiz never keys the lesson's own planted misconception as correct: key-check rewrites or drops such items |
 | `lp-quiz-language-ask.test.js` | LP-born quiz asks which language to write in, same ask and buttons as the recording quiz; queues only after the answer |
+| `lp-quiz-offer-612.test.js` | (unmapped) |
 | `lp-quiz-offer-answer.test.js` | R8 lane B 5.3: a tap on the 15:00 offer makes exactly one lp_v8 quiz however many taps or replicas; conditional claim |
 | `lp-quiz-offer-film-numerals.test.js` | 15:00 LP quiz offer: per-language intro film as video header when configured, and numerals; unchanged when none set |
 | `lp-quiz-offer-lesson-name.test.js` | The 15:00 offer names the lesson as its own PDF does (clean catalog topic, not the run-on topic_short) |
 | `lp-quiz-offer-quiet-hours.test.js` | The 15:00 quiz offer never goes out at night: an offer claimed in the quiet window is skipped; at 15:00 it goes |
+| `lp-quiz-offer-rules.test.js` | (unmapped) |
 | `lp-quiz-offer-send.test.js` | R8 lane B 5.2: what the teacher gets at 15:00 and the re-checks that stop it; PLANNED wording; nudge-id button ids |
 | `lp-quiz-offer-two-classes-one-message.test.js` | 15:00 offer for two classes while the intro film shows is ONE three-button message; falls back to the list if it fails |
 | `lp-quiz-offer-window-template.test.js` | Afternoon offer for a closed 24-hour window via UTILITY template teacher_quiz_reminder_v1 (en, ur); drafts and sender |
@@ -67,6 +71,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `pictogram-school-bag.test.js` | The school-bag pictogram must read as a school bag: line-art backpack variant keeps the glyph contract and 72-unit grid |
 | `pictograms-lesson-objects.test.js` | Pictogram set covers objects the Grade 1-5 maths lessons count (six new objects), each a name the author is shown |
 | `quiz-adaptive.test.js` | Tests the pure adaptive-difficulty engine computeNextDifficulty over a 3-answer window (quiz-adaptive) |
+| `quiz-anchors-generate.test.js` | (unmapped) |
+| `quiz-anchors-retest.test.js` | (unmapped) |
+| `quiz-anchors.test.js` | (unmapped) |
 | `quiz-attempts-kept.test.js` | bd-v0toag.10: every quiz attempt is kept; scans bot source to prove no code deletes or upserts a quiz_sessions row |
 | `quiz-author-gates-answer-leak.test.js` | Answer leaks between questions behind quiz_author_gates_v2: the detector names the later question over earlier text |
 | `quiz-author-gates-blind-figure.test.js` | Gates: the blind solve sees what the child sees; a word_blank picture with no pictogram is flagged ambiguous (S_Y case) |
@@ -89,6 +96,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-funnel-children.test.js` | Quiz funnel, children's side: child_joined to report_sent events carry the quiz stream; report_sent_at stamping finding |
 | `quiz-funnel-generate.test.js` | Quiz funnel generate to hand-off: generation_started, generated, generation_failed, sent, send_failed plus row trace |
 | `quiz-funnel-offers.test.js` | Quiz funnel teacher side: offer_made, offer_answered, accepted for every channel (coaching, 15:00, /quiz, make again) |
+| `quiz-funnel-watch-owed.test.js` | (unmapped) |
 | `quiz-funnel-watch.test.js` | Quiz funnel watcher: one stream to the operator, no spam; per-stream funnel from quiz_funnel rows, 2-hourly summary |
 | `quiz-funnel-worker-wiring.test.js` | Pins that the worker runs the quiz funnel watcher on its timer, never throws, and the hourly digest is gone |
 | `quiz-funnel.test.js` | Tests the one quiz_funnel.<stage> event shape written through one helper for both quiz streams |
@@ -271,6 +279,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `video-quiz-reuse-open-run.test.js` | (unmapped) |
 | `video-quiz-typed-letter.test.js` | A typed letter answers the quiz the child is taking, and no other quiz takes over the handset; free verdict reactions |
 | `web-quiz-config-bot-boot.test.js` | Pins that the bot logs web_quiz.config once at startServer, with resolved names, before the port is bound |
+| `web-quiz-finish-event.test.js` | (unmapped) |
 | `web-quiz-forward-message.test.js` | The forwarded message says what the child is asked first: web link asks only the name; wa.me link keeps the old text |
 | `web-quiz-items-generate.test.js` | SCHEMA_v2 web items at generation: media.web stored only on the web arm with web_quiz_items_v2 on; else unchanged |
 | `web-quiz-link.test.js` | quizLink helper: web page link only when web_quiz_enabled and the teacher is allowed; records the choice via the worker |
@@ -288,4 +297,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `bot/workers/CLAUDE.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `scripts/qa/render-matrix/CLAUDE.md`? · `tests/CLAUDE.md`?
+- docs: `bot/shared/services/monitoring/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `docs/student-mode.md`? · `infrastructure/templates/drafts/README.md`? · `scripts/qa/render-matrix/CLAUDE.md`? · `tests/CLAUDE.md`?

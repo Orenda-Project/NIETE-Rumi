@@ -44,14 +44,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `index.js` ← imported by `dashboard/cluster.js:79:6e322920`
 - column `access_scopes.dashboard_user_id` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/services/auth.service.js:45:ab5cd5e1`
-- column `coaching_sessions.analysis_data` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` · `bot/shared/routes/observe2-check-endpoint.js:346:ed6f6cd9` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:286:4fa90499` (+34: `python3 kg/kg.py who-reads coaching_sessions.analysis_data`)
+- column `coaching_sessions.analysis_data` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` · `bot/shared/routes/observe2-check-endpoint.js:346:ed6f6cd9` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:286:4fa90499` (+35: `python3 kg/kg.py who-reads coaching_sessions.analysis_data`)
 - column `dashboard_users.email` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/index.js:545:f2112f9b` · `dashboard/services/auth.service.js:231:19a724f0` · `dashboard/services/byof.service.js:359:3df8e978`
 - column `dashboard_users.is_active` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/services/auth.service.js:21:f8c426e2` · `dashboard/services/byof.service.js:359:3df8e978`
 - column `dashboard_users.password_hash` (written by `index.js`, `test-rls-with-supabase-client.js`) ← read by `dashboard/services/auth.service.js:190:7a1021df`
 - column `dashboard_users.role` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/services/auth.service.js:231:19a724f0` · `dashboard/services/byof.service.js:359:3df8e978`
 - column `dashboard_users.username` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/index.js:545:f2112f9b` · `dashboard/services/auth.service.js:20:824c5b0f` · `dashboard/services/byof.service.js:359:3df8e978`
 - table `access_scopes` whole row (`*`) (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/services/auth.service.js:44:d2b02c3e`?
-- table `coaching_sessions` whole row (`*`) (written by `index.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:165:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+5: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` whole row (`*`) (written by `index.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:170:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+5: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `dashboard_users` whole row (`*`) (written by `index.js`) ← read by `dashboard/services/auth.service.js:19:d2b02c3e`?
 - table `access_scopes` (written by `test-rls-with-supabase-client.js`) ← read by `dashboard/services/access-scope.service.js:49:4c770aa9`? · `dashboard/services/auth.service.js:43:2be8f4d7`?
 - table `coaching_sessions` (written by `index.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:56:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1982:5911672a`? (+96: `python3 kg/kg.py who-reads coaching_sessions`)
@@ -60,11 +60,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `ADMIN_PASSWORD` read at `dashboard/test-login.js:9:68b2e053`
 - env `ADMIN_PASSWORD_HASH` read at `dashboard/index.js:157:4a55f6fa` · `dashboard/test-login.js:12:fade072a`
 - env `ADMIN_USERNAME` read at `dashboard/index.js:156:f83ca370`
-- env `BROADCAST_PASSWORD` read at `dashboard/index.js:3148:3668487d`
+- env `BROADCAST_PASSWORD` read at `dashboard/index.js:3152:3668487d`
 - env `CLUSTER_ENABLED` read at `dashboard/cluster.js:17:06847e1e`
 - env `CLUSTER_WORKERS` read at `dashboard/cluster.js:16:aa843f44`
 - env `DASHBOARD_PORT` read at `dashboard/index.js:147:8d77e70c`
-- env `DATABASE_URL` read at `dashboard/index.js:3872:f91d5302`
+- env `DATABASE_URL` read at `dashboard/index.js:3876:f91d5302`
 - env `PORT` read at `dashboard/index.js:147:8d77e70c`
 - env `PORTAL_URL` read at `dashboard/index.js:357:f16b34e0`
 - env `REDIS_URL` read at `dashboard/index.js:221:6f542357`

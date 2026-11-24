@@ -96,6 +96,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-h9gnk-midflight-watchdog.test.js` | bd-h9gnk: watchdog classifies sessions stuck mid-flight past a 45-minute grace and recovers them (stale-recovery) |
 | `bd-hk2jm3-fde-ict-only.test.js` | (unmapped) |
 | `bd-hr97y-dc-dedupe-no-window.test.js` | bd-hr97y: DC duplicate-recording lookup has no time window; an old identical recording is reused, not rescored |
+| `bd-hronni-opus-recordings.test.js` | (unmapped) |
 | `bd-j3j4b-photo-gate-sweep.test.js` | bd-j3j4b/bd-5knlj: shouldAutoAdvancePhotoGate and gateThresholdFor advance sessions stranded at the photo/LP gate |
 | `bd-jbjrx-step-language.test.js` | bd-jbjrx/bd-8ctnq: the five DC step messages follow the chosen language and the step counter uses digits |
 | `bd-jud1e-lpfidelity-denominator.test.js` | bd-jud1e: applyLpFidelity keeps the applicable-aware denominator; only computeScores writes overall_max_marks |
@@ -120,6 +121,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-ra8xu.53-v9-lesson-id.test.js` | (unmapped) |
 | `bd-s192t-fallback-copy.test.js` | bd-s192t.4: Section B fallback copy states the true cause per failure state (observe-draft.service) |
 | `bd-s192t-roles-threading.test.js` | bd-s192t.1: regression for the 44fe3ae roles ReferenceError; runs the real transcription chain (audio.service) |
+| `bd-s192t.12-processor-speaker-split.test.js` | Tests the unsplit-recording verdict and the FICO prompt's speaker-labels note (bd-s192t.12) |
+| `bd-s192t.12-unsplit-speakers.test.js` | Tests the unsplit-recording verdict and the FICO prompt's speaker-labels note (bd-s192t.12) |
 | `bd-s7c31y-portal-report-no-step-messages.test.js` | bd-s7c31y: a teacher's portal DC recording gets no Step 4/5 or 5/5 WhatsApp text from the report job |
 | `bd-sk206-step5-single-voice-message.test.js` | bd-sk206: Step 5 sends one text before the voice note, not two; retired caption is not sent in either language |
 | `bd-snkn32.45-whatsapp-own-plans.test.js` | (unmapped) |
@@ -210,7 +213,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fico-s-routing.test.js` | (unmapped) |
 | `fico-s-starred.test.js` | (unmapped) |
 | `fico-s-v1-1-rubric.test.js` | (unmapped) |
+| `fico-s-v1-2.test.js` | (unmapped) |
 | `fico-subject-conditional-rule.test.js` | Section F subject rule flips with subject confidence: high confidence scores only the matching subject row |
+| `fico17-v6-1-version.test.js` | (unmapped) |
 | `fico17-v6-d2-wording.test.js` | (unmapped) |
 | `fico17-v6-dc-evidence.test.js` | (unmapped) |
 | `fico17-v6-dc-report-enhance.test.js` | (unmapped) |
@@ -284,6 +289,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `practice-why.test.js` | bd-v0toag.55: every practice tag has an English and Urdu one-line why, distinct per practice (practice-why) |
 | `prompt-uptake-block.test.js` | Phase 2 uptake loop: the PRIOR ACTION block rides in the existing scoring call and never moves a score (fico-framework) |
 | `q184-starred-e3-checklist.test.js` | (unmapped) |
+| `q230-report-title-block.test.js` | (unmapped) |
 | `r2-dc.test.js` | (unmapped) |
 | `r2-hero-v6.test.js` | (unmapped) |
 | `reflection-language-anchor.test.js` | Reflection language is anchored to the teacher's stored preference, not the recogniser's per-turn label |
@@ -338,4 +344,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `dashboard/services/CLAUDE.md`? · `docs/customization.md`? · `docs/fico17-v6.md`? · `tests/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `dashboard/services/CLAUDE.md`? · `docs/customization.md`? · `docs/fico17-v6.md`? · `tests/CLAUDE.md`?

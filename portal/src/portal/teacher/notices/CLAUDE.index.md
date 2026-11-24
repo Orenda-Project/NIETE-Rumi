@@ -6,8 +6,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `ClassLinkCard.mount.test.tsx` | (unmapped) |
+| `ClassLinkCard.test.tsx` | (unmapped) |
+| `ClassLinkCard.tsx` | (unmapped) |
 | `NoticeHost.test.tsx` | Pins the shell notices on a real screen: Being made strip, ready and failed banners, tap targets (bd-fmf24g.15) |
 | `NoticeHost.tsx` | Shell-mounted notices on every teacher v2 screen: Being made strip above the menu, ready/failed banner, tap handling |
+| `ReadyForYou.quizOffer.test.tsx` | (unmapped) |
 | `ReadyForYou.test.tsx` | Pins Home's Ready for you: server-listed unopened items within 24 weekday hours, max 2, gone once opened (bd-fmf24g.15) |
 | `ReadyForYou.tsx` | Home card listing finished papers and lesson plans not yet opened (max 2 plus See all); Open tells the server |
 | `RemindCard.test.tsx` | Pins the Evening reminder card: drawn only on a plain push-capable browser when the server says portal:true |
@@ -28,25 +32,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `wiring.test.tsx` | Pins that Check and make and plan pages hand jobs to the shell tracker, and the waiting pages' words (bd-fmf24g.15) |
 
 ## Who reads this (all, generated)
+- `ClassLinkCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:14:2d8f5061` · `portal/src/portal/teacher/pages/Home.tsx:14:78d37bf1`
 - `NoticeHost.tsx` ← imported by `portal/src/portal/components/PortalLayout.tsx:24:6a75df37`
 - `ReadyForYou.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:11:23ed8f25` · `portal/src/portal/teacher/pages/Home.tsx:11:4c5cbbf0`
 - `RemindCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:13:d27b9a04` · `portal/src/portal/teacher/pages/Home.tsx:13:3d38321c`
-- `TopicPaperCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:14:3e49cda9` · `portal/src/portal/teacher/pages/Home.tsx:14:553cce52`
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachSending.tsx:4:c0782935` · `portal/src/portal/coach/reports/Debrief.tsx:18:c0782935` · `portal/src/portal/teacher/assessment/RequestPage.tsx:31:a1ddbfc0` · `portal/src/portal/teacher/coaching/NewObservation.tsx:30:a1ddbfc0` (+2: `python3 kg/kg.py who-reads copy.ts`)
-- `model.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:6:ed644ba8` · `portal/src/portal/teacher/assessment/useJobs.ts:5:a8cb86da` · `portal/src/portal/teacher/lessons/PreparingPage.tsx:11:54361853` · `portal/src/portal/teacher/notices/NoticeHost.tsx:18:e50cc637` (+2: `python3 kg/kg.py who-reads model.ts`)
+- `TopicPaperCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:15:3e49cda9` · `portal/src/portal/teacher/pages/Home.tsx:15:553cce52`
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachSending.tsx:4:c0782935` · `portal/src/portal/coach/reports/Debrief.tsx:18:c0782935` · `portal/src/portal/teacher/assessment/RequestPage.tsx:31:a1ddbfc0` · `portal/src/portal/teacher/coaching/NewObservation.tsx:30:a1ddbfc0` (+3: `python3 kg/kg.py who-reads copy.ts`)
+- `model.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:6:ed644ba8` · `portal/src/portal/teacher/assessment/useJobs.ts:5:a8cb86da` · `portal/src/portal/teacher/lessons/PreparingPage.tsx:11:54361853` · `portal/src/portal/teacher/notices/NoticeHost.tsx:18:e50cc637` (+3: `python3 kg/kg.py who-reads model.ts`)
 - `serverNotices.ts` ← imported by `portal/src/portal/teacher/notices/tracker.ts:8:e14efeb5`
 - `tracker.ts` ← imported by `portal/src/portal/coach/observe/ObservePage.tsx:5:72d45190` · `portal/src/portal/coach/observe/sender.ts:7:240a3291` · `portal/src/portal/teacher/assessment/useJobs.ts:6:e91cf5c8` · `portal/src/portal/teacher/home/look/LookHome.tsx:12:353dd602` (+4: `python3 kg/kg.py who-reads tracker.ts`)
-- `useNoticeWords.ts` ← imported by `portal/src/portal/teacher/notices/NoticeHost.tsx:16:f9ce316e` · `portal/src/portal/teacher/notices/ReadyForYou.tsx:3:f9ce316e`
-- `useOpenNotice.ts` ← imported by `portal/src/portal/teacher/notices/NoticeHost.tsx:17:a963b389` · `portal/src/portal/teacher/notices/ReadyForYou.tsx:4:a963b389`
+- `useNoticeWords.ts` ← imported by `portal/src/portal/teacher/notices/NoticeHost.tsx:16:f9ce316e` · `portal/src/portal/teacher/notices/ReadyForYou.tsx:10:f9ce316e`
+- `useOpenNotice.ts` ← imported by `portal/src/portal/teacher/notices/NoticeHost.tsx:17:a963b389` · `portal/src/portal/teacher/notices/ReadyForYou.tsx:11:a963b389`
 
 ## Tests (all, generated)
+- `ClassLinkCard.tsx` ← `portal/src/portal/teacher/notices/ClassLinkCard.test.tsx`
 - `NoticeHost.tsx` ← `portal/src/portal/teacher/assessment/fde.r8.banner.test.tsx` · `portal/src/portal/teacher/notices/NoticeHost.test.tsx` · `portal/src/portal/teacher/notices/observation.test.tsx`
-- `ReadyForYou.tsx` ← `portal/src/portal/teacher/notices/ReadyForYou.test.tsx`
+- `ReadyForYou.tsx` ← `portal/src/portal/teacher/notices/ReadyForYou.quizOffer.test.tsx` · `portal/src/portal/teacher/notices/ReadyForYou.test.tsx`
 - `RemindCard.tsx` ← `portal/src/portal/teacher/notices/RemindCard.test.tsx`
 - `TopicPaperCard.tsx` ← `portal/src/portal/teacher/notices/TopicPaperCard.test.tsx`
-- `copy.ts` ← `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/notices/wiring.test.tsx`
+- `copy.ts` ← `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/teacher/notices/ReadyForYou.quizOffer.test.tsx` · `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/notices/wiring.test.tsx`
 - `model.ts` ← `portal/src/portal/teacher/assessment/fde.r8.banner.test.tsx` · `portal/src/portal/teacher/lessons/PreparingPage.wait.test.tsx` · `portal/src/portal/teacher/notices/NoticeHost.test.tsx` · `portal/src/portal/teacher/notices/merge.test.ts` · `portal/src/portal/teacher/notices/observation.test.tsx` · `portal/src/portal/teacher/notices/tracker.test.ts` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/notices/model.ts`)
-- `tracker.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.lesson.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.notes.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.ownPlans.test.tsx` (+21: `python3 kg/kg.py who-reads portal/src/portal/teacher/notices/tracker.ts`)
+- `tracker.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.attachPlan.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.lesson.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.notes.test.tsx` (+26: `python3 kg/kg.py who-reads portal/src/portal/teacher/notices/tracker.ts`)
 - `useOpenNotice.ts` ← `portal/src/portal/teacher/notices/useOpenNotice.test.tsx`
 
 ## Related (all, generated)

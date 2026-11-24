@@ -13,7 +13,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `types_manifest.json` | Machine-readable roster of 32 diagram kinds, aliases and spec conventions, verified against the live registry by a test |
 
 ## Who reads this (all, generated)
-- `index.js` ← imported by `bot/shared/services/assessment/paper-diagram.js:19:67435837` · `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` · `bot/shared/services/quiz/transcript-quiz-figure.js:32:ac38be60` · `bot/vendor/lp-v9/lib/template.js:2471:8c75da09` (+1: `python3 kg/kg.py who-reads index.js`)
+- `index.js` ← imported by `bot/shared/services/assessment/paper-diagram.js:19:67435837` · `bot/shared/services/quiz/transcript-quiz-figure-gates.js:18:b36a893b` · `bot/shared/services/quiz/transcript-quiz-figure.js:32:ac38be60` · `bot/vendor/lp-v9/lib/template.js:2493:8c75da09` (+1: `python3 kg/kg.py who-reads index.js`)
 - `types_manifest.json` ← imported by `bot/shared/services/quiz/transcript-quiz-figure.js:34:0cde44c6` · `bot/vendor/lp-v9/lint_lp.js:2236:be119a43`
 
 ## Tests (all, generated)

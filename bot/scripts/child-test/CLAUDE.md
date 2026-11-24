@@ -1,7 +1,7 @@
 # child-test — Print packs, SA battery bank build and SA voice recording for the child test
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=6e192984459e gen=a0489e86a4dc overflow=9 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=c996a80c9d6a gen=981a72803eb0 overflow=10 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `build-sa-bank.js` — rebuilds the SA bank and engine JSONs (--check)
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 - `bot/tests/child-test/record-sa-voice-v4-line-fixes.test.js` (record-sa-voice.js, sa-voice-providers.js)
 - `bot/tests/child-test/record-sa-voice-v4-praise.test.js` (record-sa-voice.js, sa-voice-providers.js)
 - `bot/tests/child-test/record-sa-voice-v4-sounds-alone.test.js` (record-sa-voice.js, sa-voice-providers.js)
-- … 9 more → `CLAUDE.index.md`
+- … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/scripts/CLAUDE.md`?

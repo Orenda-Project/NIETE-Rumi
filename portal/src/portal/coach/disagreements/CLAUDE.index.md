@@ -51,7 +51,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `coachingCopy.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:6:443880d8` · `portal/src/portal/coach/disagreements/suggestion.ts:2:fa474394`
 - `copy.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:7:8edf7546` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:8:8edf7546` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:9:8edf7546` · `portal/src/portal/coach/disagreements/appBar.tsx:7:8edf7546` (+7: `python3 kg/kg.py who-reads copy.ts`)
 - `doneBar.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:13:c9e7e124`
-- `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachReports.tsx:17:5858c261` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:9:3805e962` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:10:3805e962`
+- `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachReports.tsx:18:5858c261` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:9:3805e962` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:10:3805e962`
 - `nextVisit.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:11:7ee5a69c`
 - `patternCopy.ts` ← imported by `portal/src/portal/coach/disagreements/patternSection.tsx:4:c2393caf`
 - `patternSection.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:14:2841462c`

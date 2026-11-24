@@ -154,6 +154,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `224f4a997198.json` | Urdu word timings (2 words, 2.5s) for the v4 clip "دوبارہ سنیں۔", read by sa-ui |
 | `224f4a997198.mp3` | (unmapped) |
 | `23011bd09660.mp3` | (unmapped) |
+| `233a7ab5bb8c.json` | (unmapped) |
+| `233a7ab5bb8c.mp3` | (unmapped) |
 | `23828ce82f22.mp3` | (unmapped) |
 | `24f9ec720a77.mp3` | (unmapped) |
 | `251ed2ae0d9a.json` | Urdu word timings (1 words, 1.1s) for the v4 clip "لَ", read by sa-ui |
@@ -318,6 +320,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `5945f2ce1847.mp3` | (unmapped) |
 | `59ae9f78d296.json` | Urdu word timings (7 words, 3.7s) for the v4 clip "شاباش! یہ بنایا ہوا لفظ زاچی ہے۔", read by sa-ui |
 | `59ae9f78d296.mp3` | (unmapped) |
+| `59e215f178d1.json` | (unmapped) |
+| `59e215f178d1.mp3` | (unmapped) |
 | `5b1abc6fded1.mp3` | (unmapped) |
 | `5b3d72ae0e83.mp3` | (unmapped) |
 | `5b604cd71aa4.json` | Urdu word timings (7 words, 2.2s) for the v4 clip "اب فون کوچ کو واپس دے دیں۔", read by sa-ui |
@@ -915,6 +919,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `f6bd50d9734b.mp3` | (unmapped) |
 | `f6e8cd29b632.mp3` | (unmapped) |
 | `f7cc30d696b8.mp3` | (unmapped) |
+| `f84ae1f653fb.json` | (unmapped) |
+| `f84ae1f653fb.mp3` | (unmapped) |
 | `f8bf8ca7b449.mp3` | (unmapped) |
 | `f8c1068db3fd.mp3` | (unmapped) |
 | `f8c3e7aa7d01.mp3` | (unmapped) |

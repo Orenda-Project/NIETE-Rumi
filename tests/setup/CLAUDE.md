@@ -1,7 +1,7 @@
 # setup — Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=8a60815562ba gen=f5703a78271f overflow=80 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=e0f9534ced94 gen=6f7005b86fb1 overflow=81 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `ratchet-verdict-lib.js` — shrink-only allowlist verdict most gates here share (fail above list, warn below)
@@ -16,11 +16,11 @@ Full index: `CLAUDE.index.md`
 | `test-seam-gates-lib.js` | Large shared library of pure readers behind the test-seam gates (repo mocks, copy deck, select columns, fresh-profile) |
 | `ratchet-verdict-lib.js` | Shared verdict for shrink-only allowlist gates: fail above the list, warn below, returns failures and warnings |
 | `register*` | 3 files; most used `register-all-flows.test.js`: Tests bot/scripts/setup/register-all-flows: all 24 FLOW_CONFIGS and their registration against a mocked MetaAPI |
-| `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
 | `validate-flows.test.js` | Tests validate-flows preflight: flows and templates exist and are PUBLISHED, encryption configured; returns valid/issues |
 | `migrate.test.js` | Tests infrastructure/scripts/migrate MigrationRunner with a mocked supabase client: applied versions, ordering |
+| `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
 | `web*` | 3 files; most used `web-quiz-owned-paths.js`: Helper listing the web quiz's own path prefixes so module lists beside query goldens compare only inside them |
-| … | 155 more → `CLAUDE.index.md` |
+| … | 156 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `qa-testing`? · `whatsapp-flows`?
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? (+7)
+- docs: `.claude/CLAUDE.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? · `docs/data-standards.md`? (+6)

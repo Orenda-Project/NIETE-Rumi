@@ -1,6 +1,6 @@
 # report-renderers — Registry choosing the report renderer (hero PNG or PDFKit fallback)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=5c9f2a2c4aea gen=dc3bbfcdd5fd overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=15ac4c71c675 gen=017b8e85d871 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `renderer-registry.js` — framework key to renderer
@@ -26,6 +26,7 @@ _None found in code comments, tests or git log for this directory._
 - `tests/coaching/hero-render-fallback.test.js` (renderer-registry.js)
 - `tests/coaching/report-renderer-registry.test.js` (renderer-registry.js)
 - `tests/coaching/report-transformers/obs612-report-transformer.test.js` (renderer-registry.js)
+- `tests/observe/fico-s-form.test.js` (renderer-registry.js)
 
 ## Related (generated)
 - docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?

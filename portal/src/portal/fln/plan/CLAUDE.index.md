@@ -7,6 +7,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `Details.tsx` | Lesson goal and "Full details" expander: SLOs, Bring, Before class, Summary reference fields |
+| `DownloadPdf.tsx` | (unmapped) |
 | `Header.tsx` | Navy plan header: subject/level/position kicker, title in plan language, chips, total time; headerChips helper |
 | `MediaImage.tsx` | Plan picture in aspect-ratio reserved box; lazy-loaded, retries once from orig, tap for full screen |
 | `MediaVideo.tsx` | Tap-to-play plan video with poster and size button; offers 360p copy after 5s wait, retries from orig |
@@ -19,15 +20,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `Details.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:25:bcc18fe2`
-- `Header.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:26:98d6a589`
+- `DownloadPdf.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:26:941747f2`
+- `Header.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:27:98d6a589`
 - `MediaImage.tsx` ← imported by `portal/src/portal/fln/plan/Move.tsx:10:9892b17d`
 - `MediaVideo.tsx` ← imported by `portal/src/portal/fln/plan/Move.tsx:11:834c998d`
 - `Move.tsx` ← imported by `portal/src/portal/fln/plan/Details.tsx:9:838e865d` · `portal/src/portal/fln/plan/Section.tsx:14:838e865d`
-- `Section.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:27:36578531`
+- `Section.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:28:36578531`
 - `SoundGrid.tsx` ← imported by `portal/src/portal/fln/player/index.ts:27:ea02ee03` · `portal/src/portal/fln/player/bench/states.tsx:12:a3b8fb4e`
-- `TimeBar.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:28:42558ea6`
-- `plan.css` ← imported by `portal/src/portal/fln/PlanPage.tsx:36:1a56d79d`
-- `text.tsx` ← imported by `portal/src/portal/fln/LessonList.tsx:19:a1032afc` · `portal/src/portal/fln/PlanPage.tsx:29:a1032afc` · `portal/src/portal/fln/plan/Details.tsx:10:a4dbffd4` · `portal/src/portal/fln/plan/Header.tsx:8:4de07fe8` (+5: `python3 kg/kg.py who-reads text.tsx`)
+- `TimeBar.tsx` ← imported by `portal/src/portal/fln/PlanPage.tsx:29:42558ea6`
+- `plan.css` ← imported by `portal/src/portal/fln/PlanPage.tsx:37:1a56d79d`
+- `text.tsx` ← imported by `portal/src/portal/fln/LessonList.tsx:19:a1032afc` · `portal/src/portal/fln/PlanPage.tsx:30:a1032afc` · `portal/src/portal/fln/plan/Details.tsx:10:a4dbffd4` · `portal/src/portal/fln/plan/DownloadPdf.tsx:12:4de07fe8` (+6: `python3 kg/kg.py who-reads text.tsx`)
 
 ## Tests (all, generated)
 - `MediaImage.tsx` ← `portal/src/portal/fln/tests/move.test.tsx`

@@ -1,7 +1,7 @@
 # card — School card: per-school and per-teacher coach views behind a switch
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/card kg=fddab65a29e3 gen=cbe65ca8cce0 overflow=67 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/card kg=4d270ad8c38c gen=bcbc7af288f7 overflow=68 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `SchoolCardPage.tsx` — the school card with period chips and feature tiles
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | … | 33 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachPickTeacher.tsx:7:bb80576a` · `portal/src/portal/coach/pages/CoachRemoveTeachers.tsx:14:bb80576a` (+19)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachPickTeacher.tsx:7:bb80576a` · `portal/src/portal/coach/pages/CoachRemoveTeachers.tsx:14:bb80576a` (+20)
 - `types.ts` ← imported by `portal/src/portal/coach/observe/observeRoutes.tsx:4:c1bdee0e` · `portal/src/portal/teacher/principal/api.ts:2:4fde7408` (+16)
 - `frame.tsx` ← imported by `portal/src/portal/coach/pages/CoachPeople.tsx:13:7a39566b` · `portal/src/portal/coach/pages/CoachSchool.tsx:13:7a39566b` (+14)
 - … 23 more → `CLAUDE.index.md`
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/card/whereToCoach.test.tsx` (CoachFirstPage.tsx, WhereToCoachPage.tsx, fixtures.testdata.ts, harness.testdata.tsx, where.ts, whereCopy.ts)
 - `portal/src/portal/coach/card/schoolView.test.tsx`? (fixtures.testdata.ts, harness.testdata.tsx, schoolView.tsx, types.ts)
-- … 11 more → `CLAUDE.index.md`
+- … 12 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`?

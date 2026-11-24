@@ -1,7 +1,7 @@
 # types — One file per diagram kind (atom, graph, circuit, clock, panels, ...)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=f9a5357b0f5c gen=6a7cf2470004 overflow=22 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=e8834b108d70 gen=d3871c5d3c74 overflow=22 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `panels.js` — 2-3 side-by-side bordered comparison panels
@@ -16,6 +16,7 @@ Full index: `CLAUDE.index.md`
 | `word_blank.js` | Diagram type word_blank: picture of a thing plus its word with a letter missing, for phonics and spelling |
 | `atom.js` | Diagram type atom: Bohr shell models and dot-and-cross bonding pictures from one element table |
 | `circuit.js` | Diagram type circuit: IEC-style electric circuit schematics for grade 6-12 physics |
+| `cycle.js` | (unmapped) |
 | `fraction_bar.js` | Diagram type fraction_bar: part-whole bars or disc sectors (model circle) |
 | `ray_diagram.js` | Diagram type ray_diagram: geometrically solved optics constructions for grade 8-12 |
 | `bar_graph.js` | Diagram type bar_graph: primary-school bar graph with labelled numbered scale (bd-yggj4o.1) |

@@ -1,7 +1,7 @@
 # workers — SQS job worker, cron sweeps and per-job handlers run outside the web process
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=8ec4b51a2f8c gen=b2d26496c193 overflow=159 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=094d8cc862da gen=afa5c29bccdc overflow=170 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `sqs-worker.js` — queue poller and jobType router
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `lp612*` | 3 files; most used `lp612-author.worker.js`: SQS job authoring, rendering, storing and delivering a 6-12 lesson for one segment/lang/template version |
 | `stale-session.worker.js` | 15-minute Railway cron sweeping stuck coaching sessions: reminders, auto-complete, recovery |
 | `lesson-plan-generation.worker.js` | SQS lesson-plan generation worker with retries, apology on max failures and free-form track routing |
-| … | 14 more → `CLAUDE.index.md` |
+| … | 17 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `lesson-plan-extraction.worker.js` (+2)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+99)
-- column `coaching_sessions.status` (written by `sqs-worker.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+45)
-- … 78 more → `CLAUDE.index.md`
+- table `quiz_sessions` (written by `quiz-job-handler.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:144:a4d322ab`? · `bot/shared/handlers/text-message.handler.js:270:e211522c`? (+49)
+- … 81 more → `CLAUDE.index.md`
 
 ## Never (human)
 - lp612_author runs under a visibility heartbeat, not one fixed extension (sqs-worker.js:674, :703, bd-awqt3)
@@ -29,8 +29,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `bot/tests/observe/cancelled-observation-stays-cancelled.test.js` (sqs-worker.js, stale-session.worker.js)
-- `tests/quiz/quiz-retest-schedule.test.js` (quiz-retest-schedule.js, sqs-worker.js)
-- … 97 more → `CLAUDE.index.md`
+- `bot/tests/qfix-keys/quiz-key-review-schedule.test.js` (quiz-key-review-schedule.js, sqs-worker.js)
+- … 104 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `video-generation`?

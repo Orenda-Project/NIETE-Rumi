@@ -23,13 +23,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `reveal.css` | (unmapped) |
 
 ## Who reads this (all, generated)
-- `FeatureTiles.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:24:ff6c2cfd`
+- `FeatureTiles.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:25:ff6c2cfd`
 - `LanguagePill.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:8:114e146e`
-- `LookCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:22:b78f8101`
-- `LookHome.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:20:08e9c818`
-- `LookScores.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:23:a0e68a89`
+- `LookCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:23:b78f8101`
+- `LookHome.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:21:08e9c818`
+- `LookScores.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:24:a0e68a89`
 - `cardWords.ts` ← imported by `portal/src/portal/teacher/home/NextCard.tsx:8:1111e866` · `portal/src/portal/teacher/home/SlimCard.tsx:8:6e07efd2` · `portal/src/portal/teacher/home/look/LookCard.tsx:9:e9d3dd51`
-- `reveal.css` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:27:2f762526`
+- `reveal.css` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:28:2f762526`
 
 ## Tests (all, generated)
 - `FeatureTiles.tsx` ← `portal/src/portal/teacher/home/look/FeatureTiles.test.tsx`

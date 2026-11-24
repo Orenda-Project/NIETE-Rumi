@@ -1,7 +1,7 @@
 # coach — Coach app v2 root: gate, flag hook, shared UI, copy and time rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=de3db68a2d80 gen=d64c6007fc4e overflow=55 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=0f8711760396 gen=a45a3165daae overflow=61 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachGate.tsx` — only a coach with portal_coach_v2 sees /portal/coach screens
@@ -18,11 +18,10 @@ Full index: `CLAUDE.index.md`
 | … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `ui.tsx` ← imported by `portal/src/portal/teacher/principal/MySchool.tsx:3:89e0875d` · `portal/src/portal/teacher/principal/NewVisit.tsx:4:47b54df2` (+53)
-- `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/teacher/principal/NewVisit.tsx:6:f956b29a` (+27)
-- `CoachGate.tsx` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:9:561961fe` · `portal/src/portal/coach/coachTraining/CoachTrainingModulePage.tsx:3:561961fe` (+14)
-- `time.ts` ← imported by `portal/src/portal/teacher/principal/observe.tsx:6:8ff16d19` · `portal/src/portal/coach/flow/BookedRow.tsx:11:6e4fb0ef` (+12)
-- … 3 more → `CLAUDE.index.md`
+- `ui.tsx` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:15:48115d2d` · `portal/src/portal/teacher/principal/MySchool.tsx:2:89e0875d` (+58)
+- `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/teacher/principal/NewVisit.tsx:6:f956b29a` (+28)
+- `time.ts` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:16:8ff16d19` · `portal/src/portal/teacher/principal/ObserveV6.tsx:21:8ff16d19` (+16)
+- … 4 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Flags are fail-closed: only a literal true turns v2 on (useCoachV2.ts:9)
@@ -32,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/CoachGate.test.tsx` (CoachGate.tsx, useCoachV2.ts)
 - `portal/src/portal/coach/flow/v6.test.tsx` (observeDraft.ts, time.ts)
-- … 40 more → `CLAUDE.index.md`
+- … 45 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

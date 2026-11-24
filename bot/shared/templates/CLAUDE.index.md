@@ -26,6 +26,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `video-quiz-leaderboard.template.js` | Renders the child's CLASS card image: ranked class list with the child's row lit, sent with the teacher report |
 | `video-quiz-report.template.js` | Video-quiz class report HTML (NIETE hero, Nastaliq/RTL, i18n): how the class did and what to do next |
 | `video-quiz-scorecard.template.js` | Renders the child's end-of-quiz scorecard image with embedded fonts and SVG stars (no system fonts) |
+| `weak-skill-jugnu.template.js` | (unmapped) |
 | `web-quiz-art.template.js` | Renders web-quiz share pictures (child card, class, school board, invite) in og 1200x630 and square sizes |
 | `weekly-usage.template.js` | Meta UTILITY template definitions for the v10 weekly usage report; skipped if unapproved (bd-v0toag.32) |
 
@@ -34,20 +35,21 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `coach-visit-request.template.js` ← imported by `bot/scripts/register-coach-visit-request-template.js:20:738c66b8` · `dashboard/services/coach-visit-request.js:17:88b16cc3`
 - `fa-video.template.js` ← imported by `bot/scripts/broadcast-fa-video.js:17:7621a3f2` · `bot/scripts/register-fa-video-template.js:17:7621a3f2` · `bot/shared/services/fa-video/broadcast.js:19:91bb5376`
 - `latin-runs.js` ← imported by `bot/shared/services/coaching/coaching-card/card-template.js:23:4338d9d6` · `bot/shared/services/coaching/report-v2/hero-report.template.js:16:4338d9d6` · `bot/shared/services/coaching/report-v2/slim-card.template.js:14:4338d9d6` · `bot/shared/services/coaching/video-reco/card-image.js:14:4338d9d6` (+3: `python3 kg/kg.py who-reads latin-runs.js`)
-- `niete-brand.js` ← imported by `bot/shared/services/quiz/transcript-quiz-card.js:34:636625bf` · `bot/shared/services/quiz/video-quiz-report.service.js:45:51a3e9be` · `bot/shared/templates/class-round.page.js:21:9f673c89` · `bot/shared/templates/teacher-class-week.card.js:12:4555e454` (+6: `python3 kg/kg.py who-reads niete-brand.js`)
+- `niete-brand.js` ← imported by `bot/shared/services/quiz/transcript-quiz-card.js:34:636625bf` · `bot/shared/services/quiz/video-quiz-report.service.js:46:51a3e9be` · `bot/shared/templates/class-round.page.js:21:9f673c89` · `bot/shared/templates/teacher-class-week.card.js:12:4555e454` (+6: `python3 kg/kg.py who-reads niete-brand.js`)
 - `observe-visit-notice.template.js` ← imported by `bot/shared/services/observe/observe-teacher-notice.service.js:33:651500a1` · `bot/scripts/register-observe-visit-templates.js:20:45b37a81`
 - `quiz-report.template.js` ← imported by `bot/shared/services/quiz/quiz-report.service.js:14:621ac8f6`
 - `reading-report.template.js` ← imported by `bot/shared/services/reading/report.service.js:26:961549ae`
-- `teacher-class-link-card.js` ← imported by `bot/shared/templates/teacher-report.page.js:674:eea3841a`
+- `teacher-class-link-card.js` ← imported by `bot/shared/templates/teacher-report.page.js:708:eea3841a`
 - `teacher-class-week.card.js` ← imported by `bot/shared/templates/teacher-jugnu.page.js:23:303e1a10`
 - `teacher-jugnu.page.js` ← imported by `bot/shared/routes/teacher-class-week-internal.routes.js:37:584052bd` · `bot/shared/routes/teacher-jugnu-internal.routes.js:24:57acc2ea` · `bot/shared/services/first-touch/teacher-home.strings.js:12:2c21adad`
-- `teacher-report-v21.parts.js` ← imported by `bot/shared/templates/teacher-report.page.js:38:afca39ae`
+- `teacher-report-v21.parts.js` ← imported by `bot/shared/templates/teacher-report.page.js:40:afca39ae`
 - `teacher-report.page.js` ← imported by `bot/shared/routes/class-round-internal.routes.js:27:4ac1d3ce` · `bot/shared/routes/teacher-jugnu-internal.routes.js:25:4ac1d3ce` · `bot/shared/routes/teacher-report-internal.routes.js:34:11adb375` · `bot/shared/services/quiz/teacher-report-gate.js:24:9f080e6b` (+2: `python3 kg/kg.py who-reads teacher-report.page.js`)
 - `teacher-stories.page.js` ← imported by `bot/shared/routes/story-teacher-internal.routes.js:18:7f122ff1`
-- `transcript-quiz-teacher.template.js` ← imported by `bot/shared/services/quiz/transcript-quiz-generate.service.js:619:922a235e`
-- `video-quiz-leaderboard.template.js` ← imported by `bot/shared/services/quiz/student-quiz.service.js:313:80b46d19` · `bot/shared/services/quiz/video-quiz-report.service.js:1074:4523b264`
-- `video-quiz-report.template.js` ← imported by `bot/shared/services/quiz/video-quiz-report.service.js:1184:0e84884f`
+- `transcript-quiz-teacher.template.js` ← imported by `bot/shared/services/quiz/transcript-quiz-generate.service.js:621:922a235e`
+- `video-quiz-leaderboard.template.js` ← imported by `bot/shared/services/quiz/student-quiz.service.js:315:80b46d19` · `bot/shared/services/quiz/video-quiz-report.service.js:1265:4523b264`
+- `video-quiz-report.template.js` ← imported by `bot/shared/services/quiz/video-quiz-report.service.js:1375:0e84884f`
 - `video-quiz-scorecard.template.js` ← imported by `bot/shared/services/quiz/video-quiz-scorecard.service.js:56:4a1a51ea` · `bot/shared/templates/video-quiz-leaderboard.template.js:58:de6c3e96`
+- `weak-skill-jugnu.template.js` ← imported by `bot/shared/routes/weak-skill-forward.routes.js:15:44464875` · `bot/shared/services/nudges/weak-skill-jugnu/message.js:10:81ed6ab7`
 - `web-quiz-art.template.js` ← imported by `bot/shared/services/quiz/web-quiz-art.js:42:98068b07`
 - `weekly-usage.template.js` ← imported by `bot/scripts/register-weekly-usage-templates.js:16:cc696cb4` · `bot/shared/services/coaching/weekly-report/message.js:12:8c1c4317`
 - env `QUIZ_URDU_SPACING_V2` read at `bot/shared/templates/niete-brand.js:201:e41b88a4`
@@ -60,15 +62,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `observe-visit-notice.template.js` ← `bot/tests/observe/bd-xorfy-teacher-visit-notice.test.js`
 - `quiz-report.template.js` ← `tests/quiz/quiz-report-template.test.js`
 - `reading-report.template.js` ← `tests/reports/reading-report-template.test.js`
-- `teacher-class-link-card.js` ← `bot/tests/quiz/web-quiz/web-quiz-class-link.test.js`
+- `teacher-class-link-card.js` ← `bot/tests/qfix-class-link/class-tab-line.test.js` · `bot/tests/quiz/web-quiz/web-quiz-class-link.test.js`
 - `teacher-jugnu.page.js` ← `bot/tests/quiz/web-quiz/teacher-class-week.test.js` · `bot/tests/quiz/web-quiz/teacher-jugnu-tab.test.js` · `bot/tests/quiz/web-quiz/teacher-jugnu-unbind.test.js`
 - `teacher-report-v21.parts.js` ← `bot/tests/quiz/web-quiz/teacher-report-v21-page.test.js`
-- `teacher-report.page.js` ← `bot/tests/quiz/web-quiz/class-round.test.js` · `bot/tests/quiz/web-quiz/quiz-report-renders.test.js` · `bot/tests/quiz/web-quiz/story-report-chrome.test.js` · `bot/tests/quiz/web-quiz/story-report-rows.test.js` · `bot/tests/quiz/web-quiz/story-teacher.test.js` · `bot/tests/quiz/web-quiz/teacher-report-page.test.js` (+2: `python3 kg/kg.py who-reads bot/shared/templates/teacher-report.page.js`)
+- `teacher-report.page.js` ← `bot/tests/qfix-report/class-tab-late.test.js` · `bot/tests/qfix-report/page-late.test.js` · `bot/tests/qfix-report/report-page-48px.test.js` · `bot/tests/qfix-report/report-page-command-nowrap.test.js` · `bot/tests/qfix-report/report-page-quiz-rows.test.js` · `bot/tests/qfix-report/score-row-wrap.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/templates/teacher-report.page.js`)
 - `teacher-stories.page.js` ← `bot/tests/quiz/web-quiz/story-teacher.test.js`
 - `transcript-quiz-teacher.template.js` ← `bot/tests/quiz/latin-runs-rtl.test.js` · `bot/tests/quiz/quiz-column-sum-katex.test.js` · `bot/tests/quiz/quiz-equation-runs-katex.test.js` · `bot/tests/quiz/quiz-stacked-fractions-katex.test.js` · `bot/tests/quiz/quiz-typeset-maths-katex.test.js` · `bot/tests/quiz/teacher-pdf-summary-quoted-title.test.js` (+14: `python3 kg/kg.py who-reads bot/shared/templates/transcript-quiz-teacher.template.js`)
 - `video-quiz-leaderboard.template.js` ← `bot/tests/quiz/urdu-line-spacing.test.js` · `bot/tests/quiz/urdu-spacing-kill-switch.test.js` · `bot/tests/quiz/video-quiz-leaderboard.test.js` · `tests/quiz/child-card-subject-and-topic.test.js` · `tests/quiz/child-copy-urdu-grammar.test.js`
 - `video-quiz-report.template.js` ← `bot/tests/quiz/class-report-layout.test.js` · `bot/tests/quiz/latin-runs-rtl.test.js` · `bot/tests/quiz/urdu-line-spacing.test.js` · `bot/tests/quiz/urdu-spacing-kill-switch.test.js` · `bot/tests/quiz/video-quiz-report-guidance-clean.test.js` · `bot/tests/quiz/video-quiz-report-template.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/templates/video-quiz-report.template.js`)
 - `video-quiz-scorecard.template.js` ← `bot/tests/quiz/urdu-line-spacing.test.js` · `bot/tests/quiz/urdu-spacing-kill-switch.test.js` · `bot/tests/quiz/video-quiz-scorecard-v4.test.js` · `bot/tests/quiz/video-quiz-scorecard.test.js` · `tests/quiz/child-card-subject-and-topic.test.js`
+- `weak-skill-jugnu.template.js` ← `bot/tests/nudges/weak-skill-jugnu/message.test.js`
 - `web-quiz-art.template.js` ← `bot/tests/quiz/web-quiz/web-quiz-art-copy-one.test.js` · `bot/tests/quiz/web-quiz/web-quiz-art-invite-copy.test.js` · `bot/tests/quiz/web-quiz/web-quiz-art-name-fit.test.js` · `bot/tests/quiz/web-quiz/web-quiz-art-pic-polish.test.js` · `bot/tests/quiz/web-quiz/web-quiz-art-ur-digits.test.js` · `bot/tests/quiz/web-quiz/web-quiz-art-ur-polish.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/templates/web-quiz-art.template.js`)
 - `weekly-usage.template.js` ← `bot/tests/coaching/weekly-report/weekly-usage-template.test.js`
 

@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=7415fb2fa4f1 gen=287963e14750 overflow=455 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=6068c5cc0fa0 gen=892642c258df overflow=471 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `web-quiz-internal.routes.js` | /api/internal/wq/* routes for the web child quiz, forwarded by the portal; logic lives in web-quiz.service |
 | `internal*` | 9 files; most used `internal-api.routes.js`: Internal service-to-service API (/api/internal, x-api-key) used by the portal: LP enqueue, training, classes etc. |
 | `assessment-gen-endpoint.js` | Server-driven Assessment Generator Flow: CLASS, COVERAGE, QUESTIONS/PAGES, CONFIRM with Redis session state |
-| … | 41 more → `CLAUDE.index.md` |
+| … | 42 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+210)
+- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+220)
 - table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
-- … 65 more → `CLAUDE.index.md`
+- … 66 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Flow responses never include a `version` field (observe-mewaka-endpoint.js:5)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/whatsapp/send-sync-budget.test.js` (observe-mewaka-endpoint.js, pakistan-lp-endpoint.js, student-videos-endpoint.js)
 - `bot/tests/lp-v8/flow-response-telemetry.test.js` (pakistan-lp-endpoint.js, pakistan-lp-telemetry.js)
-- … 362 more → `CLAUDE.index.md`
+- … 376 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `registration`?

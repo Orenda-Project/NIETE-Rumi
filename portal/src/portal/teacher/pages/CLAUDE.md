@@ -1,7 +1,7 @@
 # pages — Teacher frame pages: Home, More and My profile
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/pages kg=128ce65ed695 gen=810dd876f910 overflow=12 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/pages kg=0f63c34737f0 gen=21392d0cd87d overflow=13 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — Home at /portal/teacher, More at /more, My profile at /profile
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/teacher/feedback/TeacherFeedback.test.tsx` (More.tsx)
 - `portal/src/portal/teacher/help/help.test.tsx` (More.tsx)
 - `portal/src/portal/teacher/home/QuizTile.test.tsx` (Home.tsx)
-- … 12 more → `CLAUDE.index.md`
+- … 13 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`?

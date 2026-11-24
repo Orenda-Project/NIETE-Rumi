@@ -67,6 +67,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `gen-logger-allowlist.js` | CLI that regenerates or inspects the logger-level ratchet allowlist (formerly an untracked /tmp script) |
 | `grade-form-one-home.allowlist.json` | Allowlist of files allowed to call formFor outside web-quiz-challenge, read by grade-form-one-home.test.js |
 | `grade-form-one-home.test.js` | Gate: a child's challenge form is decided only in web-quiz-challenge formFor with the grade-1 switch |
+| `known-real-numbers.test.js` | (unmapped) |
 | `language-single-source.test.js` | Conformance: one language-offer definition and one clamp implementation in bot/ (config/languages) |
 | `leader-school-id.test.js` | Pins the additive migration giving leader_schools and two sibling tables a nullable school_id keyed to schools(id) |
 | `link-integrity.test.js` | Guard: markdown links in CLAUDE.md routers and .claude skill docs resolve to real files and bot/ paths |
@@ -178,4 +179,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `qa-testing`? · `whatsapp-flows`?
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/templates/roster-change-notification.md`? · `infrastructure/scripts/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.md`?
+- docs: `.claude/CLAUDE.md`? · `CLAUDE.md`? · `bot/marketing/README.md`? · `bot/scripts/setup/CLAUDE.md`? · `docs/customization.md`? · `docs/data-standards.md`? · `docs/migration/06-from-main-rumi-bot.md`? · `docs/migration/DEPLOYMENT.md`? · `docs/templates/roster-change-notification.md`? · `infrastructure/scripts/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.md`?

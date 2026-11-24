@@ -1,7 +1,7 @@
 # src — Portal source root: app entry, global CSS, i18n; routes and portal code live in src/portal
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src kg=5d4295873749 gen=5797a719e533 overflow=9 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src kg=85ab0f6c04f8 gen=84f1706413a5 overflow=9 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `App.tsx` — all routes; lazy chunks via lazyPage; portal route tables imported from ./portal
@@ -24,7 +24,7 @@ Full index: `CLAUDE.index.md`
 | … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `index.css` ← imported by `portal/scripts/chapter-shot/harness.tsx:9:3ba0d33b` · `portal/scripts/urdu-fit/harness.tsx:9:3ba0d33b` (+2)
+- `index.css` ← imported by `portal/scripts/attach-shot/harness.tsx:9:3ba0d33b` · `portal/scripts/chapter-shot/harness.tsx:9:3ba0d33b` (+4)
 - `App.tsx` ← imported by `portal/src/main.tsx:2:2af48748`
 
 ## Never (human)

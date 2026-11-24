@@ -29,5 +29,5 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- skills: `ab-testing`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
+- skills: `ab-bandit`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
 - docs: `README.md`? · `bot/database/migrations/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `docs/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/agent-customization.md`? · `docs/cost-guide.md`? · `docs/features/README.md`? · `docs/features/ai-chat.md`? · `docs/features/attendance.md`? · `docs/features/coaching.md`? · `docs/features/exam-checker.md`? · `docs/features/homework.md`? · `docs/features/lesson-plans.md`? · `docs/features/pic-to-lp.md`? · `docs/features/quiz.md`? · `docs/features/reading-assessment.md`? · `docs/features/registration.md`? · `docs/features/video-quiz.md`? · `docs/features/video.md`? · `docs/features/voice.md`? · `docs/flows/CLAUDE.md`? · `scripts/samples/CLAUDE.md`?

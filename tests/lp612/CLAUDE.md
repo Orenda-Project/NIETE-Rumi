@@ -1,7 +1,7 @@
 # lp612 — Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=98641ec30f7b gen=f42f930ada70 overflow=223 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=c42af62a6a88 gen=552803b82381 overflow=233 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `serving.test.js` — tap to PDF: cache hit vs author now; the lane's front door
@@ -12,7 +12,7 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `__fixtures__/` | → (no door; 7 files: 0 test + 7 support) |
+| `__fixtures__/` | → (no door; 8 files: 0 test + 8 support) |
 | `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `helpers/` | Shared harnesses and doubles for the lp612 E2E and unit suites → `helpers/CLAUDE.md` |
 | `fbise-slo-chips.test.js` | bd-f01ob: pins each FBISE SLO showing its own Summative/Formative chip in the outcome box (template, validate, overlay) |
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `vendor-integrity.test.js` | Pins integrity of the vendored bot/vendor/lp-v9 pipeline (brief, schemas, lint, renderer) against its upstream manifest |
 | `bidi-caps.test.js` | Pins the vendored 6-12 renderer's bidi pass and language-aware page caps for Urdu and English |
 | `overlay-backfill-over-cap.e2e.test.js` | bd-0t9ce: e2e: an over-cap lesson is repaired in place by the overlay backfill and served in Urdu |
-| … | 308 more → `CLAUDE.index.md` |
+| … | 321 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

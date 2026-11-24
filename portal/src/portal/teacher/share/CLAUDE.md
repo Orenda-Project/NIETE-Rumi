@@ -1,6 +1,6 @@
 # share — Client for sharing a paper or plan to WhatsApp from the teacher app
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=9e79d4d93d57 gen=51cf38c9117b overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=e5f00b84d3ec gen=42d5eedbd70e overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — shareToWhatsApp and useShareAvailable against /api/portal/share; used by ../ui/ShareActions.tsx
@@ -13,7 +13,7 @@
 | `api.ts` | Share API: shareToWhatsApp and useShareAvailable on /api/portal/share; unreachable server is failed, never sent |
 
 ## Who reads this (generated)
-- `api.ts` ← imported by `portal/src/portal/teacher/assessment/PaperPage.tsx:12:49f449b2` · `portal/src/portal/teacher/assessment/RequestPage.tsx:9:49f449b2` (+2)
+- `api.ts` ← imported by `portal/src/portal/teacher/assessment/PaperPage.tsx:12:49f449b2` · `portal/src/portal/teacher/assessment/RequestPage.tsx:9:49f449b2` (+1)
 
 ## Never (human)
 - Failing to reach the server is `failed`, never `sent` (api.ts:7)

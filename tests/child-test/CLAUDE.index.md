@@ -47,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `L6/` | Check Flow: prefill from AI marks, endpoint, coach marks and edits, completion → `L6/CLAUDE.md` |
 | `L7/` | → (no door; 10 files: 9 test + 1 support) |
 | `L8/` | → (no door; 1 tests) |
+| `sa-letter-names-say-the-name.test.js` | (unmapped) |
 
 ## Who reads this (all, generated)
 - (none)
