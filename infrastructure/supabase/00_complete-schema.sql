@@ -10057,4 +10057,31 @@ GRANT EXECUTE ON FUNCTION public.ab_tracker_upsert_rollup(uuid, jsonb) TO servic
 REVOKE ALL ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) TO service_role;
 
+-- ─── quiz attempts (bot/database/migrations/quiz_attempts.sql) ──
+-- One append-only row per finished quiz attempt: answers, score, the key and quiz maker that marked it. No names or phones.
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id     uuid        REFERENCES quiz_sessions(id) ON DELETE SET NULL,
+  quiz_id        uuid        REFERENCES quizzes(id) ON DELETE SET NULL,
+  student_id     uuid        REFERENCES students(id) ON DELETE SET NULL,
+  share_code_id  uuid        REFERENCES quiz_share_codes(id) ON DELETE SET NULL,
+  channel        text        NOT NULL CHECK (channel IN ('web', 'whatsapp', 'video')),
+  status         text        NOT NULL CHECK (status IN ('completed', 'incomplete')),
+  correct        integer     NOT NULL CHECK (correct >= 0),
+  total          integer     NOT NULL CHECK (total >= correct),
+  answers        jsonb       NOT NULL CHECK (jsonb_typeof(answers) = 'array'),
+  key_version    text        NOT NULL,
+  items_version  text        NOT NULL,
+  quiz_source    text,
+  quiz_made_at   timestamptz,
+  marker_commit  text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS quiz_attempts_session_uq ON quiz_attempts (session_id) WHERE status = 'completed';
+CREATE INDEX IF NOT EXISTS quiz_attempts_quiz_idx ON quiz_attempts (quiz_id, created_at);
+CREATE INDEX IF NOT EXISTS quiz_attempts_student_idx ON quiz_attempts (student_id, created_at);
+ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+
 NOTIFY pgrst, 'reload schema';
