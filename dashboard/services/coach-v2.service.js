@@ -38,6 +38,11 @@ const REPORT_OUT = ['sent', 'awaiting_teacher_tap', 'operator_review'];
 /** The teaching levels a coach may set, in canonical order (bot: utils/teacher-level VALID_LEVELS). */
 const TEACHING_LEVELS = ['PRIMARY', 'MIDDLE', 'HIGH'];
 const DEAD_STATUSES = ['failed', 'cancelled'];
+/**
+ * bd-f5a245 (queue #245) — the statuses the bot's portal-observe-step calls `stopped` (its STOPPED set): nothing works on
+ * the observation any more. stepOf names them so too, so /coach/observation and /leader/observe say the same thing.
+ */
+const STOPPED_STATUSES = ['cancelled', 'abandoned', 'failed'];
 const SCHOOL_VISIT_WINDOW_DAYS = 90;
 
 /**
@@ -92,6 +97,25 @@ function debriefPastDue(r, step, today) {
 }
 
 /**
+ * bd-f5a245 (queue #245) — why a stopped analysis (step `stopped`) no longer sits in Needs you, or null while it does:
+ *
+ *   stopped_past_due   3 school days after the visit, like a late debrief (the same due day)
+ *   stopped_redone     she has observed that teacher again since (a later observation that is not cancelled): the new
+ *                      visit is the one to follow
+ *
+ * It stays in History either way, and its page still opens.
+ */
+function stoppedLeaves(r, step, today, liveRows) {
+  if (step !== 'stopped') return null;
+  const visitDay = pkDayOf(r.created_at);
+  if (visitDay && today > debriefDueDay(visitDay)) return 'stopped_past_due';
+  const at = Date.parse(r.created_at);
+  const again = liveRows.some((o) => o.id !== r.id && o.user_id === r.user_id && o.status !== 'cancelled'
+    && Date.parse(o.created_at) > at);
+  return again ? 'stopped_redone' : null;
+}
+
+/**
  * bd-o15qnr.30 — the stale-item rules (switch on, `v7`): the rows a list may show and the ones it holds back, with why.
  * `open` = every live row the observation page serves; `waitingOk(row, step)` = may it sit in Needs you.
  */
@@ -104,9 +128,26 @@ function staleRules(liveRows, patch, today) {
     if (why) withheld.push({ id: r.id, reason: why });
     else open.push(r);
   }
-  for (const r of open) if (debriefPastDue(r, stepOf(r), today)) withheld.push({ id: r.id, reason: 'debrief_past_due' });
-  const late = new Set(withheld.filter((w) => w.reason === 'debrief_past_due').map((w) => w.id));
+  const late = new Set();
+  for (const r of open) {
+    const step = stepOf(r);
+    const why = debriefPastDue(r, step, today) ? 'debrief_past_due' : stoppedLeaves(r, step, today, liveRows);
+    if (why) { withheld.push({ id: r.id, reason: why }); late.add(r.id); }
+  }
   return { open, withheld, waitingOk: (r) => !late.has(r.id) };
+}
+
+/**
+ * bd-f5a245 — the rows a list reads. Off: as before, failed and cancelled are not visits. On (`v7`): only a cancelled one
+ * is dropped (she cancelled it); a failed or abandoned one is hers to act on, so Needs you and History list it.
+ */
+function liveRowsOf(rows, v7) {
+  return (rows || []).filter((r) => (v7 ? r.status !== 'cancelled' : !DEAD_STATUSES.includes(r.status)));
+}
+
+/** What sits in Needs you: the Feedback Form, the Debrief, and (switch on, bd-f5a245) a stopped analysis. */
+function needsHer(step, v7) {
+  return step === 'draft' || step === 'talk' || (!!v7 && step === 'stopped');
 }
 
 /**
@@ -236,6 +277,16 @@ const SQL = {
            scheduled_for::text AS scheduled_for, scheduled_slot, status, session_id
     FROM observation_schedules
     WHERE id = $1::uuid
+    LIMIT 1
+  `,
+
+  // bd-f5a245 — the observation a done visit made, just enough for stepOf (switch on): a visit whose analysis stopped is
+  // not "Done".
+  VISIT_SESSION: `
+    SELECT id, status, debrief_status,
+           jsonb_build_object('teacher_delivery', jsonb_build_object('status', analysis_data->'teacher_delivery'->'status')) AS analysis_data
+    FROM coaching_sessions
+    WHERE id = $1::uuid AND observation_type = 'leader_observation'
     LIMIT 1
   `,
 
@@ -498,13 +549,16 @@ function deliveryStatusOf(r) {
 }
 
 /**
- * Where an observation stands for the coach: analysing · draft · talk · report · sent.
+ * Where an observation stands for the coach: analysing · draft · talk · report · sent · stopped.
  * bd-15y1pc — the bot's portal-observe-step, read coarsely (a test holds the
  * two in step): a debrief that is done with no report out is `report`, never
  * `sent` — the teacher does not have it yet. A row with no debrief status at
  * all predates the debrief: reviewed was the end of it then, so it stays `sent`.
+ * bd-f5a245 — failed, abandoned or cancelled is `stopped`, as the bot says (it read `analysing`: a failed analysis
+ * looked as if it were still running).
  */
 function stepOf(r) {
+  if (STOPPED_STATUSES.includes(r.status)) return 'stopped';
   // bd-ra8xu.40 — 'obs612_form': an FDE (obs612) visit's form waits for the coach (portal-observe-step reads it so).
   if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked' || r.status === 'obs612_form') return 'draft';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'pending') return 'talk';
@@ -754,12 +808,15 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
     id: row.id,
     date: isoStamp(row.created_at),
     step,
+    // bd-f5a245 — a stopped one she cancelled herself (the page keeps "Observation stopped"); failed / abandoned read false.
+    cancelled: row.status === 'cancelled',
     portal: PORTAL_KEY_RX.test(audio),
     mine: self,
     score: scoreOf({ status: row.status, analysis_data: { scores: row.scores } }),
     dcScore: overall && overall.percentage != null ? overall.percentage : null,
     summary: row.summary || null,
-    teacher: { name: teacher.name, teacherExtId: teacher.teacherExtId, schoolName: teacher.schoolName },
+    // bd-f5a245 — schoolExtId: a stopped visit's "Upload again" books the same teacher at the same school.
+    teacher: { name: teacher.name, teacherExtId: teacher.teacherExtId, schoolName: teacher.schoolName, schoolExtId: teacher.schoolExtId },
     observer: { self, name: observerName },
     sentAt: delivery.sent_at || delivery.send_requested_at || null,
     caption: delivery.caption || null,
@@ -822,7 +879,7 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
   const nextRow = nextRes && nextRes.rows && nextRes.rows[0];
   const todays = schedule.visits.filter((v) => v.scheduledFor === today);
   const currentId = (todays.find((v) => v.status === 'upcoming') || {}).id;
-  let live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  let live = liveRowsOf(sessionsRes.rows, opts.v7);
   // bd-o15qnr.30 — switch on: the tile numbers count what the lists show (staleRules).
   let waitingOk = () => true;
   if (opts.v7) ({ open: live, waitingOk } = staleRules(live, patch, today));
@@ -833,7 +890,7 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
     counts: {
       week: schedule.visits.length,
       overdue: schedule.overdue.length,
-      waiting: steps.filter((s) => s === 'draft' || s === 'talk').length,
+      waiting: steps.filter((s) => needsHer(s, opts.v7)).length,
       inProgress: steps.filter((s) => s === 'analysing').length,
       // bd-17v39c.4.16 — the same total as the Teachers tab's number: teachers only, never a principal.
       teachers: patch.filter((t) => !t.isPrincipal).length,
@@ -850,7 +907,7 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
  */
 async function getCoachPending(query, leaderUserId, opts = {}) {
   const { rows } = await query(SQL.COACH_SESSIONS, [leaderUserId]);
-  let live = (rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  let live = liveRowsOf(rows, opts.v7);
   // bd-o15qnr.30 — switch on: the banner counts what Needs you shows (staleRules); off: one query, as before.
   let waitingOk = () => true;
   let withheld;
@@ -859,7 +916,7 @@ async function getCoachPending(query, leaderUserId, opts = {}) {
     ({ open: live, waitingOk, withheld } = staleRules(live, patch, opts.today || karachiToday()));
   }
   const ids = live
-    .filter((r) => { const st = stepOf(r); return (st === 'draft' || st === 'talk') && waitingOk(r); })
+    .filter((r) => needsHer(stepOf(r), opts.v7) && waitingOk(r))
     .map((r) => r.id);
   return withheld ? { waiting: ids.length, ids, withheld } : { waiting: ids.length, ids };
 }
@@ -873,8 +930,15 @@ async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
   const teachers = await loadTeachers(query, leaderUserId, today);
   const teacher = teachers.find((t) => t.teacherExtId === row.teacher_ext_id) || null;
   const lpOpened = await lpOpenedOf(query, teacher);
+  const visit = shapeVisit(row, today);
+  // bd-f5a245 (switch on) — where the observation this visit made stands (null: none yet), so a visit whose analysis
+  // stopped says so instead of "Done". Off: as before, no extra read.
+  if (opts.v7) {
+    const s = row.session_id ? ((await query(SQL.VISIT_SESSION, [row.session_id])).rows || [])[0] : null;
+    visit.sessionStep = s ? stepOf(s) : null;
+  }
   return {
-    visit: shapeVisit(row, today),
+    visit,
     teacher: teacher ? { ...publicTeacher(teacher), lpOpened } : null,
     lastVisit: lastVisitOf(teacher, leaderUserId),
   };
@@ -949,7 +1013,7 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   const teacherByUser = new Map(patch.filter((t) => t.rumiUserId).map((t) => [t.rumiUserId, {
     teacherExtId: t.teacherExtId, schoolName: t.schoolName, schoolExtId: t.emis ? `niete:${t.emis}` : null,
   }]));
-  let live = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status));
+  let live = liveRowsOf(sessionsRes.rows, opts.v7);
   // bd-o15qnr.30 (queue #214) — switch on (`v7`): Needs you and Analysing never offer a row the observation page refuses,
   // and a Debrief past its due day leaves Needs you. History (`all`) keeps every row, as today. Off: as before.
   let toDo = (r) => !!r;
@@ -968,7 +1032,8 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   if (q) matched = filterReports(shaped, q);
 
   const out = {
-    waiting: shaped.filter((r) => (r.step === 'draft' || r.step === 'talk') && !notToDo.has(r.id)),
+    // bd-f5a245 — switch on: a stopped analysis too (hers: upload the lesson again).
+    waiting: shaped.filter((r) => needsHer(r.step, opts.v7) && !notToDo.has(r.id)),
     // bd-o15qnr.45 — switch on: everything under way that does not wait on her (Observe's In progress); off: as before.
     inProgress: shaped.filter((r) => (opts.v7 ? IN_PROGRESS_STAGES.has(r.stage) : r.step === 'analysing') && !notToDo.has(r.id)),
     all: {

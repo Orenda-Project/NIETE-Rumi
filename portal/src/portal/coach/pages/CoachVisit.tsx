@@ -17,7 +17,8 @@ import ObservePage from "../observe/ObservePage";
 import { retrySend, useSendJob } from "../observe/sender";
 import { unreadablePart } from "../observe/format";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
-import { ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { AnalysisStoppedCard, ErrorAction, ErrorCard } from "../flow/VisitV7";
+import { REPORTS } from "../reports/copy";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { SCHOOL_CARD } from "../card/copy";
@@ -119,6 +120,11 @@ const CoachVisit = () => {
   const name = visit?.teacherName || teacher?.name || C.dash;
   const phone = formatPhone(teacher?.phone || visit?.teacherExtId);
   const sendingNow = job?.state === "sending";
+  // bd-f5a245 (queue #245, switch on) — the observation this visit made stopped at its analysis: the visit says so, with
+  // Upload recording for the same teacher, never "Done".
+  const R = useCopy(REPORTS);
+  const analysisStopped = v7 && visit?.status === "done" && visit?.sessionStep === "stopped";
+  const done = visit?.status === "done" && !analysisStopped;
   // The principal's picked teacher: when she last observed her (her own words, as on Pick the teacher).
   const observedDay = data?.lastObservedAt ? pkDayOf(data.lastObservedAt) : null;
   const extra = routes.visitActions ? phone || undefined : observedDay ? P.lastObserved(dayName(observedDay, pkToday(), days)) : P.notObserved;
@@ -159,6 +165,13 @@ const CoachVisit = () => {
             </div>
           )}
 
+          {analysisStopped && (
+            <div className="mt-1">
+              <AnalysisStoppedCard testId="visit-analysis-stopped"
+                to={visit.teacherExtId ? routes.again(visit.teacherExtId, visit.schoolExtId) : null} />
+            </div>
+          )}
+
           {/* bd-o15qnr.48 (#244): a visit she has sent is done; its page leads to THAT observation (Back from "Observation
               sent" lands here), not only the previous visit's Last observation row. On the switch only. */}
           {v7 && visit.status === "done" && visit.sessionId && (
@@ -175,10 +188,11 @@ const CoachVisit = () => {
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] px-4 py-3.5">
               <div className="flex items-center gap-2.5 text-[15px] font-medium"><MapPin className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />{visit.schoolName || C.dash}</div>
               <div className="flex items-center gap-2.5 text-[15px] font-medium">
-                <TimeStamp time={visit.scheduledSlot} tone={visit.status === "done" ? "done" : "next"} size={15} />
+                <TimeStamp time={visit.scheduledSlot} tone={done ? "done" : "next"} size={15} />
                 {/* A picked teacher has no visit time: the day alone, no "·" before it. */}
                 <span className="flex-1">{routes.visitActions || visit.scheduledSlot ? "· " : ""}{visitDay}</span>
-                {visit.status === "done" ? <StatusChip text={C.done} tone="done" /> : h != null && h >= 0 ? <StatusChip text={C.inHours(h)} tone="info" /> : null}
+                {analysisStopped ? <StatusChip text={R.chip.stopped} tone="error" />
+                  : done ? <StatusChip text={C.done} tone="done" /> : h != null && h >= 0 ? <StatusChip text={C.inHours(h)} tone="info" /> : null}
               </div>
             </div>
             {teacher && (

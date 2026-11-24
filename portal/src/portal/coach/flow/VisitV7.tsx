@@ -12,6 +12,7 @@ import { FORM_V7, type FormV7Copy } from "./copyV7form";
 import { debriefDueDay } from "./debriefDue";
 import { karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
+import { REPORTS } from "../reports/copy";
 
 /**
  * bd-o15qnr.28 (queue #204, v7) — the visit's own step cards (#188's LOCK round: "Actions live on the visit only"):
@@ -272,6 +273,25 @@ export function StoppedStage({ text, line, children }: { text: string; line?: st
 }
 
 const ERROR_BUTTON = "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8]";
+
+/** bd-f5a245 — a fixing button inside an ErrorCard that opens a page: ErrorAction's dark button, as a link. */
+export function ErrorLink({ to, children }: { to: string; children: ReactNode }) {
+  return <Link to={to} className={cn(ERROR_BUTTON, "bg-[#33374a] text-white", FOCUS)}>{children}</Link>;
+}
+
+/**
+ * bd-f5a245 (queue #245) — the analysis stopped (it failed, or the system gave up on it): "Analysis stopped", why in one
+ * plain line, and ONE button, Upload recording (`to`: the coach's Schedule an observation with that teacher picked; the
+ * principal's, that teacher's page). On the observation page (`stage-stopped`) and the visit page.
+ */
+export function AnalysisStoppedCard({ testId = "stage-stopped", to }: { testId?: string; to: string | null }) {
+  const C = useCopy(REPORTS);
+  return (
+    <ErrorCard testId={testId} title={C.chip.stopped} line={C.analysisStoppedLine}>
+      {to && <ErrorLink to={to}><Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{C.uploadRecording}</ErrorLink>}
+    </ErrorCard>
+  );
+}
 
 /** A fixing button inside an ErrorCard: the app's dark button, or (`quiet`) the white one under it. */
 export function ErrorAction({ onClick, quiet = false, children }: { onClick: () => void; quiet?: boolean; children: ReactNode }) {
