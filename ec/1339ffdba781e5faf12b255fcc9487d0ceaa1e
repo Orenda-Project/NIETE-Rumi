@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T09:17:19Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"ec1339ffdba7","branch":"bd-4jlu31.8.13-11053","user":"tariqtaleemabad"}
+{"ts":"2026-11-24T09:18:49Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"f1b8dd44-5763-4238-8f99-4815ce9a0e7b","sha":"ec1339ffdba7","branch":"bd-4jlu31.8.13-11053","user":"tariqtaleemabad"}
