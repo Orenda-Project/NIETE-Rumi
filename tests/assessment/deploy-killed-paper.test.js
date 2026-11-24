@@ -338,6 +338,27 @@ describe('worker: SIGTERM and an in-flight paper', () => {
     expect(mockProcess).not.toHaveBeenCalled();
     expect(mockRelease).toHaveBeenCalledWith('rh-late', 'main');
     expect(w.activeJobs.has('rh-late')).toBe(false);
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith('Job claimed after shutdown began; handing it back unstarted',
+      { workerId: 'w-term-5', jobType: 'assessment_generate', sourceQueue: 'main' });
+    await jest.advanceTimersByTimeAsync(31_000);
+    await done;
+  });
+
+  test('a late job with no source queue goes back to main; a failed hand-back is logged, not thrown', async () => {
+    const w = new SQSCoachingWorker('w-term-7');
+    mockProcess = jest.fn(() => pending().promise);
+    mockRelease.mockImplementationOnce(() => Promise.reject(new Error('ReceiptHandleIsInvalid')));
+    const done = w.shutdown();
+    w.processJob({ receiptHandle: 'rh-late', body: { sessionId: 'req-1', jobType: 'assessment_generate', payload: JOB } });
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(mockRelease).toHaveBeenCalledWith('rh-late', 'main');
+    expect(mockProcess).not.toHaveBeenCalled();
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith('Job claimed after shutdown began; handing it back unstarted',
+      { workerId: 'w-term-7', jobType: 'assessment_generate', sourceQueue: 'main' });
+    expect(logToFile).toHaveBeenCalledWith('⚠️ Could not hand back a job claimed after shutdown began',
+      { workerId: 'w-term-7', jobType: 'assessment_generate', error: 'ReceiptHandleIsInvalid' });
     await jest.advanceTimersByTimeAsync(31_000);
     await done;
   });
@@ -345,6 +366,8 @@ describe('worker: SIGTERM and an in-flight paper', () => {
   test('a paper that joined after Phase 0 has its row handed back before its message at the grace deadline', async () => {
     seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating', updated_at: new Date().toISOString() });
     const w = new SQSCoachingWorker('w-term-6');
+    // As on prod: another job was running, so Phase 1 waits out its 30 s grace.
+    w.activeJobs.set('rh-analysis', { promise: pending().promise, sourceQueue: 'main', jobType: 'analysis' });
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(1000);
     // In flight before shutdown could see it (a batch already returned when SIGTERM arrived).

@@ -427,6 +427,19 @@ class SQSCoachingWorker {
     const { receiptHandle, body, sourceQueue } = job;
     const { sessionId, jobType, payload, correlationId: incomingCorrelationId } = body;
 
+    // bd-qyi45h.17: a long poll that was in flight when SIGTERM arrived can still return a job.
+    // Shutdown has already handed its papers back by then and will not see this one, so starting it
+    // would leave its row `generating` behind a dying process. Nothing has run yet: hand it straight
+    // back for a live worker.
+    if (this.isShuttingDown) {
+      const queue = sourceQueue || 'main';
+      logToFile('Job claimed after shutdown began; handing it back unstarted', { workerId: this.workerId, jobType, sourceQueue: queue });
+      SQSQueueService.releaseInFlightMessage(receiptHandle, queue).catch((err) => logToFile(
+        '⚠️ Could not hand back a job claimed after shutdown began', { workerId: this.workerId, jobType, error: err.message },
+      ));
+      return;
+    }
+
     // Use correlation ID from message or generate new one
     const correlationId = incomingCorrelationId || generateCorrelationId();
     // bd-b0qwk: the user the job was queued for (the envelope's userId; a payload.userId / user_id on
@@ -1103,6 +1116,10 @@ class SQSCoachingWorker {
 
     // Phase 1 — the coaching deadline, unchanged.
     await Promise.race([this.waitForActiveJobs(), this.sleep(GRACEFUL_SHUTDOWN_TIMEOUT_MS)]);
+
+    // A paper that started after Phase 0 would otherwise be released below as a short job with its
+    // row still `generating`, and the next delivery would skip it and ack its only message.
+    await this._handBackPapers();
 
     if (this._managedJobs().length === 0) return;
 
