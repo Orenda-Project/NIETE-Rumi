@@ -24,6 +24,7 @@ const { isSelfTest } = require('./teacher-self-test');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { TRANSCRIPT } = require('./quiz-sources');
 const { enqueueGenerate } = require('./transcript-quiz-enqueue');
+const LessonLink = require('./quiz-lesson-link');
 
 const LINK_PREFIX = 'tq_link_';
 const REPORT_PREFIX = 'tq_report_';
@@ -154,6 +155,7 @@ async function claimForGeneration({ userId, sessionId, session, quiz, quizLangua
     status: 'generating',
     meta: {
       step: 'digest', awaiting_language: false, source, claimed_at: new Date().toISOString(), accepted_at: new Date().toISOString(),
+      lesson_links: await LessonLink.forRecording(sessionId),
     },
   }).select('id').single();
   if (error || !created) {
@@ -208,6 +210,7 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
         meta: {
           step: 'awaiting_language', awaiting_language: true,
           source: 'list', claimed_at: new Date().toISOString(),
+          lesson_links: await LessonLink.forRecording(sessionId),
         },
       }).select('id').single();
       if (error || !created) {
