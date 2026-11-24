@@ -11,6 +11,9 @@
  * day's), never an assessment, a held lesson or a subject the quiz is off for (provider.toItem),
  * never a lesson she already made a quiz from. Kill switch: QUIZ_LP612_SOURCE.
  *
+ * Who is offered (q250, Amena 24 Nov: "GB only for now"): GB grade 1-5 lessons always; ICT 6-12
+ * lessons only when LP_QUIZ_OFFER_ICT612 is `on`/`true`. Unset or anything else = GB K-5 only.
+ *
  * Load: one paged read of the day's deliveries (delivered_at range), one IN read of their
  * segments, one read of recent lp612 quizzes per teacher with a lesson — once a day, at build.
  */
@@ -25,6 +28,15 @@ const { lp612SourceOn } = require('../quiz/quiz-sources');
 
 const WINDOW_DAYS = 4;
 const KEY_PREFIX = 'lp612_';
+
+/** LP_QUIZ_OFFER_ICT612, read at call time: `on` adds ICT 6-12 lessons to the offer. */
+function ict612On() {
+  const v = String(process.env.LP_QUIZ_OFFER_ICT612 || '').trim().toLowerCase();
+  return v === 'on' || v === 'true';
+}
+
+/** May this lesson's segment be offered at 15:00? GB K-5 always; anything else only with the switch. */
+const offerable = (segment) => Boolean(segment) && (require('../lp612-gb-delivery.service').isGbK5Segment(segment) || ict612On());
 
 // Lazy: the offer service requires this module, and the provider requires the offer service.
 const Offer = () => require('./lp-quiz-offer.service');
@@ -66,6 +78,7 @@ async function classesFor(nudgeDate) {
     for (const r of own) {
       if (quizzes.some((q) => provider.covers(q, provider.lessonKey(r)))) continue;
       const segment = segments.get(r.segment_id);
+      if (!offerable(segment)) continue;
       const item = provider.toItem(r, segment);
       if (!item) continue;
       const key = KEY_PREFIX + offer.classKey(item.grade, segment.subject);
@@ -112,4 +125,4 @@ async function acceptLp612({ row, cls, from, user, language, reply }) {
   return true;
 }
 
-module.exports = { classesFor, acceptLp612, KEY_PREFIX };
+module.exports = { classesFor, acceptLp612, KEY_PREFIX, ict612On };
