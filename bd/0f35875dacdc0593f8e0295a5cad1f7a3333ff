@@ -1,3 +1,4 @@
 {"ts":"2026-11-24T04:38:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"bd0f35875dac","branch":"bd-97daxo.34.9-95088","user":""}
 {"ts":"2026-11-24T04:57:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick to main; no teacher-visible change)","sha":"bd0f35875dac","branch":"bd-97daxo.34.9-95088","user":""}
 {"ts":"2026-11-24T04:57:24Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,coaching=none-needed (cherry-pick to main of sandbox-synced work; lesson-plan.feature updated in 1ce1913 of this range)","sha":"bd0f35875dac","branch":"bd-97daxo.34.9-95088","user":""}
+{"ts":"2026-11-24T04:57:25Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-bd0f35875dac","sha":"bd0f35875dac","branch":"bd-97daxo.34.9-95088","user":""}
