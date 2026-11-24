@@ -18,8 +18,9 @@ import { MemoryRouter } from 'react-router-dom';
  *                                   her watch-outs; with the form's own name, level names and N/A (#216: v6.1 C2 C3 C5
  *                                   D4; FICO-S v1.2 C2 C3), and a link to that indicator in her manual
  *   Who sets a level                1–5: "Digital Coach suggests · you check" or "Set from the room"; 6–12 (her 24 Nov
- *                                   edit, queue #259): "Pre-filled in the app · you review" for 21, "You fill this
- *                                   yourself" for E2 and E3
+ *                                   edit, queue #259): "Pre-filled in the app · you review" for 22, E2 included as the
+ *                                   bot pre-fills it (queue #267, the operator 24 Nov ~19:00: "For E2, lets for now let
+ *                                   the manual match the indicator"); "You fill this yourself" for E3 only
  *   The data                        loads only when a guide opens (the coach's first-open budget); the form knows the
  *                                   codes from a small index
  *   In Urdu                         the same, from the guide's own Urdu
@@ -88,7 +89,8 @@ const GUIDE: Record<'1-5' | '6-12', Guide> = { '1-5': V6 as unknown as Guide, '6
 const items = (g: Guide) => g.sections.flatMap((s) => s.items);
 const MANUAL = 'https://claude.ai/artifact/S8YWPruD7MhtcSGttXXByJ?sk=KLt0neaCUZQKQRmcNnEb5A';
 const C2_LOOK = 'It only applies when an answer was actually wrong.';
-/** Rifat's FICO M/H "how", 24 Nov (queue #259): 21 indicators pre-filled from the recording, E2 + E3 the observer's own. */
+/** Rifat's FICO M/H "how", 24 Nov (queue #259): pre-filled from the recording, or the observer's own. Queue #267: E2 is
+ * pre-filled too (the bot holds back only E3), so 22 pre-filled and E3 alone by hand. */
 const MH_PRE = 'The app pre-fills the level and evidence from the lesson recording. Review it against your notes. You may change it; if you do, fix the evidence so it supports the new level.';
 const MH_SELF = 'You fill this yourself in the app, in every observation: it comes from your own check at the end of the lesson, not from the recording.';
 const MH_PRE_UR = 'ایپ سبق کی ریکارڈنگ سے لیول اور ثبوت پہلے سے بھر دیتی ہے۔';
@@ -213,19 +215,27 @@ describe("the guide (Dr Rifat Yasmeen's FICO Observer Manual)", () => {
     const a2 = await screen.findByTestId('guide-card-A2');
     expect(within(a2).getByText('What to look for')).toBeTruthy();
     expect(within(a2).getAllByTestId('guide-look-for')).toHaveLength(4);
-    // Rifat, 24 Nov: the app pre-fills 21 of the 23 levels and their evidence from the recording; the observer reviews.
+    // Rifat, 24 Nov: the app pre-fills the levels and their evidence from the recording; the observer reviews (22 of 23, #267).
     expect(within(a2).getByText('Pre-filled in the app · you review')).toBeTruthy();
     expect(within(a2).getByText('How it is scored')).toBeTruthy();
     expect(within(a2).queryByText('Where to look')).toBeNull();
     expect(within(a2).queryByText('Set from the room')).toBeNull();
     expect(a2.textContent).toContain(MH_PRE);
     expect(within(a2).getByTestId('guide-card-manual').getAttribute('href')).toBe(`${MANUAL}#s-ind-A2`);
-    // E2 and E3 come from the observer's own check at the end of the lesson.
+    // Queue #267: E2 is pre-filled by the Digital Coach, as the bot does (only E3 is starred); the observer reviews it.
     fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E2')!);
     const e2 = await screen.findByTestId('guide-card-E2');
-    expect(within(e2).getByText('You fill this yourself')).toBeTruthy();
-    expect(within(e2).queryByText('Pre-filled in the app · you review')).toBeNull();
-    expect(e2.textContent).toContain(MH_SELF);
+    expect(within(e2).getByText('Pre-filled in the app · you review')).toBeTruthy();
+    expect(within(e2).queryByText('You fill this yourself')).toBeNull();
+    expect(within(e2).getByText('How it is scored')).toBeTruthy();
+    expect(e2.textContent).toContain(MH_PRE);
+    expect(e2.textContent).not.toContain(MH_SELF);
+    // E3 alone comes from the observer's own check at the end of the lesson.
+    fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E3')!);
+    const e3 = await screen.findByTestId('guide-card-E3');
+    expect(within(e3).getByText('You fill this yourself')).toBeTruthy();
+    expect(within(e3).queryByText('Pre-filled in the app · you review')).toBeNull();
+    expect(e3.textContent).toContain(MH_SELF);
   });
 
   it('search: a code narrows to that card; a word searches names and meanings; nothing found says so', async () => {
@@ -269,6 +279,13 @@ describe("the guide (Dr Rifat Yasmeen's FICO Observer Manual)", () => {
       expect(within(a1).getByText('ایپ میں پہلے سے بھرا · آپ جانچتے ہیں')).toBeTruthy();
       expect(within(a1).getByText('لیول کیسے لگتا ہے')).toBeTruthy();
       expect(a1.textContent).toContain(MH_PRE_UR);
+      // Queue #267: E2 reads pre-filled in Urdu too, in her own pre-filled words.
+      fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E2')!);
+      const e2 = await screen.findByTestId('guide-card-E2');
+      expect(within(e2).getByText('ایپ میں پہلے سے بھرا · آپ جانچتے ہیں')).toBeTruthy();
+      expect(within(e2).queryByText('یہ آپ خود بھرتے ہیں')).toBeNull();
+      expect(e2.textContent).toContain(MH_PRE_UR);
+      expect(e2.textContent).not.toContain('ریکارڈنگ سے نہیں');
       fireEvent.click(screen.getAllByTestId('guide-code').find((c) => c.textContent === 'E3')!);
       const e3 = await screen.findByTestId('guide-card-E3');
       expect(within(e3).getByText('یہ آپ خود بھرتے ہیں')).toBeTruthy();
@@ -350,15 +367,19 @@ describe('the guide data', () => {
     expect(JSON.stringify([V6, MH])).not.toMatch(/claude\.ai\/artifact\/(?!S8YWPruD7MhtcSGttXXByJ)/);
   });
 
-  it('who sets each level, as her manual says (24 Nov, queue #259): 1–5 Digital Coach or the room; 6–12 pre-filled but E2 E3', () => {
+  it('who sets each level (her 24 Nov manual, queue #259; E2 as the bot, queue #267): 1–5 Digital Coach or the room; 6–12 pre-filled but E3', () => {
     const who = (b: '1-5' | '6-12') => Object.fromEntries(items(GUIDE[b]).map((i) => [i.code, i.who]));
     expect(who('1-5')).toEqual({
       C1: 'dc', C2: 'dc', C3: 'hitl', C4: 'dc', C5: 'hitl', C6: 'dc', C7: 'hitl', C8: 'dc',
       D1: 'dc', D2: 'hitl', D3: 'hitl', D4: 'hitl', D5: 'dc', F1: 'dc', F2: 'dc', F3: 'dc', F4: 'dc',
     });
     const mh = items(GUIDE['6-12']);
-    expect(mh.filter((i) => i.who === 'self').map((i) => i.code)).toEqual(['E2', 'E3']);
-    expect(mh.filter((i) => i.who === 'pre')).toHaveLength(21);
+    expect(mh.filter((i) => i.who === 'self').map((i) => i.code)).toEqual(['E3']);
+    expect(mh.filter((i) => i.who === 'pre')).toHaveLength(22);
+    expect(mh.find((i) => i.code === 'E2')!.who).toBe('pre');
+    expect(mh.find((i) => i.code === 'E2')!.how.ur).toContain(MH_PRE_UR);
+    // The one place the guide departs from her canvas is said in the data itself, so the next sync keeps it.
+    expect((GUIDE['6-12'] as unknown as { provenance: string }).provenance).toContain('E2');
     for (const i of mh) expect(i.how.en, i.code).toBe(i.who === 'self' ? MH_SELF : MH_PRE);
   });
 
