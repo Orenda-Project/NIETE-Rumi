@@ -19,7 +19,10 @@ scripts/lib/merge_duplicates.py and are unit-tested in scripts/tests/test_merge_
     ... --repoint --out <dir> [--only <retired id>,...] [--expect-csv <its dry run's plan CSV> --commit --confirm-ref ...]
 
 Per teacher, in a transaction of its own (so a teacher's chat waits seconds at most): re-read both accounts and all
-they own in one REPEATABLE READ snapshot; choose the survivor; re-check every guard and the reviewed decisions; move
+they own in one REPEATABLE READ snapshot; choose the survivor; re-check every guard and the reviewed decisions (one
+guard refuses keeping a number when another account of the pair messaged more recently: the teacher writes from that
+number now, and the freed one would come back as a new account; a reason in the scope's keep_number_override lets it
+through); move
 every row the retired account owns, by primary key (a row stays only where a unique index already holds the
 survivor's row for its key, or a sealed form keeps its observer); move booked visits with the number; retire the
 duplicate (soft delete, number freed); give the survivor the number in use with its portal login and WhatsApp
@@ -502,6 +505,10 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: [], fold
     visits, clashes = md.plan_visits(state["visits"], numbers)
     problems = md.guards(rows, surv, retired, p["in_use"], p["survivor"], moves, clashes, dependents(moves),
                          conflicts, fold_problems)
+    # The number kept must be the one the teacher messages from now, or its freed twin comes back as a new account.
+    override = p.get("keep_number_override")
+    problems += md.kept_number_problem(rows, p["in_use"], override)
+    overridden = bool(override) and bool(md.kept_number_problem(rows, p["in_use"]))
     moved, skipped, folded = {r: {} for r in retired}, {r: {} for r in retired}, {r: {} for r in retired}
     for (t, _c, _row, owner, action) in moves:
         bucket = {"move": moved, "skip": skipped, "fold": folded}[action]
@@ -518,7 +525,8 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: [], fold
     problems += md.shared_number_problem(state["number_holders"].get(md.number_key(final_phone), []), pids)
     audits += md.repoint_rows(dict(rows[surv], **patch), repointed, meta=meta)
     label = {f: "survivor's old number" if f == rows[surv]["phone_number"] else "a freed number" for f, _ in numbers}
-    return {**p, "survivor": surv, "retired": retired, "problems": problems, "patch": patch,
+    return {**p, "survivor": surv, "retired": retired, "problems": problems, "kept_number_overridden": overridden,
+            "patch": patch,
             "final_phone": final_phone, "moves": moves, "moved": moved, "skipped": skipped, "folded": folded,
             "folds": folds, "visits": [{"row_id": v, "from_phone": f, "to_phone": t} for v, f, t in visits],
             "retire": {r: md.retire_patch(r, now_iso, gives_up.get(r, ())) for r in retired}, "audits": audits,
@@ -912,7 +920,8 @@ def load_scope(a):
             if r["go"] == a.go:
                 pairs.append({"pair": f"t{r['tab']} #{r['sheet_no']}", "class": r.get("class", ""),
                               "survivor": r["survivor_id"], "retired": [x for x in r["retire_ids"].split(";") if x],
-                              "in_use": r["number_in_use_account_id"]})
+                              "in_use": r["number_in_use_account_id"],
+                              "keep_number_override": (r.get("keep_number_override") or "").strip()})
     if a.only:
         wanted = {x.strip() for x in a.only.split(",") if x.strip()}
         unknown = wanted - {p["pair"] for p in pairs}
@@ -968,6 +977,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
                     "folds": [{"table": f["table"], "row": f["row"], "into": f["into"], "flag": f["flag"],
                                "follow": {f["follow"][0]: len(f["keys"])}} for f in pp.get("folds", [])],
                     "visits_follow": len(pp.get("visits", [])), "repoints": pp.get("repoints", []),
+                    "keep_number_override": pp.get("keep_number_override") if pp.get("kept_number_overridden") else None,
                     "problems": pp["problems"]} for pp in planned]}
     (out / f"merge-summary-{base}.json").write_text(json.dumps(summary, indent=2))
     image_path = Path(a.private_dir) / a.target / f"merge-before-{base}.json"
@@ -989,6 +999,8 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
               f"stays: {show(table_counts(pp.get('moves', []), 'skip'))}"
               + (f"  folds: {show_folds(pp['folds'])}" if pp.get("folds") else "")
               + (f"  re-points: {', '.join(r['retired'][:8] for r in pp['repoints'])}" if pp.get("repoints") else "")
+              + ("  KEPT NUMBER OVERRIDDEN (keep_number_override; see the summary)"
+                 if pp.get("kept_number_overridden") else "")
               + (f"  REFUSED: {'; '.join(pp['problems'])}" if pp["problems"] else ""))
     print(f"  outputs: {out / f'merge-plan-{base}.csv'} (+ summary JSON); before-image: {image_path} (private)")
     if any(pp["problems"] for pp in planned):
@@ -1330,7 +1342,8 @@ def main():
     ap.add_argument("--target", required=True, choices=sorted(TARGETS))
     ap.add_argument("--env-file", default=str(REPO / ".env"))
     ap.add_argument("--scope", help="the reviewed scope CSV (go, tab, sheet_no, class, survivor_id, retire_ids, "
-                    "number_in_use_account_id, ...)")
+                    "number_in_use_account_id, and optionally keep_number_override: a reason to keep a number "
+                    "another account of the pair messaged from more recently)")
     ap.add_argument("--go", help="which go of the scope to run, e.g. 3a")
     ap.add_argument("--only", help="comma-separated teachers of that go, as 't1 #12'; with --repoint, retired account "
                     "ids (or unique prefixes of 8+ characters)")
