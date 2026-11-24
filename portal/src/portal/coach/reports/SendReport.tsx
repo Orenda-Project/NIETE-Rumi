@@ -19,6 +19,8 @@ import { REPORTS } from "./copy";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
+import { useFlowV6 } from "../flow/useCoachFlowV2";
+import { WaText } from "./waText";
 
 /**
  * bd-4404s7.5 — Send {name} the report, step 5 of 5 (Blueprint Coach_SendReport). The report exactly as the teacher
@@ -39,6 +41,7 @@ import { useBack } from "../../lib/useBack";
  */
 export default function SendReport() {
   const C = useCopy(REPORTS);
+  const v7 = useFlowV6() === true;
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
   const routes = useObserveRoutes();
@@ -120,8 +123,9 @@ export default function SendReport() {
           <section data-testid="report-preview" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
             {/* bd-o15qnr.39.2: on the v6/v7 switch the report opens full screen in the app; off, the same image as before. */}
             {view.report.imageUrl && <ReportImage src={view.report.imageUrl} alt={C.reportImage(name)} />}
-            {view.report.caption && <p className="whitespace-pre-line px-1 text-[14px] leading-relaxed" dir="auto">{view.report.caption}</p>}
-            {view.report.companionText && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{view.report.companionText}</p>}
+            {/* bd-o15qnr.48 (#244): on the switch, WhatsApp's *bold* / _italic_ drawn as she will see them (waText.tsx). */}
+            {view.report.caption && <p className="whitespace-pre-line px-1 text-[14px] leading-relaxed" dir="auto">{v7 ? <WaText text={view.report.caption} /> : view.report.caption}</p>}
+            {view.report.companionText && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{v7 ? <WaText text={view.report.companionText} /> : view.report.companionText}</p>}
           </section>
           <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.to}</h2>
           <section data-testid="send-to" className={cn(LIST_CARD, "flex min-h-[76px] items-center gap-3 px-3.5 py-2.5")}>
