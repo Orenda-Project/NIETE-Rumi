@@ -17,13 +17,13 @@ const REGISTRY = [
 ];
 
 /** A supabase-shaped client serving region_features and users, counting reads per table. */
-function client({ registry = REGISTRY, users = [], textbooks = [], fail = null } = {}) {
-  const reads = { region_features: 0, users: 0, textbooks: 0 };
+function client({ registry = REGISTRY, users = [], schools = [], textbooks = [], fail = null } = {}) {
+  const reads = { region_features: 0, users: 0, schools: 0, textbooks: 0 };
   const from = (table) => {
     reads[table] = (reads[table] || 0) + 1;
     if (fail === table) throw new Error(`${table} unreachable`);
     const filters = [];
-    const rowsOf = () => ({ region_features: registry, users, textbooks }[table] || [])
+    const rowsOf = () => ({ region_features: registry, users, schools, textbooks }[table] || [])
       .filter((r) => filters.every(([c, v]) => r[c] === v));
     const b = {
       select: () => b,
@@ -136,6 +136,64 @@ describe('curriculumForRegion / curriculumForUser — the teacher curriculum the
   it('fails OPEN to ict when users cannot be read', async () => {
     const BC = load();
     expect(await BC.curriculumForUser('nbf-1', { client: client({ fail: 'users' }) })).toBe('ict');
+  });
+  // A GB teacher whose users.region is empty must still get GB's books. The portal's region check
+  // (region.service regionForUser) already knows her by users.source or by her school; the book choice
+  // follows the same order, so the two can no longer disagree.
+  describe('when users.region names no registry region', () => {
+    const SCHOOLS = [
+      { id: 'sch-gb', region: 'Gilgit-Baltistan' },
+      { id: 'sch-ict', region: 'Sihala' },
+      { id: 'sch-none', region: null },
+    ];
+    const USERS = [
+      { id: 'imported', region: null, source: 'main_rumi_gb', school_id: null },
+      { id: 'gb-school', region: null, source: 'direct', school_id: 'sch-gb' },
+      { id: 'ict-school', region: null, source: 'direct', school_id: 'sch-ict' },
+      { id: 'no-school-region', region: null, source: 'direct', school_id: 'sch-none' },
+      { id: 'nothing', region: null, source: 'direct', school_id: null },
+      { id: 'own-wins', region: 'Sihala', source: 'main_rumi_gb', school_id: 'sch-gb' },
+      { id: 'junk-region', region: 'Barakahu', source: null, school_id: 'sch-gb' },
+    ];
+
+    it('gives an imported GB teacher (source main_rumi_gb) GB\'s curriculum, with no school read', async () => {
+      const BC = load();
+      const c = client({ users: USERS, schools: SCHOOLS });
+      expect(await BC.curriculumForUser('imported', { client: c })).toBe('nbf_snc');
+      expect(c.reads.schools).toBe(0);
+    });
+
+    it("gives a teacher at a GB school her school region's curriculum", async () => {
+      const BC = load();
+      const c = client({ users: USERS, schools: SCHOOLS });
+      expect(await BC.curriculumForUser('gb-school', { client: c })).toBe('nbf_snc');
+      expect(await BC.curriculumForUser('junk-region', { client: c })).toBe('nbf_snc');
+    });
+
+    it('is ict for a teacher at an ICT school, a school with no region, or no school and no GB source', async () => {
+      const BC = load();
+      const c = client({ users: USERS, schools: SCHOOLS });
+      expect(await BC.curriculumForUser('ict-school', { client: c })).toBe('ict');
+      expect(await BC.curriculumForUser('no-school-region', { client: c })).toBe('ict');
+      expect(await BC.curriculumForUser('nothing', { client: c })).toBe('ict');
+    });
+
+    it('never overrides a region the registry holds: her own region wins over source and school', async () => {
+      const BC = load();
+      const c = client({ users: USERS, schools: SCHOOLS });
+      expect(await BC.curriculumForUser('own-wins', { client: c })).toBe('ict');
+      expect(c.reads.schools).toBe(0);
+    });
+
+    it('fails OPEN to ict when the school cannot be read', async () => {
+      const BC = load();
+      expect(await BC.curriculumForUser('gb-school', { client: client({ users: USERS, schools: SCHOOLS, fail: 'schools' }) })).toBe('ict');
+    });
+
+    it('fails OPEN to ict for an imported GB teacher when the registry cannot be read', async () => {
+      const BC = load();
+      expect(await BC.curriculumForUser('imported', { client: client({ users: USERS, fail: 'region_features' }) })).toBe('ict');
+    });
   });
 });
 

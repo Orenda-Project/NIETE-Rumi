@@ -39,6 +39,9 @@ const ICT = 'ict';
 
 const defaultClient = () => require('../config/supabase');
 
+/** A teacher's log key, never her raw id; null when the key cannot be made. */
+const logKey = (userId) => { try { return require('./quiz/web-quiz-kid').tk(userId); } catch (_) { return null; } };
+
 /** A teacher curriculum, normalised: anything empty or not a string is ICT. */
 function normalise(curriculum) {
   const c = typeof curriculum === 'string' ? curriculum.trim().toLowerCase() : '';
@@ -56,21 +59,53 @@ async function curriculumForRegion(region, { client } = {}) {
   }
 }
 
-/** The curriculum of a teacher, from users.region. No id, no row, no region → 'ict'. Never throws. */
+/**
+ * The curriculum of a teacher. No id, no row, nothing that names a region → 'ict'. Never throws.
+ *
+ * Same order as the portal's region check (region.service regionForUser), so the book she is served and
+ * the region the portal shows her can never disagree:
+ *   1. users.region, when the registry holds it (a sector, or the GB region): its key, as before.
+ *   2. users.source 'main_rumi_gb' (the imported GB cohort): the curriculum of GB's registry region.
+ *   3. her school's schools.region, when the registry holds it.
+ * Before this, only step 1 ran, and a GB teacher whose users.region was empty got ICT's books on the
+ * portal and on WhatsApp although the portal already knew her as GB.
+ */
 async function curriculumForUser(userId, { client } = {}) {
   if (!userId) return ICT;
   const db = client || defaultClient();
-  let region = null;
+  let user = null;
   try {
-    const { data, error } = await db.from('users').select('region').eq('id', userId).maybeSingle();
+    const { data, error } = await db.from('users').select('region, source, school_id').eq('id', userId).maybeSingle();
     if (error) throw new Error(error.message);
     if (!data || typeof data !== 'object' || Array.isArray(data)) return ICT;
-    region = getUserRegion(data);
+    user = data;
   } catch (err) {
-    logToFile('[book-curriculum] users.region unreadable — ICT books', { userId, error: err && err.message });
+    logToFile('[book-curriculum] users.region unreadable — ICT books', { user: logKey(userId), error: err && err.message });
     return ICT;
   }
-  return curriculumForRegion(region, { client: db });
+  try {
+    const own = getUserRegion(user);
+    if (await Registry.organizationForRegion(db, own)) return normalise(await Registry.curriculumKeyForRegion(db, own));
+
+    const { GB_SOURCES, ORGANIZATION } = require('./region.service');
+    if (GB_SOURCES.has(Registry.regionKey(user.source))) {
+      for (const region of await Registry.regionsForOrganization(db, ORGANIZATION.gb)) {
+        const key = await Registry.curriculumKeyForRegion(db, region);
+        if (key) return normalise(key);
+      }
+      return ICT;
+    }
+
+    if (!user.school_id) return ICT;
+    const { data: school, error } = await db.from('schools').select('region').eq('id', user.school_id).maybeSingle();
+    if (error) throw new Error(error.message);
+    const schoolRegion = school && school.region;
+    if (await Registry.organizationForRegion(db, schoolRegion)) return normalise(await Registry.curriculumKeyForRegion(db, schoolRegion));
+    return ICT;
+  } catch (err) {
+    logToFile('[book-curriculum] region unreadable — ICT books', { user: logKey(userId), error: err && err.message });
+    return ICT;
+  }
 }
 
 /**
