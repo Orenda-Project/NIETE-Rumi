@@ -23,8 +23,12 @@ export type GuideItem = {
   name: Text;
   means: Text;
   lookFor: Text[];
-  /** v6: "dc" = the Digital Coach suggests and the observer checks; "hitl" = set from the room. FICO M/H: none. */
-  who: 'dc' | 'hitl' | null;
+  /**
+   * Who sets the level, as her manual says. v6: "dc" = the Digital Coach suggests and the observer checks; "hitl" = set
+   * from the room. FICO M/H (her 24 Nov edit, queue #259): "pre" = pre-filled in the app from the recording, the
+   * observer reviews; "self" = the observer fills it (E2, E3).
+   */
+  who: 'dc' | 'hitl' | 'pre' | 'self' | null;
   how: Text;
   levels: GuideLevel[];
   tips: Text[];

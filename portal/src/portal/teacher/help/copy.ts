@@ -43,6 +43,9 @@ export const HELP_COPY = {
   watchOut: 'Watch out',
   whoDc: 'Digital Coach suggests · you check',
   whoRoom: 'Set from the room',
+  /** Queue #259: Rifat's FICO M/H "who sets it" (her 24 Nov edit), her words: 21 indicators, then E2 and E3. */
+  whoPre: 'Pre-filled in the app · you review',
+  whoSelf: 'You fill this yourself',
   noNa: 'No N/A here: level 1 covers it',
   whereToLook: 'Where to look',
   fullManual: 'Open the full manual',
@@ -80,6 +83,8 @@ export const HELP_COPY_UR: typeof HELP_COPY = {
   watchOut: 'دھیان رہے',
   whoDc: 'ڈیجیٹل کوچ تجویز کرتا ہے · آپ جانچتے ہیں',
   whoRoom: 'کلاس میں دیکھ کر',
+  whoPre: 'ایپ میں پہلے سے بھرا · آپ جانچتے ہیں',
+  whoSelf: 'یہ آپ خود بھرتے ہیں',
   noNa: 'یہاں «لاگو نہیں» نہیں: لیول 1 میں شامل',
   whereToLook: 'کہاں دیکھیں',
   fullManual: 'پوری گائیڈ کھولیں',
@@ -99,5 +104,5 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['length', 'size'],
   // Film 1's title is its film's own name, five words in both languages.
   // #217: the N/A line and who sets a level are the guide's own legend, said once per card (Rifat's words).
-  longOk: ['start', 'noNa', 'whoDc'],
+  longOk: ['start', 'noNa', 'whoDc', 'whoPre', 'whoSelf'],
 };
