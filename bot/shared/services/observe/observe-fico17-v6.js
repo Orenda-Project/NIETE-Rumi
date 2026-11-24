@@ -805,4 +805,5 @@ module.exports = {
   screenOf, screenInfo, codesFor, nextScreenOf, isLastScreen, screenData,
   fieldMessages, withSectionBAnswers,
   EVIDENCE_REVIEW_LIMITS, rumiEvidenceOf, sanitizeEvidenceReview, savedEvidenceReview,
+  rumiEvidenceText, // queue #251: the portal tells the Digital Coach's Evidence text from the coach's own
 };

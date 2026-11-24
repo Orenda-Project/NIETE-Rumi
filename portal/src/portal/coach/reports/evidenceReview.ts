@@ -80,6 +80,29 @@ export function evText(r: Review): string {
   return parts.join(" · ");
 }
 
+/**
+ * Queue #251 (the operator 24 Nov: the Digital Coach's evidence once, and a free box for her own) — the record as the
+ * form now makes it. `plainReview`: the Digital Coach's evidence as it came (its line, every quote kept, nothing of
+ * hers). `ownReview`: that, plus her own words as one line of hers (no time), when she typed in "Your evidence"; ev_ is
+ * then her words alone (FormV7List), so the report shows what she submitted.
+ */
+export function plainReview(r: Review): Review {
+  return {
+    rumi: r.rumi,
+    summary: r.rumi,
+    rows: r.rows.flatMap((row): ReviewRow[] => {
+      if (row.source === "coach") return [];
+      const { coachText: _drop, ...rest } = row;
+      return [{ ...rest, status: "kept" as const }];
+    }),
+  };
+}
+
+export function ownReview(r: Review, text: string): Review {
+  const plain = plainReview(r);
+  return { ...plain, rows: [...plain.rows, { key: "c1", source: "coach", time: null, text }] };
+}
+
 /** The same check: nothing the coach did is left (an Undo, or a change typed back, counts as none). */
 export function sameReview(a: Review | null | undefined, b: Review | null | undefined): boolean {
   if (!a || !b) return a === b;
