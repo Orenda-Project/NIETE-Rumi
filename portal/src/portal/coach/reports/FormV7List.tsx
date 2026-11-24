@@ -1,18 +1,3 @@
-  const keepDc = (ind: V6Indicator) => {
-    const key = `ev_${ind.field}`;
-    const first = firstReviews[ind.id];
-    // the form opened on the Digital Coach's text: back to exactly how it opened (nothing changed); else to its text
-    const opened = (start[key] ?? "").trim() === dcTextOf(ind).trim();
-    setValues((cur) => ({ ...cur, [key]: opened ? (start[key] ?? "") : dcTextOf(ind) }));
-    if (first) setReviews((cur) => ({ ...cur, [ind.id]: opened ? first : plainReview(first) }));
-  };
-  const typeOwn = (ind: V6Indicator, text: string) => {
-    if (!text.trim()) { keepDc(ind); return; }
-    const first = firstReviews[ind.id];
-    setValues((cur) => ({ ...cur, [`ev_${ind.field}`]: text }));
-    if (first) setReviews((cur) => ({ ...cur, [ind.id]: ownReview(first, text.trim()) }));
-  };
-
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -287,17 +272,18 @@ export function V6FormV7({
     return v.trim() && v.trim() !== dcTextOf(ind).trim() ? v : "";
   };
   const keepDc = (ind: V6Indicator) => {
-    const base = reviews[ind.id] ?? firstReviews[ind.id];
     const key = `ev_${ind.field}`;
-    const back = dcTextOf(ind);
-    setValues((cur) => ({ ...cur, [key]: (start[key] ?? "").trim() === back.trim() ? (start[key] ?? "") : back }));
-    if (base) setReviews((cur) => ({ ...cur, [ind.id]: firstReviews[ind.id] && sameReview(plainReview(base), plainReview(firstReviews[ind.id])) && !firstReviews[ind.id].rows.some((r) => r.source === "coach") ? firstReviews[ind.id] : plainReview(base) }));
+    const first = firstReviews[ind.id];
+    // the form opened on the Digital Coach's text: back to exactly how it opened (nothing changed); else to its text
+    const opened = (start[key] ?? "").trim() === dcTextOf(ind).trim();
+    setValues((cur) => ({ ...cur, [key]: opened ? (start[key] ?? "") : dcTextOf(ind) }));
+    if (first) setReviews((cur) => ({ ...cur, [ind.id]: opened ? first : plainReview(first) }));
   };
   const typeOwn = (ind: V6Indicator, text: string) => {
     if (!text.trim()) { keepDc(ind); return; }
-    const base = reviews[ind.id] ?? firstReviews[ind.id];
+    const first = firstReviews[ind.id];
     setValues((cur) => ({ ...cur, [`ev_${ind.field}`]: text }));
-    if (base) setReviews((cur) => ({ ...cur, [ind.id]: ownReview(base, text.trim()) }));
+    if (first) setReviews((cur) => ({ ...cur, [ind.id]: ownReview(first, text.trim()) }));
   };
 
   const gapToast = (p: V6Problems) => {
