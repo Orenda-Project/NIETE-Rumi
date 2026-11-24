@@ -490,7 +490,9 @@ async function buildCohort({ nudgeDate, now }) {
   }
 
   const downloads = await downloadsFor(nudgeDate);
-  if (!downloads.length) {
+  // bd-97daxo.34.6: the day's Grades 6-12 / GB lessons (niete_lp612_deliveries), per teacher.
+  const lp612 = await require('./lp-quiz-offer-612').classesFor(nudgeDate);
+  if (!downloads.length && !lp612.size) {
     builtEmpty.add(nudgeDate);
     logEvent('lp_quiz.cohort_built', { nudgeDate, candidates: 0, inserted: 0 });
     return { inserted: 0, skipped: {}, built: true };
@@ -524,7 +526,7 @@ async function buildCohort({ nudgeDate, now }) {
   // The candidate set is the RAW download rows: a teacher whose only lesson
   // was an assessment still earns a `no_lesson` row, which is how the funnel
   // sees that teacher at all.
-  const candidateIds = [...new Set(downloads.map((r) => r.user_id).filter(Boolean))];
+  const candidateIds = [...new Set([...downloads.map((r) => r.user_id), ...lp612.keys()].filter(Boolean))];
   const teachers = await teachersById(candidateIds);
   const ids = [...teachers.keys()];
   if (!ids.length) {
@@ -549,6 +551,7 @@ async function buildCohort({ nudgeDate, now }) {
   ).toISOString());
   const byTeacher = new Map(groupLessons(quizzable)
     .map((g) => [g.userId, withoutCovered(g.classes, covered.get(g.userId))]));
+  for (const [userId, cls] of lp612) byTeacher.set(userId, [...(byTeacher.get(userId) || []), ...cls]);
   const scheduledAt = PktTime.deferQuietHours(PktTime.atPkt(nudgeDate, sendHour(), sendMinute()));
 
   let inserted = 0;
@@ -1153,6 +1156,11 @@ async function accept(nudgeId, key, from, user, at) {
   await Store.recordAnswer(row.id, { choice });
   logEvent('lp_quiz.offer_answered', { nudgeId, userId: row.user_id, choice });
   Funnel.emit('offer_answered', { nudge_id: nudgeId, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', choice });
+
+  // bd-97daxo.34.6: a 6-12 / GB class is made by the lp612 provider, as /quiz makes it.
+  if (cls.source === 'lp612') {
+    return require('./lp-quiz-offer-612').acceptLp612({ row, cls, from, user, language, reply });
+  }
 
   // The quiz language is the teacher's to choose, exactly as on the quiz born
   // from a recording: every subject but Urdu and Islamiyat is asked first.
