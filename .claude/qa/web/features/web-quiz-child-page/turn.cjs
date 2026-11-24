@@ -6,8 +6,10 @@ const M = (m) => onScreen(m);
 const modes = {}, runs = {};
 const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 
-on('WQ135', 'off', async (page, ctx) => {
-  await L.setMode(ctx, page, 'off');
+on('WQ135', 'v2', async (page, ctx) => {
+  // "Who is playing?" as remembered cards + "My name isn't here" (#wq-someone) is identity v2's landing
+  // (wq-identity.js); with the switch off the next turn lands on "Play as <name>" / "Not <name>?" instead.
+  await L.setMode(ctx, page, 'v2');
   // "Who is playing?" with the remembered cards needs more than one child on the phone: a sibling is remembered first
   // (one remembered child lands on "Play as <name>" instead). Not a class-list name: that takes the confirm path.
   const hina = await L.chipFor(ctx, CODES.OPEN, 'Hina Testwala');
@@ -34,14 +36,15 @@ on('WQ135', 'off', async (page, ctx) => {
   await page.evaluate(([k, s]) => { s.queue = []; localStorage.setItem(k, JSON.stringify(s)); }, [key, saved]);
   await page.goto(ctx.baseUrl + '/q/' + CODES.OPEN, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#wq-turn', { state: 'visible', timeout: WAIT });
-  // the next child taps it: "Who is playing?" with the remembered cards and "Someone else"
+  // the next child taps it: "Who is playing?" with the remembered cards and "My name isn't here"
   await page.click('#wq-turn');
   await page.waitForSelector('#wq-someone', { state: 'visible', timeout: WAIT });
   const body = await text(page);
-  expect(/Who is playing\?|Who's playing\?/.test(body), 'the landing does not ask who is playing: ' + body.slice(0, 120));
+  // the quiz page's own heading has always been "Whose turn is it?" (wq.js TW.whoT); "Who is playing?" is the hub's
+  expect(/Whose turn is it\?/.test(body), 'the landing does not ask whose turn it is: ' + body.slice(0, 160));
   const cards = await page.$$eval('.wq-kid-big', (els) => els.map((e) => e.innerText.trim()));
   expect(cards.some((c) => /Tooba135/.test(c)) && cards.some((c) => /Hina/.test(c)), 'the remembered cards are ' + JSON.stringify(cards));
-  expect(/Someone else/.test(await inner(page, '#wq-someone')), '"Someone else" is missing');
+  expect((await inner(page, '#wq-someone')) === "My name isn't here", '"My name isn\'t here" is missing');
   const after = await L.rows(ctx, 'select q.id, row_to_json(q)::text from quiz_sessions q where q.id = ' + q(before[0][0]));
   expect(after[0] && after[0][1] === before[0][1], 'Tooba\'s finished result changed: ' + before[0][1].slice(0, 200) + ' → ' + (after[0] ? after[0][1].slice(0, 200) : 'gone'));
   return { turn, cards, screenWithQueue, result: 'unchanged' };
