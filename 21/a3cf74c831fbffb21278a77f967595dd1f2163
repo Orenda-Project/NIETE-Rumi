@@ -9,3 +9,4 @@
 {"ts":"2026-11-23T05:03:33Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,portal-smoke spec_sync=true","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
 {"ts":"2026-11-23T05:07:02Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (no new commit this session; nothing a teacher sees changed beyond main)","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
 {"ts":"2026-11-23T05:07:03Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"792580af-1cec-40fa-8de4-d7e30a33840d","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
+{"ts":"2026-11-24T01:09:52Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
