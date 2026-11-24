@@ -16,7 +16,11 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: unknown }) => <div>{children as never}</div> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
+// the real module (main's principal routes register a native plugin at import), never on a phone here
+vi.mock("@capacitor/core", async (orig) => {
+  const real = await orig<typeof import("@capacitor/core")>();
+  return { ...real, Capacitor: { ...real.Capacitor, isNativePlatform: () => false } };
+});
 const progress = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn() }));
 vi.mock("../../services/api", async (orig) => ({
   ...(await orig<typeof import("../../services/api")>()),
