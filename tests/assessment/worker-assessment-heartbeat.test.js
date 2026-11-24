@@ -152,13 +152,15 @@ describe('worker: a deploy and an in-flight paper', () => {
     await done;
   });
 
-  test('a coaching analysis is still handed back at 30 s, the paper at once', async () => {
+  // bd-3itk00: an `analysis` is now finished on shutdown, not handed back at 30 s (tests/queue/
+  // bd-3itk00-deploy-finishes-analysis.test.js); a transcription is the coaching job that still is.
+  test('a coaching transcription is still handed back at 30 s, the paper at once', async () => {
     mockReleasePaper.mockImplementation(async () => true);
     const w = new SQSCoachingWorker('w-drain-2');
     const paper = pendingPaper();
-    const analysis = pendingPaper();
+    const transcription = pendingPaper();
     w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
-    w.activeJobs.set('rh-analysis', { promise: analysis.promise, sourceQueue: 'main', jobType: 'analysis' });
+    w.activeJobs.set('rh-transcription', { promise: transcription.promise, sourceQueue: 'main', jobType: 'transcription' });
 
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(1_000);
@@ -166,11 +168,11 @@ describe('worker: a deploy and an in-flight paper', () => {
     expect(mockRelease).toHaveBeenCalledWith('rh-paper', 'main');
     await jest.advanceTimersByTimeAsync(30_000);
     expect(mockRelease).toHaveBeenCalledTimes(2);
-    expect(mockRelease).toHaveBeenLastCalledWith('rh-analysis', 'main');
+    expect(mockRelease).toHaveBeenLastCalledWith('rh-transcription', 'main');
 
     w.activeJobs.delete('rh-paper');
-    w.activeJobs.delete('rh-analysis');
-    await paper.finish(); await analysis.finish();
+    w.activeJobs.delete('rh-transcription');
+    await paper.finish(); await transcription.finish();
     await jest.advanceTimersByTimeAsync(1_000);
     await done;
   });
