@@ -681,8 +681,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ADDED 2026-11-24 (bd-97daxo.34.6). @no-mock-driver: the mock lane cannot seed niete_lp612_deliveries rows.
   # Executed through the real cohort and tap in tests/quiz/lp-quiz-offer-612.test.js.
   @e2e @quiz @wip @draft @config-gated @no-mock-driver @P1 @L62
-  Scenario: A Grades 6-12 or GB teacher who took a lesson today is offered the afternoon quiz on it
-    Given the NIETE bot chat is open on a teacher who took one Grades 6-12 or GB lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
+  Scenario: A GB grade 1-5 teacher who took a lesson today is offered the afternoon quiz on it
+    # UPDATED 2026-11-24 (bd-97daxo.34.9, q250): GB grade 1-5 only; ICT 6-12 is @L65.
+    Given the NIETE bot chat is open on a teacher who took one GB grade 1-5 lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
     And the teacher has not made a quiz from that lesson
     When the send hour passes and the teacher-nudge sweep runs
     Then the bot offers a short quiz on that lesson's topic, with the buttons "Make the quiz" and "No thanks"
@@ -691,6 +692,16 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lp-quiz-offer-612 classesFor: niete_lp612_deliveries (every surface) on the cohort day, newest lesson per
     # class, never an assessment, a held lesson or one an lp612 quiz already covers; acceptLp612 starts the quiz
     # through lp612.provider with via lp_offer. Off with QUIZ_LP612_SOURCE. No new message, string or button.
+
+  # ADDED 2026-11-24 (bd-97daxo.34.9, q250: Amena "GB only for now"). @no-mock-driver as @L62.
+  # Executed in tests/quiz/lp-quiz-offer-612.test.js ("LP_QUIZ_OFFER_ICT612 not on").
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L65
+  Scenario: An ICT Grades 6-12 teacher is not offered the afternoon quiz while ICT 6-12 is switched off
+    Given LP_QUIZ_OFFER_ICT612 is not on
+    And the NIETE bot chat is open on a teacher who took one ICT Grades 6-12 lesson plan today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then no afternoon quiz offer arrives for that lesson
+    And "/quiz" still lists that lesson when QUIZ_LP612_SOURCE is on
 
   @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P2 @L63
   Scenario: A Grades 6-12 lesson already made into a quiz is not offered again
