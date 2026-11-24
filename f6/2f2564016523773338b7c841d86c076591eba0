@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T07:07:34Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"f62f25640165","branch":"bd-97daxo.34.9-stg","user":""}
+{"ts":"2026-11-24T07:08:30Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"f62f25640165","branch":"bd-97daxo.34.9-stg","user":""}
