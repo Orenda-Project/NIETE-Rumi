@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T17:54:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,coaching spec_sync=true","sha":"9aa8d415c1cd","branch":"bd-ptl6x9.13.1-31611","user":""}
+{"ts":"2026-11-24T17:54:24Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan,coaching spec_sync=true","sha":"9aa8d415c1cd","branch":"bd-ptl6x9.13.1-31611","user":""}
