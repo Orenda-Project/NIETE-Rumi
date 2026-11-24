@@ -2,3 +2,4 @@
 {"ts":"2026-11-24T03:18:23Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"b909d30d7110","branch":"bd-8267ps-main","user":""}
 {"ts":"2026-11-24T03:18:34Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"b909d30d7110","branch":"bd-8267ps-main","user":""}
 {"ts":"2026-11-24T03:18:41Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (main pick of #5735/#5741; behind app_settings.quiz_offer_auto, off by default)","sha":"b909d30d7110","branch":"bd-8267ps-main","user":""}
+{"ts":"2026-11-24T03:18:42Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2c1ba0fa-c162-4f18-87bd-d4dae1296c45","sha":"b909d30d7110","branch":"bd-8267ps-main","user":""}
