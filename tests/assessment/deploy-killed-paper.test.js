@@ -368,8 +368,9 @@ describe('worker: SIGTERM and an in-flight paper', () => {
   test('a paper that joined after Phase 0 has its row handed back before its message at the grace deadline', async () => {
     seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating', updated_at: new Date().toISOString() });
     const w = new SQSCoachingWorker('w-term-6');
-    // As on prod: another job was running, so Phase 1 waits out its 30 s grace.
-    w.activeJobs.set('rh-analysis', { promise: pending().promise, sourceQueue: 'main', jobType: 'analysis' });
+    // As on prod: another job was running, so Phase 1 waits out its 30 s grace. A transcription: an analysis is
+    // finished on shutdown since bd-3itk00 (up to 8 min), so it would hold shutdown well past this test's window.
+    w.activeJobs.set('rh-transcription', { promise: pending().promise, sourceQueue: 'main', jobType: 'transcription' });
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(1000);
     // In flight before shutdown could see it (a batch already returned when SIGTERM arrived).
