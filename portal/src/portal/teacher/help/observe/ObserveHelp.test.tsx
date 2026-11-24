@@ -8,8 +8,10 @@ import { MemoryRouter } from 'react-router-dom';
  *
  *   Given the v6 switch is off      no "?" in the header of an Observe or observation screen
  *   Given it is on                  the "?" sits at the end of the header (never on the recording screen)
- *   When she taps it                the tray: the how-to film (or "Video coming soon") and Indicator guide with
- *                                   Grades 1–5 and Grades 6–12; inside a visit its own band comes first, "This visit"
+ *   When she taps it                the tray: the how-to film once one is up (no film: nothing in its place, queue
+ *                                   #249, the operator 24 Nov: "Remove the Video coming soon text from the manual
+ *                                   guide") and Indicator guide with Grades 1–5 and Grades 6–12; inside a visit its own
+ *                                   band comes first, "This visit"
  *   When she opens a band           its indicators from Dr Rifat Yasmeen's FICO Observer Manual (the operator 23 Nov:
  *                                   "This is the artifact we want to attach as a guide for fico in the ?"): her name and
  *                                   a link to the full manual at that part, a chip per code first, a search under them;
@@ -130,11 +132,13 @@ describe('the switch', () => {
 });
 
 describe('the tray', () => {
-  it('shows the film slot ("Video coming soon" while none is up) and both bands, 1–5 first', async () => {
+  it('no film up: no film slot and no "Video coming soon" (queue #249), just both bands, 1–5 first', async () => {
     page();
     const tray = await openTray();
     expect(within(tray).getByText('How to observe')).toBeTruthy();
-    expect(within(tray).getByTestId('help-coming-soon')).toBeTruthy();
+    expect(within(tray).queryByTestId('help-coming-soon')).toBeNull();
+    expect(within(tray).queryByText(/coming soon/i)).toBeNull();
+    expect(within(tray).queryByTestId('help-watch')).toBeNull();
     const rows = within(tray).getAllByTestId('observe-guide-row');
     expect(rows.map((r) => r.getAttribute('data-band'))).toEqual(['1-5', '6-12']);
     expect(rows[0].textContent).toContain('FICO v6 · 17 indicators');
@@ -148,6 +152,33 @@ describe('the tray', () => {
     const rows = within(tray).getAllByTestId('observe-guide-row');
     expect(rows.map((r) => r.getAttribute('data-band'))).toEqual(['6-12', '1-5']);
     expect(within(rows[0]).getByText('This visit')).toBeTruthy();
+  });
+
+  it('a principal (principalFlowV2), and help videos on with no observe film yet: still no film slot', async () => {
+    cfg.features = { principalFlowV2: true, helpVideos: true };
+    helpAnswer = { success: true, seen: true, videos: [{ feature: 'lessons', lang: 'en', title: 'Lessons', url: 'https://cdn.example/help/v1/lessons-en.mp4', urlSmall: null, poster: null, seconds: 60, bytes: 3_000_000 }] };
+    page();
+    const tray = await openTray();
+    await waitFor(() => expect(within(tray).getByTestId('help-all')).toBeTruthy());
+    expect(within(tray).queryByTestId('help-coming-soon')).toBeNull();
+    expect(within(tray).queryByText(/coming soon/i)).toBeNull();
+    expect(within(tray).queryByTestId('help-watch')).toBeNull();
+    expect(within(tray).getAllByTestId('observe-guide-row')).toHaveLength(2);
+  });
+
+  it('in Urdu, no film up: no "ویڈیو جلد آئے گی"', async () => {
+    if (!i18n.isInitialized) await i18n.init({ lng: 'en', resources: {} });
+    await act(async () => { await i18n.changeLanguage('ur'); });
+    try {
+      page();
+      const tray = await openTray();
+      expect(within(tray).getByText('مشاہدہ کیسے کریں')).toBeTruthy();
+      expect(within(tray).queryByTestId('help-coming-soon')).toBeNull();
+      expect(within(tray).queryByText('ویڈیو جلد آئے گی')).toBeNull();
+      expect(within(tray).getAllByTestId('observe-guide-row')).toHaveLength(2);
+    } finally {
+      await act(async () => { await i18n.changeLanguage('en'); });
+    }
   });
 
   it('plays the observe film when one is up for her', async () => {
