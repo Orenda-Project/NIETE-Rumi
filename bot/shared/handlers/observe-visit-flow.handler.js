@@ -1941,6 +1941,9 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         from_phone: oldPhone, to_phone: phone, case: verdict,
         retired_user_id: verdict === E.CASE_SHELL && target ? target.id : null,
       });
+      // The accounts retired into hers follow her number, in this flow's own words (never throws).
+      await require('../services/identity/repoint-retired').repointRetired({ userId: pickedUserId, toPhone: phone },
+        (detail) => _editAudit(userId, person, 'edit_phone', detail));
       return _tdone('Moved',
         `*${person.name || 'They'}* are now on ${phone}. Their history moved with them.`);
     }
