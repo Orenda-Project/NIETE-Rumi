@@ -15,12 +15,20 @@ jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 
 const mockRows = { value: [] };
 const mockFail = { on: false };
+// bd-ce6xwt: users.is_test_user per id (absent = null, as for most real accounts), and a failing users read.
+const mockTestUsers = { ids: new Set(), fail: false };
 jest.mock('../../bot/shared/config/supabase', () => ({
   from: jest.fn((table) => {
     const q = {
       select: () => q,
-      eq: () => {
-        if (table === 'users') return { maybeSingle: async () => ({ data: { region: 'sihala' }, error: null }) };
+      eq: (_col, id) => {
+        if (table === 'users') {
+          return {
+            maybeSingle: async () => (mockTestUsers.fail
+              ? { data: null, error: { message: 'users read failed' } }
+              : { data: { region: 'sihala', is_test_user: mockTestUsers.ids.has(id) ? true : null }, error: null }),
+          };
+        }
         return Promise.resolve(mockFail.on ? { data: null, error: { message: 'down' } } : { data: mockRows.value, error: null });
       },
     };
@@ -38,6 +46,8 @@ const row = (value) => { mockRows.value = [{ key: 'skip_recording_duplicate_chec
 beforeEach(() => {
   mockRows.value = [];
   mockFail.on = false;
+  mockTestUsers.ids = new Set();
+  mockTestUsers.fail = false;
   Switch._resetCache();
 });
 
@@ -73,4 +83,48 @@ test('no account id: the check stays', async () => {
   row('on');
   expect(await Switch.skipsCheck(null)).toBe(false);
   expect(await Switch.skipsCheck(undefined)).toBe(false);
+});
+
+// bd-ce6xwt — every test account (users.is_test_user = true) skips the check too, with no switch row. The
+// operator, 24 Nov 2026: test accounts are allowed duplicate recordings. The switch stays for an account that is
+// not marked test, and an explicit "off" for a test account's own id keeps the check for it.
+describe('test accounts (users.is_test_user) skip the check (bd-ce6xwt)', () => {
+  test('a test account skips it with no switch row', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    expect(await Switch.skipsCheck(TEST_COACH)).toBe(true);
+  });
+
+  test('a real account (is_test_user null or false) keeps the check', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    expect(await Switch.skipsCheck(OTHER_COACH)).toBe(false);
+  });
+
+  test('a test account skips it while the switch names other accounts only', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    row({ [`user:${OTHER_COACH}`]: 'on' });
+    expect(await Switch.skipsCheck(TEST_COACH)).toBe(true);
+  });
+
+  test('the switch still works for an account that is not marked test', async () => {
+    row({ [`user:${OTHER_COACH}`]: 'on' });
+    expect(await Switch.skipsCheck(OTHER_COACH)).toBe(true);
+  });
+
+  test('"off" for a test account\'s own id keeps the check for it', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    row({ [`user:${TEST_COACH}`]: 'off' });
+    expect(await Switch.skipsCheck(TEST_COACH)).toBe(false);
+  });
+
+  test('"off" for everyone ("*") does not stop a test account skipping it', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    row({ '*': 'off' });
+    expect(await Switch.skipsCheck(TEST_COACH)).toBe(true);
+  });
+
+  test('a failed users read keeps the check, and never throws', async () => {
+    mockTestUsers.ids.add(TEST_COACH);
+    mockTestUsers.fail = true;
+    await expect(Switch.skipsCheck(TEST_COACH)).resolves.toBe(false);
+  });
 });
