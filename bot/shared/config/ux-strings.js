@@ -1018,6 +1018,21 @@ const UX_STRINGS = {
   // button 15 en / 14 ur code points.
   principalAppBodyObserve: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
   principalAppButtonObserve: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
+  // A coach on the portal's HITL switches asking to observe (app-redirect 2h): the app's button, then ONE reply button
+  // that carries on here on WhatsApp. The operator, 24 Nov: "they should still [get] the portal link, but a button to
+  // still continue thru the whatsapp just in case something breaks." A message carries a link button OR reply buttons,
+  // never both, so these are two messages. The app line and its button are the reviewed nudge/principal words; the
+  // WhatsApp line is the nudge's second sentence with the tap in place of "reply 1"; the WhatsApp button is the
+  // portal's own "Continue on WhatsApp" (portal coach/observe/copy.ts continueOnWhatsApp). Urdu in the bot's own first
+  // person (feminine), WhatsApp's two Urdu words and the final verb joined with U+00A0. Buttons 15/20 en, 14/16 ur code
+  // points (Meta: 20).
+  coachObserveAppBody: { en: 'Take your observation in the app.', ur: 'اپنا مشاہدہ ایپ میں لیں۔' },
+  coachObserveAppButton: { en: 'Open in the app', ur: 'ایپ میں کھولیں' },
+  coachObserveWhatsappBody: {
+    en: "If the app gives trouble, tap below and I'll carry on here on WhatsApp.",
+    ur: 'اگر ایپ میں مسئلہ ہو تو نیچے دبائیں، میں یہیں واٹس ایپ پر جاری رکھوں گی۔',
+  },
+  coachObserveWhatsappButton: { en: 'Continue on WhatsApp', ur: 'واٹس ایپ پر کریں' },
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
