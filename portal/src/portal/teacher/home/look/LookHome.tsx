@@ -113,6 +113,8 @@ export interface LookHomeProps {
   role?: ReactNode;
   /** bd-33wxxi.2 — a principal on the principal app: the "My school" card, after the strip and before the tiles. */
   school?: ReactNode;
+  /** bd-v04lsh — a principal on the principal app: her Principal Training tile, after the features' tiles. */
+  extraTile?: ReactNode;
 }
 
 /**
@@ -125,7 +127,7 @@ export interface LookHomeProps {
  * the features (operator, 31 Oct 2026, mockup v10 option A: "The Coach 31/40 strip was not supposed to be removed").
  * English fits one 390x844 screen with it; in Urdu the last tile row's names sit under the phone menu.
  */
-export function LookHome({ tiles, data, order, onGo, role, school }: LookHomeProps) {
+export function LookHome({ tiles, data, order, onGo, role, school, extraTile }: LookHomeProps) {
   const C = useCopy(TEACHER_FRAME);
   const H = useCopy(HOME_CARD);
   const lang = useLang();
@@ -202,7 +204,7 @@ export function LookHome({ tiles, data, order, onGo, role, school }: LookHomePro
         <>
           {school ? <div data-testid="home-my-school" className={REVEAL}>{school}</div> : null}
           {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
-          <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
+          <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} extra={extraTile} />
           {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
           <TopicPaperCard />
           <ClassLinkCard />
