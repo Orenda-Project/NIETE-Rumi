@@ -799,7 +799,7 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       // coach on the portal's HITL switches (app-redirect 2h): a coach's tap starts today's WhatsApp /observe; anyone
       // else gets the app again, never the WhatsApp flow. false only for an id that is not this button.
       if (user && buttonId.startsWith('coach_app_wa:')) {
-        const { handleContinueButton } = require('./shared/services/observe/coach-observe-continue');
+        const { handleContinueButton } = require('./shared/services/observe/coach-observe-continue-tap');
         const { getUserLanguage } = require('./shared/utils/language-cache');
         let language;
         try { language = await getUserLanguage(user.id); } catch (_) { language = undefined; }
