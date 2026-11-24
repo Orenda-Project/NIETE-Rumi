@@ -1,0 +1,3 @@
+{"ts":"2026-11-24T06:14:16Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"9104042af71f","branch":"bd-97daxo.34.15-00159","user":""}
+{"ts":"2026-11-24T06:14:23Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"9104042af71f","branch":"bd-97daxo.34.15-00159","user":""}
+{"ts":"2026-11-24T06:14:46Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"6c551643-b116-4a68-9f2f-c0529c1f857e","sha":"9104042af71f","branch":"bd-97daxo.34.15-00159","user":""}
