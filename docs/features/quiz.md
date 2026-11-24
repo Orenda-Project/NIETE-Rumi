@@ -38,6 +38,16 @@ attendance setup), since that's who the quiz is delivered to.
 `quizzes`, `quiz_questions`, `quiz_sessions` (one per student), and `quiz_answers` (see
 [infrastructure/supabase/00_complete-schema.sql](../../infrastructure/supabase/00_complete-schema.sql)).
 
+### Anchor questions (switch `quiz_anchor_items`, off by default)
+
+So a class's change on a skill can be measured on the *same* question, the day-3 retest
+(`quiz_slo_retest_enabled`) can ask up to two of the original quiz's questions again, word for word, in its
+last slots (one per SLO first; never a picture or pick-several question). The retest records them in
+`quizzes.meta.anchor_items` as `{key, external_id, from_question_id}`; `key` is a content hash that ignores
+which letter each option sits under, so analysis compares answers on `key` across quizzes and classes. Only
+JSON `true` turns it on; it needs the retest switch on too. The evening round is not touched. Code:
+`bot/shared/services/quiz/quiz-anchors.js`.
+
 ## Related
 
 - [A/B testing](../../.claude/skills/ab-testing/SKILL.md) — quiz copy/variants can be optimised with the bandit.
