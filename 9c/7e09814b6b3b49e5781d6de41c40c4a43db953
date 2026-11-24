@@ -3,3 +3,4 @@
 {"ts":"2026-11-24T02:45:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"9c7e09814b6b","branch":"bd-8267ps-stg","user":""}
 {"ts":"2026-11-24T02:46:01Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (staging pick of #5735; behind app_settings.quiz_offer_auto, off by default)","sha":"9c7e09814b6b","branch":"bd-8267ps-stg","user":""}
 {"ts":"2026-11-24T02:46:25Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (staging pick of #5735; behind app_settings.quiz_offer_auto, off by default)","sha":"9c7e09814b6b","branch":"bd-8267ps-stg","user":""}
+{"ts":"2026-11-24T02:46:25Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"2c1ba0fa-c162-4f18-87bd-d4dae1296c45","sha":"9c7e09814b6b","branch":"bd-8267ps-stg","user":""}
