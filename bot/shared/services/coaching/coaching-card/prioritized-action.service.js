@@ -26,6 +26,7 @@ function extractIndicators(analysis) {
     for (const [areaKey, area] of Object.entries(analysis.areas)) {
       if (!area?.indicators) continue;
       for (const ind of area.indicators) {
+        if (ind.score === null || ind.score === undefined) continue; // bd-b8fsm: never "null/3"
         indicators.push({ name: ind.name, score: ind.score, maxScore: 3, areaName: areaKey, id: ind.id });
       }
     }
@@ -36,6 +37,7 @@ function extractIndicators(analysis) {
     for (const [areaKey, area] of Object.entries(analysis.areas)) {
       if (!area?.elements) continue;
       for (const el of area.elements) {
+        if (el.holistic_score === null || el.holistic_score === undefined) continue; // bd-b8fsm
         indicators.push({ name: el.name, score: el.holistic_score, maxScore: 5, areaName: areaKey, id: `E${el.id}` });
       }
     }
