@@ -21,6 +21,8 @@ jest.mock('../../bot/shared/services/lp612-pagetruth.service', () => ({
 jest.mock('../../bot/shared/storage/r2', () => ({ uploadBuffer: (...a) => mockUploadBuffer(...a) }));
 jest.mock('../../bot/shared/services/lp612-serving.service', () => ({ deliverRender: (...a) => mockDeliverRender(...a) }));
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendMessage: (...a) => mockSendMessage(...a) }));
+const mockRecordDelivery = jest.fn().mockResolvedValue(true);
+jest.mock('../../bot/shared/services/lp612-deliveries.store', () => ({ record: (...a) => mockRecordDelivery(...a) }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('fs', () => ({
@@ -170,5 +172,25 @@ describe('idempotency and failure', () => {
     const out = await Worker.process(JOB);
     expect(out.status).toBe('failed');
     expect(update('failed').payload.error_code).toBe('SEGMENT_MISSING');
+  });
+});
+
+// bd-97daxo.34.15: a teacher waiting in the app is sent nothing, but the lesson is hers: record it, as ICT 6-12 does.
+describe('an app waiter', () => {
+  const APPW = { user_id: 'u-3', phone: null, ui_lang: 'ur', correlation_id: 'c-3', asked_at: '2026-11-24T05:00:00Z', surface: 'portal' };
+  test('is recorded as a portal delivery and sent nothing', async () => {
+    happyReads();
+    mockRpc.mockResolvedValue({ data: [APPW], error: null });
+    const out = await Worker.process(JOB);
+    expect(out.status).toBe('ready');
+    expect(mockDeliverRender).not.toHaveBeenCalled();
+    expect(mockRecordDelivery).toHaveBeenCalledWith({
+      userId: 'u-3', renderId: null, segmentId: SEG.segment_id, lang: 'en', templateVersion: 'gb_k5_v10', surface: 'portal',
+    });
+  });
+  test('a WhatsApp waiter is not recorded here (deliverRender does it)', async () => {
+    happyReads();
+    await Worker.process(JOB);
+    expect(mockRecordDelivery).not.toHaveBeenCalled();
   });
 });
