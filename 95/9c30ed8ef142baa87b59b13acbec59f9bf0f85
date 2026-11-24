@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T14:12:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"959c30ed8ef1","branch":"bd-97daxo.34.16-29294","user":""}
+{"ts":"2026-11-24T14:34:52Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (only the 15:00 quiz offer nudge changed; no coaching screen or message; same trailer is on 959c30ed8e)","sha":"959c30ed8ef1","branch":"bd-97daxo.34.16-29294","user":""}
