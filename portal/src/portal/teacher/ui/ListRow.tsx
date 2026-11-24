@@ -47,6 +47,12 @@ export interface ListRowProps {
   className?: string;
   /** bd-s42dye.6 — a handle for the screen's tests (the coach library's rows). */
   testId?: string;
+  /**
+   * Queue #256 — the Digital Coach's pick among the rows (a SelectField's `dcValue`): the row is edged purple, as
+   * RatingScale's radio look marks the Digital Coach's level, and this word ("Digital Coach") is drawn at its end and read
+   * with the row. Absent: as before.
+   */
+  dcTag?: string;
 }
 
 const ICON: Record<ListRowIcon, ReactElement> = {
@@ -77,7 +83,7 @@ const URDU_NUMBER_LINE = { lineHeight: 1.4 } as const;
 
 export function ListRow({
   prefix = '', number = '', icon, glyph, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
-  copy, className, testId,
+  copy, className, testId, dcTag,
 }: ListRowProps) {
   const bidi = useBidi();
   const ur = useLang() === 'ur';
@@ -94,6 +100,12 @@ export function ListRow({
       ? cn('py-2.5 pe-3.5 ps-3', !first && ROW_DIVIDER, selected ? ROW_SELECTED : 'bg-white')
       : selected ? cn(CARD_SELECTED, 'py-[9px] pe-[13px] ps-[11px]') : cn(CARD, 'py-2.5 pe-3.5 ps-3'),
     locked && 'opacity-[.55]',
+    // The Digital Coach's row: a purple edge. Picked as well: ROW_SELECTED's start bar and the edge in ONE shadow, in both
+    // directions (its rtl: bar would otherwise replace the edge on an Urdu screen).
+    dcTag && variant === 'row' && (selected
+      ? 'shadow-[inset_3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0] rtl:shadow-[inset_-3px_0_0_#33374a,inset_0_0_0_2px_#6e52e0]'
+      : 'shadow-[inset_0_0_0_2px_#6e52e0]'),
+    dcTag && variant !== 'row' && 'border-[#6e52e0] shadow-[0_0_0_3px_#e9e3ff]',
     className,
   );
 
@@ -144,9 +156,11 @@ export function ListRow({
     );
   }
 
+  const dcEl = dcTag ? <span data-testid="dc-tag" className="shrink-0 text-[12px] font-bold text-[#6e52e0]">{dcTag}</span> : null;
   const end = (
     <>
       {chipEl}
+      {dcEl}
       {selected ? (
         <span role="img" aria-label={words.selected} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white">
           <Check className="h-4 w-4" strokeWidth={3.2} aria-hidden="true" />
