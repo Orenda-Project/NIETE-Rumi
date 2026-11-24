@@ -187,6 +187,13 @@ describe('Finish', () => {
       [HER, REC, 'repoint', RETIRED],
     ]);
     expect(ours[1].detail).toMatchObject({ from_phone: fx(247), to_phone: fx(1), supersedes: 'earlier-1' });
+    // The retired account leaves the coach's picker first; the re-point (reads, then rows) comes after it.
+    const order = mockDb.writes.map((w) => {
+      if (w.table === 'users' && w.op === 'update' && w.patch && w.patch.school_id === null) return 'school';
+      if (w.table === 'leader_roster_audit' && w.rows && w.rows[0].detail.case === 'repoint') return 'repoint';
+      return null;
+    }).filter(Boolean);
+    expect(order).toEqual(['school', 'repoint']);
   });
 
   const reviewCases = [

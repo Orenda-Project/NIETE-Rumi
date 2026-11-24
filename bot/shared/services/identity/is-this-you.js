@@ -214,11 +214,11 @@ async function decide(out, { userId, stored, itu, signatureOk, startedAt }) {
   }
   await audit(db, me, c, 'edit_phone', { ...C.moveDetail(c.phone_number, me.phone_number, move), school_id: itu.schoolId,
     ...(failedStep ? { failed_step: failedStep } : {}) });
-  // The accounts retired into the record follow it onto her number, as this claim's rows (never throws).
-  await require('./repoint-retired').repointRetired({ userId: c.id, toPhone: me.phone_number },
-    (d) => audit(db, me, c, 'edit_phone', d));
   // The retired account keeps its school otherwise, and the coach's picker (patch-resolver) does not skip retired rows.
   await db.from('users').update({ school_id: null }).eq('id', me.id).eq('deleted_by', VIA);
+  // Then the accounts retired into the record follow it onto her number, as this claim's rows (never throws).
+  await require('./repoint-retired').repointRetired({ userId: c.id, toPhone: me.phone_number },
+    (d) => audit(db, me, c, 'edit_phone', d));
   Object.assign(out, { ownerId: c.id, identity: 'claimed', why: null });
 }
 

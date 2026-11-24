@@ -71,6 +71,21 @@ describe('planRepoints: which retired accounts follow her', () => {
     expect(plan([row('a2', R2, HER, OLD, T1), row('a1', R1, HER, ELSEWHERE, T1)], { [R1]: true, [R2]: true }))
       .toEqual([repoint(R1, ELSEWHERE, 'a1'), repoint(R2, OLD, 'a2')]);
   });
+
+  test('an account retired into one of her retired accounts follows her too (the chain is followed by id)', () => {
+    // R2 was folded into R1 (a shell), and R1 later into her: both are hers now.
+    expect(plan([row('a1', R1, HER, OLD, T1), row('a0', R2, R1, OLD, T1)], { [R1]: true, [R2]: true }))
+      .toEqual([repoint(R1, OLD, 'a1'), repoint(R2, OLD, 'a0')]);
+  });
+
+  test('a chain that reaches a live account ends there: not hers', () => {
+    expect(plan([row('a0', R2, R1, OLD, T1)], { [R1]: false, [R2]: true })).toEqual([]);
+  });
+
+  test('two rows at the same instant: the smaller id is the latest, as the merge tool orders them', () => {
+    expect(plan([row('b', R1, SOMEONE, ELSEWHERE, T1), row('a', R1, HER, OLD, T1)], { [R1]: true }))
+      .toEqual([repoint(R1, OLD, 'a')]);
+  });
 });
 
 describe('repointRetired: read, decide, write through the caller', () => {
@@ -101,6 +116,13 @@ describe('repointRetired: read, decide, write through the caller', () => {
     db.throwOn = (t) => t === 'leader_roster_audit';
     await expect(run()).resolves.toEqual({ planned: 0, repointed: 0, skipped: 'flag_off' });
     expect(written).toEqual([]);
+  });
+
+  test('a chain: the account retired into her retired account is found and re-pointed too', async () => {
+    db.tables.users.push({ id: R2, phone_number: `merged:${R2}`, deleted_at: T1 });
+    db.tables.leader_roster_audit.push(row('a0', R2, R1, OLD, T1));
+    await expect(run()).resolves.toEqual({ planned: 2, repointed: 2 });
+    expect(written).toEqual([repoint(R1, OLD, 'a1'), repoint(R2, OLD, 'a0')]);
   });
 
   test('no retired account names her: nothing written', async () => {
