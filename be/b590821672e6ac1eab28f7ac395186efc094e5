@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T20:45:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"beb590821672","branch":"bd-qyi45h.17-52534","user":""}
+{"ts":"2026-11-24T20:45:43Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"beb590821672","branch":"bd-qyi45h.17-52534","user":""}
