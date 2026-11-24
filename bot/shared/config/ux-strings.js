@@ -4727,14 +4727,14 @@ const UX_STRINGS = {
     en: 'Your debrief recording did not reach us: WhatsApp could not pass the file on. Your visit is safe and still waiting for it.\n\n'
       + 'Please send it again as a *Document*: tap 📎 → *Document*, pick the recording and tap *Send*. '
       + 'Or record the talk here with the 🎙 button.',
-    ur: 'آپ کی ڈی بریف کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
+    ur: 'آپ کی ڈی بریف کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔ '
       + 'یا یہیں 🎙 کا بٹن دبا کر گفتگو ریکارڈ کریں۔',
   },
   inboundMediaObserveLesson: {
     en: 'Your lesson recording did not reach us: WhatsApp could not pass the file on. Your visit is safe and still waiting for it.\n\n'
       + 'Please send it again as a *Document*: tap 📎 → *Document*, pick the recording and tap *Send*.',
-    ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
+    ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔',
   },
 

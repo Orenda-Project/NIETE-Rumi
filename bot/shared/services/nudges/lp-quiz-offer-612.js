@@ -26,9 +26,11 @@ const { lp612SourceOn } = require('../quiz/quiz-sources');
 const WINDOW_DAYS = 4;
 const KEY_PREFIX = 'lp612_';
 
-// Lazy: the offer service requires this module, and the provider requires the offer service.
-const Offer = () => require('./lp-quiz-offer.service');
+// The offer's rules come from their own module, not the offer service, which requires this one.
+const offer = require('./lp-quiz-offer-rules');
 const Provider = () => require('../quiz/providers/lp612.provider');
+// A teacher's keyed reference for log lines, never the raw id (log-raw-ids gate).
+const tkOf = (uid) => { try { return uid ? require('../quiz/web-quiz-kid').tk(uid) : null; } catch (_) { return null; } };
 
 /**
  * The day's 6-12 classes per teacher. A teacher who took a 6-12 lesson that cannot be offered is
@@ -38,7 +40,6 @@ const Provider = () => require('../quiz/providers/lp612.provider');
 async function classesFor(nudgeDate) {
   const out = new Map();
   if (!lp612SourceOn()) return out;
-  const offer = Offer();
   const provider = Provider();
   const upper = PktTime.atPkt(nudgeDate, offer.cutoffHour(), 0);
   const lower = new Date(PktTime.atPkt(nudgeDate, 0, 0).getTime() - WINDOW_DAYS * 86400000);
@@ -107,7 +108,7 @@ async function acceptLp612({ row, cls, from, user, language, reply }) {
   }
   if (out.quizId) await Store.claimQuiz(row.id, out.quizId);
   logEvent('lp_quiz_offer.accepted_612', {
-    nudgeId: row.id, userId: row.user_id, class: cls.key, outcome: out.outcome, quizId: out.quizId || null,
+    nudgeId: row.id, tk: tkOf(row.user_id), class: cls.key, outcome: out.outcome, quizId: out.quizId || null,
   });
   return true;
 }
