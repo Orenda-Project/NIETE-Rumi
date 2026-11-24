@@ -1,9 +1,10 @@
 'use strict';
 /**
  * hasLiveStandingLink(classId)(for the offers lane; required from web-quiz-class-link.js like
- * roundsReadyForPhone): true only when web_quiz_class_link (with its parents) AND web_quiz_evening_round are on and the
- * class has a live class_links row (not revoked, not expired). False on anything else, never throws, one class_links
- * read. Faked boundaries: Supabase (in memory, filters applied), the loggers.
+ * roundsReadyForPhone): true only when web_quiz_class_link (with its parents) AND web_quiz_evening_round are on, the
+ * class has a live class_links row (not revoked, not expired), AND the class is inside web_quiz_class_link_canary (as
+ * the evening round's writer requires: outside it no round is ever written). False on anything else, never throws, one
+ * class_links read. Faked boundaries: Supabase (in memory, filters applied), the loggers.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -20,10 +21,14 @@ const ON = (k) => ({ key: k, value: true });
 const ALL = [ON('web_quiz_challenge'), ON('web_quiz_challenge_v2'), ON('web_quiz_class_link'), ON('web_quiz_evening_round')];
 const LIVE = { code: 'K7Q2MXTRAB', class_id: CLASS, teacher_id: TEACHER, term_code: '2026-27b', expires_at: '2099-03-31T18:59:59Z', revoked_at: null };
 
-function seed({ settings = ALL, links = [LIVE] } = {}) {
-  Object.assign(supabase, makeFake({ app_settings: settings, class_links: links }));
+const CANARY_KEY = 'web_quiz_class_link_canary';
+// canary: the web_quiz_class_link_canary row's value (default {"all": true}: every class); null = no row (no class).
+function seed({ settings = ALL, links = [LIVE], canary = { all: true } } = {}) {
+  const rows = canary === null ? settings : [...settings, { key: CANARY_KEY, value: canary }];
+  Object.assign(supabase, makeFake({ app_settings: rows, class_links: links }));
   require('../../shared/services/quiz/web-quiz-class-link-flags')._resetCache();
   require('../../shared/services/quiz/web-quiz-evening-round-flags')._resetCache();
+  require('../../shared/services/quiz/web-quiz-class-link-canary')._resetCache();
 }
 const CL = () => require('../../shared/services/quiz/web-quiz-class-link');
 
@@ -39,6 +44,23 @@ test('both switches on and a live link for the class: true, with ONE class_links
   await expect(CL().hasLiveStandingLink(CLASS)).resolves.toBe(true);
   supabase.from = real;
   expect(tables.filter((t) => t === 'class_links')).toHaveLength(1);
+});
+
+test.each([
+  ['the canary lists another class only', { class_ids: [OTHER] }],
+  ['the canary row is missing (no class)', null],
+  ['the canary lists nothing ({})', {}],
+])('a live link, but the class is outside the class-link canary (%s): false', async (_, canary) => {
+  seed({ canary });
+  await expect(CL().hasLiveStandingLink(CLASS)).resolves.toBe(false);
+});
+
+test.each([
+  ['the canary lists the class', { class_ids: [CLASS] }],
+  ['the canary is {"all": true}', { all: true }],
+])('a live link and the class inside the canary (%s): true', async (_, canary) => {
+  seed({ canary });
+  await expect(CL().hasLiveStandingLink(CLASS)).resolves.toBe(true);
 });
 
 test.each([
