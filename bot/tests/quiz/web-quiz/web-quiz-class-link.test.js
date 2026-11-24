@@ -457,7 +457,7 @@ describe('the teacher card and (j) the forward link', () => {
     const text = decodeURIComponent(out.replace(/^https:\/\/wa\.me\/\?text=/, ''));
     expect(out.startsWith('https://wa.me/?text=')).toBe(true);
     expect(text).toBe(`https://quiz.example.org/j/${code}?f=1`);
-    const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.quiz_forward_tap');
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap');
     expect(ev).toHaveLength(1);
     expect(ev[0][1]).toEqual({ ev_v: 2, w: 's', cls: 'clshash00000', share_code_id: null, surface: 'class_link', method: 'wa_me', origin: 'class_link', stale: false });
   });
@@ -465,7 +465,7 @@ describe('the teacher card and (j) the forward link', () => {
   test('Copy: logs quiz_forward_tap{method:copy} and goes back to the report with the card open', async () => {
     const out = await CL.forwardHref({ teacherId: T1, classId: C1, how: 'copy', reportBase: '/r/tok.sig' });
     expect(out).toBe(`/r/tok.sig?tab=class&cl_open=${C1}#class-link`);
-    const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.quiz_forward_tap');
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap');
     expect(ev).toHaveLength(1);
     expect(ev[0][1]).toEqual({ ev_v: 2, w: 's', cls: 'clshash00000', share_code_id: null, surface: 'class_link', method: 'copy', origin: 'class_link', stale: false });
   });
@@ -495,7 +495,7 @@ describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () 
     const r = await get(`/jlink/${tok}?class=${C1}&how=copy`);
     expect(r.status).toBe(303);
     expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class&cl_open=${C1}#class-link`);
-    const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.quiz_forward_tap');
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap');
     expect(ev.map((e) => e[1].method)).toEqual(['copy']);
   });
 
@@ -504,7 +504,7 @@ describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () 
     const r = await get(`/jlink/${tok}?class=${C1}&how=forward`);
     expect(r.status).toBe(302);
     expect(r.headers.get('location')).toBe(`https://wa.me/?text=${encodeURIComponent(`https://quiz.example.org/j/${db.class_links[0].code}?f=1`)}`);
-    expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.quiz_forward_tap').map((e) => e[1].method)).toEqual(['wa_me']);
+    expect(logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap').map((e) => e[1].method)).toEqual(['wa_me']);
     expect((await get(`/jlink/${tok}?class=${C2}&how=copy`)).status).toBe(404);
   });
 });
