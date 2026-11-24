@@ -176,6 +176,16 @@ async function handleRow(kind, row, handler, now) {
       `handler for ${kind} returned ${JSON.stringify(outcome)} — expected {sent} or {skipped}`,
     );
   } catch (error) {
+    // A handler that throws with `retryAt` (send-retry.js: the send never reached Meta) asks for one more try:
+    // the row goes back to pending, due then. If it cannot be handed back, it fails as before.
+    if (error && error.retryAt instanceof Date
+      && await store.defer(row.id, error.retryAt, error.retryContext || {}).catch(() => false)) {
+      const ctx = error.retryContext || {};
+      logEvent('teacher_nudges.retry', {
+        kind, nudgeId: row.id, userId: row.user_id, until: error.retryAt.toISOString(), tries: ctx.net_retries, code: ctx.net_error,
+      });
+      return 'deferred';
+    }
     logError('row failed', { kind, id: row.id, error: error.message });
     try {
       await store.markFailed(row.id, error);
