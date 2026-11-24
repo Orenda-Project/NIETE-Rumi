@@ -196,3 +196,19 @@ describe("6-12 (FICO-S): the same levels, the same Back", () => {
     expect(screen.queryByTestId("ff-sections")).toBeNull();
   });
 });
+
+/**
+ * bd-o15qnr.48 — the FICO-S form's chip read "FICO 6-12 v1.2 · FICO 6-12 · G7" on production (the operator's test
+ * account, 24 Nov): the tool's name again after the rubric label that already starts with it. Now the name shows only
+ * when the label does not already say it (FDE's "FDE v1 · Maths & Science tool · G7" is unchanged).
+ */
+describe("6-12 (FICO-S): the rubric chip says the rubric once", () => {
+  beforeEach(() => { L.getObservationDraft.mockResolvedValue(FICOS()); });
+
+  it("'FICO 6-12 v1.2 · G7', not 'FICO 6-12 v1.2 · FICO 6-12 · G7'", async () => {
+    renderPage();
+    const chip = await screen.findByTestId("rubric-label", undefined, { timeout: 8000 });
+    expect(chip).toHaveTextContent("FICO 6-12 v1.2 · G7");
+    expect(chip.textContent).not.toContain("· FICO 6-12 ·");
+  });
+});
