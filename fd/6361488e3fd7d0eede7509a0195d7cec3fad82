@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T14:50:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,training,lesson-plan,coaching,observe,attendance spec_sync=true","sha":"fd6361488e3f","branch":"bd-zrdvmi.60-staging","user":""}
+{"ts":"2026-11-24T14:50:54Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,coaching,observe,attendance owe their Gherkin","sha":"fd6361488e3f","branch":"bd-zrdvmi.60-staging","user":""}
