@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T05:14:23Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,language spec_sync=true","sha":"7bd04a31b66b","branch":"bd-kbo9h0.13-97219","user":"Mah Noor"}
+{"ts":"2026-11-24T05:18:22Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (cherry-pick of a sandbox commit already synced and driven there; promotion PR #5773)","sha":"7bd04a31b66b","branch":"bd-kbo9h0.13-97219","user":"Mah Noor"}
