@@ -85,6 +85,20 @@ describe('carryRows — the anchors take the last slots; the quiz keeps its leng
     expect(out.rows.filter((r) => r.question_text === anchors[0].question_text)).toHaveLength(1);
   });
 
+  // Live data (24 Nov, counts only): some quizzes share one generic stem across several questions with
+  // different options. Dropping every stem match cut a 6-question quiz to 5 or 3; the quiz keeps its length.
+  test('a generic stem shared by three authored questions does not shorten the quiz; an exact copy is still dropped', () => {
+    const stem = anchors[0].question_text;
+    const generic = authored.map((r, i) => ([1, 3, 5].includes(i) ? { ...r, question_text: stem } : r));
+    const out = A.carryRows('R1', generic, anchors);
+    expect(out.rows).toHaveLength(7);
+    expect(out.keep).toEqual([0, 1, 2, 3, 4]);
+    const copy = [...authored.slice(0, 6), { ...anchors[0], id: undefined, external_id: 'tq:R1:S1:7' }];
+    const out2 = A.carryRows('R1', copy, anchors);
+    expect(out2.keep).not.toContain(6);
+    expect(out2.rows.filter((r) => A.itemKey(r) === A.itemKey(anchors[0]))).toHaveLength(1);
+  });
+
   test('no anchors → rows untouched', () => {
     const out = A.carryRows('R1', authored, []);
     expect(out.rows).toBe(authored);
