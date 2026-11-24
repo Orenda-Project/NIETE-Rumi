@@ -1,7 +1,7 @@
 /**
  * bd-oxu2q — the two things the first live Uplift test call surfaced.
  *
- * Evidence, from the staging call at 11:30:26Z (caller 923365709413, 39s):
+ * Evidence, from the staging call at 11:30:26Z (caller: a staff test number, 39s):
  *
  *   assistant  Assalamu alaikum، میں نیت ہوں۔ بتائیے، آپ آج کس چیز میں مدد چاہتے ہیں؟
  *   caller     آ حظ لیسن گلو کے بارے میں بتائیں
@@ -92,7 +92,7 @@ describe('the session honours the configured language set', () => {
       speak: jest.fn(), cancel: jest.fn(), close: jest.fn(),
     };
     const session = new CallSession({
-      callId: 'C1', from: '923365709413', callerName: 'Ayesha',
+      callId: 'C1', from: '923001234567', callerName: 'Ayesha',
       createPeer: () => peer,
       createRealtime: (o) => { realtime._opts = o; return realtime; },
       createTts: () => tts,

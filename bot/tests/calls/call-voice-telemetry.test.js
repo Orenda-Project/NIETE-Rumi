@@ -34,7 +34,7 @@ function harness({ language = 'ur', ttsReady = true, withTts = true } = {}) {
     speak: jest.fn(), cancel: jest.fn(), close: jest.fn(),
   };
   const session = new CallSession({
-    callId: 'C1', from: '923365709413', callerName: 'A',
+    callId: 'C1', from: '923001234567', callerName: 'A',
     createPeer: () => peer,
     createRealtime: (o) => { realtime._opts = o; return realtime; },
     createTts: withTts ? () => tts : null,
@@ -119,7 +119,7 @@ describe('the engine carries the voice out to the audit hook', () => {
     // session in the same window it reads the transcript.
     const ended = [];
     const session = {
-      ctx: { from: '923365709413' },
+      ctx: { from: '923001234567' },
       getTranscript: () => [{ role: 'caller', text: 'hi' }],
       getVoiceUsed: () => 'uplift',
       close: jest.fn(),
@@ -132,7 +132,7 @@ describe('the engine carries the voice out to the audit hook', () => {
     });
     engine._sessions.set('CALL1', session);
 
-    await engine._onTerminate({ id: 'CALL1', from: '923365709413', duration: 39, status: 'COMPLETED' });
+    await engine._onTerminate({ id: 'CALL1', from: '923001234567', duration: 39, status: 'COMPLETED' });
 
     expect(ended).toHaveLength(1);
     expect(ended[0].voiceUsed).toBe('uplift');

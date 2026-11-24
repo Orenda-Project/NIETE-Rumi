@@ -151,7 +151,7 @@ const FeatureRegistrationService = require('../../bot/shared/services/feature-re
 const { getOrCreateUser } = require('../../bot/shared/database/bot-helpers');
 const { handleTextMessage } = require('../../bot/shared/handlers/text-message.handler');
 
-const FROM = '923365709413';
+const FROM = '923001234567';
 const MESSAGE = { id: 'wamid.oak776.test' };
 const REGISTRATION_FLOW_ID = '2010172012940869';
 
