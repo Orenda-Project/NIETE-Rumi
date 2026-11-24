@@ -478,6 +478,9 @@ webm that says Infinity is read to its end once), the time and the length, back 
 steps, kept on the phone for every player: `SPEED_KEY`). `testId?` names the whole card. The visit's class and debrief recordings, and the Debrief.
 `compact` (with `controls`, bd-o15qnr.47): one row (72px) until she plays it, its second line the recording's length when no `sub` is given; the
 bar, ±10 s and the speed open under it on her first tap and stay (`data-open`). The visit's class and debrief recordings.
+`startAt` (queue #251): `{ seconds, n }`, play from here: each new `n` moves the player to `seconds` and plays (a compact one opens); a seek
+asked before the length is known lands once it is. `onPlaying?(playing)` says when it starts or stops. The Feedback Form's time chips
+(coach/reports/lessonPlayer.tsx: "Class recording · From 37:46" under the Digital Coach's evidence).
 
 ### `RecordUploadPair`
 `recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
