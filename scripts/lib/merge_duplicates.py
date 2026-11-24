@@ -23,11 +23,19 @@ roster_hand_over_class.sql): the rows depending on it follow the twin, the class
 only the duplicate's row holds it, and the row is retired the app's way, then moves to the survivor like any other.
 What cannot follow (attendance or quizzes on the duplicate's list, a subject on both links) is left for a human.
 
+The governed analytics (ict_account_merges) credit a retired account's activity to whoever is live on its LATEST
+edit_phone row's to_phone: they follow the number, not the survivor. So a merge that moves or retires the account an
+earlier retired account points at (a re-merge: a freed number came back as a new account) also writes a newer row for
+that earlier account on the survivor's final number (repoints, repoint_rows), and a restore removes it again
+(audit_removal). repair_plan finds the retired accounts the mapping already misses, for the runner's --repoint mode.
+
 Everything here is pure except apply_plan(), which runs SQL steps in the caller's open transaction and is tested with
 a fake connection, as set_organization.apply_changes is.
 """
+import re
 
 REASON = "duplicate_merge"
+REPOINT = "repoint"
 VIA = "rm_duplicate_review"
 IDENTITY_TABLES = ("training_certificates", "training_assessment_attempts", "teacher_training_progress",
                    "coaching_sessions")
@@ -60,7 +68,7 @@ FOLD = {("class_teachers", "teacher_user_id"): {"follow": ("class_teacher_subjec
         ("student_lists", "user_id"): {"follow": ("students", "list_id", "id"), "flag": None, "same": ("class_id",),
                                        "lock": "class_id"}}
 # A commit is bound to the reviewed dry run's decisions; what the accounts own is activity (see check_plan_matches).
-DECISIONS = ("retire", "survivor", "audit", "fold")
+DECISIONS = ("retire", "survivor", "audit", "fold", REPOINT)
 ACTIVITY = ("move", "skip", "visits", "follow")
 
 
@@ -387,6 +395,109 @@ def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta
     return out
 
 
+def number_key(phone):
+    """The governed join key of a number (ict_account_merges: the last ten digits); None for no number or a freed one
+    (merged:/retired:/analytics:, which only a retired account holds)."""
+    if not phone or str(phone).startswith(NOT_LIVE_PREFIXES):
+        return None
+    digits = re.sub(r"\D", "", str(phone))
+    return digits[-10:] or None
+
+
+def current_account(latest, deleted, retired_id):
+    """The live account a retired account's history belongs to now: the survivor its latest edit_phone row names
+    (teacher_ext_id), followed through every account that was itself retired since, to a live one. None when the
+    chain breaks: an id that is no account, a retired account with no row of its own, or a loop.
+    latest: {retired id: {"survivor", "to_phone", "row_id"}}; deleted: {account id: True if soft-deleted}."""
+    seen, acct = {retired_id}, (latest.get(retired_id) or {}).get("survivor")
+    while acct is not None and acct not in seen and acct in deleted:
+        if not deleted[acct]:
+            return acct
+        seen.add(acct)
+        acct = (latest.get(acct) or {}).get("survivor")
+    return None
+
+
+def repoints(latest, deleted, accounts, final_phone):
+    """The earlier retired accounts a merge must re-point, as [{"retired", "from_phone", "supersedes"}] sorted by id:
+    each retired account outside this merge whose history is this teacher's (its chain ends at an account of this
+    merge) or whose latest row points at a number an account of this merge holds, unless that row already points at
+    the survivor's final number. accounts: {id: phone_number} for this merge's accounts as they are before it."""
+    held = {number_key(p) for p in accounts.values()} - {None}
+    final = number_key(final_phone)
+    out = []
+    for rid, row in sorted(latest.items()):
+        if rid in accounts:
+            continue
+        key = number_key(row.get("to_phone"))
+        ours = current_account(latest, deleted, rid) in accounts or (key is not None and key in held)
+        if ours and key != final:
+            out.append({"retired": rid, "from_phone": row.get("to_phone"), "supersedes": row.get("row_id")})
+    return out
+
+
+def repoint_rows(survivor_final, repointed, meta=None):
+    """One edit_phone row per re-pointed account, in audit_rows' shape with case 'repoint': newer than the row it
+    supersedes and on the survivor's final number, so the governed mapping credits the account to the survivor again.
+    Nothing moves with it."""
+    out = []
+    for r in repointed:
+        detail = {"via": VIA, "case": REPOINT, "retired_user_id": r["retired"], "from_phone": r.get("from_phone"),
+                  "to_phone": survivor_final["phone_number"], "supersedes": r.get("supersedes")}
+        if r.get("why"):
+            detail["why"] = r["why"]
+        detail.update(meta or {})
+        out.append({"action": "edit_phone", "actor_user_id": survivor_final["id"], "affected_leader_user_id": None,
+                    "teacher_ext_id": survivor_final["id"], "teacher_phone_e164": survivor_final["phone_number"],
+                    "teacher_name": survivor_final.get("name"), "detail": detail})
+    return out
+
+
+def audit_removal(pair, run_id, retired, repointed):
+    """A restore's audit steps, [(sql, params, expected rowcount, label)]: this run's row for each retired account,
+    then its re-point rows, each delete asserting how many rows it removes. A --repoint run retired nobody."""
+    steps = []
+    if retired:
+        steps.append(("DELETE FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
+                      "AND detail->>'retired_user_id' = ANY(%s)",
+                      [run_id, list(retired)], len(retired), f"{pair}: this run's audit rows removed"))
+    if repointed:
+        steps.append(("DELETE FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
+                      "AND detail->>'case' = 'repoint' AND detail->>'retired_user_id' = ANY(%s)",
+                      [run_id, list(repointed)], len(repointed), f"{pair}: this run's re-point rows removed"))
+    return steps
+
+
+def repair_plan(latest, deleted, holders, phones, keys, only=None):
+    """(plan, left) for --repoint: each retired account the governed mapping does not credit to its teacher's current
+    account (current_account) gets a re-point row on that account's number; plan items are {"retired", "account",
+    "from_phone", "supersedes", "why"}. left: [(retired id, reason)] for what the rows cannot decide.
+    holders: {retired id: [live accounts on its latest to_phone's key]}, the governed join as the database runs it;
+    phones: {live account id: phone_number}; keys: {number key: [live accounts with it]}; only: retired ids or None."""
+    plan, left = [], []
+    for rid, row in sorted(latest.items()):
+        if only is not None and rid not in only:
+            continue
+        if deleted.get(rid) is not True:
+            left.append((rid, "not a retired account"))
+            continue
+        acct, held = current_account(latest, deleted, rid), sorted(holders.get(rid) or [])
+        if acct is None:
+            left.append((rid, "the chain of merges breaks: no live account to credit"))
+            continue
+        if held == [acct]:
+            continue
+        key = number_key(phones.get(acct))
+        if key is None or keys.get(key) != [acct]:
+            left.append((rid, "its account's number is not held by that account alone"))
+            continue
+        why = ("no_number" if number_key(row.get("to_phone")) is None else "unheld" if not held
+               else "held_by_other" if len(held) == 1 else "held_by_several")
+        plan.append({"retired": rid, "account": acct, "from_phone": row.get("to_phone"),
+                     "supersedes": row.get("row_id"), "why": why})
+    return plan, left
+
+
 def phone_moves(survivor_old_phone, survivor_final_phone, retired_old_phones):
     """[(from, to), ...] for booked visits, which key on the phone string: the survivor's old number and every freed
     number move to her final number."""
@@ -397,11 +508,12 @@ def phone_moves(survivor_old_phone, survivor_final_phone, retired_old_phones):
     return out
 
 
-def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=None, folds=()):
+def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=None, folds=(), repoints=()):
     """The ids-only plan a reviewer reads and a commit is bound to: (pair, step, table, column, row, from, to).
     No phone number or password hash appears: a patched column is named, never its value.
     visits: [(row_id, label), ...] for booked visits that follow the number, the label saying which number.
-    folds: plan_folds' folds; a fold names its twin in 'to', and each row that follows it is a 'follow' row."""
+    folds: plan_folds' folds; a fold names its twin in 'to', and each row that follows it is a 'follow' row.
+    repoints: repoints(); each re-pointed account is a 'repoint' row naming the survivor in 'from'."""
     rows = {(pair, "retire", "users", "", rid, "", "") for rid in retired_ids}
     rows |= {(pair, "retire", "users", col, rid, "", "") for rid, cols in (gives_up or {}).items() for col in cols}
     rows |= {(pair, "survivor", "users", col, survivor_id, "", "") for col in patch}
@@ -416,6 +528,7 @@ def plan_rows(pair, survivor_id, patch, retired_ids, moves, visits, gives_up=Non
     rows |= {(pair, "visits", "observation_schedules", "teacher_ext_id", str(vid), label, survivor_id)
              for vid, label in visits}
     rows |= {(pair, "audit", "leader_roster_audit", "", rid, survivor_id, "") for rid in retired_ids}
+    rows |= {(pair, REPOINT, "leader_roster_audit", "", r["retired"], survivor_id, "") for r in repoints}
     return rows
 
 

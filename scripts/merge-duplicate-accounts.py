@@ -13,13 +13,20 @@ scripts/lib/merge_duplicates.py and are unit-tested in scripts/tests/test_merge_
     ... --sweep <the commit's before-image> --out <dir> [--commit --confirm-ref ...]
   RESTORE (undo, teacher by teacher, from a before-image; undo a sweep before the merge it followed):
     ... --restore <before-image> --out <dir> [--commit --confirm-ref ...]
+  REPOINT (repair: every retired account the governed mapping does not credit to its teacher's current account gets a
+  newer edit_phone row on that account's number; prod also needs MERGE_DUPES_PROD_GO=yes, --confirm-ref and the
+  reviewed --expect-csv; undo a re-point run before the merge it repaired):
+    ... --repoint --out <dir> [--only <retired id>,...] [--expect-csv <its dry run's plan CSV> --commit --confirm-ref ...]
 
 Per teacher, in a transaction of its own (so a teacher's chat waits seconds at most): re-read both accounts and all
 they own in one REPEATABLE READ snapshot; choose the survivor; re-check every guard and the reviewed decisions; move
 every row the retired account owns, by primary key (a row stays only where a unique index already holds the
 survivor's row for its key, or a sealed form keeps its observer); move booked visits with the number; retire the
 duplicate (soft delete, number freed); give the survivor the number in use with its portal login and WhatsApp
-session, and any fact it lacks; write one edit_phone audit row per retired account. A class link or class list the
+session, and any fact it lacks; write one edit_phone audit row per retired account, and a re-point row for each
+account an earlier merge retired that this one would leave credited to nobody (the governed ict_account_merges follows
+a retired account's latest to_phone, so a re-merge that moves or retires the earlier survivor strands it); then check,
+as the analytics read it, that every account it retired or re-pointed is the survivor's. A class link or class list the
 survivor already has for the same class is folded into the survivor's, as the app's class hand-over
 does, under the class's roster lock: its subjects or children follow, the class-teacher flag moves when only the
 duplicate's link holds it, and the duplicate's row retires, then moves like any other. Every write asserts its rowcount,
@@ -85,6 +92,24 @@ FOLD_COUNTS_OFF = {"student_lists": "student_lists l WHERE l.id = ANY(%s::uuid[]
                                     "FROM (SELECT count(*) FROM students s WHERE s.list_id = l.id AND s.is_active)"}
 # Every roster writer takes this per-class lock (roster_hand_over_class.sql and the other roster RPCs); a fold is a hand-over.
 ROSTER_LOCK = "SELECT pg_advisory_xact_lock(hashtextextended('roster_import:' || %s, 0))"
+# Each retired account's latest edit_phone row: the survivor it names, its to_phone and its id (md.current_account).
+LATEST_RETIRED = ("SELECT DISTINCT ON (detail->>'retired_user_id') detail->>'retired_user_id' AS retired, "
+                  "teacher_ext_id AS survivor, detail->>'to_phone' AS to_phone, id::text AS row_id "
+                  "FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'retired_user_id' IS NOT NULL "
+                  "ORDER BY detail->>'retired_user_id', created_at DESC, id")
+# The governed ict_account_merges (taleemabad-data rules, niete-rumi teacher-headcount 1e) as Postgres runs it, for the
+# given retired accounts: the live accounts on the last ten digits of each one's latest edit_phone row's to_phone.
+GOVERNED = (r"WITH a AS (SELECT detail->>'retired_user_id' AS retired_id, "
+            r"right(regexp_replace(detail->>'to_phone', '\D', '', 'g'), 10) AS to_p10, "
+            r"row_number() OVER (PARTITION BY detail->>'retired_user_id' ORDER BY created_at DESC) AS rn "
+            r"FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'retired_user_id' = ANY(%s)) "
+            r"SELECT a.retired_id, coalesce(array_agg(s.id::text ORDER BY s.id::text) FILTER (WHERE s.id IS NOT NULL), "
+            r"'{}') AS holders FROM a LEFT JOIN users s "
+            r"ON right(regexp_replace(s.phone_number, '\D', '', 'g'), 10) = a.to_p10 AND s.deleted_at IS NULL "
+            r"AND s.id::text <> a.retired_id WHERE a.rn = 1 GROUP BY a.retired_id")
+REPOINT_COUNT = ("SELECT count(*) AS n FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
+                 "AND detail->>'case' = 'repoint' AND detail->>'retired_user_id' = ANY(%s)")
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
 def read_env(path):
@@ -290,9 +315,37 @@ def load_visits(cur, ids):
     return [dict(r) for r in cur.fetchall()]
 
 
+def retired_accounts(cur):
+    """(latest, deleted): every retired account's latest edit_phone row, {retired id: {"survivor", "to_phone",
+    "row_id"}}, and {account id: soft-deleted?} for those accounts and the survivors they name (ids that are no
+    account are left out, so md.current_account stops there). Two round trips over a table of thousands of rows."""
+    cur.execute(LATEST_RETIRED)
+    latest = {r["retired"]: {"survivor": r["survivor"], "to_phone": r["to_phone"], "row_id": r["row_id"]}
+              for r in cur.fetchall()}
+    ids = sorted({i for i in set(latest) | {r["survivor"] for r in latest.values()} if i and UUID_RE.match(i)})
+    cur.execute("SELECT id::text AS id, deleted_at IS NOT NULL AS deleted FROM users WHERE id = ANY(%s::uuid[])", (ids,))
+    return latest, {r["id"]: r["deleted"] for r in cur.fetchall()}
+
+
+def governed_holders(cur, retired_ids):
+    """{retired id: [live accounts]}: whom the governed mapping credits each retired account to (GOVERNED)."""
+    if not retired_ids:
+        return {}
+    cur.execute(GOVERNED, (list(retired_ids),))
+    return {r["retired_id"]: list(r["holders"]) for r in cur.fetchall()}
+
+
+def governed_problems(cur, pair, want):
+    """Problems where the governed mapping does not credit each retired account to its account. want: {retired: id}."""
+    got = governed_holders(cur, sorted(want))
+    return [f"{pair}: the governed mapping credits {r} to {got.get(r) or 'nobody'}, not {a}"
+            for r, a in sorted(want.items()) if got.get(r) != [a]]
+
+
 def read_state(cur, ids, fks, keys):
     return {"users": load_users(cur, ids), "ident": identity_counts(cur, fks, ids),
-            "owned": owned_rows(cur, fks, keys, ids), "visits": load_visits(cur, ids)}
+            "owned": owned_rows(cur, fks, keys, ids), "visits": load_visits(cur, ids),
+            "retired_rows": retired_accounts(cur)}
 
 
 def full_rows(conn, pp, fks):
@@ -438,17 +491,22 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: [], fold
     for (t, _c, _row, owner, action) in moves:
         bucket = {"move": moved, "skip": skipped, "fold": folded}[action]
         bucket[owner][t] = bucket[owner].get(t, 0) + 1
+    meta = {"run_id": run_id, "review": REVIEW, "sheet_row": p["pair"]}
     audits = md.audit_rows(dict(rows[surv], **patch), rows[surv]["phone_number"], [rows[r] for r in retired],
-                           moved, skipped, meta={"run_id": run_id, "review": REVIEW, "sheet_row": p["pair"]},
-                           folded=folded)
+                           moved, skipped, meta=meta, folded=folded)
+    # Earlier merges' retired accounts this merge would leave credited to nobody (a re-merge): re-pointed to the survivor.
+    latest, deleted = state["retired_rows"]
+    repointed = md.repoints(latest, deleted, {i: rows[i]["phone_number"] for i in pids}, final_phone)
+    audits += md.repoint_rows(dict(rows[surv], **patch), repointed, meta=meta)
     label = {f: "survivor's old number" if f == rows[surv]["phone_number"] else "a freed number" for f, _ in numbers}
     return {**p, "survivor": surv, "retired": retired, "problems": problems, "patch": patch,
             "final_phone": final_phone, "moves": moves, "moved": moved, "skipped": skipped, "folded": folded,
             "folds": folds, "visits": [{"row_id": v, "from_phone": f, "to_phone": t} for v, f, t in visits],
             "retire": {r: md.retire_patch(r, now_iso, gives_up.get(r, ())) for r in retired}, "audits": audits,
+            "repoints": [{"retired": r["retired"], "supersedes": r["supersedes"]} for r in repointed],
             "before": {i: rows[i] for i in pids},
             "plan_rows": md.plan_rows(p["pair"], surv, patch, retired, moves, [(v, label[f]) for v, f, _ in visits],
-                                      gives_up, folds)}
+                                      gives_up, folds, repointed)}
 
 
 def _set_users(cols, extra=""):
@@ -564,13 +622,17 @@ def merge_steps(pp, fks):
         steps.append((_set_users(pp["patch"], "AND deleted_at IS NULL"),
                       [db_value(c, v) for c, v in pp["patch"].items()] + [surv], 1,
                       f"{pair}: the survivor takes {', '.join(sorted(pp['patch']))}"))
-    for a in pp.get("audits", []):
-        steps.append(("INSERT INTO leader_roster_audit (action, actor_user_id, affected_leader_user_id, "
-                      "teacher_ext_id, teacher_phone_e164, teacher_name, detail) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                      [a["action"], a["actor_user_id"], a["affected_leader_user_id"], a["teacher_ext_id"],
-                       a["teacher_phone_e164"], a["teacher_name"], psycopg2.extras.Json(a["detail"])], 1,
-                      f"{pair}: audit row for {a['detail']['retired_user_id']}"))
-    return steps
+    return steps + audit_steps(pair, pp.get("audits", []))
+
+
+def audit_steps(pair, audits):
+    """One INSERT per audit row (a merge's own, and a re-point's), each asserting it wrote one row."""
+    return [("INSERT INTO leader_roster_audit (action, actor_user_id, affected_leader_user_id, teacher_ext_id, "
+             "teacher_phone_e164, teacher_name, detail) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+             [a["action"], a["actor_user_id"], a["affected_leader_user_id"], a["teacher_ext_id"],
+              a["teacher_phone_e164"], a["teacher_name"], psycopg2.extras.Json(a["detail"])], 1,
+             f"{pair}: {'re-point' if a['detail'].get('case') == md.REPOINT else 'audit'} row for "
+             f"{a['detail']['retired_user_id']}") for a in audits]
 
 
 def residue(cur, pp):
@@ -669,6 +731,9 @@ def merge_verify(conn, pp, run_id, fks):
             if cur.fetchone()["n"] != len(pp["retired"]):
                 problems.append(f"{pair}: the audit rows are not as planned")
             problems += fold_state(cur, pair, pp.get("folds", []), fks, pp["survivor"])
+            # As the analytics will read it: every account this merge retired or re-pointed is the survivor's.
+            problems += governed_problems(cur, pair, {r: pp["survivor"] for r in
+                                                      pp["retired"] + [x["retired"] for x in pp.get("repoints", [])]})
         return problems
     return check
 
@@ -716,9 +781,7 @@ def restore_steps(e, run_id, fks, live):
     steps += _move_steps(pair, groups, fks, lambda k: k[2], lambda k: [surv], "back")
     steps += unfold_steps(e, fks)
     if e["kind"] == "merge":
-        steps.append(("DELETE FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
-                      "AND detail->>'retired_user_id' = ANY(%s)", [run_id, e["retired"]], len(e["retired"]),
-                      f"{pair}: this run's audit rows removed"))
+        steps += md.audit_removal(pair, run_id, e["retired"], [r["retired"] for r in e.get("repoints", [])])
     return steps, back, changed
 
 
@@ -737,6 +800,10 @@ def restore_verify(conn, e, run_id, back, fks):
             cur.execute(AUDIT_COUNT, (run_id, e["retired"]))
             if cur.fetchone()["n"]:
                 problems.append(f"{e['pair']}: this run's audit rows remain")
+            if e.get("repoints"):
+                cur.execute(REPOINT_COUNT, (run_id, [r["retired"] for r in e["repoints"]]))
+                if cur.fetchone()["n"]:
+                    problems.append(f"{e['pair']}: this run's re-point rows remain")
             problems += fold_state(cur, e["pair"], e.get("folds", []), fks, e["survivor"], undone=True)
         return problems
     return check
@@ -763,7 +830,8 @@ def set_entry(image, pp, status, kind="merge"):
     entry = {"pair": pp["pair"], "kind": kind, "status": status, "survivor": pp["survivor"],
              "retired": pp["retired"], "patch": pp.get("patch", {}), "final_phone": pp.get("final_phone"),
              "before": pp.get("before", {}), "visits": pp.get("visits", []), "moves": pp.get("moves", []),
-             "retire": pp.get("retire", {}), "folds": pp.get("folds", []), "rows_before": pp.get("rows_before", [])}
+             "retire": pp.get("retire", {}), "folds": pp.get("folds", []), "rows_before": pp.get("rows_before", []),
+             "repoints": pp.get("repoints", [])}
     image["pairs"] = [e for e in image["pairs"] if e["pair"] != pp["pair"]] + [entry]
     return entry
 
@@ -858,6 +926,14 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
     planned = [plan_pair(state, p, keys, run_id, datetime.now(timezone.utc).isoformat(), dependents, facts)
                for p in pairs]
     conn.rollback()
+    by_retired = {}
+    for pp in planned:
+        for r in pp.get("repoints", []):
+            by_retired.setdefault(r["retired"], []).append(pp)
+    for rid, pps in by_retired.items():
+        if len(pps) > 1:
+            for pp in pps:
+                pp["problems"].append(f"{rid} would be re-pointed by {' and '.join(x['pair'] for x in pps)}")
 
     plan_rows = set().union(*(pp.get("plan_rows", set()) for pp in planned))
     with open(out / f"merge-plan-{base}.csv", "w", newline="") as f:
@@ -872,7 +948,8 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
                     "stays_behind": pp.get("skipped"), "folded": pp.get("folded"),
                     "folds": [{"table": f["table"], "row": f["row"], "into": f["into"], "flag": f["flag"],
                                "follow": {f["follow"][0]: len(f["keys"])}} for f in pp.get("folds", [])],
-                    "visits_follow": len(pp.get("visits", [])), "problems": pp["problems"]} for pp in planned]}
+                    "visits_follow": len(pp.get("visits", [])), "repoints": pp.get("repoints", []),
+                    "problems": pp["problems"]} for pp in planned]}
     (out / f"merge-summary-{base}.json").write_text(json.dumps(summary, indent=2))
     image_path = Path(a.private_dir) / a.target / f"merge-before-{base}.json"
     image = {"run_id": run_id, "target": a.target, "go": a.go, "kind": "merge", "pairs": []}
@@ -892,6 +969,7 @@ def run_merge(a, conn, out, stamp, fks, keys, refs):
               f"visits: {len(pp.get('visits', []))}  moves: {show(table_counts(pp.get('moves', []), 'move'))}  "
               f"stays: {show(table_counts(pp.get('moves', []), 'skip'))}"
               + (f"  folds: {show_folds(pp['folds'])}" if pp.get("folds") else "")
+              + (f"  re-points: {', '.join(r['retired'][:8] for r in pp['repoints'])}" if pp.get("repoints") else "")
               + (f"  REFUSED: {'; '.join(pp['problems'])}" if pp["problems"] else ""))
     print(f"  outputs: {out / f'merge-plan-{base}.csv'} (+ summary JSON); before-image: {image_path} (private)")
     if any(pp["problems"] for pp in planned):
@@ -1033,8 +1111,160 @@ def run_sweep(a, conn, out, stamp, fks, keys, refs):
         print("DRY RUN — nothing written.")
 
 
+def repair_state(cur, only):
+    """(plan, left, holders, accounts) for --repoint, from one snapshot: md.repair_plan over every retired account's
+    latest edit_phone row, with the governed mapping as the database runs it. accounts: {id: users row (id,
+    phone_number, name)} for the live accounts the plan credits. only: --only's ids or unique prefixes, or None."""
+    latest, deleted = retired_accounts(cur)
+    wanted = None
+    if only:
+        wanted = set()
+        for x in (t.strip() for t in only.split(",") if t.strip()):
+            hits = [r for r in latest if r == x or (len(x) >= 8 and r.startswith(x))]
+            if len(hits) != 1:
+                raise SystemExit(f"ABORT: --only {x!r} names {len(hits)} retired accounts; give one id each.")
+            wanted.add(hits[0])
+    holders = governed_holders(cur, sorted(latest))
+    ids = sorted({md.current_account(latest, deleted, r) for r in latest} - {None})
+    cur.execute("SELECT id::text AS id, phone_number, name FROM users WHERE id = ANY(%s::uuid[]) "
+                "AND deleted_at IS NULL", (ids,))
+    accounts = {r["id"]: dict(r) for r in cur.fetchall()}
+    numbers = sorted({md.number_key(r["phone_number"]) for r in accounts.values()} - {None})
+    cur.execute(r"SELECT right(regexp_replace(phone_number, '\D', '', 'g'), 10) AS k, "
+                r"array_agg(id::text ORDER BY id::text) AS ids FROM users WHERE deleted_at IS NULL "
+                r"AND right(regexp_replace(phone_number, '\D', '', 'g'), 10) = ANY(%s) GROUP BY 1", (numbers,))
+    keys = {r["k"]: list(r["ids"]) for r in cur.fetchall()}
+    plan, left = md.repair_plan(latest, deleted, holders, {i: r["phone_number"] for i, r in accounts.items()}, keys,
+                                only=wanted)
+    return plan, left, holders, accounts
+
+
+def repair_rows(plan):
+    """The ids-only plan rows a --repoint commit is bound to: which account each retired account is re-pointed to."""
+    return {("repoint", md.REPOINT, "leader_roster_audit", "", p["retired"], p["account"], "") for p in plan}
+
+
+def run_repoint(a, conn, out, stamp):
+    """Re-point every retired account the governed mapping does not credit to its teacher's current account (a re-merge
+    before the tool re-pointed, a later row with no number, the app moving the survivor's number). One transaction."""
+    run_id = f"repoint-{a.target}-{uuid.uuid4().hex[:8]}"
+    base = f"{a.target}-{stamp}-{'commit' if a.commit else 'dryrun'}"
+    with conn.cursor() as cur:
+        plan, left, holders, _accounts = repair_state(cur, a.only)
+    conn.rollback()
+    rows = repair_rows(plan)
+    with open(out / f"repoint-plan-{base}.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["pair", "step", "table", "column", "row", "from", "to"])
+        w.writerows(sorted(rows))
+    (out / f"repoint-summary-{base}.json").write_text(json.dumps(
+        {"run_id": run_id, "target": a.target, "dry_run": not a.commit, "written_at": stamp,
+         "repoints": [{"retired": p["retired"], "account": p["account"], "supersedes": p["supersedes"],
+                       "why": p["why"], "credited_now_to": holders.get(p["retired"], [])} for p in plan],
+         "left_for_a_human": [{"retired": r, "why": why} for r, why in left]}, indent=2))
+    print(f"[{a.target}] re-point: {len(plan)} retired account(s) to re-point, {len(left)} left for a human "
+          f"(run_id {run_id})")
+    for p in plan:
+        print(f"  {p['retired'][:8]} -> {p['account'][:8]}  ({p['why']}; credited now to: "
+              f"{', '.join(h[:8] for h in holders.get(p['retired'], [])) or 'nobody'})")
+    for r, why in left:
+        print(f"  {r[:8]} LEFT FOR A HUMAN: {why}")
+    print(f"  outputs: {out / f'repoint-plan-{base}.csv'} (+ summary JSON)")
+    expected = None
+    if a.expect_csv:
+        with open(a.expect_csv, newline="") as f:
+            expected = {tuple(r) for r in list(csv.reader(f))[1:]}
+        if expected != rows:
+            raise SystemExit(f"ABORT: the plan differs from the reviewed dry run ({len(expected - rows)} reviewed no "
+                             f"longer planned, {len(rows - expected)} planned never reviewed); nothing written.")
+        print(f"the plan matches the reviewed dry run ({len(expected)} rows reviewed)")
+    if not a.commit:
+        print("DRY RUN — nothing written.")
+        return
+    if not plan:
+        print("nothing to re-point; nothing written.")
+        return
+    reviewed = expected if expected is not None else rows
+    image_path = Path(a.private_dir) / a.target / f"repoint-before-{base}.json"
+    image = {"run_id": run_id, "target": a.target, "kind": "repoint", "pairs": [], "status": "writing",
+             "repoints": [{"retired": p["retired"], "account": p["account"], "supersedes": p["supersedes"]}
+                          for p in plan]}
+    write_private(image_path, image)
+    outcome = None
+    for attempt in range(1, ATTEMPTS + 1):
+        conn.rollback()
+        with conn.cursor() as cur:
+            plan, _left, _holders, accounts = repair_state(cur, a.only)
+        if repair_rows(plan) != reviewed:
+            outcome = "refused: the plan changed since the review; nothing written"
+            break
+        audits = [row for p in plan for row in md.repoint_rows(accounts[p["account"]], [p], meta={"run_id": run_id})]
+        ids = sorted({p["account"] for p in plan})
+        steps = [("SELECT id FROM users WHERE id = ANY(%s::uuid[]) AND deleted_at IS NULL FOR SHARE", [ids], len(ids),
+                  "repoint: hold the accounts' numbers for the run")] + audit_steps("repoint", audits)
+        want = {p["retired"]: p["account"] for p in plan}
+
+        def verify():
+            with conn.cursor() as cur:
+                cur.execute(REPOINT_COUNT, (run_id, sorted(want)))
+                n = cur.fetchone()["n"]
+                return ([] if n == len(want) else [f"{n} re-point rows written, {len(want)} planned"]) + \
+                    governed_problems(cur, "repoint", want)
+        try:
+            n = apply(conn, steps, verify)
+        except SystemExit as e:
+            if attempt < ATTEMPTS and any(s in str(e) for s in RETRYABLE):
+                print(f"  attempt {attempt} rolled back: {e}")
+                time.sleep(2 * attempt)
+                continue
+            outcome = f"rolled back: {e}"
+            break
+        outcome = f"committed ({n} steps, attempt {attempt})"
+        break
+    image["status"] = "committed" if outcome.startswith("committed") else outcome
+    write_private(image_path, image)
+    (out / f"repoint-commit-{base}.json").write_text(json.dumps(
+        {"run_id": run_id, "target": a.target, "outcome": outcome, "repoints": image["repoints"],
+         "before_image": str(image_path), "before_image_sha256": hashlib.sha256(image_path.read_bytes()).hexdigest()},
+        indent=2))
+    print(f"re-point {outcome} (run_id {run_id}). undo: --restore {image_path}")
+    if not outcome.startswith("committed"):
+        raise SystemExit("ABORT: nothing was re-pointed.")
+
+
+def restore_repoint(a, conn, out, stamp, image):
+    """Undo a --repoint run: remove its rows, so each account's earlier latest row is the latest again."""
+    run_id, ids = image["run_id"], [r["retired"] for r in image["repoints"]]
+    conn.rollback()
+    with conn.cursor() as cur:
+        cur.execute(REPOINT_COUNT, (run_id, ids))
+        n = cur.fetchone()["n"]
+    conn.rollback()
+    if n != len(ids):
+        status = "untouched" if n == 0 else f"partial ({n} of {len(ids)} rows): left for a human"
+    elif not a.commit:
+        status = f"would restore ({len(ids)} rows)"
+    else:
+        def verify():
+            with conn.cursor() as cur:
+                cur.execute(REPOINT_COUNT, (run_id, ids))
+                remain = cur.fetchone()["n"]
+            return [f"{remain} re-point rows remain"] if remain else []
+        apply(conn, md.audit_removal("repoint", run_id, [], ids), verify)
+        status = f"restored ({len(ids)} rows removed)"
+    print(f"[{a.target}] restore of {run_id} (repoint): {status}")
+    (out / f"merge-restore-{a.target}-{stamp}{'-commit' if a.commit else '-dryrun'}.json").write_text(
+        json.dumps({"restored": run_id, "kind": "repoint", "status": status}, indent=2))
+    if not a.commit:
+        print("DRY RUN — nothing written.")
+    if status.startswith("partial"):
+        raise SystemExit("the re-point run was not restored; see above.")
+
+
 def run_restore(a, conn, out, stamp, fks):
     image = load_image(a.restore, a.target, kind=None)
+    if image["kind"] == "repoint":
+        return restore_repoint(a, conn, out, stamp, image)
     run_id = image["run_id"] if image["kind"] == "merge" else image["of"]
     print(f"[{a.target}] restore of {image['run_id']} ({image['kind']}){'' if a.commit else ' (dry run)'}:")
     results = []
@@ -1087,9 +1317,12 @@ def main():
     ap.add_argument("--scope", help="the reviewed scope CSV (go, tab, sheet_no, class, survivor_id, retire_ids, "
                     "number_in_use_account_id, ...)")
     ap.add_argument("--go", help="which go of the scope to run, e.g. 3a")
-    ap.add_argument("--only", help="comma-separated teachers of that go, as 't1 #12'")
+    ap.add_argument("--only", help="comma-separated teachers of that go, as 't1 #12'; with --repoint, retired account "
+                    "ids (or unique prefixes of 8+ characters)")
     ap.add_argument("--sweep", help="a merge's before-image: move what reached its retired accounts since")
-    ap.add_argument("--restore", help="a merge's or a sweep's before-image: undo it")
+    ap.add_argument("--restore", help="a merge's, a sweep's or a re-point run's before-image: undo it")
+    ap.add_argument("--repoint", action="store_true",
+                    help="re-point every retired account the governed mapping does not credit to its teacher's account")
     ap.add_argument("--out", required=True, help="directory for the ids-only plan CSV and summary JSON")
     ap.add_argument("--private-dir", default=str(Path.home() / "rumi-private" / "niete-dupes"),
                     help="directory for before-images (phone numbers, portal hashes), mode 0700/0600")
@@ -1098,14 +1331,15 @@ def main():
     ap.add_argument("--confirm-ref", help="with --commit on prod: the prod project ref, typed out")
     a = ap.parse_args()
 
-    modes = [m for m in ("scope", "sweep", "restore") if getattr(a, m)]
+    modes = [m for m in ("scope", "sweep", "restore", "repoint") if getattr(a, m)]
     if len(modes) != 1 or (a.scope and not a.go):
-        raise SystemExit("ABORT: give exactly one of --scope with --go, --sweep <image> or --restore <image>.")
+        raise SystemExit("ABORT: give exactly one of --scope with --go, --sweep <image>, --restore <image> or "
+                         "--repoint.")
     if a.commit and a.target == "prod" and (a.confirm_ref != TARGETS["prod"]["ref"]
                                             or os.environ.get("MERGE_DUPES_PROD_GO") != "yes"
-                                            or (a.scope and not a.expect_csv)):
+                                            or ((a.scope or a.repoint) and not a.expect_csv)):
         raise SystemExit("ABORT: a prod write needs --confirm-ref <prod ref>, MERGE_DUPES_PROD_GO=yes and, for a "
-                         "merge, the reviewed --expect-csv.")
+                         "merge or a re-point, the reviewed --expect-csv.")
     conn = connect(read_env(a.env_file), a.target, writable=a.commit)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -1115,6 +1349,8 @@ def main():
     conn.rollback()
     if a.restore:
         run_restore(a, conn, out, stamp, fks)
+    elif a.repoint:
+        run_repoint(a, conn, out, stamp)
     elif a.sweep:
         run_sweep(a, conn, out, stamp, fks, keys, refs)
     else:
