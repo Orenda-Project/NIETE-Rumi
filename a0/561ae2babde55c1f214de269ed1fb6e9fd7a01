@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T14:28:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"a0561ae2babd","branch":"bd-6jaq0i-29715","user":""}
+{"ts":"2026-11-24T14:28:52Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"a0561ae2babd","branch":"bd-6jaq0i-29715","user":""}
