@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T07:33:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"b086c7462930","branch":"bd-97daxo.34.15.2-05563","user":""}
+{"ts":"2026-11-24T07:33:27Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"b086c7462930","branch":"bd-97daxo.34.15.2-05563","user":""}
