@@ -77,6 +77,16 @@ describe('the per-lesson prompt', () => {
     expect(p).not.toMatch(/LESSON PLAN/);
     expect(fw.buildAnalysisPrompt(T, { retry: true })).toContain(fw.RETRY_NOTE);
   });
+  // bd-3fkutw: the gaps block comes from observe/transcript-quality, which main did not carry — a partial
+  // transcript would have thrown MODULE_NOT_FOUND here instead of building the prompt.
+  test('a partial transcript-quality result adds its TRANSCRIPT GAPS block; ok or none adds nothing', () => {
+    const partial = { status: 'partial', period_minutes: 40, issues: [{ type: 'gap', from: '02:40', to: '30:00' }] };
+    const p = fw.buildAnalysisPrompt(T, { transcriptQuality: partial });
+    expect(p).toContain('TRANSCRIPT GAPS:');
+    expect(p).toContain('- no speech from 02:40 to 30:00');
+    expect(fw.buildAnalysisPrompt(T, { transcriptQuality: { status: 'ok', issues: [] } })).not.toContain('TRANSCRIPT GAPS');
+    expect(fw.buildAnalysisPrompt(T, {})).not.toContain('TRANSCRIPT GAPS');
+  });
 });
 
 describe('the validator and the scorer', () => {

@@ -56,3 +56,13 @@ jobs:
       # needs a dependency tree can be broken by the dependency tree.
       - name: Parse every tracked .js under bot/
         run: node bot/scripts/check-syntax.js
+
+      # The second class nothing else blocked: a cherry-pick that carries a caller
+      # down the ladder without the module it requires. Railway builds it, the file
+      # loads, and the require throws only when that code path runs, so it hides
+      # for days. Same rules as the parse check: node builtins and git, no install.
+      # A require that is optional by design ends its line with
+      # `// optional-require: <why>`. Run it on any branch from any checkout with
+      # `node scripts/ci/require-resolution.js --ref origin/main`.
+      - name: Every local require under bot/ and dashboard/ resolves to a committed file
+        run: node scripts/ci/require-resolution.js

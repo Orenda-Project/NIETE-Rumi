@@ -67,6 +67,21 @@ describe('scripts/smoke-test.js', () => {
     expect(r.status).toBe(1);
   });
 
+  // bd-3fkutw: one list of optional-by-design requires, shared with scripts/ci/require-resolution.js and the
+  // reachability guard, so a try/catch-guarded require (ack-reaction on staging/main) does not fail the smoke test.
+  it('treats every require in tests/setup/unresolved-requires.allowlist.json as optional', () => {
+    const { OPTIONAL_REQUIRES } = require(SCRIPT);
+    const list = require('../setup/unresolved-requires.allowlist.json');
+    expect(list.length).toBeGreaterThan(0);
+    for (const a of list) expect(OPTIONAL_REQUIRES.has(`${a.from}:${a.spec}`)).toBe(true);
+  });
+
+  it('a require marked `// optional-require: <why>` on its line is not a failure when its file is absent', () => {
+    const r = runCli([`${FIX}/marked-optional-require.js`]);
+    expect(r.stdout).toContain('Smoke test: 1 passed, 0 failed');
+    expect(r.status).toBe(0);
+  });
+
   it('ignores requires inside block and whole-line comments', () => {
     const r = runCli([`${FIX}/commented-require.js`]);
     expect(r.stdout).toContain('Smoke test: 1 passed, 0 failed');

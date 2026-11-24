@@ -84,11 +84,27 @@ const PLACEHOLDER_ENV = {
 };
 
 // Local requires that are optional by design: wrapped in try/catch with a fallback, so an
-// unresolved path is not a deploy break. Key is `<source file>:<request>`.
-const OPTIONAL_REQUIRES = new Set([
-  // Gamma "Detailed" arm — the prompt builder is not in this bundle; falls back to Kie.ai.
-  'bot/shared/services/pic-to-lp/lp-handoff.service.js:../lesson-plan-prompts.service',
-]);
+// unresolved path is not a deploy break. Key is `<source file>:<request>`. The list lives in
+// tests/setup/unresolved-requires.allowlist.json, with each entry's reason — the same list
+// scripts/ci/require-resolution.js and the reachability guard read (bd-3fkutw).
+function loadOptionalRequires() {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(repoRoot, 'tests/setup/unresolved-requires.allowlist.json'), 'utf8'));
+    return new Set(list.map((a) => `${a.from}:${a.spec}`));
+  } catch (_) {
+    return new Set();
+  }
+}
+const OPTIONAL_REQUIRES = loadOptionalRequires();
+
+// A require whose line ends `// optional-require: <why>` is guarded where it is called (the caller catches
+// MODULE_NOT_FOUND and falls back), so a branch the module has not reached yet is fine. Same marker
+// scripts/ci/require-resolution.js reads.
+function isMarkedOptional(text, index) {
+  const end = text.indexOf('\n', index);
+  const line = text.slice(text.lastIndexOf('\n', index) + 1, end === -1 ? text.length : end);
+  return /\/\/\s*optional-require:\s*\S/.test(line);
+}
 
 // Commented-out requires (block comments, whole-line // comments) are not loaded.
 function stripComments(text) {
@@ -135,7 +151,7 @@ function preflightRelativeRequireTracking(modules, failures) {
       const request = match[1];
       const resolved = resolveLocalRequire(filePath, request);
       if (!resolved) {
-        if (OPTIONAL_REQUIRES.has(`${sourceRel}:${request}`)) {
+        if (OPTIONAL_REQUIRES.has(`${sourceRel}:${request}`) || isMarkedOptional(fileText, match.index)) {
           match = requireRegex.exec(fileText);
           continue;
         }
@@ -194,4 +210,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { MODULES, PLACEHOLDER_ENV, runSmoke, stripComments };
+module.exports = { MODULES, PLACEHOLDER_ENV, OPTIONAL_REQUIRES, runSmoke, stripComments };
