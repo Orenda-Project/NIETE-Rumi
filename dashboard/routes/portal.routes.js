@@ -2911,7 +2911,9 @@ router.post('/coach/school/:emis/teachers/remove', ...coachV2, async (req, res) 
 router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachVisit(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    // bd-f5a245 — switch on: the visit carries its observation's step (a stopped analysis is not "Done").
+    const v7 = await staleRulesOn(req);
+    const out = await CoachV2.getCoachVisit(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), v7 });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'visit', error); }

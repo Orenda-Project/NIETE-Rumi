@@ -82,7 +82,7 @@ export function shouldLoadMore(items: readonly CoachReport[], total: number, spa
   return !oldest || oldest >= span.prevFrom;
 }
 
-const STEP_INDEX: Record<ReportStep, number> = { analysing: 0, draft: 1, talk: 2, report: 3, sent: 4 };
+const STEP_INDEX: Record<ReportStep, number> = { analysing: 0, draft: 1, talk: 2, report: 3, sent: 4, stopped: 0 };
 
 /** Where a report is on the four labelled segments (Analysed, Feedback Form, Debrief, Sent); 4 = all done. */
 export function stepIndex(step: ReportStep | string | undefined): number {

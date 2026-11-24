@@ -36,7 +36,8 @@ export const REPORTS_EN = {
   /** The four labelled segments under a card (Analysed, Feedback Form, Debrief, Sent). */
   segments: ["Analysed", "Feedback Form", "Debrief", "Sent"],
   /** The chip on a row, by where it is. */
-  chip: { analysing: "Analysing", draft: "Feedback Form", talk: "Debrief", report: "Send report", sent: "Sent" },
+  /* bd-f5a245 — stopped: the analysis failed or the system gave up on it (the Observe word for the AI at work is Analysing). */
+  chip: { analysing: "Analysing", draft: "Feedback Form", talk: "Debrief", report: "Send report", sent: "Sent", stopped: "Analysis stopped" },
   /* bd-o15qnr.45 (queue #240) — Observe's In progress: what the system is doing (nothing waits on her), and the card's
      one line for what is hers next. The upload's chip is the strip's own words (the kit's notify.sending). */
   stageChip: { analysing: "Analysing", sending: "Sending report", waiting_teacher: "Waiting for teacher" },
@@ -63,6 +64,8 @@ export const REPORTS_EN = {
   working: "Working",
   continueOnWhatsApp: "Continues on WhatsApp",
   stopped: "Observation stopped",
+  /* bd-f5a245 — the stopped card's one plain line when the analysis stopped (board m9-errors): why, and what to do. */
+  analysisStoppedLine: "The Digital Coach could not analyse this lesson. Upload the recording again.",
   /* bd-k8uh1r — stopped because this coach's recording was already analysed (bd-erpvf); the title is problems.duplicate. */
   stoppedDuplicateLine: "This recording was already analysed for another observation. Start a new observation with a new recording.",
   whatYouMade: "What you made",
@@ -273,7 +276,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   searchPlaceholder: "نام یا فون",
   analysing: "تجزیہ جاری",
   segments: ["تجزیہ ہو گیا", "فیڈبیک فارم", "ڈی بریف", "بھیجی گئی"],
-  chip: { analysing: "تجزیہ جاری", draft: "فیڈبیک فارم", talk: "ڈی بریف", report: "رپورٹ بھیجیں", sent: "بھیجی گئی" },
+  chip: { analysing: "تجزیہ جاری", draft: "فیڈبیک فارم", talk: "ڈی بریف", report: "رپورٹ بھیجیں", sent: "بھیجی گئی", stopped: "تجزیہ رک گیا" },
   stageChip: { analysing: "تجزیہ جاری", sending: "رپورٹ جا رہی ہے", waiting_teacher: "استاد کا انتظار" },
   nextLine: (step: string) => `اگلا قدم: ${step}`,
   kpiObservations: "مشاہدات",
@@ -297,6 +300,8 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   working: "جاری",
   continueOnWhatsApp: "آگے واٹس ایپ پر",
   stopped: "مشاہدہ روک دیا گیا",
+  // bd-f5a245 — MACHINE-DRAFTED: NATIVE-CHECK
+  analysisStoppedLine: "ڈیجیٹل کوچ اس سبق کا تجزیہ نہیں کر سکا۔ ریکارڈنگ دوبارہ اپ لوڈ کریں۔",
   stoppedDuplicateLine: "اس ریکارڈنگ کا تجزیہ کسی اور مشاہدے میں پہلے ہی ہو چکا ہے۔ نئی ریکارڈنگ کے ساتھ نیا مشاہدہ شروع کریں۔",
   whatYouMade: "آپ نے بنایا",
   formRowSub: "آپ کی ریٹنگز",
@@ -480,5 +485,5 @@ export const COPY_ENTRY = {
   /** Sentences that mirror a screen's name word for word. */
   /** bd-ra8xu.60 — notesHeading: «آپ کے مشاہدے کے نوٹس» is five Urdu words for the operator's four English ones. */
   /** bd-k8uh1r — stoppedDuplicateLine: the stopped card's one plain line (board m9-errors), why it stopped and what to do. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading", "stoppedDuplicateLine"],
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading", "stoppedDuplicateLine", "analysisStoppedLine"],
 };

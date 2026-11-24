@@ -42,6 +42,8 @@ export function reportChip(r: CoachReport, C: ReportsCopy, v7 = false): ChipData
   if (v7 && r.step === "sent" && r.score == null && fdePct(r)) return { text: fdePct(r) as string, tone: "score" };
   if (r.step === "sent" && r.score != null) return { text: C.pct(r.score), tone: "score" };
   const text = C.chip[r.step] ?? C.chip.analysing;
+  // bd-f5a245 — a stopped analysis is the error tone (red): it needs her, and nothing is working on it.
+  if (r.step === "stopped") return { text, tone: "error" };
   return { text, tone: r.step === "analysing" || r.step === "sent" ? "info" : "waiting" };
 }
 
@@ -122,6 +124,8 @@ export function ReportSegments({ step, listening = false }: { step: string; list
  */
 export function nextWords(r: Pick<CoachReport, "step" | "listening">, C: ReportsCopy, W: FlowV7Copy): string | null {
   if (r.step === "talk" && r.listening) return W.debriefAnalysing;
+  // bd-f5a245 — the analysis stopped: upload the lesson again (the vocabulary's "Upload recording").
+  if (r.step === "stopped") return C.nextLine(C.uploadRecording);
   const at = r.step === "draft" ? 1 : r.step === "talk" ? 2 : r.step === "report" ? 3 : -1;
   return at < 0 ? null : C.nextLine(W.steps[at].current);
 }

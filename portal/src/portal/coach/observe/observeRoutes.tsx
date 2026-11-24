@@ -56,6 +56,11 @@ export interface ObserveRoutes {
   observation: (id: string, screen?: ObservationScreen) => string;
   /** The list of her observations (the coach's Reports; the principal's Observations). */
   reports: string;
+  /**
+   * bd-f5a245 — where "Upload recording" goes when a visit's analysis stopped: the coach's Schedule an observation with
+   * that teacher picked (For now: Start recording / Upload recording, or Later); the principal's, that teacher's page.
+   */
+  again: (teacherExtId: string, schoolExtId?: string | null) => string;
 }
 
 export const COACH_OBSERVE_ROUTES: ObserveRoutes = {
@@ -71,6 +76,7 @@ export const COACH_OBSERVE_ROUTES: ObserveRoutes = {
   sending: (id) => `/portal/coach/visit/${id}/sending`,
   observation: observationPath,
   reports: REPORTS_PATH,
+  again: (teacher, school) => `/portal/coach/new-visit?school=${encodeURIComponent(school || "")}&teacher=${encodeURIComponent(teacher)}`,
 };
 
 const ObserveRoutesContext = createContext<ObserveRoutes>(COACH_OBSERVE_ROUTES);

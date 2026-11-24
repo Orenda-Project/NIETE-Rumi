@@ -17,6 +17,7 @@ export const PRINCIPAL_V6_COPY = {
     talk: "Debrief to do",
     report: "Report to send",
     sent: "Done",
+    stopped: "Recording to upload", // bd-f5a245 — the analysis stopped
   } as Record<string, string>,
   /** the chip on a finished observation */
   done: "Done",
@@ -31,6 +32,7 @@ export const PRINCIPAL_V6_COPY_UR: Words<typeof PRINCIPAL_V6_COPY> = {
     talk: "ڈی بریف باقی ہے",
     report: "رپورٹ بھیجنی ہے",
     sent: "مکمل",
+    stopped: "ریکارڈنگ اپ لوڈ کرنی ہے", // bd-f5a245 — MACHINE-DRAFTED: NATIVE-CHECK
   },
   done: "مکمل",
 };
