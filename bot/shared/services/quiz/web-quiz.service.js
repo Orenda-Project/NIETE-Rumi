@@ -2022,7 +2022,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
   } : null;
 
-  if (s.status !== 'completed') {
+  const firstFinish = s.status !== 'completed';
+  if (firstFinish) {
     const { error } = await supabase.from('quiz_sessions').update({
       status: 'completed', total_questions_answered: total, correct_answers: correct,
       mastery_percentage: pct, mastery_level: level, completed_at: new Date().toISOString(),
@@ -2077,6 +2078,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
   // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
   const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
+  // Keep this attempt (table quiz_attempts, switch web_quiz_keep_attempts): after the card's reads so it never moves them,
+  // never awaited, reply unchanged. Only the finish that completed the session.
+  if (firstFinish) require('./quiz-attempt-log').keep({ session: s, served, byQ, keyFor: WebItems.keyFor, channel: 'web' });
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -2321,6 +2325,10 @@ const EVENT_BOOLS = ['ok'];
 const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow', 'audio_probe']);
 const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/,
   fst: /^([1-5][0-9]{2}|opaque|net|timeout|err)$/, fct: /^[a-z]+\/[a-z0-9.+-]{1,40}$/ });
+// A stalled clip's element at give-up (audio_fallback) or at its late start (audio_slow): rs readyState 0-4,
+// ns networkState 0-3, buf seconds buffered (wq.js heldFacts).
+const VOICE_HELD_EVENTS = new Set(['audio_fallback', 'audio_slow']);
+const VOICE_HELD_INTS = Object.freeze({ rs: 4, ns: 3 });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
 // while the switch is on, so a cached page or a switched-off deployment logs nothing new.
 const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
@@ -2485,6 +2493,10 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (VOICE_EVENTS.has(e.n)) {
     for (const [k, rx] of Object.entries(VOICE_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
     if (Number.isFinite(e.gms)) props.gms = e.gms;
+    if (VOICE_HELD_EVENTS.has(e.n)) {
+      for (const [k, max] of Object.entries(VOICE_HELD_INTS)) if (Number.isInteger(e[k]) && e[k] >= 0 && e[k] <= max) props[k] = e[k];
+      if (typeof e.buf === 'number' && e.buf >= 0 && e.buf < 3600) props.buf = e.buf;
+    }
   }
   // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
   if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;

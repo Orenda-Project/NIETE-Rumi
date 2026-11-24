@@ -268,13 +268,15 @@ describe('worker: SIGTERM and an in-flight paper', () => {
     expect(out).toMatchObject({ status: 'ready', paperId: 'paper-1' });
   });
 
+  // bd-3itk00: an `analysis` is now finished on shutdown rather than handed back at 30 s
+  // (tests/queue/bd-3itk00-deploy-finishes-analysis.test.js); a transcription still gets the 30 s grace.
   test('a coaching job is NOT released at SIGTERM — it still gets the 30 s grace', async () => {
     seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating' });
     const w = new SQSCoachingWorker('w-term-2');
     const paper = pending();
-    const analysis = pending();
+    const transcription = pending();
     w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
-    w.activeJobs.set('rh-analysis', { promise: analysis.promise, sourceQueue: 'main', jobType: 'analysis' });
+    w.activeJobs.set('rh-transcription', { promise: transcription.promise, sourceQueue: 'main', jobType: 'transcription' });
 
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(1000);
@@ -283,7 +285,7 @@ describe('worker: SIGTERM and an in-flight paper', () => {
 
     await jest.advanceTimersByTimeAsync(30_000);
     expect(mockRelease).toHaveBeenCalledTimes(2);
-    expect(mockRelease).toHaveBeenLastCalledWith('rh-analysis', 'main');
+    expect(mockRelease).toHaveBeenLastCalledWith('rh-transcription', 'main');
     await done;
   });
 
@@ -323,5 +325,65 @@ describe('worker: SIGTERM and an in-flight paper', () => {
     paper.finish({ status: 'ready' });
     await flush(20);
     expect(mockComplete).not.toHaveBeenCalled();
+  });
+  // bd-qyi45h.17 — prod 19 Nov 09:56: a worker got SIGTERM in the same second its long poll returned a
+  // paper. Phase 0 had already run, so the paper was not handed back; at the 30 s grace it was released
+  // as a "short" job with its row still `generating`. The next worker read a fresh `generating` row,
+  // skipped it and acked the paper's only message. The teacher never got the paper (14 of 21 lost
+  // papers in 18-24 Nov sat next to a restart).
+  test('a job claimed after SIGTERM is not started: its message goes straight back', async () => {
+    const w = new SQSCoachingWorker('w-term-5');
+    mockProcess = jest.fn(() => pending().promise);
+    const done = w.shutdown();
+    w.processJob({ receiptHandle: 'rh-late', sourceQueue: 'main', body: { sessionId: 'req-1', jobType: 'assessment_generate', payload: JOB } });
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(mockProcess).not.toHaveBeenCalled();
+    expect(mockRelease).toHaveBeenCalledWith('rh-late', 'main');
+    expect(w.activeJobs.has('rh-late')).toBe(false);
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith('Job claimed after shutdown began; handing it back unstarted',
+      { workerId: 'w-term-5', jobType: 'assessment_generate', sourceQueue: 'main' });
+    await jest.advanceTimersByTimeAsync(31_000);
+    await done;
+  });
+
+  test('a late job with no source queue goes back to main; a failed hand-back is logged, not thrown', async () => {
+    const w = new SQSCoachingWorker('w-term-7');
+    mockProcess = jest.fn(() => pending().promise);
+    mockRelease.mockImplementationOnce(() => Promise.reject(new Error('ReceiptHandleIsInvalid')));
+    const done = w.shutdown();
+    w.processJob({ receiptHandle: 'rh-late', body: { sessionId: 'req-1', jobType: 'assessment_generate', payload: JOB } });
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(mockRelease).toHaveBeenCalledWith('rh-late', 'main');
+    expect(mockProcess).not.toHaveBeenCalled();
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    expect(logToFile).toHaveBeenCalledWith('Job claimed after shutdown began; handing it back unstarted',
+      { workerId: 'w-term-7', jobType: 'assessment_generate', sourceQueue: 'main' });
+    expect(logToFile).toHaveBeenCalledWith('⚠️ Could not hand back a job claimed after shutdown began',
+      { workerId: 'w-term-7', jobType: 'assessment_generate', error: 'ReceiptHandleIsInvalid' });
+    await jest.advanceTimersByTimeAsync(31_000);
+    await done;
+  });
+
+  test('a paper that joined after Phase 0 has its row handed back before its message at the grace deadline', async () => {
+    seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating', updated_at: new Date().toISOString() });
+    const w = new SQSCoachingWorker('w-term-6');
+    // As on prod: another job was running, so Phase 1 waits out its 30 s grace. A transcription: an analysis is
+    // finished on shutdown since bd-3itk00 (up to 8 min), so it would hold shutdown well past this test's window.
+    w.activeJobs.set('rh-transcription', { promise: pending().promise, sourceQueue: 'main', jobType: 'transcription' });
+    const done = w.shutdown();
+    await jest.advanceTimersByTimeAsync(1000);
+    // In flight before shutdown could see it (a batch already returned when SIGTERM arrived).
+    w.activeJobs.set('rh-paper', { promise: pending().promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
+    await jest.advanceTimersByTimeAsync(31_000);
+    await done;
+    expect(papers()[0].status).toBe('queued');
+    expect(mockRelease).toHaveBeenCalledWith('rh-paper', 'main');
+    const order = mockState.events.map((e) => e.kind);
+    expect(order.indexOf('db-update')).toBeLessThan(order.indexOf('sqs-release'));
+    // The next delivery takes it over instead of skipping it.
+    jest.useRealTimers();
+    const out = await Orchestrator.buildPaper(JOB, {});
+    expect(out).toMatchObject({ status: 'ready', paperId: 'paper-1' });
   });
 });

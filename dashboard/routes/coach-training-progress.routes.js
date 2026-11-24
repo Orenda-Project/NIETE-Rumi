@@ -13,7 +13,12 @@
  * The first time she marks a module is kept if she marks it again; undo removes it.
  *
  * IDENTITY: always req.session.portalUserId, never a body id. Every route runs the guards it is given (portal.routes:
- * signed in, leader role, coach app on); inputs are checked before any read or write.
+ * signed in, leader role, then makeRequireTrainingReader); inputs are checked before any read or write.
+ *
+ * bd-v04lsh (queue #257, the operator 24 Nov 2026: "Coach Trainings needs to go live for Principal as well. Showing as
+ * Principal Training. Same feature, same trainings.") — a principal reads and marks the same modules here, in her own
+ * row's coach_training_done, as "Principal Training" on her screens. She passes by her role alone: 68 of 555 prod
+ * principals (25 Nov) are on no app switch, and the coach app switch was never meant for her.
  */
 const express = require('express');
 
@@ -80,4 +85,19 @@ function createCoachTrainingProgressRouter(deps) {
   return router;
 }
 
-module.exports = { createCoachTrainingProgressRouter, MODULE_KEYS, PREF_KEY };
+/**
+ * bd-v04lsh — who may read and mark the modules (runs after the leader-role gate, which sets req.portalUser):
+ *   a principal      passes by her role; the coach app switch is not read for her
+ *   anyone else      the coach app (portal_coach_v2) on for them, else 404 (exactly the old rule)
+ * @param {{ isPrincipalRole: (role: unknown) => boolean, coachAppOn: (userId: string) => Promise<boolean> }} deps
+ */
+function makeRequireTrainingReader({ isPrincipalRole, coachAppOn }) {
+  return async function requireTrainingReader(req, res, next) {
+    if (isPrincipalRole(req.portalUser && req.portalUser.role)) return next();
+    const on = await coachAppOn(req.session && req.session.portalUserId);
+    if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+    return next();
+  };
+}
+
+module.exports = { createCoachTrainingProgressRouter, makeRequireTrainingReader, MODULE_KEYS, PREF_KEY };

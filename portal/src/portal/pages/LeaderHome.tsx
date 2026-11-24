@@ -14,6 +14,10 @@ import FlnSendCard from "../fln/FlnSendCard";
 // bd-tacnwy — internal testers only (portal_role_switch): a principal lands here, so she can switch back from here.
 import RoleSwitch from "../teacher/roleSwitch/RoleSwitch";
 import { NoSchoolNotice } from "../teacher/principal/NoSchool";
+import { principalOf } from "../lib/leaderRole";
+import { useCopy } from "../teacher/i18n";
+import { COACH_TRAINING } from "../coach/coachTraining/copy";
+import { PRINCIPAL_TRAINING_PATH } from "../coach/coachTraining/audience";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -30,6 +34,9 @@ const LeaderHome = () => {
   // A principal on the teacher app v2 lands on its Home (she gets the teacher app, plus her school).
   const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null, !!user));
   const name = user?.firstName?.trim();
+  // bd-v04lsh (queue #257) — Principal Training reaches a principal on My Patch here (no app Home, so no tile).
+  const principal = principalOf(user);
+  const T = useCopy(COACH_TRAINING);
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
   // bd-r2uzg1.21.4 — a principal whose account names no school: her patch is empty for that reason, so the page says
   // so (and what to do) instead of zero tiles. The server's word, from her own row.
@@ -60,6 +67,24 @@ const LeaderHome = () => {
             Here's your patch — the teachers and schools you support.
           </p>
         </header>
+
+        {/* bd-v04lsh (queue #257): the operator, 24 Nov 2026, "Coach Trainings needs to go live for Principal as well.
+            Showing as Principal Training." One card for a principal, above her patch and whatever it says (no school
+            too): the ten modules are hers, not her school's. The leader menu is untouched (its snapshot pins it). */}
+        {principal && (
+          <Link
+            to={PRINCIPAL_TRAINING_PATH}
+            data-testid="principal-training-card"
+            className="mb-8 flex min-h-[64px] items-center gap-4 rounded-lg border border-border bg-white p-4 shadow-sm transition-colors hover:bg-muted/40"
+          >
+            <GraduationCap className="h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
+            <span className="flex-1">
+              <span className="block text-lg font-medium">{T.principalTitle}</span>
+              <span className="block text-sm text-muted-foreground">{T.coachIntro}</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+          </Link>
+        )}
 
         {loading ? (
           <LoadingState type="card" count={4} />

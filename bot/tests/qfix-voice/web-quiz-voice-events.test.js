@@ -44,3 +44,12 @@ test('audio_probe keeps the failed clip\'s facts and what a 2-byte fetch of it g
   expect(cleanEvent({ n: 'audio_probe', fst: 'https://acct.r2.cloudflarestorage.com/b/k.ogg', fct: 'text/html; charset=utf-8', host: 'https://x.test' }).props).toEqual({});
   expect(cleanEvent({ n: 'answer', fst: '206', fct: 'audio/mpeg' }).props).toEqual({});
 });
+
+test('a stall keeps what the element held (rs readyState 0-4, ns networkState 0-3, buf seconds buffered) on audio_fallback and audio_slow only', () => {
+  expect(cleanEvent({ n: 'audio_fallback', reason: 'stalled', rs: 0, ns: 2, buf: 0 }).props).toMatchObject({ reason: 'stalled', rs: 0, ns: 2, buf: 0 });
+  expect(cleanEvent({ n: 'audio_slow', reason: 'stalled', rs: 4, ns: 1, buf: 2.5 }).props).toMatchObject({ rs: 4, ns: 1, buf: 2.5 });
+  expect(cleanEvent({ n: 'audio_fallback', reason: 'stalled', rs: 7, ns: -1, buf: 99999 }).props).toEqual({ reason: 'stalled' });
+  expect(cleanEvent({ n: 'audio_fallback', reason: 'stalled', rs: '2', ns: 1.5, buf: 'lots' }).props).toEqual({ reason: 'stalled' });
+  expect(cleanEvent({ n: 'audio_retry', rs: 1, ns: 1, buf: 1 }).props).toEqual({});
+  expect(cleanEvent({ n: 'answer', rs: 1, ns: 1, buf: 1 }).props).toEqual({});
+});
