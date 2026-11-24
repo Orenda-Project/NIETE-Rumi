@@ -41,6 +41,8 @@ import '../help.css';
  */
 
 const LABEL = 'm-0 mt-2 text-[13px] font-bold text-[#6b7280]';
+/** Who sets the level, in her manual's words (queue #259 added FICO M/H's "pre" and "self"). */
+const WHO = { dc: 'whoDc', hitl: 'whoRoom', pre: 'whoPre', self: 'whoSelf' } as const satisfies Record<NonNullable<GuideItem['who']>, string>;
 const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
 
 function GuideCard({ guide, item, open, onToggle }: { guide: Guide; item: GuideItem; open: boolean; onToggle: () => void }) {
@@ -58,7 +60,7 @@ function GuideCard({ guide, item, open, onToggle }: { guide: Guide; item: GuideI
       </button>
       {open ? (
         <div className="flex flex-col gap-1 px-3.5 pb-3.5 text-[16px] leading-relaxed text-[#1d2025]">
-          {item.who ? <p className="m-0 text-[13px] font-semibold text-[#33374a]">{item.who === 'dc' ? H.whoDc : H.whoRoom}</p> : null}
+          {item.who ? <p data-testid="guide-who" className="m-0 text-[13px] font-semibold text-[#33374a]">{H[WHO[item.who]]}</p> : null}
           <p className={LABEL}>{H.measures}</p>
           <p className="m-0">{item.means[lang]}</p>
           {item.lookFor.length ? (
