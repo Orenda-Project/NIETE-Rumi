@@ -81,7 +81,8 @@ describe('switch OFF (today): every list exactly as before', () => {
 describe('switch ON: a row the observation page would refuse is in no list', () => {
   test('Needs you / the Focus card (waiting): only rows whose teacher is in her patch', async () => {
     const out = await SVC.getCoachReports(fake(), ME, { role: 'principal', v7: true, today: TODAY });
-    expect(ids(out.waiting)).toEqual(['form-today', 'debrief-due']);
+    // bd-o15qnr.53 (queue #246) — Needs you is one order on the switch: the one waiting longest first.
+    expect(ids(out.waiting)).toEqual(['debrief-due', 'form-today']);
   });
   test('in progress drops them too; History keeps every row, as today (her record; its treatment is the operator\'s call)', async () => {
     const out = await SVC.getCoachReports(fake(), ME, { role: 'principal', v7: true, today: TODAY });
