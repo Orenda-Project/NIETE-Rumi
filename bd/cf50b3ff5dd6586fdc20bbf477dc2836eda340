@@ -1,2 +1,4 @@
 {"ts":"2026-11-24T03:50:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"bdcf50b3ff5d","branch":"bd-97daxo.34.10-92161","user":""}
 {"ts":"2026-11-24T03:50:36Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,coaching owe their Gherkin","sha":"bdcf50b3ff5d","branch":"bd-97daxo.34.10-92161","user":""}
+{"ts":"2026-11-24T03:50:37Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"bdcf50b3ff5d","branch":"bd-97daxo.34.10-92161","user":""}
+{"ts":"2026-11-24T03:52:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.4","sha":"bdcf50b3ff5d","branch":"bd-97daxo.34.10-92161","user":""}
