@@ -37,8 +37,8 @@ afterEach(() => jest.restoreAllMocks());
 describe('the preview job is told apart by its recipient', () => {
   test('previews for two different teachers are two jobs; the same teacher twice is one', async () => {
     await JobQueue.queueObserveTeacherReport('sess-1', { from: 'f', phase: 'preview', teacherPhone: '993330000204' });
-    await JobQueue.queueObserveTeacherReport('sess-1', { from: 'f', phase: 'preview', teacherPhone: '923365709413' });
-    await JobQueue.queueObserveTeacherReport('sess-1', { from: 'f', phase: 'preview', teacherPhone: '923365709413' });
+    await JobQueue.queueObserveTeacherReport('sess-1', { from: 'f', phase: 'preview', teacherPhone: '923001234567' });
+    await JobQueue.queueObserveTeacherReport('sess-1', { from: 'f', phase: 'preview', teacherPhone: '923001234567' });
     const nonces = queued.map((q) => q.payload.dedupNonce);
     expect(nonces[0]).toMatch(/^[0-9a-f]{16}$/);
     expect(nonces[1]).not.toBe(nonces[0]);
@@ -53,9 +53,9 @@ describe('the preview job is told apart by its recipient', () => {
 
 test('"Someone else", then a typed teacher: the preview job carries that teacher\'s number', async () => {
   const user = { id: 'coach-1', role: 'coach', preferred_language: 'en' };
-  const handled = await Send.handleTeacherDetailsText(user, '923365709413', 'Haroon test, 0336 5709413', { state: 'awaiting_teacher_details', sessionId: 'sess-1' });
+  const handled = await Send.handleTeacherDetailsText(user, '923001234567', 'Haroon test, 0300 1234567', { state: 'awaiting_teacher_details', sessionId: 'sess-1' });
   expect(handled).toBe(true);
   const preview = queued.find((q) => q.type === 'observe_teacher_report');
-  expect(preview.payload).toMatchObject({ phase: 'preview', teacherPhone: '923365709413' });
+  expect(preview.payload).toMatchObject({ phase: 'preview', teacherPhone: '923001234567' });
   expect(preview.payload.dedupNonce).toMatch(/^[0-9a-f]{16}$/);
 });

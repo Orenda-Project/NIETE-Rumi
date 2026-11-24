@@ -128,7 +128,7 @@ describe('the two new flags', () => {
 
   test('ROUTE_ALL only ever narrows — it does nothing while LP_612_ENABLED is off', async () => {
     process.env.LP_612_ROUTE_ALL = 'true'; // ENABLED deliberately unset
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'photosynthesis grade 9 biology', user, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'photosynthesis grade 9 biology', user, 'en');
     expect(handleCurriculumLessonPlan).toHaveBeenCalled();
     expect(served).toBe(true); // the Oxbridge picker still answers, exactly as today
   });
@@ -137,7 +137,7 @@ describe('the two new flags', () => {
 // ── LEAK 1 ────────────────────────────────────────────────────────────────
 describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text', () => {
   test('WITHOUT the flags a grade-9 topic still reaches the old picker (the bug this closes)', async () => {
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'photosynthesis grade 9 biology', user, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'photosynthesis grade 9 biology', user, 'en');
     expect(handleCurriculumLessonPlan).toHaveBeenCalled();
     expect(served).toBe(true);
   });
@@ -145,7 +145,7 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
   test('WITH both flags the picker is never called and the caller falls through to the menu', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'photosynthesis grade 9 biology', user, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'photosynthesis grade 9 biology', user, 'en');
     expect(handleCurriculumLessonPlan).not.toHaveBeenCalled();
     expect(served).toBe(false);
   });
@@ -154,7 +154,7 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
     const k5Teacher = { id: 'u-2', grade: '3' };
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'grade 11 chemistry acids', k5Teacher, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'grade 11 chemistry acids', k5Teacher, 'en');
     expect(handleCurriculumLessonPlan).not.toHaveBeenCalled();
     expect(served).toBe(false);
   });
@@ -164,7 +164,7 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
     process.env.LP_612_ROUTE_ALL = 'true';
     handleCurriculumLessonPlan.mockResolvedValue({ source: 'ast_cached', promptedForPage: false });
     const k5Teacher = { id: 'u-2', grade: '3', subject: 'math' };
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'grade 3 math number buddies', k5Teacher, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'grade 3 math number buddies', k5Teacher, 'en');
     expect(handleCurriculumLessonPlan).toHaveBeenCalled();
     expect(served).toBe(true);
   });
@@ -174,7 +174,7 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
     process.env.LP_612_ROUTE_ALL = 'true';
     process.env.LP_612_ROUTE_K5 = 'true';
     const k5Teacher = { id: 'u-2', grade: '3', subject: 'math' };
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'grade 3 math number buddies', k5Teacher, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'grade 3 math number buddies', k5Teacher, 'en');
     expect(handleCurriculumLessonPlan).not.toHaveBeenCalled();
     expect(served).toBe(false);
   });
@@ -183,7 +183,7 @@ describe('LEAK 1 — the old 6-12 Oxbridge picker is unreachable from free text'
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
     const noGrade = { id: 'u-3' };
-    const served = await tryCurriculumLessonPlanServe('923365709413', 'something about photosynthesis', noGrade, 'en');
+    const served = await tryCurriculumLessonPlanServe('923001234567', 'something about photosynthesis', noGrade, 'en');
     expect(handleCurriculumLessonPlan).not.toHaveBeenCalled();
     expect(served).toBe(false);
   });
@@ -196,7 +196,7 @@ describe('she typed a topic — one short line, then the menu', () => {
   test('ROUTE_ALL on: the redirect line rides INSIDE the Flow body, in the teacher\'s language — one message, not two', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
-    await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'ur', typing());
+    await handleLessonPlanRequest('923001234567', 'a lesson plan on photosynthesis', user, null, 'ur', typing());
     expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
@@ -209,7 +209,7 @@ describe('she typed a topic — one short line, then the menu', () => {
   // redirect line is not sent — but the catalogue door below the gate is unconditional,
   // so the Flow still opens, and there is no generation body left to reach.
   test('BOTH flags off: no redirect line, the catalogue Flow still opens, nothing is queued', async () => {
-    await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
+    await handleLessonPlanRequest('923001234567', 'a lesson plan on photosynthesis', user, null, 'en', typing());
     expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
@@ -219,7 +219,7 @@ describe('she typed a topic — one short line, then the menu', () => {
 
   test('LP_612_ENABLED on but ROUTE_ALL off: still no redirect line — ROUTE_ALL only ever narrows', async () => {
     process.env.LP_612_ENABLED = 'true';
-    await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
+    await handleLessonPlanRequest('923001234567', 'a lesson plan on photosynthesis', user, null, 'en', typing());
     expect(messagesSent.some((m) => m.text === resolveUx('lp612RouteRedirect', { language: 'en' }))).toBe(false);
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].body).toBe(resolveUx('lpBrowseBody', { language: 'en' }));
@@ -229,7 +229,7 @@ describe('she typed a topic — one short line, then the menu', () => {
   test('ROUTE_ALL on: the Gamma queue is NOT touched — the whole point of the cutover', async () => {
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
-    await handleLessonPlanRequest('923365709413', 'a lesson plan on photosynthesis', user, null, 'en', typing());
+    await handleLessonPlanRequest('923001234567', 'a lesson plan on photosynthesis', user, null, 'en', typing());
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
   });
 

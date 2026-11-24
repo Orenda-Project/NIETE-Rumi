@@ -65,7 +65,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
 
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'ur');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan on photosynthesis', user, null, 'ur');
 
     expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
@@ -80,7 +80,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
   // generation body. That body is not on this branch, so what the flags-off case
   // actually does here is skip the redirect line and open the catalogue Flow anyway.
   test('BOTH flags off: no redirect line, the catalogue Flow still opens, nothing is queued', async () => {
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'en');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan on photosynthesis', user, null, 'en');
 
     expect(messagesSent).toHaveLength(0);
     expect(flowsSent).toHaveLength(1);
@@ -93,7 +93,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
 
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan', null, null, 'en');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan', null, null, 'en');
 
     expect(flowsSent).toHaveLength(0);
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
