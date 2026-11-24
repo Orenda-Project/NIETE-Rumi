@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T02:54:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"38428eecd20d","branch":"bd-04od7-sbx","user":""}
+{"ts":"2026-11-24T02:54:47Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"38428eecd20d","branch":"bd-04od7-sbx","user":""}
