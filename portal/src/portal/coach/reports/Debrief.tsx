@@ -28,7 +28,7 @@ import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
-import { DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCard } from "../flow/VisitV7";
+import { DebriefDock, DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCard } from "../flow/VisitV7";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
@@ -51,6 +51,13 @@ import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
  * listening to your debrief" (about 3 minutes, she can leave, it shows on the visit) with her recording playing in place;
  * the page asks again by itself (useObservationView) and shows the debrief report's card once the feedback is written.
  * Off: back on the observation page, as before.
+ *
+ * bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "Maybe the record button should be a floating button at the bottom
+ * of the page all the time, so they can read the notes and then they know that here is where they will start recording")
+ * — on the v6/v7 switch Record debrief and Upload recording sit in the frame's dock, pinned to the bottom of the screen
+ * the whole time she reads the notes (above the menu and the safe area, room kept under the last note); the pair at the
+ * end of the page is gone. Same gate as the pair: the notes are there (or did not load) and the debrief is hers to
+ * record. Off: the pair at the end, as before.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
  * English and Urdu; its other on-screen words are still English only (see the gap list).
@@ -212,10 +219,17 @@ export default function Debrief() {
   const recording = stage === "recording" || stage === "sending";
   const problem = view && hers && view.problem ? C.problems[view.problem as keyof typeof C.problems] : null;
   const canRetry = view?.problem === "failed" || view?.problem === "feedback_failed";
+  // bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide.
+  const canStart = stage === "guide" && !!view && hers && (guideState === "ready" || guideState === "failed");
+  const record = () => setStage(canRecord ? "recording" : "micBlocked");
+  const pick = () => input.current?.click();
+  // bd-o15qnr.49 — v7: Record debrief floats at the bottom (the frame's dock), not at the end of the notes.
+  const dock = v7 && canStart ? <DebriefDock onRecord={record} onUpload={pick} /> : undefined;
 
   return (
     <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
-      chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief">
+      chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief"
+      dock={dock} dockSpace={!!dock}>
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
 
       {stage === "guide" && view && (
@@ -264,10 +278,11 @@ export default function Debrief() {
             </div>
           )}
 
-          {/* bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide. */}
-          {hers && (guideState === "ready" || guideState === "failed") && (
+          {/* bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide. v7: the two
+              buttons are the dock's (bd-o15qnr.49); the file input and its error stay here. */}
+          {canStart && (
             <>
-              <RecordUploadPair onRecord={() => setStage(canRecord ? "recording" : "micBlocked")} onUpload={() => input.current?.click()} />
+              {!dock && <RecordUploadPair onRecord={record} onUpload={pick} />}
               <input ref={input} data-testid="talk-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
                 onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
               {fileError && <Note tone="amber">{fileError}</Note>}
