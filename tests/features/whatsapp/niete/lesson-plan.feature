@@ -851,7 +851,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # Executed through the real cohort and tap in tests/quiz/lp-quiz-offer-612.test.js.
   @e2e @quiz @wip @draft @config-gated @no-mock-driver @P1 @L62
   Scenario: A GB grade 1-5 teacher who took a lesson today is offered the afternoon quiz on it
-    # UPDATED 2026-11-24 (bd-97daxo.34.9, q250): GB grade 1-5 only; ICT 6-12 is @L64.
+    # UPDATED 2026-11-24 (bd-97daxo.34.9, q250): GB grade 1-5 only; ICT 6-12 is @L65.
     Given the NIETE bot chat is open on a teacher who took one GB grade 1-5 lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
     And the teacher has not made a quiz from that lesson
     When the send hour passes and the teacher-nudge sweep runs
@@ -864,7 +864,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ADDED 2026-11-24 (bd-97daxo.34.9, q250: Amena "GB only for now"). @no-mock-driver as @L62.
   # Executed in tests/quiz/lp-quiz-offer-612.test.js ("LP_QUIZ_OFFER_ICT612 not on").
-  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L64
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L65
   Scenario: An ICT Grades 6-12 teacher is not offered the afternoon quiz while ICT 6-12 is switched off
     Given LP_QUIZ_OFFER_ICT612 is not on
     And the NIETE bot chat is open on a teacher who took one ICT Grades 6-12 lesson plan today before 14:00 PKT
