@@ -188,7 +188,10 @@ async function claimRow({ session, source }) {
       topic: session.analysis_data?.topic || 'Lesson',
       subject: session.analysis_data?.subject || null,
       status: 'generating',
-      meta: { step: 'digest', source: source || 'offer', claimed_at: new Date().toISOString() },
+      meta: {
+        step: 'digest', source: source || 'offer', claimed_at: new Date().toISOString(),
+        lesson_links: await require('./quiz-lesson-link').forRecording(session.id),
+      },
     })
     .select('id')
     .single();
