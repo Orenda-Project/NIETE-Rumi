@@ -51,8 +51,19 @@ const NO_BOARD = new RegExp([
   `${UR_B}\\s*(?:کا\\s*)?استعمال\\s*نہ`,
   `\\binstead of ${EN_B}`,
   `\\b(?:no|without|don'?t use|do not use) ${EN_B}`,
+  // bd-snkn32.77 — "no need for a board", a board-free step, and a sign board in the book's picture: not her board.
+  `${UR_B}\\s*کی\\s*ضرورت\\s*نہیں`,
+  `${EN_B}-free\\b`,
+  '\\b(?:sign|notice|score|chess|card|dart)[ -]?board\\b',
 ].join('|'), 'gi');
 const usesBoard = (s) => BOARD.test(s.replace(NO_BOARD, ' '));
+/** bd-snkn32.77 — the words around what matched, so a refusal (log and repair round) shows the real use, not line 1. */
+function around(s, re, masked = s) {
+  const m = re.exec(masked);
+  if (!m) return s.slice(0, 60);
+  const from = Math.max(0, m.index - 40);
+  return `${from ? '…' : ''}${s.slice(from, m.index + m[0].length + 20)}`;
+}
 
 const isLanguage = (subject) => /^(urdu|english)\b/i.test(String(subject || '').trim());
 const isEarly = (grade) => Number(grade) >= 1 && Number(grade) <= 3;
@@ -188,7 +199,7 @@ function checkK5Rewrite(orig, next, { lang, resources, size, noBook = false } = 
   if (Array.isArray(resources) && !resources.includes('board')) {
     const used = SECTIONS.flatMap((k) => strings(next[k] || {})).find(usesBoard);
     // bd-snkn32.57 — a book-less plan (a goal start) has no book page to fall back on.
-    if (used) reasons.push(`uses a board she does not have ("${used.slice(0, 60)}"): ${noBook ? 'say it aloud or use real objects instead' : 'use the book page instead'}`);
+    if (used) reasons.push(`uses a board she does not have ("${around(used, BOARD, used.replace(NO_BOARD, (x) => ' '.repeat(x.length)))}"): ${noBook ? 'say it aloud or use real objects instead' : 'use the book page instead'}`);
   }
   if (Array.isArray(resources)) {
     // bd-snkn32.28 / .44 — the whole line and the words that matched go back, so the repair round can fix that line.
@@ -204,7 +215,7 @@ function checkK5Rewrite(orig, next, { lang, resources, size, noBook = false } = 
   // about) in code after the reply (lp-own-fit.fitK5); a per-child check goes back once (lp-own-fit.repairOnly).
   if (P.LOAD[size]) {
     const slate = P.slates(next)[0];
-    if (slate) reasons.push(`uses slates ("${slate.slice(0, 60)}"): the children work in the book`);
+    if (slate) reasons.push(`uses slates ("${around(slate, P.SLATE)}"): the children work in the book`);
   }
   return reasons;
 }

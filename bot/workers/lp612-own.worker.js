@@ -51,6 +51,8 @@ function longOnly(e) {
     && e.problems.every((p) => String(p).startsWith('PAGE COUNT'));
 }
 
+const { refusalCode } = require('../shared/services/lp-k5-own-refusal');
+
 function stop(code, message) {
   return Object.assign(new Error(message), { code });
 }
@@ -128,8 +130,10 @@ function createOwnWorker(deps) {
     const pg = (row.answers && row.answers.pages) || day.pages || {};
     const bookText = noBook ? null : await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
     const ask = { script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: noBook ? null : day.pages || null, bookText, correlationId };
-    const out = await d.rewriteK5(ask);
-    if (!out || !out.script) throw stop('NOT_ACCEPTED', 'the gate refused the rewrite');
+    let refused = [];
+    const out = await d.rewriteK5({ ...ask, onRefused: (r) => { refused = r || []; } });
+    // bd-snkn32.77 — the code names the rule the plan kept breaking; the waiting page tells her what to change.
+    if (!out || !out.script) throw stop(refusalCode(refused), `the gate refused the rewrite: ${refused.join('; ')}`.slice(0, 480));
     // bd-snkn32.58.3 — a goal plan: the official goal at the top, checked (facts + goal) before she sees it, one fix.
     if (noBook && !row.parent_own_id && d.goalCheck) {
       out.script = await goalGate(d, { row, band: 'k5', doc: out.script, grade: day.grade, correlationId,
