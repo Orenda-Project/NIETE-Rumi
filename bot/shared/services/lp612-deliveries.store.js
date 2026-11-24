@@ -148,12 +148,15 @@ async function recentForTeacher(userId, { since = null, limit = 20 } = {}, opts 
   return out;
 }
 
-/** One delivery, only if it is this teacher's and one /quiz may use (see QUIZ_SURFACES). */
+/**
+ * One delivery, only if it is this teacher's and one /quiz may use (see QUIZ_SURFACES).
+ * `opts.surfaces` widens that for the 15:00 offer, which also offers portal lessons (bd-97daxo.34.6).
+ */
 async function byIdForTeacher(id, userId, opts = {}) {
   if (!id || !userId) return null;
   const { data, error } = await client(opts).from(TABLE)
     .select('id, user_id, render_id, segment_id, lang, template_version, delivered_at')
-    .eq('id', id).eq('user_id', userId).in('surface', QUIZ_SURFACES)
+    .eq('id', id).eq('user_id', userId).in('surface', opts.surfaces || QUIZ_SURFACES)
     .maybeSingle();
   if (error) {
     if (isMissingTable(error)) { sayMissing('read', error); return null; }

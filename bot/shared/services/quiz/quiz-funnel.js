@@ -129,9 +129,9 @@ function channelOf(metaSource) {
   return CHANNEL_BY_META_SOURCE[metaSource] || 'unknown';
 }
 
-/** The `meta.source` a lesson start writes for the door it came through: the Flow, the teacher home, else the list. */
+/** The `meta.source` a lesson start writes for the door it came through: the Flow, the teacher home, the 15:00 offer, else the list. */
 function metaSourceOf(via) {
-  return via === 'flow' || via === 'home' ? via : 'list';
+  return via === 'flow' || via === 'home' || via === 'lp_offer' ? via : 'list';
 }
 
 /**
