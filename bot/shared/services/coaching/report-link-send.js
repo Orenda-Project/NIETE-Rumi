@@ -60,7 +60,7 @@ async function sendReportLinkIfNew({ coachingSessionId, userId, phone, language,
   const tipped = await tipBody(coachingSessionId, lang);
   const body = tipped || resolveUx('coachingReportLinkBody', { language: lang });
   if (tipped) {
-    try { require('../../utils/structured-logger').logEvent('coaching.report.link_wording', { coachingSessionId, userId, wording: 'tip', language: lang }); } catch (_) { /* logging never decides */ }
+    try { require('../../utils/structured-logger').logEvent('coaching.report.link_wording', { coachingSessionId, tk: require('../quiz/web-quiz-kid').tk(userId), wording: 'tip', language: lang }); } catch (_) { /* logging never decides */ }
   }
   let ok = false;
   let error = null;
