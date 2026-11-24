@@ -23,6 +23,10 @@
  *
  * The plan was for a different lesson (the grader's lesson_mismatch flag), the recording could not be checked, or the
  * check failed: "not assessed", no checklist, no parts — counted with "no plan linked" in the week, never as a miss.
+ *
+ * FICO 6-12 has none of it (queue #255, bd-o15qnr.51; the operator 24 Nov: "lesson plan moves/fideltiy step to be removed
+ * from the fico 6-12"): a FICO-S visit (isFicoSVisit) gets no section, no words call, no judge, and no report or week
+ * block; notes written before that are shown and sent without the section (notesFor). FICO17 v6 (grades 1-5) is unchanged.
  */
 
 const STEPS = ['opening', 'explain', 'we_do', 'you_do', 'check'];
@@ -255,6 +259,32 @@ TODAY'S PLAN:
 ${plan}`;
 }
 
+// ── FICO 6-12: no lesson plan check ────────────────────────────────────────
+
+/**
+ * Whether a visit is FICO 6-12 (FICO-S, any version): its stamp on the row (coaching_sessions.framework, written when the
+ * visit starts), on its analysis, or its 6-12 record (analysis_data.obs612, written when the form is in). Pure.
+ * @param {object} session  a coaching_sessions row, or { framework, analysis_data } with what of it was read
+ */
+function isFicoSVisit(session) {
+  if (!session || typeof session !== 'object') return false;
+  const { isFicoSId } = require('../coaching/frameworks/fico-s');
+  const ad = session.analysis_data && typeof session.analysis_data === 'object' ? session.analysis_data : {};
+  const rec = ad.obs612 && typeof ad.obs612 === 'object' ? ad.obs612 : {};
+  return isFicoSId(session.framework) || isFicoSId(ad.framework) || rec.tool === 'ficos' || isFicoSId(rec.rubric_id);
+}
+
+/**
+ * The notes as a visit's pages and messages show them: a FICO 6-12 visit's without lp_check (notes written before queue
+ * #255 carry one); any other visit's exactly as stored (the same object). The stored notes are never changed. Pure.
+ */
+function notesFor(session, guide) {
+  if (!guide || typeof guide !== 'object' || !Object.prototype.hasOwnProperty.call(guide, 'lp_check')) return guide;
+  if (!isFicoSVisit(session)) return guide;
+  const { lp_check: _dropped, ...rest } = guide;
+  return rest;
+}
+
 async function readSwitch(observerUserId, db) {
   const { flowV6OnFor, SWITCH_KEYS } = require('./observer-report-copy');
   const { data: rows, error } = await db.from('app_settings').select('key,value').in('key', SWITCH_KEYS);
@@ -274,6 +304,8 @@ async function readSwitch(observerUserId, db) {
  */
 async function lpCheckFor(session, lang, deps = {}) {
   if (lang !== 'ur' && lang !== 'en') return null;
+  // FICO 6-12 (queue #255): no section at all, so no switch read and no model call either.
+  if (isFicoSVisit(session)) return null;
   try {
     const switchOn = deps.switchOn || ((s) => (s && s.observer_user_id ? readSwitch(s.observer_user_id, require('../../config/supabase')) : false));
     if (!(await switchOn(session))) return null;
@@ -438,8 +470,10 @@ function discussionFrom(result, lp, transcript) {
 /**
  * The five parts for one debrief, from the notes' lesson plan check. null when the notes had none (the switch was off
  * when they were written) or the judge failed: the debrief report is written exactly as before. Never throws.
+ * `session`: the visit; a FICO 6-12 one is never judged (queue #255), even when notes written before carry a check.
  */
-async function judgeDiscussion({ transcript, lpCheck, lang, sessionId }, deps = {}) {
+async function judgeDiscussion({ transcript, lpCheck, lang, sessionId, session }, deps = {}) {
+  if (isFicoSVisit(session)) return null;
   if (!lpCheck || typeof lpCheck !== 'object' || !lpCheck.state) return null;
   if (lpCheck.state === 'no_plan') return { v: 1, state: 'no_plan' };
   if (lpCheck.state !== 'ok') return { v: 1, state: 'not_assessed', reason: lpCheck.reason || 'unavailable' };
@@ -489,6 +523,7 @@ function summariseWeek(thisWeek, lastWeek) {
 
 module.exports = {
   STEPS, STEP_NAMES, PARTS,
+  isFicoSVisit, notesFor,
   planState, fallbackWords, wordsFrom, buildLpCheck, wordsPrompt, lpCheckFor, attachLpCheck, renderLpCheckMessage,
   isGenericPlanLine, discussionPrompt, discussionFrom, judgeDiscussion, summariseWeek,
 };
