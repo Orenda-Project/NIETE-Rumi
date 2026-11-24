@@ -1225,6 +1225,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     try { var c = navigator.connection; if (c && c.effectiveType) f.net = String(c.effectiveType).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16); } catch (e) {}
     return f;
   }
+  // A stalled clip also says what its element held at that moment: rs = readyState (0-4), ns = networkState (0-3),
+  // buf = seconds buffered summed over its ranges (one decimal). "Nothing arrived" and "arrived and sat there" differ.
+  function heldFacts(f, el) {
+    try { if (el.readyState >= 0 && el.readyState <= 4 && el.readyState % 1 === 0) f.rs = el.readyState; } catch (e) {}
+    try { if (el.networkState >= 0 && el.networkState <= 3 && el.networkState % 1 === 0) f.ns = el.networkState; } catch (e) {}
+    try {
+      var b = el.buffered, s = 0;
+      if (b && typeof b.length === 'number') {
+        for (var i = 0; i < b.length; i++) s += b.end(i) - b.start(i);
+        if (s >= 0 && s < 3600) f.buf = Math.round(s * 10) / 10;
+      }
+    } catch (e) {}
+    return f;
+  }
   // Once per sitting: the first clip the browser calls MEDIA_ERR_SRC_NOT_SUPPORTED is fetched again, 2 bytes (keepalive,
   // so a page being left still sends it), and audio_probe says whether the address answered. fst = the HTTP status; a
   // storage clip this page may not read (no CORS) that answered anyway = 'opaque'; no answer = 'net'; none in 3 s =
@@ -1316,6 +1330,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
         if (switched || fin || gen !== voiceGen) return;
         switched = true;
+        var held = why === 'stalled' && player ? heldFacts({}, player) : null;
         if (why === 'stalled' && GAP_SLOW && player && player !== shared) { try { player.muted = true; late.push(player); } catch (e) {} } else { try { if (player) player.pause(); } catch (e) {} }
         player = null;
         // The event names the part, the question, where the clip came from and how long it took to fail; a refused start
@@ -1324,6 +1339,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         fx.reason = why; fx.part = (meta && meta.part) || 'line'; fx.qid = meta ? meta.qid : undefined; fx.ms = Date.now() - t0;
         if (why === 'reject') fx.err = String((err && err.name) || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'unknown';
         if (why === 'error' && err && err.code) fx.err = 'media_err_' + err.code;
+        if (held) for (var hk in held) fx[hk] = held[hk];
         ev('audio_fallback', fx);
         // The sitting's first "source not supported": its address is fetched once more and the answer goes out as its
         // own event, audio_probe (this clip's facts + fst/fct). The lost-clip event above never waits for it.
@@ -1354,7 +1370,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var started = false;
         (reuse ? function (fn) { a.onplaying = fn; } : function (fn) { a.addEventListener('playing', fn); })(function () {
           if (switched) {
-            if (!started && late.indexOf(a) >= 0) { var fl = clipFacts(url); fl.reason = 'stalled'; fl.ms = Date.now() - t0; fl.part = (meta && meta.part) || 'line'; fl.qid = meta ? meta.qid : undefined; ev('audio_slow', fl); }
+            if (!started && late.indexOf(a) >= 0) { var fl = clipFacts(url); fl.reason = 'stalled'; fl.ms = Date.now() - t0; fl.part = (meta && meta.part) || 'line'; fl.qid = meta ? meta.qid : undefined; ev('audio_slow', heldFacts(fl, a)); }
             started = true;
             try { a.pause(); } catch (e) {}
             late = late.filter(function (x) { return x !== a; });
