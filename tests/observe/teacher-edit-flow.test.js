@@ -121,6 +121,16 @@ describe('the phone change is confirmed before it writes', () => {
     expect(footer['on-click-action'].payload.step).toBe('teacher_edit_phone_commit');
   });
 
+  it('after its own edit_phone row, the commit re-points the accounts retired into hers (repointRetired)', () => {
+    // The analytics follow a retired account's latest row to the number on it: a move that leaves those rows on her
+    // old number credits her retired accounts to nobody. The shared helper writes the newer rows in this flow's words.
+    const commit = HANDLER.slice(HANDLER.indexOf("step === 'teacher_edit_phone_commit'"));
+    const body = commit.slice(0, commit.indexOf("\n    if (step ==="));
+    const audited = body.indexOf("_editAudit(userId, person, 'edit_phone'");
+    expect(audited).toBeGreaterThan(-1);
+    expect(body.indexOf('repointRetired(', audited)).toBeGreaterThan(audited);
+  });
+
   it('the commit RE-CLASSIFIES rather than trusting the confirm screen', () => {
     // The confirm is a separate round trip; a destination can acquire history
     // between the two taps, and a stale verdict is how two teachers get fused.

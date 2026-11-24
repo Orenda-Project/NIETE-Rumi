@@ -224,6 +224,9 @@ async function recordMove(out, supabase, user, { fromPhone, toPhone, changedIso 
   const action = move.verdict === _E().CASE_SHELL ? 'folded' : 'moved';
   const detail = { ..._C().moveDetail(fromPhone, toPhone, move), changed_at: changedIso };
   const recorded = await audit(supabase, user, 'edit_phone', detail);
+  // The accounts retired into hers follow her number, as Meta rows with this change's time (laterMoves compares it).
+  await require('./repoint-retired').repointRetired({ userId: user.id, toPhone },
+    (d) => audit(supabase, user, 'edit_phone', { ...d, changed_at: changedIso }));
   if (left) {
     await escalate(out, supabase, user, toPhone, 'move_incomplete', { retired_user_id: move.retiredId || null, ...left });
     return settle(out, action, out.action === 'escalated' ? 'move_incomplete' : 'escalation_unrecorded');
