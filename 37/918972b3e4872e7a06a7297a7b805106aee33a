@@ -1,2 +1,4 @@
 {"ts":"2026-11-24T20:44:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"37918972b3e4","branch":"bd-qyi45h.17-52534","user":""}
 {"ts":"2026-11-24T20:44:55Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe owe their Gherkin","sha":"37918972b3e4","branch":"bd-qyi45h.17-52534","user":""}
+{"ts":"2026-11-24T20:45:00Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"37918972b3e4","branch":"bd-qyi45h.17-52534","user":""}
+{"ts":"2026-11-24T20:45:29Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"0f53847e-34ed-4765-8961-2657f5c028d9","sha":"37918972b3e4","branch":"bd-qyi45h.17-52534","user":""}
