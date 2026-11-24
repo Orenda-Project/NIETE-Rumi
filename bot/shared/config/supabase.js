@@ -15,7 +15,7 @@
  * instead of a 12-line node stack at line 9.
  */
 
-require('dotenv').config();
+require('./load-env').loadEnv();
 const { createClient } = require('@supabase/supabase-js');
 const { actorFetch } = require('../utils/actor-context');
 
