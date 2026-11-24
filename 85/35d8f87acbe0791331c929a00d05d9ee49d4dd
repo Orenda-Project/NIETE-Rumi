@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T22:17:51Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test,portal-smoke spec_sync=true","sha":"8535d8f87acb","branch":"bd-chz35n.25-56233","user":""}
+{"ts":"2026-11-24T22:18:05Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test,portal-smoke spec_sync=true","sha":"8535d8f87acb","branch":"bd-chz35n.25-56233","user":""}
