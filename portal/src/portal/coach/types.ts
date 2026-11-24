@@ -12,6 +12,8 @@ export type CoachVisit = {
   scheduledSlot: string | null;
   status: string;
   sessionId?: string | null;
+  /** bd-f5a245 (switch on) — where the observation this visit made stands (null: none yet); absent with the switch off. */
+  sessionStep?: ReportStep | null;
   overdue?: boolean;
   current?: boolean;
 };
@@ -83,7 +85,8 @@ export type TeamData = {
 };
 
 /** bd-15y1pc: `report` — her debrief is done, the report has not reached the teacher yet. */
-export type ReportStep = "draft" | "talk" | "analysing" | "report" | "sent";
+/** bd-f5a245 — `stopped`: the analysis failed or was abandoned (the bot's portal-observe-step says the same). */
+export type ReportStep = "draft" | "talk" | "analysing" | "report" | "sent" | "stopped";
 
 export type CoachReport = {
   id: string;
@@ -166,12 +169,15 @@ export type ObservationReport = {
   /** Her own observation started in the portal: the portal can take it through each step. */
   portal?: boolean;
   mine?: boolean;
+  /** bd-f5a245 — stopped because she cancelled it (the page keeps "Observation stopped"); a failed one is false. */
+  cancelled?: boolean;
   /** The Digital Coach's score, before her check too. */
   dcScore?: number | null;
   audioUrl?: string | null;
   score: number | null;
   summary: string | null;
-  teacher: { name: string; teacherExtId: string | null; schoolName: string | null };
+  /** bd-f5a245 — schoolExtId: a stopped visit's "Upload again" books the same teacher at the same school. */
+  teacher: { name: string; teacherExtId: string | null; schoolName: string | null; schoolExtId?: string | null };
   observer: { self: boolean; name: string | null };
   sentAt: string | null;
   caption: string | null;
