@@ -396,11 +396,11 @@ def audit_rows(survivor_final, survivor_old_phone, retired, moved, skipped, meta
 
 
 def number_key(phone):
-    """The governed join key of a number (ict_account_merges: the last ten digits); None for no number or a freed one
-    (merged:/retired:/analytics:, which only a retired account holds)."""
+    """The governed join key of a number (ict_account_merges: the last ten digits, ASCII ones as BigQuery's \\D
+    reads them); None for no number or a freed one (merged:/retired:/analytics:, which only a retired account holds)."""
     if not phone or str(phone).startswith(NOT_LIVE_PREFIXES):
         return None
-    digits = re.sub(r"\D", "", str(phone))
+    digits = re.sub(r"[^0-9]", "", str(phone))
     return digits[-10:] or None
 
 
@@ -419,21 +419,39 @@ def current_account(latest, deleted, retired_id):
 
 
 def repoints(latest, deleted, accounts, final_phone):
-    """The earlier retired accounts a merge must re-point, as [{"retired", "from_phone", "supersedes"}] sorted by id:
-    each retired account outside this merge whose history is this teacher's (its chain ends at an account of this
-    merge) or whose latest row points at a number an account of this merge holds, unless that row already points at
-    the survivor's final number. accounts: {id: phone_number} for this merge's accounts as they are before it."""
+    """(repointed, problems): the earlier retired accounts a merge must re-point, as [{"retired", "from_phone",
+    "supersedes"}] sorted by id, unless their latest row already points at the survivor's final number. A retired
+    account outside this merge is this teacher's when its chain of survivors ends at an account of this merge; only
+    when the chain breaks does its latest row's number decide (an account of this merge holds it). A chain that ends
+    at another live account decides the other way: never re-pointed here, and if its row points at a number of this
+    merge, the merge is refused until --repoint puts it on that account (the number has passed to someone else).
+    A live account is never re-pointed. accounts: {id: phone_number} for this merge's accounts as they are before it."""
     held = {number_key(p) for p in accounts.values()} - {None}
     final = number_key(final_phone)
-    out = []
+    out, problems = [], []
     for rid, row in sorted(latest.items()):
-        if rid in accounts:
+        if rid in accounts or deleted.get(rid) is not True:
             continue
         key = number_key(row.get("to_phone"))
-        ours = current_account(latest, deleted, rid) in accounts or (key is not None and key in held)
-        if ours and key != final:
+        acct = current_account(latest, deleted, rid)
+        if acct is not None and acct not in accounts:
+            if key is not None and key in held:
+                problems.append(f"retired account {rid} points at a number of this merge but its history is "
+                                f"{acct}'s: run --repoint first")
+            continue
+        if (acct is not None or (key is not None and key in held)) and key != final:
             out.append({"retired": rid, "from_phone": row.get("to_phone"), "supersedes": row.get("row_id")})
-    return out
+    return out, problems
+
+
+def shared_number_problem(holders, accounts):
+    """[] or [why]: the live accounts on the kept number's key (the governed join) must all be this merge's, or the
+    analytics would credit this teacher's retired accounts to another account too. holders: their ids."""
+    others = sorted(set(holders) - set(accounts))
+    if not others:
+        return []
+    return [f"another live account ({', '.join(others)}) has the kept number in another format: the analytics would "
+            "credit this teacher's retired accounts to it too; left for a human"]
 
 
 def repoint_rows(survivor_final, repointed, meta=None):

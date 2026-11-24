@@ -644,6 +644,10 @@ class GovernedKey(unittest.TestCase):
         for phone in (None, "", "merged:7d0c1a2b-0000-4000-8000-000000000001"):
             self.assertIsNone(md.number_key(phone))
 
+    def test_only_ascii_digits_count_as_in_bigquery(self):
+        self.assertIsNone(md.number_key("۰۳۰۰"))  # Extended Arabic-Indic digits
+        self.assertEqual(md.number_key("92300123456۷"), "2300123456")
+
 
 class CurrentAccount(unittest.TestCase):
     """Whose a retired account's history is now: the survivor its latest edit_phone row names, followed through every
@@ -669,39 +673,68 @@ class RepointsOnAReMerge(unittest.TestCase):
     account points at would leave that account credited to nobody, so it writes a newer row for it on the survivor's
     final number, in the same transaction."""
 
+    PAIR = {"s": "923001111111", "x": "923002222222"}
+
     def test_a_re_merge_that_moves_the_survivor_to_another_number_re_points_the_earlier_retired_account(self):
-        out = md.repoints({"r_old": latest("s", "923001111111")}, {"s": False},
-                          {"s": "923001111111", "x": "923002222222"}, final_phone="923002222222")
-        self.assertEqual(out, [{"retired": "r_old", "from_phone": "923001111111", "supersedes": "a1"}])
+        out = md.repoints({"r_old": latest("s", "923001111111")}, {"r_old": True, "s": False}, self.PAIR,
+                          final_phone="923002222222")
+        self.assertEqual(out, ([{"retired": "r_old", "from_phone": "923001111111", "supersedes": "a1"}], []))
 
     def test_a_re_merge_that_retires_the_earlier_survivor_re_points_its_retired_account(self):
-        out = md.repoints({"r_old": latest("s_old", "923001111111")}, {"s_old": False},
-                          {"s_new": "923002222222", "s_old": "923001111111"}, final_phone="923002222222")
-        self.assertEqual([r["retired"] for r in out], ["r_old"])
+        out, problems = md.repoints({"r_old": latest("s_old", "923001111111")}, {"r_old": True, "s_old": False},
+                                    {"s_new": "923002222222", "s_old": "923001111111"}, final_phone="923002222222")
+        self.assertEqual(([r["retired"] for r in out], problems), (["r_old"], []))
 
     def test_an_earlier_retired_account_on_the_number_the_survivor_keeps_is_left_alone(self):
-        self.assertEqual(md.repoints({"r_old": latest("s", "+92 300 1111111")}, {"s": False},
-                                     {"s": "923001111111", "x": "923003333333"}, final_phone="923001111111"), [])
+        self.assertEqual(md.repoints({"r_old": latest("s", "+92 300 1111111")}, {"r_old": True, "s": False},
+                                     self.PAIR, final_phone="923001111111"), ([], []))
 
     def test_another_teachers_retired_account_is_left_alone(self):
-        self.assertEqual(md.repoints({"r_other": latest("t", "923009999999")}, {"t": False},
-                                     {"s": "923001111111", "x": "923002222222"}, final_phone="923002222222"), [])
+        self.assertEqual(md.repoints({"r_other": latest("t", "923009999999")}, {"r_other": True, "t": False},
+                                     self.PAIR, final_phone="923002222222"), ([], []))
 
     def test_an_account_of_this_merge_is_never_re_pointed(self):
         rows = {"x": latest("q", "923001111111"), "r_old": latest("s", "923001111111")}
-        out = md.repoints(rows, {"q": True, "s": False}, {"s": "923001111111", "x": "923002222222"},
-                          final_phone="923002222222")
+        out, _ = md.repoints(rows, {"x": False, "q": True, "r_old": True, "s": False}, self.PAIR,
+                             final_phone="923002222222")
         self.assertEqual([r["retired"] for r in out], ["r_old"])
 
     def test_a_latest_row_without_a_number_is_re_pointed_when_its_history_is_on_this_teacher(self):
-        out = md.repoints({"r_old": latest("s", None, row_id="a9")}, {"s": False},
-                          {"s": "923001111111", "x": "923002222222"}, final_phone="923001111111")
-        self.assertEqual(out, [{"retired": "r_old", "from_phone": None, "supersedes": "a9"}])
+        out = md.repoints({"r_old": latest("s", None, row_id="a9")}, {"r_old": True, "s": False}, self.PAIR,
+                          final_phone="923001111111")
+        self.assertEqual(out, ([{"retired": "r_old", "from_phone": None, "supersedes": "a9"}], []))
 
-    def test_an_account_pointing_at_a_number_of_this_merge_is_re_pointed_even_when_its_chain_breaks(self):
-        out = md.repoints({"r_old": latest("not-an-account", "923003333333")}, {},
-                          {"s": "923001111111", "x": "923003333333"}, final_phone="923001111111")
-        self.assertEqual([r["retired"] for r in out], ["r_old"])
+    def test_an_account_pointing_at_a_number_of_this_merge_is_re_pointed_when_its_chain_breaks(self):
+        out, problems = md.repoints({"r_old": latest("not-an-account", "923002222222")}, {"r_old": True},
+                                    self.PAIR, final_phone="923001111111")
+        self.assertEqual(([r["retired"] for r in out], problems), (["r_old"], []))
+
+    def test_a_number_match_never_overrides_a_chain_that_ends_at_another_teachers_account(self):
+        # r_old was retired into y, which later moved to another number; its old number is now x's. Its history is
+        # y's: never re-point it to this teacher. The merge is refused until --repoint puts it on y.
+        out, problems = md.repoints({"r_old": latest("y", "923002222222")}, {"r_old": True, "y": False}, self.PAIR,
+                                    final_phone="923001111111")
+        self.assertEqual(out, [])
+        self.assertEqual(len(problems), 1)
+        self.assertIn("r_old", problems[0])
+        self.assertIn("--repoint", problems[0])
+
+    def test_a_live_account_is_never_re_pointed(self):
+        self.assertEqual(md.repoints({"r_old": latest("s", "923001111111")}, {"r_old": False, "s": False},
+                                     self.PAIR, final_phone="923002222222"), ([], []))
+
+
+class SharedNumber(unittest.TestCase):
+    """The analytics join on the last ten digits, so a live account outside the merge with the same number in another
+    format would be credited with this teacher's retired accounts too. That is refused at the dry run."""
+
+    def test_the_kept_number_held_only_by_this_merges_accounts_passes(self):
+        self.assertEqual(md.shared_number_problem(["s", "x"], {"s", "x"}), [])
+
+    def test_another_live_account_on_the_kept_number_is_refused(self):
+        out = md.shared_number_problem(["s", "y"], {"s", "x"})
+        self.assertEqual(len(out), 1)
+        self.assertIn("y", out[0])
 
 
 class RepointRows(unittest.TestCase):

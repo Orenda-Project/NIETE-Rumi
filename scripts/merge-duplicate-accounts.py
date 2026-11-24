@@ -100,13 +100,17 @@ LATEST_RETIRED = ("SELECT DISTINCT ON (detail->>'retired_user_id') detail->>'ret
 # The governed ict_account_merges (taleemabad-data rules, niete-rumi teacher-headcount 1e) as Postgres runs it, for the
 # given retired accounts: the live accounts on the last ten digits of each one's latest edit_phone row's to_phone.
 GOVERNED = (r"WITH a AS (SELECT detail->>'retired_user_id' AS retired_id, "
-            r"right(regexp_replace(detail->>'to_phone', '\D', '', 'g'), 10) AS to_p10, "
+            r"right(regexp_replace(detail->>'to_phone', '[^0-9]', '', 'g'), 10) AS to_p10, "
             r"row_number() OVER (PARTITION BY detail->>'retired_user_id' ORDER BY created_at DESC) AS rn "
             r"FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'retired_user_id' = ANY(%s)) "
             r"SELECT a.retired_id, coalesce(array_agg(s.id::text ORDER BY s.id::text) FILTER (WHERE s.id IS NOT NULL), "
             r"'{}') AS holders FROM a LEFT JOIN users s "
-            r"ON right(regexp_replace(s.phone_number, '\D', '', 'g'), 10) = a.to_p10 AND s.deleted_at IS NULL "
+            r"ON right(regexp_replace(s.phone_number, '[^0-9]', '', 'g'), 10) = a.to_p10 AND s.deleted_at IS NULL "
             r"AND s.id::text <> a.retired_id WHERE a.rn = 1 GROUP BY a.retired_id")
+# The live accounts on each given number key (the governed join's key: the last ten ASCII digits).
+KEY_HOLDERS = (r"SELECT right(regexp_replace(phone_number, '[^0-9]', '', 'g'), 10) AS k, "
+               r"array_agg(id::text ORDER BY id::text) AS ids FROM users WHERE deleted_at IS NULL "
+               r"AND right(regexp_replace(phone_number, '[^0-9]', '', 'g'), 10) = ANY(%s) GROUP BY 1")
 REPOINT_COUNT = ("SELECT count(*) AS n FROM leader_roster_audit WHERE action = 'edit_phone' AND detail->>'run_id' = %s "
                  "AND detail->>'case' = 'repoint' AND detail->>'retired_user_id' = ANY(%s)")
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -342,10 +346,21 @@ def governed_problems(cur, pair, want):
             for r, a in sorted(want.items()) if got.get(r) != [a]]
 
 
+def number_holders(cur, phones):
+    """{number key: [live account ids]} for the keys of the given numbers (KEY_HOLDERS): one scan of users."""
+    numbers = sorted({md.number_key(p) for p in phones} - {None})
+    if not numbers:
+        return {}
+    cur.execute(KEY_HOLDERS, (numbers,))
+    return {r["k"]: list(r["ids"]) for r in cur.fetchall()}
+
+
 def read_state(cur, ids, fks, keys):
-    return {"users": load_users(cur, ids), "ident": identity_counts(cur, fks, ids),
+    users = load_users(cur, ids)
+    return {"users": users, "ident": identity_counts(cur, fks, ids),
             "owned": owned_rows(cur, fks, keys, ids), "visits": load_visits(cur, ids),
-            "retired_rows": retired_accounts(cur)}
+            "retired_rows": retired_accounts(cur),
+            "number_holders": number_holders(cur, [u["phone_number"] for u in users.values()])}
 
 
 def full_rows(conn, pp, fks):
@@ -496,7 +511,11 @@ def plan_pair(state, p, keys, run_id, now_iso, dependents=lambda moves: [], fold
                            moved, skipped, meta=meta, folded=folded)
     # Earlier merges' retired accounts this merge would leave credited to nobody (a re-merge): re-pointed to the survivor.
     latest, deleted = state["retired_rows"]
-    repointed = md.repoints(latest, deleted, {i: rows[i]["phone_number"] for i in pids}, final_phone)
+    repointed, repoint_problems = md.repoints(latest, deleted, {i: rows[i]["phone_number"] for i in pids},
+                                              final_phone)
+    problems += repoint_problems
+    # As the analytics join: no live account outside this merge may hold the kept number in another format.
+    problems += md.shared_number_problem(state["number_holders"].get(md.number_key(final_phone), []), pids)
     audits += md.repoint_rows(dict(rows[surv], **patch), repointed, meta=meta)
     label = {f: "survivor's old number" if f == rows[surv]["phone_number"] else "a freed number" for f, _ in numbers}
     return {**p, "survivor": surv, "retired": retired, "problems": problems, "patch": patch,
@@ -1129,11 +1148,7 @@ def repair_state(cur, only):
     cur.execute("SELECT id::text AS id, phone_number, name FROM users WHERE id = ANY(%s::uuid[]) "
                 "AND deleted_at IS NULL", (ids,))
     accounts = {r["id"]: dict(r) for r in cur.fetchall()}
-    numbers = sorted({md.number_key(r["phone_number"]) for r in accounts.values()} - {None})
-    cur.execute(r"SELECT right(regexp_replace(phone_number, '\D', '', 'g'), 10) AS k, "
-                r"array_agg(id::text ORDER BY id::text) AS ids FROM users WHERE deleted_at IS NULL "
-                r"AND right(regexp_replace(phone_number, '\D', '', 'g'), 10) = ANY(%s) GROUP BY 1", (numbers,))
-    keys = {r["k"]: list(r["ids"]) for r in cur.fetchall()}
+    keys = number_holders(cur, [r["phone_number"] for r in accounts.values()])
     plan, left = md.repair_plan(latest, deleted, holders, {i: r["phone_number"] for i, r in accounts.items()}, keys,
                                 only=wanted)
     return plan, left, holders, accounts
