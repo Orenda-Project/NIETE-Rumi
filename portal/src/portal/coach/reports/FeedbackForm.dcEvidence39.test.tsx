@@ -10,7 +10,7 @@ import i18n from "i18next";
  *   the box      ONE box titled "Digital Coach's evidence" (Urdu ڈیجیٹل کوچ کے شواہد) on every indicator where the
  *                Digital Coach gave evidence: it replaces "From the recording" (the six) and the evidence box's
  *                "Evidence" label with its "Digital Coach heard" line (the eleven). It holds only its findings, as
- *                evidence rows (time + quote); the eleven keep edit / remove / Add evidence. Heard nothing: no box at
+ *                evidence rows (time + quote); the eleven's are read only, with "Edit evidence" under the box (queue #251; option B's edit / remove / Add evidence went). Heard nothing: no box at
  *                all (never "Nothing for this in the recording"). D2's counts, N/A, couldn't tell, starred: a muted row.
  *   the six      the line under the name also says how to fill it (the bot's `hint`: D2 "Chorus answers don't
  *                count."); no "You add: …" anywhere; "The Digital Coach can't count this one. You decide." stays on
@@ -128,7 +128,7 @@ beforeEach(async () => {
 });
 
 describe("one box: Digital Coach's evidence (FICO17 v6.1)", () => {
-  it("one of the eleven: the box is titled Digital Coach's evidence; no 'Digital Coach heard', no 'Evidence' label; rows keep edit, remove and Add evidence", async () => {
+  it("one of the eleven: the box is titled Digital Coach's evidence; no 'Digital Coach heard', no 'Evidence' label; its rows read only, Edit evidence under it (queue #251)", async () => {
     await toIndicator("C", "C1");
     const box = within(card().getByTestId("dc-evidence"));
     expect(box.getByText("Digital Coach’s evidence")).toBeInTheDocument();
@@ -136,13 +136,12 @@ describe("one box: Digital Coach's evidence (FICO17 v6.1)", () => {
     expect(screen.getByTestId("ff-card").textContent).not.toMatch(/Digital Coach heard|From the recording/);
     expect(card().queryByText("Evidence")).toBeNull();
     expect(box.getByTestId("ff-summary")).toHaveTextContent(BECAUSE);
-    const rows = box.getAllByTestId("ff-quote");
+    const rows = box.getAllByTestId("dc-row");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("ff-time")).toHaveTextContent("04:30");
-    fireEvent.click(within(rows[0]).getByRole("button", { name: "More: edit or remove" }));
-    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
-    expect(box.getByRole("button", { name: "Add evidence" })).toBeInTheDocument();
+    expect(box.queryByRole("button", { name: "More: edit or remove" })).toBeNull();
+    expect(box.queryByRole("button", { name: "Add evidence" })).toBeNull();
+    expect(card().getByRole("button", { name: "Edit evidence" })).toBeInTheDocument();
   });
 
   it("one of the eleven the Digital Coach gave nothing for: no box; the coach's own Evidence box", async () => {
@@ -199,7 +198,7 @@ describe("one box: Digital Coach's evidence (FICO17 v6.1)", () => {
     await toIndicator("C", "C1");
     expect(within(card().getByTestId("dc-evidence")).getByText((t) => flat(t) === "ڈیجیٹل کوچ کے شواہد")).toBeInTheDocument();
     expect(screen.getByTestId("ff-card").textContent).not.toMatch(/نے یہ سنا|ریکارڈنگ سے/);
-    expect(within(screen.getAllByTestId("ff-quote")[1]).getByText(`“${Q_UR}”`)).toHaveAttribute("data-urdu");
+    expect(within(screen.getAllByTestId("dc-row")[1]).getByText(`“${Q_UR}”`)).toHaveAttribute("data-urdu");
   });
 });
 
