@@ -1986,7 +1986,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
   } : null;
 
-  if (s.status !== 'completed') {
+  const firstFinish = s.status !== 'completed';
+  if (firstFinish) {
     const { error } = await supabase.from('quiz_sessions').update({
       status: 'completed', total_questions_answered: total, correct_answers: correct,
       mastery_percentage: pct, mastery_level: level, completed_at: new Date().toISOString(),
@@ -2041,6 +2042,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
   // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
   const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
+  // Keep this attempt (table quiz_attempts, switch web_quiz_keep_attempts): after the card's reads so it never moves them,
+  // never awaited, reply unchanged. Only the finish that completed the session.
+  if (firstFinish) require('./quiz-attempt-log').keep({ session: s, served, byQ, keyFor: WebItems.keyFor, channel: 'web' });
   return {
     score: { correct, total, pct, level },
     ...counted,
