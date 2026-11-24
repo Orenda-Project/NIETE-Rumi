@@ -667,11 +667,11 @@ class AnalysisProcessorService {
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
             // fidelity_unavailable vs never-ran were indistinguishable before.
-            ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
-            ...ficoV6Shadow.patch(v6Shadow),
             // bd-3itk00: which queue message produced this analysis. This write is the checkpoint: a later run of
             // the same message finds it here and carries on from it (_resumeFromSavedAnalysis).
             ...(job && job.messageId ? { analysis_job: { message_id: String(job.messageId) } } : {}),
+            ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
+            ...ficoV6Shadow.patch(v6Shadow),
           },
           status: 'analysis_complete',
           analysis_completed_at: new Date().toISOString(),
