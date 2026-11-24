@@ -143,7 +143,7 @@ const MenuService = require('../../shared/services/menu.service');
 const { handleObserveCommand } = require('../../shared/handlers/observe-command.handler');
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
 
-const FROM = '923365709413';
+const FROM = '923001234567';
 const MESSAGE = { id: 'wamid.bd5ls6qy7.test' };
 const teacher = () => ({
   id: 'user-uuid-bd5ls6qy7',

@@ -53,7 +53,7 @@ describe('sendResetCode language (bd-2469)', () => {
 
   it("sends English for an English user", async () => {
     global.__USER_ROW__ = { ...mockUserRow, preferred_language: 'en' };
-    await PasswordResetService.sendResetCode('923365709413');
+    await PasswordResetService.sendResetCode('923001234567');
     expect(sentLanguage()).toBe('en');
   });
 

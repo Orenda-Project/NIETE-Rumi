@@ -120,7 +120,7 @@ describe('bd-2477 #3 — a failed share offer must not vanish silently', () => {
       .mockResolvedValueOnce(true);   // the window clears
 
     const promise = share.offerShare({
-      phone: '923365709413', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
+      phone: '923001234567', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
     });
     await jest.runAllTimersAsync();
     await promise;
@@ -132,7 +132,7 @@ describe('bd-2477 #3 — a failed share offer must not vanish silently', () => {
     WhatsAppService.sendInteractiveButtons.mockResolvedValue(false);
 
     const promise = share.offerShare({
-      phone: '923365709413', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
+      phone: '923001234567', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
     });
     await jest.runAllTimersAsync();
     await promise;
@@ -147,7 +147,7 @@ describe('bd-2477 #3 — a failed share offer must not vanish silently', () => {
     WhatsAppService.sendInteractiveButtons.mockResolvedValue(true);
 
     await share.offerShare({
-      phone: '923365709413', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
+      phone: '923001234567', userId: 'u1', quizId: 'qz1', videoId: 'v1', language: 'en',
     });
 
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
