@@ -22,7 +22,7 @@ import { scanCopy, scanStyle } from "../../newui/checks/source";
  *                 (bd-o15qnr.39.1: the box is now "Digital Coach's evidence", N/A a 5th level card)
  *                 per part; the dock Back · Next part (1 : 2)
  *   Save tray     "Save Feedback Form", "17 ratings · 2 levels and 3 notes changed from Rumi's", Save and continue,
- *                 Keep checking, "Next: Record the debrief"
+ *                 Keep checking, "Next: Take the debrief" (bd-o15qnr.49: the step's words)
  *   FICO-S / FDE  saved part by part: every Next (and Back) saves, "Saved 11:42 AM" in the chip row, the line "Saved
  *                 part by part …"; FDE: "You choose every level here: no Digital Coach levels on this form."; levels as radio rows
  *
@@ -354,7 +354,7 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", ()
     expect(dockButton("Agree and next")).toBeInTheDocument();
   });
 
-  it("the Save tray: N ratings · what changed from the assistant's, Save and continue, Keep checking, Next: Record the debrief", async () => {
+  it("the Save tray: N ratings · what changed from the assistant's, Save and continue, Keep checking, Next: Take the debrief", async () => {
     renderPage();
     await openIndicator("C", "C1");
     fireEvent.click(group("Quality of Questions Asked by the Teacher").getByRole("radio", { name: "Developing" }));
@@ -385,7 +385,7 @@ describe("switch on: FICO17 v6, as m9-ff-v6 draws it (collapsed, canvas-ff)", ()
     fireEvent.click(dockButton("Save"));
     const tray = within(await screen.findByRole("dialog", { name: "Save Feedback Form" }));
     expect(tray.getByText("5 ratings · 1 level and 1 note changed from the Digital Coach’s")).toBeInTheDocument();
-    expect(tray.getByText("Next: Record the debrief")).toBeInTheDocument();
+    expect(tray.getByText("Next: Take the debrief")).toBeInTheDocument();
     fireEvent.click(tray.getByRole("button", { name: "Keep checking" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(dockButton("Save"));
