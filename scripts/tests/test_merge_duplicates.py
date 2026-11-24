@@ -510,6 +510,61 @@ class Guards(unittest.TestCase):
         self.assertIn("attendance_sessions", got[0])
 
 
+class KeptNumber(unittest.TestCase):
+    """The merge keeps the number in use (the RMs' answer). When another account of the pair messaged more recently,
+    the teacher is writing from that other number, and the number the merge frees comes back as a new account the
+    next time she writes. So that is refused, with both dates, unless the reviewed scope overrides it with a reason.
+    The bot stamps last_message_at on the account each message resolves to, so it is per number."""
+
+    def rows(self, kept_at, other_at):
+        return {"a": u("a", "923001111111", last_message_at=kept_at),
+                "b": u("b", "923002222222", last_message_at=other_at)}
+
+    def test_keeping_the_number_messaged_from_most_recently_passes(self):
+        self.assertEqual(md.kept_number_problem(self.rows("2026-11-17T10:00:00+00:00", "2026-11-10T09:00:00+00:00"),
+                                                "a"), [])
+
+    def test_a_tie_passes(self):
+        self.assertEqual(md.kept_number_problem(self.rows("2026-11-17T10:00:00+00:00", "2026-11-17T10:00:00+00:00"),
+                                                "a"), [])
+
+    def test_keeping_a_number_another_account_messaged_from_later_is_refused_with_both_dates(self):
+        out = md.kept_number_problem(self.rows("2026-10-08T07:00:00+00:00", "2026-10-15T12:30:00+00:00"), "a")
+        self.assertEqual(len(out), 1)
+        for part in ("2026-10-08 07:00", "2026-10-15 12:30", "b"):
+            self.assertIn(part, out[0])
+
+    def test_a_kept_number_that_never_messaged_is_refused_when_another_did(self):
+        out = md.kept_number_problem(self.rows(None, "2026-11-19T13:19:00+00:00"), "a")
+        self.assertEqual(len(out), 1)
+        self.assertIn("never", out[0])
+
+    def test_no_messages_on_any_account_is_no_evidence(self):
+        self.assertEqual(md.kept_number_problem(self.rows(None, None), "a"), [])
+
+    def test_the_latest_of_several_other_accounts_is_compared(self):
+        rows = dict(self.rows("2026-11-12T00:00:00+00:00", "2026-11-01T00:00:00+00:00"),
+                    c=u("c", "923003333333", last_message_at="2026-11-20T00:00:00+00:00"))
+        out = md.kept_number_problem(rows, "a")
+        self.assertEqual(len(out), 1)
+        self.assertIn("c", out[0])
+
+    def test_times_compare_as_instants_whatever_the_zone(self):
+        # 15:00 in Karachi is 10:00 UTC, before 10:30 UTC.
+        out = md.kept_number_problem(self.rows("2026-11-17T15:00:00+05:00", "2026-11-17T10:30:00+00:00"), "a")
+        self.assertEqual(len(out), 1)
+
+    def test_an_override_in_the_reviewed_scope_lets_it_through(self):
+        rows = self.rows("2026-10-08T07:00:00+00:00", "2026-10-15T12:30:00+00:00")
+        self.assertEqual(md.kept_number_problem(rows, "a", override="RM: this is the WhatsApp number now"), [])
+        self.assertEqual(len(md.kept_number_problem(rows, "a", override="   ")), 1)
+
+    def test_no_phone_number_in_the_reason(self):
+        out = md.kept_number_problem(self.rows(None, "2026-11-19T13:19:00+00:00"), "a")
+        self.assertNotIn("923001111111", out[0])
+        self.assertNotIn("923002222222", out[0])
+
+
 class SweepGuards(unittest.TestCase):
     """A sweep moves what reached a retired account after its merge (a message in flight at the commit). It only
     touches pairs this tool merged."""

@@ -358,6 +358,33 @@ def guards(rows, survivor_id, retired_ids, in_use_id, reviewed_survivor, moves, 
     return out + list(fold_problems) + _stranded(stranded)
 
 
+def _utc(v):
+    """A timestamp as an aware UTC instant (a naive one is read as UTC); None if it is not one."""
+    from datetime import timezone
+    i = _instant(v)
+    return None if i is None else (i.replace(tzinfo=timezone.utc) if i.tzinfo is None else i)
+
+
+def kept_number_problem(rows, in_use_id, override=None):
+    """[] or [why]. The merge keeps the in-use account's number. When another account of the pair messaged more
+    recently (last_message_at, which the bot stamps on the account each message resolves to), the teacher writes from
+    that other number now, and the number the merge frees comes back as a new account the next time they write. That
+    is refused with both times, unless the reviewed scope overrides it with a reason. No message on any other account
+    is no evidence either way. rows: {account id: users row} for the pair's accounts."""
+    if override and str(override).strip():
+        return []
+    kept_at = _utc((rows.get(in_use_id) or {}).get("last_message_at"))
+    later = [(at, i) for i, r in rows.items() if i != in_use_id and r is not None
+             for at in [_utc(r.get("last_message_at"))] if at is not None]
+    if not later or (kept_at is not None and kept_at >= max(later)[0]):
+        return []
+    at, other = max(later)
+    when = (lambda t: t.strftime("%Y-%m-%d %H:%M UTC") if t is not None else "never")
+    return [f"the number kept ({in_use_id}, last message {when(kept_at)}) is not the one the teacher messaged from most "
+            f"recently ({other}, {when(at)}): confirm which number they use now, or give keep_number_override in the "
+            "scope"]
+
+
 def sweep_guards(rows, survivor_id, retired_ids, moves, stranded=()):
     """Reasons a sweep (moving what reached a retired account after its merge) must not run; empty when it may. It only
     touches pairs this tool merged: a live survivor, and retired accounts soft-deleted by it on a merged: number."""
