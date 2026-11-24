@@ -795,6 +795,17 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (await ConversationResume.handleResumeButton(user, from, buttonId)) return;
       }
 
+      // Queue #266 — "Continue on WhatsApp" (coach_app_wa:<kind>), the reply button that follows the app's button for a
+      // coach on the portal's HITL switches (app-redirect 2h): a coach's tap starts today's WhatsApp /observe; anyone
+      // else gets the app again, never the WhatsApp flow. false only for an id that is not this button.
+      if (user && buttonId.startsWith('coach_app_wa:')) {
+        const CoachAppNudge = require('./shared/services/coach-app-nudge.service');
+        const { getUserLanguage } = require('./shared/utils/language-cache');
+        let language;
+        try { language = await getUserLanguage(user.id); } catch (_) { language = undefined; }
+        if (await CoachAppNudge.handleContinueButton(user, from, buttonId, { language })) return;
+      }
+
       // The data analyst's buttons (services/data-analyst/entry.js): Ask another, Main menu, Data answer / Normal, a quick
       // pick, a clarifying option. A hand-back (Main menu, Normal) runs the ordinary text handler with those words.
       if (buttonId.startsWith('da_')) {

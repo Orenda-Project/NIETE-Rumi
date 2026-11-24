@@ -21,6 +21,21 @@ const todayKey = (userId) => `coach_app:whatsapp_today:${userId}`;
 const KINDS = Object.freeze(['observe', 'menu', 'report']);
 
 /**
+ * Queue #266 — the "Continue on WhatsApp" reply button that follows the app's button for a coach (app-redirect 2h). Its id
+ * is `coach_app_wa:<kind>`; coach-app-nudge.service handleContinueButton answers it (whatsapp-bot.js routes the prefix).
+ * One definition for the sender and the answerer. Only 'observe' is sent today.
+ */
+const CONTINUE_PREFIX = 'coach_app_wa:';
+const continueButtonId = (kind) => `${CONTINUE_PREFIX}${kind}`;
+/** The kind a continue-button id names ('observe' …), or null when the id is not one of ours. */
+function continueKindOf(buttonId) {
+  const id = String(buttonId || '');
+  if (!id.startsWith(CONTINUE_PREFIX)) return null;
+  const kind = id.slice(CONTINUE_PREFIX.length);
+  return KINDS.includes(kind) ? kind : null;
+}
+
+/**
  * A person's keyed reference for a diagnostic log line (quiz/web-quiz-kid tk), never the raw users.id; null when this
  * deployment has no key. The app_funnel rows keep users.id: it is the key the portal's own rows join on.
  */
@@ -83,5 +98,6 @@ async function takeOffer(userId) {
 
 module.exports = {
   REPLY_TTL_S, KINDS, replyKey, todayKey, handoffKey, secondsToPktMidnight, tkOf,
+  CONTINUE_PREFIX, continueButtonId, continueKindOf,
   armReply, takeOffer, choseWhatsappToday, markWhatsappToday, readHandoff,
 };
