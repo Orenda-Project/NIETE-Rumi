@@ -186,8 +186,13 @@ async function viewOf(row, ctx) {
     const got = await Store().getPeople([form.observer_user_id, form.teacher_user_id]);
     ctx.people = got.ok ? got.people : [];
   }
-  const draft = Store().draftOf(form);
   const sealed = Boolean(form.sealed_at);
+  // Queue #256: a FICO 6-12 Digital Coach visit not yet submitted opens on the Digital Coach's "Indicator to work on"
+  // when she has not chosen one; shown (and checked) as if saved, saved with her next save. A sealed form reads as sent.
+  const saved = Store().draftOf(form);
+  const draft = ctx.tool === 'ficos' && !sealed
+    ? FS.withDcFocus(saved, { dc: require('./fico-s-dc').dcOf(form), rubric: form.rubric_version })
+    : saved;
   const label = rubricLabelOf({ session: row, form });
   return {
     status: 'ok',
