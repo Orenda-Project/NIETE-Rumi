@@ -1788,12 +1788,6 @@ function schedulePeriodicChecks({ worker: w = null } = {}) {
     logToFile('Error scheduling the teacher activity job (non-fatal)', { error: error && error.message }, 'error');
   }
   try {
-    // The A/B tracker's rollup into its own ab_ tables; a no-op until ab_tracker_rollup_enabled is set.
-    require('./ab-tracker-schedule').scheduleAbTracker({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
-  } catch (error) {
-    logToFile('Error scheduling the A/B tracker rollup (non-fatal)', { error: error && error.message }, 'error');
-  }
-  try {
     // The daily web quiz voice alarm (share of sittings that lost a clip) on the ops stream; a no-op until its env is set.
     require('./web-quiz-voice-watch-schedule').scheduleWebQuizVoiceWatch({ worker: w, hasMainQueue: SQSCoachingWorker._enabledQueues().has('main') });
   } catch (error) {
