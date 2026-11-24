@@ -84,6 +84,17 @@
  *      so a "1" after it is an ordinary message. Any door that asks for observe (/observe, her bare "observe", the
  *      menu's Observe row). Asked after the coach nudge and before the October coach link. Anyone else, or a failed
  *      read, goes on exactly as before; old code never reads the key for the bot, so a rollback is today's flow.
+ *   2h. THE COACH OBSERVE WHATSAPP BUTTON (queue #266), for observe only (COACH_WA_BUTTON): a coach the portal shows the
+ *      HITL visit flow to (users.role coach AND the portal's own rule, observer-report-copy flowV6OnFor: portal_coach_v2,
+ *      portal_coach_full_app and portal_coach_flow_v2 all name them) gets the app's button (cta_url, the coach app's
+ *      Observe page) and then ONE reply-button message, "Continue on WhatsApp" (id coach_app_wa:observe), whose tap
+ *      starts today's WhatsApp /observe (observe/coach-observe-continue handleContinueButton). The operator, 24 Nov: "they
+ *      should still [get] the portal link, but a button to still continue thru the whatsapp just in case something
+ *      breaks"; and "The WhatsApp fallback is just for the coaches. Principal can only do it on the app" (2g is
+ *      unchanged). Two messages because a message carries a link button OR reply buttons, never both. No switch of its
+ *      own: it rides the portal's switches, so it follows the coach app's rollout. Every ask gets both (no day's-choice
+ *      skip). Asked FIRST, before 2f. Anyone the rule does not cover, or a failed read, goes on exactly as before; old
+ *      code never sends the button, so a rollback is today's flow (a button already in a chat then does nothing).
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -258,6 +269,26 @@ const COACH_FULL_APP_KEY = 'portal_coach_full_app';
 const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe', assessment_generator: 'assessment_generator' });
 const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
 
+/**
+ * 2h — a coach on the portal's HITL switches asking to observe: request → the coach-app page, the app message's words,
+ * and the WhatsApp reply button that follows it (its words and its id). Observe only. The button's id is answered by
+ * observe/coach-observe-continue handleContinueButton (whatsapp-bot.js routes the `coach_app_wa:` prefix there).
+ */
+// The button's id and its tap live in one leaf module (observe/coach-observe-continue.js); it requires this file only
+// at call time, so there is no load cycle.
+const CoachObserveContinue = require('./observe/coach-observe-continue');
+const COACH_WA_BUTTON = Object.freeze({
+  observe: Object.freeze({
+    landing: 'coach_observe',
+    copy: ['coachObserveAppBody', 'coachObserveAppButton'],
+    bodyKey: 'coachObserveWhatsappBody',
+    buttonKey: 'coachObserveWhatsappButton',
+    id: CoachObserveContinue.continueButtonId('observe'),
+  }),
+});
+/** The portal's v6/v7 visit-flow switch (dashboard/lib/feature-flags.js), read with the portal's rule (flowV6OnFor). */
+const FLOW_V2_KEY = 'portal_coach_flow_v2';
+
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
@@ -344,7 +375,8 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, LEADER_PAPER_KEY, UNREGISTERED_PAPER_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY, PRINCIPAL_APP_KEY]);
+        LEADER_LP_KEY, LEADER_PAPER_KEY, UNREGISTERED_PAPER_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY, COACH_NUDGE_KEY, COACH_FULL_APP_KEY, PRINCIPAL_APP_KEY,
+        FLOW_V2_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -539,6 +571,54 @@ async function coachNudge(feature, userId, now) {
 }
 
 /**
+ * 2h — is this a coach the portal shows the HITL visit flow to, asking for a request that has the WhatsApp button
+ * (COACH_WA_BUTTON)? The flow switch is read first (no row, or one that does not name them, costs no users read); then
+ * the users row must say coach and the portal's own rule must hold (observer-report-copy flowV6OnFor: portal_coach_v2,
+ * portal_coach_full_app and portal_coach_flow_v2 all name them). A principal is never covered here: 2g answers her.
+ * Any failed read is false: the next path decides, never a guess.
+ */
+async function coachWaButtonCovers(feature, userId, now) {
+  if (!Object.prototype.hasOwnProperty.call(COACH_WA_BUTTON, feature)) return false;
+  const values = await settingValues(now);
+  if (!namesUser(values.get(FLOW_V2_KEY), userId)) return false;
+  try {
+    const a = await loadAccount(userId);
+    if (!a || !isCoachRole(a.role)) return false;
+    // The portal's rule, from the one place the bot keeps it (required here: that module needs none of this file).
+    const { flowV6OnFor } = require('./observe/observer-report-copy');
+    return flowV6OnFor(values, a);
+  } catch (err) {
+    logToFile('⚠️ Coach observe WhatsApp button: the account could not be read — the next path decides', { tk: CoachObserveContinue.tkOf(userId), feature, error: err?.message }, 'warn');
+    return false;
+  }
+}
+
+/**
+ * 2h — the reply-button message that follows the app's button: one line and ONE button whose id starts today's WhatsApp
+ * flow (observe/coach-observe-continue handleContinueButton). Best effort: the app's link already went, so a refusal or a throw
+ * is logged at error and the ask stays handled. Never throws.
+ */
+async function sendWhatsappButton(feature, { userId, from, language, journey }) {
+  const spec = COACH_WA_BUTTON[feature];
+  const fx = { journeyId: journey && journey.journeyId, userId, feature, audience: 'coach' };
+  let sent = false;
+  try {
+    sent = await WhatsAppService.sendInteractiveButtons(from, {
+      body: resolveUx(spec.bodyKey, { language }),
+      buttons: [{ id: spec.id, title: resolveUx(spec.buttonKey, { language }) }],
+    });
+  } catch (err) {
+    logToFile('❌ Coach observe WhatsApp button: send threw — she has the app link only', { tk: CoachObserveContinue.tkOf(userId), feature, error: err?.message }, 'error');
+  }
+  if (sent) funnelEvent('app_funnel.wa_button_sent', fx);
+  else {
+    logToFile('❌ Coach observe WhatsApp button not delivered — she has the app link only', { tk: CoachObserveContinue.tkOf(userId), feature }, 'error');
+    funnelEvent('app_funnel.wa_button_failed', fx);
+  }
+  return Boolean(sent);
+}
+
+/**
  * bd-eqkr0n (2g) — the principal link: the page to land on (PRINCIPAL_LINKS), or null for the next path. The switch is
  * read first (no row, or one that does not name her, costs no users read); then her users row, which must say
  * principal. `account` is the caller's memoised users read. A failed read is null: today's flow, never a guess.
@@ -722,6 +802,16 @@ async function shapeLink(onLink, journey) {
 
 async function decideRedirect(feature, { userId, from, language, reason = 'unspecified', now = Date.now(), onLink = null } = {}) {
   if (userId && from) {
+    // 2h — a coach on the portal's HITL switches asking to observe: the app's button, then the WhatsApp button. Every
+    // ask (no day's-choice skip: "they should still [get] the portal link"). Asked before the nudge, so a coach on both
+    // gets this form. false only when not even the link went: today's WhatsApp flow runs, never silence.
+    if (await coachWaButtonCovers(feature, userId, now)) {
+      const spec = COACH_WA_BUTTON[feature];
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach', offer: 'wa_button' });
+      const sent = await sendAppLink(spec.landing, { userId, from, language, reason, journey, copy: spec.copy });
+      if (sent) await sendWhatsappButton(feature, { userId, from, language, journey });
+      return sent;
+    }
     // bd-9652yj (2f) — the coach app nudge, before the October coach link.
     const nudge = await coachNudge(feature, userId, now);
     if (nudge === 'whatsapp_today') {
