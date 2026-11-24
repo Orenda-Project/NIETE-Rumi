@@ -149,3 +149,40 @@ describe('arm b: the framing words', () => {
     expect(b.steps().some((x) => 'ask_v' in x)).toBe(false);
   });
 });
+
+describe('arm b, after Yes the prompt was CLOSED (perm default): the browser blocked nothing, so the card says so', () => {
+  const RETRY = { en: 'Tap Yes again and choose Allow', ur: 'دوبارہ ہاں دبائیں، پھر اجازت دیں' };
+  test.each(['en', 'ur'])('%s: one true line, Yes still there, no "reminders are off"', async (lang) => {
+    const p = await mounted({ key: { key: KEY, ask_v: 'b' }, perm: 'default' }, { code: 'AB12CD', lang, chips: 1 });
+    await p.tap('yes');
+    const h = p.slot.innerHTML;
+    expect(h).toContain(RETRY[lang]);
+    expect(h).toContain('data-act="yes"');
+    expect(h).toContain(ASK_B[lang][2]);
+    expect(h).not.toContain(p.ctx.WQREMIND.T[lang].remindDenied);
+    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang, src: 'result', ps: PS, ask_v: 'b', perm: 'default' }]);
+  });
+  test('Yes again, Allow this time: granted and subscribed, the done line', async () => {
+    const p = await mounted({ key: { key: KEY, ask_v: 'b' }, perm: 'default' });
+    await p.tap('yes');
+    expect(p.slot.innerHTML).toContain('data-act="yes"'); // the button is really there to tap again
+    p.ctx.Notification.requestPermission = () => Promise.resolve('granted');
+    await p.tap('yes');
+    expect(p.steps().map((b) => b.step)).toEqual(['shown', 'yes', 'denied', 'yes', 'granted', 'subscribed']);
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.en.remindDone);
+  });
+  test('arm b, Block (perm denied): today\'s "reminders are off" line', async () => {
+    const p = await mounted({ key: { key: KEY, ask_v: 'b' }, perm: 'denied' });
+    await p.tap('yes');
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.en.remindDenied);
+    expect(p.slot.innerHTML).not.toContain('data-act="yes"');
+  });
+  test.each([['arm a', { key: KEY, ask_v: 'a' }], ['no arm', { key: KEY }]])('%s, prompt closed: today\'s screen exactly', async (_n, key) => {
+    const p = await mounted({ key, perm: 'default' });
+    await p.tap('yes');
+    const q = await mounted({ key, perm: 'denied' });
+    await q.tap('yes');
+    expect(p.slot.innerHTML).toBe(q.slot.innerHTML);
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.en.remindDenied);
+  });
+});

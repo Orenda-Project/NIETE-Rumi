@@ -34,6 +34,8 @@
       askBHead: 'Jugnu\'s evening reminder',
       askBWhen: 'Weekdays, by 6 pm',
       askBYes: 'Yes, remind us',
+      // arm b, after Yes the permission prompt was closed (not Block): nothing is off, one more Yes asks again
+      askBRetry: 'Tap Yes again and choose Allow',
       remindWait: 'Turning reminders on…',
       remindHint: 'Now tap Allow below',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
@@ -62,6 +64,7 @@
       askBHead: 'جگنو کی شام کی یاد دہانی',
       askBWhen: 'پیر سے جمعہ، شام ۶ بجے تک',
       askBYes: 'ہاں، یاد دلائیں',
+      askBRetry: 'دوبارہ ہاں دبائیں، پھر اجازت دیں',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
       // names no button: Chrome's permission dialog follows the phone's language, not the page's
       remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
@@ -290,6 +293,11 @@
           + btn('wq-ghost', 'stop', c.remindStop));
       },
       denied: function () { draw(line(c.remindDenied)); },
+      // arm b, a CLOSED prompt ('default'): the browser blocked nothing, so the card says how to try again and keeps Yes
+      retry: function () {
+        var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.askBYes) + '</button>';
+        draw(line(c.askBRetry) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + yes + btn('wq-ghost', 'later', c.remindLater) + '</div>');
+      },
       // on the landing the title already says it; the results card (no page title) keeps the line
       stopped: function () { pageTitle(c.offTitle); draw((landing ? '' : line(c.stopped)) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
       // WhatsApp's browser: one line and ONE door to Chrome; the ⋮ hint and Copy link only after "How?" (a child's screen)
@@ -342,7 +350,7 @@
         if (perm !== 'granted') {
           lsSet('wq_rm_asked', Date.now());
           ev('denied', { perm: perm === 'denied' ? 'denied' : 'default' });
-          show.denied();
+          if (arm === 'b' && perm !== 'denied') show.retry(); else show.denied();
           return null;
         }
         ev('granted');
