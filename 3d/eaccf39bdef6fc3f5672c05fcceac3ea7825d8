@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T20:37:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"3deaccf39bde","branch":"HEAD","user":""}
+{"ts":"2026-11-24T21:19:44Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-3deaccf39bde","sha":"3deaccf39bde","branch":"bd-chz35n.21-merge","user":""}
