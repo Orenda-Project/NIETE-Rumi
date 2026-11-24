@@ -1,4 +1,4 @@
--- requires: web_quiz_v1.sql
+-- requires: web_quiz_v1.sql, create_video_quiz_tables.sql, 014_attendance_tables.sql
 -- Migration: keep every quiz attempt (quiz_attempts), with the answer key and quiz maker that marked it.
 --
 -- NON-DESTRUCTIVE. One new table; nothing existing changes.
