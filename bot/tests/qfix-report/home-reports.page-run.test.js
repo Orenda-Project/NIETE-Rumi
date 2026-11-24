@@ -157,6 +157,25 @@ describe('switch ON', () => {
     expect(on.q('#th-rp-rounds').getAttribute('href')).toBe('https://portal.example/r/ALL?tab=class&from=home');
   });
 
+  // qa-design 20261123T155057 (staging, 360x740): a teacher with a live evening round and no sent report never saw the line,
+  // because the section hid itself at 0 rows with the line inside it.
+  test('a live round and no report row: the section shows, with the evening rounds line alone', async () => {
+    const link = 'https://portal.example/r/ALL?tab=class&from=home';
+    const p = await open(home({ rows: [], rounds: link }), { reports: true });
+    expect(p.q('#th-rp').hidden).toBe(false);
+    expect(p.q('#th-rp-rows').querySelectorAll('li')).toHaveLength(0);
+    expect(p.q('#th-rp-more').hidden).toBe(true);
+    expect(p.q('#th-rp-rounds').hidden).toBe(false);
+    expect(p.q('#th-rp-rounds').getAttribute('href')).toBe(link);
+    expect(p.q('#th-rp-rounds').textContent).toBe('Evening rounds');
+  });
+
+  test('the Urdu line names what the class tab it opens is called (web-quiz-evening-round.js REPORT_WORDS.ur.title)', async () => {
+    const p = await open(home({ rows: [], rounds: 'https://portal.example/r/ALL?tab=class&from=home&lang=ur' }), { reports: true, lang: 'ur' });
+    expect(p.q('#th-rp').hidden).toBe(false);
+    expect(p.q('#th-rp-rounds').textContent).toBe('شام کے راؤنڈ');
+  });
+
   test('no rows: the section stays hidden', async () => {
     const p = await open(home({ rows: [], rounds: null }), { reports: true });
     expect(p.q('#th-rp').hidden).toBe(true);
