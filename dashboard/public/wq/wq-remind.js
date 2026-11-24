@@ -17,7 +17,9 @@
  *
  * How a sitting ended: the first answer after `shown` (yes / later / escape) carries dwell_ms, how long the ask was up;
  * the page going away (hidden, or pagehide) with the ask up and unanswered posts one `gone` step with dwell_ms (once
- * per sitting, through post()'s keepalive). No ask drawn, no `gone`. Nothing a child sees changes. */
+ * per sitting, through post()'s keepalive). No ask drawn, no `gone`. After Yes, `denied` carries `perm` ('denied' =
+ * Block, 'default' = the prompt was closed), and the page going away with Chrome's prompt still unanswered posts one
+ * `gone` with `after: 'yes'`. Nothing a child sees changes. */
 (function () {
   'use strict';
   var T = {
@@ -197,6 +199,7 @@
     var busy = false;
     var iab = false;
     var askedAt = 0; // when this sitting's ask was drawn; 0 = none up, or it was answered (or left)
+    var permUp = false; // Yes was tapped and the browser's permission prompt has not answered yet
     var watching = false;
 
     function ev(step, extra) {
@@ -215,7 +218,10 @@
       if (ms >= 0) o.dwell_ms = ms;
       return o;
     }
-    function gone() { if (askedAt) ev('gone', dwell()); }
+    function gone() {
+      if (askedAt) { ev('gone', dwell()); return; }
+      if (permUp) { permUp = false; ev('gone', { after: 'yes' }); }
+    }
     function askShown() {
       ev('shown');
       askedAt = Date.now();
@@ -313,14 +319,16 @@
       busy = true;
       ev('yes', dwell());
       show.hint();
+      permUp = true;
       var asked = new Promise(function (resolve) {
         var r = window.Notification.requestPermission(resolve);
         if (r && typeof r.then === 'function') r.then(resolve, function () { resolve('default'); });
       });
       asked.then(function (perm) {
+        permUp = false;
         if (perm !== 'granted') {
           lsSet('wq_rm_asked', Date.now());
-          ev('denied');
+          ev('denied', { perm: perm === 'denied' ? 'denied' : 'default' });
           show.denied();
           return null;
         }
