@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T04:08:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching spec_sync=true","sha":"031a9c73d984","branch":"bd-b8fsm-staging","user":""}
 {"ts":"2026-11-24T04:39:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (cherry-pick of the same internal guard; no scenario changes; unit test pins it)","sha":"031a9c73d984","branch":"bd-b8fsm-staging","user":""}
+{"ts":"2026-11-24T04:39:40Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-031a9c73d984","sha":"031a9c73d984","branch":"bd-b8fsm-staging","user":""}
