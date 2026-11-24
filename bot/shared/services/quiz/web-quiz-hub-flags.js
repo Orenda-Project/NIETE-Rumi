@@ -38,6 +38,8 @@ const ONE_BUTTON_KEY = 'web_quiz_one_button';
 const ADV_KEY = 'web_quiz_adventure_look';
 // The designed wait (web-quiz-wait-ux.js) rides this one read: only the stored JSON boolean true is on.
 const WAIT_UX_KEY = 'web_quiz_wait_ux';
+// Keep every quiz attempt (quiz-attempt-log.js, table quiz_attempts) rides this one read: only the stored JSON boolean true is on.
+const KEEP_ATTEMPTS_KEY = 'web_quiz_keep_attempts';
 // The child result screen's "remind me tomorrow" (bot/shared/services/push/web-quiz-push-field.js): rides this one read,
 // so a finish makes no read for it. Only the stored JSON boolean true is on.
 const PUSH_REMIND_KEY = 'web_quiz_push_remind';
@@ -248,6 +250,7 @@ const SWITCHES = Object.freeze([
   ['rosterWarm',   ROSTER_WARM_KEY,       'json'],
   ['waves2',       WAVES2_KEY,            'json'],
   ['waves3',       WAVES3_KEY,            'json'],
+  ['keepAttempts', KEEP_ATTEMPTS_KEY,     'json'],
   ['kidTogether',  KID_TOGETHER_KEY,      'json'],
   ['library',      LIBRARY_KEY,           'loose'],
   ['linkTogether', LINK_TOGETHER_KEY,     'json'],
