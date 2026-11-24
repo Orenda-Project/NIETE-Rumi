@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T02:01:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
 {"ts":"2026-11-24T02:01:13Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
+{"ts":"2026-11-24T02:02:16Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"f2e5bcc16305","branch":"bd-8267ps-84913","user":""}
