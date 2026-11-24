@@ -106,6 +106,7 @@ function postProcess(examJson, { grade, plan, totalMarks }) {
   Gen.normaliseAnswers(examJson);
   if (appliesToGrade(grade)) capBlooms(examJson);
   applyStems(examJson, plan.questionTypes);
+  require('./paper-diagram').dropUnpictured(examJson); // bd-fjnrit
   const removedSeen = plan.seenTypes ? SeenTypes.trim(examJson, plan.seenTypes) : Gen.trimSeen(examJson, plan.seenTarget);
   const marksRemoved = Gen.enforceMarksBudget(examJson, totalMarks);
   return { removedSeen, marksRemoved };
