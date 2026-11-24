@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T22:59:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,teacher-lessons,portal-smoke spec_sync=true","sha":"db7530c05f71","branch":"bd-chz35n.26-fln-key","user":""}
+{"ts":"2026-11-24T22:59:09Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,teacher-lessons,portal-smoke owe their Gherkin","sha":"db7530c05f71","branch":"bd-chz35n.26-fln-key","user":""}
