@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T03:54:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"96b3d5eaa673","branch":"bd-97daxo.34.10-92161","user":""}
+{"ts":"2026-11-24T03:54:08Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-97daxo.34.10-92161: coaching spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"96b3d5eaa673","branch":"bd-97daxo.34.10-92161","user":""}
