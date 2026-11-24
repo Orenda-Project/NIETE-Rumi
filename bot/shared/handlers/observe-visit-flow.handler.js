@@ -101,6 +101,7 @@ const { buildBriefViewModel } = require('../services/observe/observe-brief-card'
 const { getObserveArm } = require('../services/observe/observe-gate');
 const { canSelfCoach, canObserve, observesOwnSchool, observesAtOnce } = require('../config/role-features');
 const { logToFile } = require('../utils/logger');
+const { pickerLabelOf } = require('../services/observe/patch-resolver.service');
 
 // bd-2443: read per-call — the flag flips alongside the Flow republish and
 // must not require a process restart to be testable.
@@ -145,9 +146,18 @@ function fmtDayDate(ymd) {
   return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
-/** The teaching band/grade, as the picker prints it. '' when genuinely unknown. */
+/**
+ * Who this person is, as the picker prints it. '' when genuinely unknown.
+ *
+ * bd-r2uzg1.18.5: the same label Manage teachers prints (patch-resolver pickerLabelOf) — 'Principal' for a
+ * principal, else every band ('Primary + Middle + High'). This printed `level`, one band and never the role,
+ * so a principal read as PRIMARY here and as Principal on Manage teachers.
+ */
 function teacherLevel(t) {
-  const lvl = t && (t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null));
+  if (!t) return '';
+  const label = pickerLabelOf(t);
+  if (label) return label;
+  const lvl = t.level || (t.grade != null && t.grade !== '' ? `Grade ${t.grade}` : null);
   return lvl ? String(lvl) : '';
 }
 
@@ -1132,7 +1142,7 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
       const all = await LeaderSource.listTeachers(userId, schoolExtId).catch(() => []);
       const hits = all.filter((t) => A.matchTeacher(t, screenData && screenData.term)).slice(0, A.RESULT_CAP);
       const options = hits.length
-        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, t.level || '', t.phone_e164 || ''))
+        ? hits.map((t) => _opt(t.teacher_ext_id, t.teacher_name, teacherLevel(t), t.phone_e164 || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return { screen: 'TEACHER_RESULTS', data: { options, school_ext_id: String(schoolExtId || '') } };
     }
@@ -1571,7 +1581,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // way. The scheduling list has always rendered the label; these did
         // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          // bd-r2uzg1.18.5: 'Principal', else every band — the label the Observe list prints too.
+          p.userId, p.displayName || p.name, pickerLabelOf(p), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_PICK',
@@ -1602,7 +1613,8 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
         // way. The scheduling list has always rendered the label; these did
         // not, which also blocked the rename that would have fixed it.
         ? people.slice(0, A.LIST_CAP).map((p) => _opt(
-          p.userId, p.displayName || p.name, p.roleLabel || (p.band || ''), p.phone || ''))
+          // bd-r2uzg1.18.5: 'Principal', else every band — the label the Observe list prints too.
+          p.userId, p.displayName || p.name, pickerLabelOf(p), p.phone || ''))
         : [_opt('none', S_(_flowLang).search_no_match, '', '')];
       return {
         screen: 'TEACHER_EDIT_PICK',

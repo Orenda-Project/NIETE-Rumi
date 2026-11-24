@@ -320,6 +320,9 @@ async function listTeachers(leaderUserId, schoolExtId, opts = {}) {
       user_id: userId,
       grade: u ? firstGrade(u.grades_taught) : null,
       level: t.level || null, // NIETE roster level (PRIMARY/MIDDLE/HIGH/…)
+      // bd-r2uzg1.18.5: what the picker prints — 'Principal' for a principal, else every band.
+      is_principal: !!t.is_principal,
+      levels_label: t.levels_label || '',
       lastVisitAt,
       // bd-2329: the "needs support" term for the combined-weight sort.
       score: userId ? overallScoreFromAnalysis(analysisMap[userId]) : null,
