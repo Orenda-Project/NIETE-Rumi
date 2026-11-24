@@ -45,8 +45,8 @@ function defaults() {
     Stories: () => optional(STORIES_MODULE),
     Keys: () => require('./door.keys'),
     CountsFlag: () => require('./teacher-home-counts.flag'),
-    // class-link's evening-round reader, looked up by name (bd-5j1zaf's rounds line): absent → no line
-    ClassLink: () => optional('../quiz/web-quiz-class-link'),
+    // the class tab's evening-round reader (bd-5j1zaf's rounds line, QF-R4c): the line reads what the tab's section reads
+    EveningRound: () => require('../quiz/web-quiz-evening-round'),
   };
 }
 const dep = (deps, name) => (deps && deps[name] ? deps[name] : defaults()[name]());
@@ -251,8 +251,8 @@ async function reportLinks(uid, quizId, deps) {
 /**
  * The "Quiz reports" section's links (quiz_teacher_home_reports, bd-5j1zaf): the live report of every quiz in `ids`,
  * opened from here (`?from=home`) in the home's own language (`lang`, when this deployment offers it; the report otherwise picks the quiz's),
- * when the report page is on for this teacher; and the class tab's evening rounds when class-link's reader says one of
- * the teacher's classes has a live round (no reader → no line). → { links, rounds }.
+ * when the report page is on for this teacher; and the class tab's evening rounds when that tab has a round to show
+ * (forTeacherReport, the source of its "Evening rounds" section; a live link with no round yet → no line, QF-R4c). → { links, rounds }.
  */
 async function reportsFor(uid, ids, deps, { lang = null } = {}) {
   const Gate = dep(deps, 'Gate');
@@ -262,8 +262,9 @@ async function reportsFor(uid, ids, deps, { lang = null } = {}) {
   [...new Set((ids || []).filter(Boolean))].forEach((id) => { const u = Gate.reportUrls({ teacherId: uid, quizId: id }); if (u) links.set(id, `${u.live}?${tail}`); });
   let rounds = null;
   try {
-    const CL = dep(deps, 'ClassLink');
-    if (CL && typeof CL.teacherHasLiveRound === 'function' && (await CL.teacherHasLiveRound(uid)) === true) {
+    const ER = dep(deps, 'EveningRound');
+    const shown = ER && typeof ER.forTeacherReport === 'function' ? await ER.forTeacherReport(uid) : null;
+    if (Array.isArray(shown) && shown.length) {
       const all = Gate.reportUrls({ teacherId: uid, quizId: null });
       rounds = all ? `${all.live}?tab=class&${tail}` : null;
     }
