@@ -505,7 +505,9 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     if (f.input === "dropdown") {
       input = (
         <div className="flex flex-col gap-1.5">
+          {/* Queue #256: the Digital Coach's pick (FICO 6-12 "Indicator to work on") marked as its level is on a card. */}
           <SelectField label={label} title={label} value={v || null} onChange={set(f.name)} className={bad ? BAD : undefined}
+            dcValue={v7 ? f.dcChoice ?? null : null} dcTag={F.rumiTag}
             options={(f.options || []).map((o) => {
               // bd-o15qnr.40.9: an indicator's code is the row's tile ("A" over "1"); its second line is the indicator's
               // own line, never its name again
