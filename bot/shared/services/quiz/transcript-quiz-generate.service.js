@@ -50,6 +50,7 @@ const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
 const ChildReasons = require('./transcript-quiz-child-reasons');
 const SloStamp = require('./quiz-slo-stamp');
+const Anchors = require('./quiz-anchors');
 const { completeJson } = require('./transcript-quiz-llm');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
@@ -3215,7 +3216,16 @@ async function processQuiz(quizId, payload, flight) {
         ? { kind: 'lesson_plan', text: slideScript ? LpDigest.lessonExcerpts(slideScript) : '' }
         : { kind: 'transcript', text: session && session.transcript_text },
     });
-    const rows = web.rows;
+    // bd-chz35n.10.3 — a retest naming anchor questions (meta.anchor_from) asks them again word for word in
+    // its last slots, so a class's change on a skill is measured on the same item. Off unless app_settings
+    // quiz_anchor_items; `questions` follows the rows so the PDF pairs each row with its own figure.
+    const carried = await Anchors.carry(quizId, web.rows, meta);
+    const rows = carried.rows;
+    if (carried.anchors) {
+      questions = carried.keep.map((i) => questions[i]);
+      meta.anchor_items = carried.anchors;
+      logEvent('quiz.anchors_carried', { quizId, quiz_source: quizSource, asked: carried.asked, carried: carried.anchors.length });
+    }
     if (web.stats) meta.cost_usd = (meta.cost_usd || 0) + (web.stats.cost_usd || 0);
     await supabase.from('quiz_questions').delete().eq('quiz_id', quizId);
     const { error: insErr } = await supabase.from('quiz_questions').insert(rows);

@@ -3208,3 +3208,23 @@ Feature: NIETE (ICT) Teacher Training
     # teacher-home.send.js againOf: the return line follows quizzes.language (the language the stored message was written
     # in), not the home's. Unit: bot/tests/qfix-forward/forward-route.test.js ("the return line follows the class
     # message's language").
+
+  # @no-mock-driver: the day-3 retest is made by the quiz_retest sweep on a timer and authored by the model in the
+  # worker; the mock lane drives inbound WhatsApp only. Executed in tests/quiz/quiz-anchors*.test.js.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1248
+  Scenario: My class's day-3 quiz asks two questions from its first quiz again, word for word
+    Given app_settings "quiz_anchor_items" is true
+    And my class played the quiz I made from a lesson three days ago
+    When the day-3 follow-up quiz for that lesson is made
+    Then its last two questions are two of the first quiz's questions, same words, same answers, one per skill where it can
+    And the quiz has as many questions as it would have had without them, and no question appears twice
+    And a question with a picture or with more than one right answer is never one of the two
+    # ADDED 2026-11-24 (bd-chz35n.10.3): quiz-retest-sweep.js anchorIds → meta.anchor_from; the generate step's
+    # quiz-anchors.carry appends the copies and records meta.anchor_items [{key, external_id, from_question_id}], so a
+    # class's change on a skill is compared on the same item. Unit: tests/quiz/quiz-anchors*.test.js.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1249
+  Scenario: With the repeat-question switch off, the day-3 quiz is made exactly as before
+    Given app_settings "quiz_anchor_items" is false, missing, or anything but JSON true
+    When the day-3 follow-up quiz for my lesson is made
+    Then none of its questions is a copy of the first quiz's, and nothing about the quiz is recorded as repeated
