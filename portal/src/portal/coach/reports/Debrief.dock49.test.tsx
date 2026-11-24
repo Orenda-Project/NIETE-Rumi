@@ -32,7 +32,8 @@ import { PRINCIPAL_OBSERVE_ROUTES } from "../../teacher/principal/observe";
  * and then they know that here is where they will start recording ... the debrief.") — on the v6/v7 switch, coach and
  * principal, English and Urdu, the debrief notes page (the Debrief page: the guide) keeps Record debrief (and Upload
  * recording) in a bar pinned to the bottom of the screen the whole time she reads, above the menu and the phone's safe
- * area, with room kept under the last note so the bar never covers it. The pair at the end of the page is gone. Same
+ * area. The bar is sticky, not fixed: it keeps its own room at the end of the page, so the last note scrolls clear of it
+ * (measured at 390 px in the work folder's shots). The pair at the end of the page is gone. Same
  * gate as before: only once the notes are there (or did not load), only while the debrief is hers to record.
  * Switch off: the page as on production (the pair at the end, no bar).
  */
@@ -68,11 +69,15 @@ function renderPage(principal = false) {
   );
 }
 
-/** the bar is the page's sticky dock: pinned to the bottom, above the menu, clear of the phone's safe area. */
+/**
+ * the bar is the page's sticky dock: pinned to the bottom, above the menu, clear of the phone's safe area; sticky (in the
+ * page's flow), never fixed, so the end of the page keeps room for it and the last note is never under it.
+ */
 function pinned(dock: HTMLElement) {
   const bar = dock.closest(".sticky") as HTMLElement | null;
   expect(bar).not.toBeNull();
   expect(bar!.className).toMatch(/bottom-\[calc\(.*env\(safe-area-inset-bottom\)\)\]/);
+  expect(bar!.className).not.toMatch(/\bfixed\b/);
   return bar!;
 }
 const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -101,10 +106,8 @@ describe("the debrief notes keep Record debrief floating at the bottom (bd-o15qn
     // one Record, one Upload on the page: the old pair at the end is gone
     expect(screen.getAllByRole("button", { name: /Record debrief|Start recording/ })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: /Upload recording/ })).toHaveLength(1);
-    // room is kept under the last note for the bar, the menu and the safe area
-    const space = screen.getByTestId("dock-space");
-    expect(after(guide, space)).toBe(true);
-    expect(space.className).toMatch(/env\(safe-area-inset-bottom\)/);
+    // the bar comes after the last note in the page's flow (sticky): scrolled to the end, the note sits above it
+    expect(after(within(guide).getByText("What will you try in tomorrow's lesson?"), dock)).toBe(true);
   });
 
   it("Record debrief opens the recorder; Upload recording sends the picked file", async () => {

@@ -55,8 +55,9 @@ import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
  * bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "Maybe the record button should be a floating button at the bottom
  * of the page all the time, so they can read the notes and then they know that here is where they will start recording")
  * — on the v6/v7 switch Record debrief and Upload recording sit in the frame's dock, pinned to the bottom of the screen
- * the whole time she reads the notes (above the menu and the safe area, room kept under the last note); the pair at the
- * end of the page is gone. Same gate as the pair: the notes are there (or did not load) and the debrief is hers to
+ * the whole time she reads the notes, above the menu and the safe area. The dock is sticky, so it keeps its own room at
+ * the end of the page and the last note scrolls clear of it (a notice strip brings its own spacer, NoticeHost); no
+ * dockSpace, which would leave ~170px of blank above the bar. The pair at the end of the page is gone. Same gate as the pair: the notes are there (or did not load) and the debrief is hers to
  * record. Off: the pair at the end, as before.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
@@ -229,7 +230,7 @@ export default function Debrief() {
   return (
     <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
       chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief"
-      dock={dock} dockSpace={!!dock}>
+      dock={dock}>
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
 
       {stage === "guide" && view && (

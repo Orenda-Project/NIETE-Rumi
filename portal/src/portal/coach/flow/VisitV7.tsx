@@ -93,8 +93,8 @@ export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
  * bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "Maybe the record button should be a floating button at the bottom
  * of the page all the time, so they can read the notes and then they know that here is where they will start recording")
  * — the debrief notes page's Record debrief (and Upload recording), for the page frame's dock: pinned to the bottom of the
- * screen while she reads, above the menu and the phone's safe area (TeacherPage's sticky dock; ReportsFrame's dockSpace
- * keeps room under the last note). Record is the dark button with the red recording dot; Upload sits beside it.
+ * screen while she reads, above the menu and the phone's safe area (TeacherPage's sticky dock: in flow, so the last note
+ * scrolls clear of it). Record is the dark button with the red recording dot; Upload sits beside it.
  */
 export function DebriefDock({ onRecord, onUpload }: { onRecord: () => void; onUpload: () => void }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
