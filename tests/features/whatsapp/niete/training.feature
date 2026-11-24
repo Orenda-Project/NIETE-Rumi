@@ -3232,3 +3232,23 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "quiz_anchor_items" is false, missing, or anything but JSON true
     When the day-3 follow-up quiz for my lesson is made
     Then none of its questions is a copy of the first quiz's, and nothing about the quiz is recorded as repeated
+
+  # ── every finished web quiz try is kept (quiz_attempts) ─────────────────────────────────
+  # So a score change can be told apart from a marking change: each finished try keeps its
+  # answers, score, the answer key and question set that marked it, and which quiz maker made
+  # it. Behind app_settings web_quiz_keep_attempts (only JSON true is on). Nothing a child or
+  # teacher sees changes; proven in bot/tests/quiz/web-quiz/quiz-attempt-log-finish.test.js.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1250
+  Scenario: With keeping tries on, a child's second try is kept beside the first, and the result screen is unchanged
+    Given app_settings "web_quiz_keep_attempts" is true for this environment
+    And a child has finished a web quiz once
+    When the child plays the same quiz again and finishes it
+    Then the result screen shows the same score, card and next step it shows with the switch off
+    And two tries are kept for that child and quiz, and the first try's answers and score are unchanged
+    # web-quiz.service finishSessionTimed -> quiz-attempt-log keep (never awaited; a failed write is swallowed). @wip.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1251
+  Scenario: With keeping tries off, finishing a web quiz keeps nothing extra and replies the same
+    Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
+    When a child finishes a web quiz
+    Then the result screen is exactly as before and no try is kept
