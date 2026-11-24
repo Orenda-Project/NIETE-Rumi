@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T05:25:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
+{"ts":"2026-11-24T05:25:16Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
