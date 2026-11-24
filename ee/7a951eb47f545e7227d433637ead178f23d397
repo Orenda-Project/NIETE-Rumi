@@ -1,1 +1,2 @@
 {"ts":"2026-11-24T23:13:52Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"ee7a951eb47f","branch":"bd-chz35n.26-fln-key","user":""}
+{"ts":"2026-11-24T23:33:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"ee7a951eb47f","branch":"bd-chz35n.26-fln-key","user":""}
