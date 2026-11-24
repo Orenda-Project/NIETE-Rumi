@@ -236,6 +236,10 @@ async function processOffer(coachingSessionId, payload = {}) {
     return { skipped: 'window_closed', heldPath };
   }
 
+  // quiz_offer_auto (bd-8267ps): the window is open, so the quiz is written and handed off with its children's
+  // link on the same yes path as the report tap, without the Yes / Not now ask. Off = the offer, as before.
+  const auto = !accepted && await require('./transcript-quiz-auto').on();
+
   const source = payload.source || 'offer';
   let quizId = null;
   const claim = await claimRow({ session, source });
@@ -307,6 +311,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     meta: {
       step: 'offered', source: payload.source || 'offer',
       ...(accepted ? { via: 'report_button' } : {}),
+      ...(auto ? { via: 'auto' } : {}),
       digest, grade, grade_source: gradeSource, lp_hint: lpHint,
       digest_model: model, cost_usd: costUsd || 0,
       teacher_language: teacherLang, offered_at: new Date().toISOString(),
@@ -316,17 +321,18 @@ async function processOffer(coachingSessionId, payload = {}) {
   const phone = payload.phone || user.phone_number;
   // Tapped on the report: no second ask. The offer is made and answered yes in one step, through the same yes
   // the buttons take (language ask, or straight to generating).
-  if (accepted) {
+  // `auto`: the same one step, with no tap at all (quiz_offer_auto).
+  if (accepted || auto) {
     Funnel.emit('offer_made', {
       quiz_id: quizId, teacher_id: session.user_id, source: 'transcript',
       channel: Funnel.channelOf(payload.source || 'offer'), delivered: true,
     });
     logEvent('transcript_quiz.offered', {
       coachingSessionId, quizId, subject: digest.subject, language, teacherLang,
-      withVideo: false, sent: true, via: 'report_button',
+      withVideo: false, sent: true, via: auto ? 'auto' : 'report_button',
     });
-    await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, {});
-    return { ok: true, quizId, accepted: true };
+    await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, { auto });
+    return auto ? { ok: true, quizId, auto: true } : { ok: true, quizId, accepted: true };
   }
 
   // The offer itself. Video header while the teacher's showing count is under
@@ -390,7 +396,12 @@ async function teacherFor(quiz) {
   return data || {};
 }
 
-async function handleOfferButton(buttonId, phone) {
+/**
+ * @param {string} buttonId  tq_yes_<quizId> | tq_no_<quizId>
+ * @param {string} phone
+ * @param {{auto?: boolean}} [opts]  `auto` (quiz_offer_auto, no tap) skips the language ask and writes the rule language.
+ */
+async function handleOfferButton(buttonId, phone, opts = {}) {
   const api = module.exports;
   const m = BUTTON_RX.exec(buttonId || '');
   if (!m) return false;
@@ -425,7 +436,8 @@ async function handleOfferButton(buttonId, phone) {
   // round 1. It is now the first button, not the decision.
   const ruleLanguage = quiz.language || quizLanguageFor(quiz.subject, null);
 
-  if (needsLanguageAsk(quiz.subject)) {
+  // quiz_offer_auto: no ask at all, so the rule language is written (the language ask would be a tap gating the link).
+  if (!opts.auto && needsLanguageAsk(quiz.subject)) {
     // The row stays 'offered' until they answer, so an unanswered ask expires
     // exactly as an unanswered offer does.
     const { data: marked } = await supabase.from('quizzes')
