@@ -112,6 +112,14 @@ const JOBS = {
     site: 'shared/services/assessment/assessment-generation.service.js',
     settingsAtSite: true,
   },
+  'assessment.generate.secondary': {
+    // bd-t8eevw. G6-8 plain papers (free-secondary.service.js), so they can move on their own: the
+    // round-4 eval (bd-rzjnjp) passed Haiku there and nowhere else. G9-12 stay on assessment.generate.
+    // Unset, it INHERITS assessment.generate exactly, as the board-pattern job does.
+    env: 'ASSESSMENT_GEN_MODEL_SECONDARY', default: 'google/gemini-3.1-pro-preview', inherits: 'assessment.generate',
+    site: 'shared/services/assessment/free-secondary.service.js',
+    settingsAtSite: true,
+  },
   'assessment.review': {
     // bd-5jmnfj.38.31, approved by Amena 2026-11-06. The check of a generated paper's MCQs (its
     // distractors, two defensible options, an odd-one-out key) by a model that did NOT write it, so it
@@ -300,6 +308,7 @@ const FALLBACK = {
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   // The call site names the paper's own model (per language) as its fallback; this is the floor.
   'assessment.generate.fde': 'google/gemini-3.1-pro-preview',
+  'assessment.generate.secondary': 'google/gemini-3.1-pro-preview',
   // The alternative the call site takes when the writer is on assessment.review's own family.
   'assessment.review': 'google/gemini-3.1-pro-preview',
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
