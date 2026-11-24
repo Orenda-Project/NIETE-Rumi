@@ -26,6 +26,7 @@ const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const Flags = require('./web-quiz-evening-round-flags');
+const Canary = require('./web-quiz-class-link-canary');
 
 const CODE_RX = /^[A-Za-z0-9_-]{3,32}$/;
 const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;
@@ -132,16 +133,18 @@ async function roundsReadyForPhone(deviceRef, dayPkt, { withKids = false } = {})
 
 /**
  * hasLiveStandingLink(classId) — for the offers lane (re-exported from web-quiz-class-link.js): true only when
- * web_quiz_class_link (with its parents) AND web_quiz_evening_round are on (both cached 30 s) and the class has a live
- * class_links row (not revoked, not expired). One class_links read; false on any failure, never throws.
+ * web_quiz_class_link (with its parents) AND web_quiz_evening_round are on (both cached 30 s), the class has a live
+ * class_links row (not revoked, not expired), AND the class is inside web_quiz_class_link_canary
+ * (web-quiz-class-link-canary.js allowedClasses, cached 30 s), as the evening round's writer requires: outside the canary
+ * no round is ever written for the class. One class_links read; false on any failure, never throws.
  */
 async function hasLiveStandingLink(classId, { now = new Date() } = {}) {
   try {
     if (!classId || !(await Flags.eveningRoundOn())) return false;
     const { data, error } = await supabase.from('class_links').select('code')
       .eq('class_id', classId).is('revoked_at', null).gt('expires_at', now.toISOString()).limit(1);
-    if (error) return false;
-    return (data || []).length > 0;
+    if (error || !(data || []).length) return false;
+    return (await Canary.allowedClasses([classId])).has(String(classId));
   } catch (err) {
     logToFile('⚠️ class link: live standing link check unavailable', { error: err.message });
     return false;
