@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T17:34:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"59f64b0db9b9","branch":"bd-97daxo.34.18-stg","user":""}
+{"ts":"2026-11-24T17:34:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"59f64b0db9b9","branch":"bd-97daxo.34.18-stg","user":""}
