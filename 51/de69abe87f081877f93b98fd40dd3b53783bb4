@@ -2,3 +2,4 @@
 {"ts":"2026-11-24T21:36:09Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"51de69abe87f","branch":"bd-3zif2x-gb-lp-log-teacher","user":""}
 {"ts":"2026-11-24T21:36:24Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"51de69abe87f","branch":"bd-3zif2x-gb-lp-log-teacher","user":""}
 {"ts":"2026-11-24T21:36:43Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"cd35d891-859c-43f3-b3ff-9fd54bd59f49","sha":"51de69abe87f","branch":"bd-3zif2x-gb-lp-log-teacher","user":""}
+{"ts":"2026-11-24T21:57:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"51de69abe87f","branch":"bd-3zif2x-gb-lp-log-teacher","user":""}
