@@ -11,12 +11,13 @@ const path = require('path');
 const mockLogToFile = jest.fn();
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: (...a) => mockLogToFile(...a) }));
 
-const { main, exitCodeFor } = require('../../bot/scripts/ab-tracker-cron');
+const { main, exitCodeFor, flushLogs } = require('../../bot/scripts/ab-tracker-cron');
 
 const ROOT = path.join(__dirname, '..', '..');
 const deps = (outcome) => ({
   run: jest.fn(async () => ({ outcome })),
   redis: { close: jest.fn(async () => {}) },
+  flush: jest.fn(async () => {}),
   exit: jest.fn(),
 });
 
@@ -71,6 +72,45 @@ describe('ab-tracker-cron entry point', () => {
     await main(d);
     const logged = JSON.stringify(mockLogToFile.mock.calls);
     expect(logged).toMatch(/ran/);
+  });
+
+  // bd-3kshar.20: structured-logger buffers lines and sends them on a 5 s timer or on beforeExit. process.exit() skips
+  // beforeExit, so before this fix not one cron line reached niete-logs and a failed run could not be alerted on.
+  it('sends the buffered log lines to Axiom before it exits', async () => {
+    const d = deps('refused');
+    await main(d);
+    expect(d.flush).toHaveBeenCalledTimes(1);
+    expect(d.flush.mock.invocationCallOrder[0]).toBeLessThan(d.exit.mock.invocationCallOrder[0]);
+    expect(mockLogToFile.mock.invocationCallOrder.at(-1)).toBeLessThan(d.flush.mock.invocationCallOrder[0]);
+  });
+
+  it('a flush that throws still exits with the outcome code', async () => {
+    const d = deps('ran');
+    d.flush = jest.fn(async () => { throw new Error('axiom down'); });
+    await main(d);
+    expect(d.exit).toHaveBeenCalledWith(0);
+  });
+});
+
+describe('flushLogs', () => {
+  it('starts a flush and waits until the ingest request is done', async () => {
+    const b = { isFlushing: false, flush: jest.fn(function () { this.isFlushing = true; setTimeout(() => { this.isFlushing = false; }, 30); }) };
+    const t0 = Date.now();
+    await flushLogs({ batcher: b, timeoutMs: 2000, stepMs: 5 });
+    expect(b.flush).toHaveBeenCalledTimes(1);
+    expect(b.isFlushing).toBe(false);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(25);
+  });
+
+  it('gives up at the cap, so a hung Axiom never holds the cron open', async () => {
+    const b = { isFlushing: true, flush: jest.fn() };
+    const t0 = Date.now();
+    await flushLogs({ batcher: b, timeoutMs: 50, stepMs: 5 });
+    expect(Date.now() - t0).toBeLessThan(500);
+  });
+
+  it('does nothing when Axiom is not configured', async () => {
+    await expect(flushLogs({ batcher: undefined })).resolves.toBeUndefined();
   });
 });
 
