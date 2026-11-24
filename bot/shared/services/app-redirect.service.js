@@ -739,9 +739,9 @@ async function redirectIfFlagged(feature, args = {}) {
  * No quiet hour: she asked for this, and each ask (menu, then lessons) is a different page. Failing closed means
  * false — the caller runs the WhatsApp flow — never silence.
  */
-async function sendAppLink(feature, { userId, from, language, reason, journey, copy = null, params = null }) {
+async function sendAppLink(feature, { userId, from, language, reason, journey, copy = null, params = null, prefill = null }) {
   const base = String(portalUrl() || '').replace(/\/+$/, '');
-  const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
+  const token = base ? signAppLink(userId, feature, journey && journey.journeyId, prefill || undefined) : null;
   // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
   const fx = { journeyId: journey && journey.journeyId, userId, feature: (journey && journey.feature) || feature, door: reason };
   // bd-s42dye.3 / bd-zcgpkx — a coach's or a leader's funnel rows say so; a teacher's carry no audience, as before.
@@ -920,9 +920,14 @@ async function openSchoolCard({ userId, from, language, query = '', now = Date.n
  * The lesson-plan app link on its own, for a PDF send already in flight when her programme is on lp_whatsapp_pdf_off
  * (lp-pdf-off.js): a Flow tap, a worker's waiter, a typed curriculum topic. true when it went; false = nothing sent.
  */
-async function sendLessonPlanLink({ userId, from, language, reason = 'lp_pdf_off' } = {}) {
+async function sendLessonPlanLink({ userId, from, language, reason = 'lp_pdf_off', plan = null } = {}) {
   if (!userId || !from) return false;
   const journey = startJourney({ userId, feature: 'lesson_plan', door: reason, verdict: 'link', why: 'lp_pdf_off' });
+  // bd-zrdvmi.60 — the plan she tapped (`k5:<lesson_id>`): the link opens THAT plan, in the same lesson-plan words.
+  // A malformed key is today's link to Lesson Plans.
+  if (typeof plan === 'string' && /^k5:[A-Za-z0-9_.-]{1,120}$/.test(plan)) {
+    return sendAppLink('lp_open', { userId, from, language, reason, journey, copy: linkCopyFor('lesson_plan'), prefill: { plan } });
+  }
   return sendAppLink('lesson_plan', { userId, from, language, reason, journey });
 }
 

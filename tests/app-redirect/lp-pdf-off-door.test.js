@@ -117,6 +117,22 @@ describe('sendLessonPlanLink (the in-flight guards send the same link)', () => {
     expect(landedOn()).toEqual(expect.objectContaining({ u: Fake.ICT_TEACHER, f: 'lesson_plan' }));
   });
 
+  test('bd-zrdvmi.60: with the plan she tapped, the link opens THAT plan, in the same lesson-plan words', async () => {
+    expect(await svc.sendLessonPlanLink({ userId: Fake.ICT_TEACHER, from: FROM, language: 'en', reason: 'lp_v8_tap', plan: 'k5:grade_1_english_ch4_seg2' })).toBe(true);
+    expect(mockCta).toHaveBeenCalledTimes(1);
+    expect(landedOn()).toEqual(expect.objectContaining({ u: Fake.ICT_TEACHER, f: 'lp_open', q: { plan: 'k5:grade_1_english_ch4_seg2' } }));
+    const withPlan = mockCta.mock.calls[0][1];
+    mockCta.mockClear();
+    await svc.sendLessonPlanLink({ userId: Fake.ICT_TEACHER, from: FROM, language: 'en', reason: 'flow_tap' });
+    const without = mockCta.mock.calls[0][1];
+    expect([withPlan.body, withPlan.buttonText]).toEqual([without.body, without.buttonText]);
+  });
+
+  test('bd-zrdvmi.60: a malformed plan: the Lesson Plans link, as before', async () => {
+    expect(await svc.sendLessonPlanLink({ userId: Fake.ICT_TEACHER, from: FROM, language: 'en', reason: 'x', plan: 'nonsense' })).toBe(true);
+    expect(landedOn()).toEqual(expect.objectContaining({ f: 'lesson_plan' }));
+  });
+
   test('no portal url on this deployment: false, nothing sent', async () => {
     delete process.env.PORTAL_URL;
     expect(await svc.sendLessonPlanLink({ userId: Fake.ICT_TEACHER, from: FROM, language: 'en', reason: 'flow_tap' })).toBe(false);
