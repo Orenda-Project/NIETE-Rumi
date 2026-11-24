@@ -98,7 +98,7 @@ afterEach(() => {
 describe('replica routing — reads of tables the calls stack does not write', () => {
   test('the caller profile lookup reads the REPLICA', async () => {
     const { repo } = loadStack();
-    await repo.fetchUser('923365709413');
+    await repo.fetchUser('923001234567');
     expect(tagFor('users')).toEqual(['replica']);
   });
 
@@ -131,19 +131,19 @@ describe('primary pinning — the read-after-write paths', () => {
   test('call_memory is READ from the PRIMARY even with a replica configured', async () => {
     // The lag guard. Written at call end, read at the next call's start.
     const { repo } = loadStack();
-    await repo.fetchMemory('923365709413');
+    await repo.fetchMemory('923001234567');
     expect(tagFor('call_memory')).toEqual(['primary']);
   });
 
   test('call_memory is WRITTEN to the PRIMARY', async () => {
     const { repo } = loadStack();
-    await repo.upsertMemory('923365709413', { summary: 'x', callCount: 2 });
+    await repo.upsertMemory('923001234567', { summary: 'x', callCount: 2 });
     expect(tagFor('call_memory')).toEqual(['primary']);
   });
 
   test('the per-caller daily count reads the PRIMARY — it counts rows we just inserted', async () => {
     const { log } = loadStack();
-    await log.callsToday('923365709413');
+    await log.callsToday('923001234567');
     expect(tagFor('calls')).toEqual(['primary']);
   });
 
@@ -155,7 +155,7 @@ describe('primary pinning — the read-after-write paths', () => {
 
   test('the call row and its trace are WRITTEN to the PRIMARY', async () => {
     const { log } = loadStack();
-    await log.logCallStart({ waCallId: 'CALL1', from: '923365709413', direction: 'inbound' });
+    await log.logCallStart({ waCallId: 'CALL1', from: '923001234567', direction: 'inbound' });
     await log.recordTrace({ waCallId: 'CALL1', seq: 1, kind: 'tool', name: 'find_coaching' });
     expect(tagFor('calls')).toEqual(['primary']);
     expect(tagFor('call_trace')).toEqual(['primary']);
@@ -165,10 +165,10 @@ describe('primary pinning — the read-after-write paths', () => {
 describe('no replica configured — staging and any fresh clone are unchanged', () => {
   test('every read lands on the primary when NIETE_SUPABASE_REPLICA_URL is unset', async () => {
     const { repo, log } = loadStack({ replica: false });
-    await repo.fetchUser('923365709413');
+    await repo.fetchUser('923001234567');
     await repo.fetchLatestCoaching('user-uuid');
-    await repo.fetchMemory('923365709413');
-    await log.callsToday('923365709413');
+    await repo.fetchMemory('923001234567');
+    await log.callsToday('923001234567');
     expect(sink.every((r) => r.tag === 'primary')).toBe(true);
   });
 });
@@ -177,7 +177,7 @@ describe('replica failure degrades to the primary, never to a failed call', () =
   test('a replica read that throws is retried on the primary and still returns', async () => {
     const { repo } = loadStack();
     replicaOpts.throwOnRead = true;
-    await expect(repo.fetchUser('923365709413')).resolves.toBeNull();
+    await expect(repo.fetchUser('923001234567')).resolves.toBeNull();
     expect(tagFor('users')).toEqual(['replica', 'primary']);
   });
 });
