@@ -18,6 +18,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const { v21On } = require('./quiz-v21-flag');
 const { LESSON_SOURCES } = require('./quiz-sources');
 const { MAX_AVOID, MAX_CHARS } = require('./quiz-avoid-block');
+const Anchors = require('./quiz-anchors');
 
 const DAY_MS = 864e5;
 const MIN_DAYS = 3;
@@ -36,10 +37,13 @@ const lockKey = (quizId) => `quiz:retest:${quizId}`;
 const pktHour = (now) => (now.getUTCHours() + PKT_OFFSET_H) % 24;
 const inSchoolHours = (now) => pktHour(now) >= OPEN_H && pktHour(now) < CLOSE_H;
 
-function retestMeta(original, avoid) {
+function retestMeta(original, avoid, anchorFrom = []) {
   const meta = {};
   KEEP_META.forEach((k) => { if (original.meta && original.meta[k] !== undefined) meta[k] = original.meta[k]; });
-  return { ...meta, step: 'author', remakes: 1, source: 'retest', retest_of: original.id, retest_avoid: avoid };
+  return {
+    ...meta, step: 'author', remakes: 1, source: 'retest', retest_of: original.id, retest_avoid: avoid,
+    ...(anchorFrom.length ? { anchor_from: anchorFrom } : {}),
+  };
 }
 
 async function candidates(now) {
@@ -65,6 +69,16 @@ async function oldQuestions(quizId) {
   return (data || []).map((r) => String(r.question_text || '').slice(0, MAX_CHARS)).filter(Boolean).slice(0, MAX_AVOID);
 }
 
+// bd-chz35n.10.3 — the original's anchor questions, asked again word for word by the generate step
+// (quiz-anchors.js). [] unless app_settings quiz_anchor_items is on.
+async function anchorIds(quizId) {
+  if (!(await Anchors.anchorsOn())) return [];
+  const { data } = await supabase.from('quiz_questions')
+    .select('id, external_id, sort_order, option_a, option_b, option_c, option_d, correct_option, media')
+    .eq('quiz_id', quizId).order('sort_order', { ascending: true });
+  return Anchors.pickAnchors(data || []).map((r) => r.id);
+}
+
 async function phoneOf(teacherId) {
   const { data } = await supabase.from('users').select('phone_number').eq('id', teacherId).maybeSingle();
   return (data && data.phone_number) || null;
@@ -75,10 +89,11 @@ async function makeRetest(original) {
   const phone = await phoneOf(original.teacher_id);
   if (!phone) { logEvent('quiz.retest_skipped', { quizId: original.id, reason: 'no_phone' }); return null; }
   const avoid = await oldQuestions(original.id);
+  const anchorFrom = await anchorIds(original.id);
   const { data: made, error } = await supabase.from('quizzes').insert({
     teacher_id: original.teacher_id, coaching_session_id: original.coaching_session_id, quiz_source: original.quiz_source,
     topic: original.topic, subject: original.subject, grade: original.grade, language: original.language,
-    status: 'generating', meta: retestMeta(original, avoid),
+    status: 'generating', meta: retestMeta(original, avoid, anchorFrom),
   }).select('id').single();
   if (error || !made) throw new Error((error && error.message) || 'insert returned no row');
   await supabase.from('quizzes').update({ meta: { ...(original.meta || {}), retest_quiz_id: made.id } }).eq('id', original.id);
@@ -86,11 +101,11 @@ async function makeRetest(original) {
     await require('../queue').queueJob(made.id, 'quiz_generate',
       { quizId: made.id, phone, language: original.language, source: 'retest' }, { delaySeconds: 0 });
   } catch (e) {
-    await supabase.from('quizzes').update({ status: 'failed', meta: { ...retestMeta(original, avoid), previous_error: 'retest_queue' } }).eq('id', made.id);
+    await supabase.from('quizzes').update({ status: 'failed', meta: { ...retestMeta(original, avoid, anchorFrom), previous_error: 'retest_queue' } }).eq('id', made.id);
     logEvent('quiz.retest_failed', { quizId: made.id, retestOf: original.id, error: e.message });
     return null;
   }
-  logEvent('quiz.retest_made', { quizId: made.id, retestOf: original.id, userId: original.teacher_id, avoid: avoid.length });
+  logEvent('quiz.retest_made', { quizId: made.id, retestOf: original.id, userId: original.teacher_id, avoid: avoid.length, anchors: anchorFrom.length });
   return made.id;
 }
 
