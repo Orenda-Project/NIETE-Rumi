@@ -68,7 +68,7 @@ export const OBSERVE_COPY = {
   lastObservation: 'Last observation',
   hitlBy: (who = '') => `Observation · ${who}`.trim(),
   you: 'You',
-  lastStep: { sent: 'Sent', report: 'Send report', draft: 'Feedback Form', talk: 'Debrief', analysing: 'Analysing' } as Record<string, string>,
+  lastStep: { sent: 'Sent', report: 'Send report', draft: 'Feedback Form', talk: 'Debrief', analysing: 'Analysing', stopped: 'Analysis stopped' } as Record<string, string>,
   sendingNow: 'Sending',
 
   /* record */
@@ -240,7 +240,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   lastObservation: 'آخری مشاہدہ',
   hitlBy: (who = '') => `مشاہدہ · ${who}`.trim(),
   you: 'آپ',
-  lastStep: { sent: 'بھیجا گیا', report: 'رپورٹ بھیجیں', draft: 'فیڈبیک فارم', talk: 'ڈی بریف', analysing: 'تجزیہ جاری' },
+  lastStep: { sent: 'بھیجا گیا', report: 'رپورٹ بھیجیں', draft: 'فیڈبیک فارم', talk: 'ڈی بریف', analysing: 'تجزیہ جاری', stopped: 'تجزیہ رک گیا' },
   sendingNow: 'بھیجا جا رہا ہے',
 
   recordTitle: 'مشاہدہ ریکارڈ کریں',

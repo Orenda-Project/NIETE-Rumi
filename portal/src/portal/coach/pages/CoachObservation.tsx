@@ -27,7 +27,7 @@ import { Obs612Block } from "../../components/coaching/Obs612Block";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { bandOfRubric } from "../../teacher/help/observe/guides";
 import { StatusLine } from "../flow/StatusLine";
-import { AnalysingStage, DebriefDue, DebriefListeningStage, DebriefStage, DoneRow, FeedbackCard, FormStage, SendStage, StoppedStage, ViewLink, ViewToggle } from "../flow/VisitV7";
+import { AnalysingStage, AnalysisStoppedCard, DebriefDue, DebriefListeningStage, DebriefStage, DoneRow, FeedbackCard, FormStage, SendStage, StoppedStage, ViewLink, ViewToggle } from "../flow/VisitV7";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import ContinueOnWhatsApp from "../observe/ContinueOnWhatsApp";
 import { coachReportPath } from "../report/api";
@@ -117,8 +117,15 @@ const CoachObservation = () => {
   const v7 = useFlowV6() === true;
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
-  const stopped = view?.step === "stopped";
+  // bd-f5a245 — on the switch the row's own step says stopped too (both endpoints agree now), so the card shows before the
+  // pipeline's view arrives, and on a visit that is not hers.
+  const stopped = view?.step === "stopped" || (v7 && !view && data?.step === "stopped");
   const dupStop = stopped && view?.problem === "duplicate";
+  // bd-f5a245 (queue #245) — the analysis stopped (failed, or the system gave up), not a visit she cancelled: say so and
+  // offer Upload recording for that teacher.
+  const cancelledStop = data?.cancelled === true || view?.sessionStatus === "cancelled";
+  const analysisStopped = v7 && stopped && !dupStop && !cancelledStop;
+  const againTo = data?.teacher?.teacherExtId ? routes.again(data.teacher.teacherExtId, data.teacher.schoolExtId) : null;
   const at = view ? stepAt(view.step) : indexFromRow(data?.step);
   const allDone = at >= OBSERVATION_STEPS;
   // bd-ewbzns.4.4 — Send was pressed with WhatsApp's window closed: she has the invite, not yet the report (bd-2675: the
@@ -184,7 +191,8 @@ const CoachObservation = () => {
       ? (data.score != null ? C.finalScore(C.pct(data.score)) : data.dcScore != null ? C.dcScoreOf(C.pct(data.dcScore)) : null)
       : null;
   // The class recording, one compact row; before a 1-5 form is filled it still carries the AI score's ring.
-  const preFormScore = routes.showScores && !fdeVisit && !data?.obs612 && !formFilled;
+  // bd-f5a245 — never an empty AI score under a stopped analysis: there is no score, and none is coming.
+  const preFormScore = routes.showScores && !fdeVisit && !data?.obs612 && !formFilled && !analysisStopped;
   const classRecording = !data ? null : data.audioUrl ? (
     <div data-item="class-recording">
       {preFormScore
@@ -207,7 +215,9 @@ const CoachObservation = () => {
     active = dupStop
       // bd-k8uh1r (queue #238) — a recording this coach already had analysed (bd-erpvf) says so, and what to do.
       ? <StoppedStage text={C.problems.duplicate} line={C.stoppedDuplicateLine} />
-      : <StoppedStage text={C.stopped}>{routes.coachGate && <ContinueOnWhatsApp trouble="load" />}</StoppedStage>;
+      : analysisStopped
+        ? <AnalysisStoppedCard to={againTo} />
+        : <StoppedStage text={C.stopped}>{routes.coachGate && <ContinueOnWhatsApp trouble="load" />}</StoppedStage>;
   } else if (at === 0 && working) {
     active = <AnalysingStage />;
   } else if (listening && mine) {
