@@ -1,2 +1,4 @@
 {"ts":"2026-11-24T23:26:08Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"e8d789ab292a","branch":"bd-snkn32.77-fix","user":""}
 {"ts":"2026-11-24T23:26:14Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,teacher-lessons owe their Gherkin","sha":"e8d789ab292a","branch":"bd-snkn32.77-fix","user":""}
+{"ts":"2026-11-24T23:26:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,teacher-lessons spec_sync=true","sha":"e8d789ab292a","branch":"bd-snkn32.77-fix","user":""}
+{"ts":"2026-11-24T23:34:00Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"e8d789ab292a","branch":"bd-snkn32.77-fix","user":""}
