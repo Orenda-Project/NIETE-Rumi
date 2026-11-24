@@ -97,6 +97,19 @@ function debriefPastDue(r, step, today) {
 }
 
 /**
+ * bd-o15qnr.53 (queue #246) — a report she has not sent (step `report`, still hers) past the same due day: it leaves
+ * Needs you like the Debrief and a stopped analysis (one rule for everything in Needs you), stays in History and still
+ * opens. A send already running (stage `sending`) is the system's, In progress whatever its age, so it is never late.
+ * Production had 715 debriefed, unsent reports by switch accounts back to August (most closed by the bot's undelivered
+ * chaser, gave_up_at); without this they would all be in Needs you.
+ */
+function reportPastDue(r, step, today) {
+  if (step !== 'report' || stageOf(r) === 'sending') return false;
+  const visitDay = pkDayOf(r.created_at);
+  return !!visitDay && today > debriefDueDay(visitDay);
+}
+
+/**
  * bd-f5a245 (queue #245) — why a stopped analysis (step `stopped`) no longer sits in Needs you, or null while it does:
  *
  *   stopped_past_due   3 school days after the visit, like a late debrief (the same due day)
@@ -131,7 +144,9 @@ function staleRules(liveRows, patch, today) {
   const late = new Set();
   for (const r of open) {
     const step = stepOf(r);
-    const why = debriefPastDue(r, step, today) ? 'debrief_past_due' : stoppedLeaves(r, step, today, liveRows);
+    const why = debriefPastDue(r, step, today) ? 'debrief_past_due'
+      : reportPastDue(r, step, today) ? 'report_past_due'
+        : stoppedLeaves(r, step, today, liveRows);
     if (why) { withheld.push({ id: r.id, reason: why }); late.add(r.id); }
   }
   return { open, withheld, waitingOk: (r) => !late.has(r.id) };
@@ -145,9 +160,23 @@ function liveRowsOf(rows, v7) {
   return (rows || []).filter((r) => (v7 ? r.status !== 'cancelled' : !DEAD_STATUSES.includes(r.status)));
 }
 
-/** What sits in Needs you: the Feedback Form, the Debrief, and (switch on, bd-f5a245) a stopped analysis. */
-function needsHer(step, v7) {
-  return step === 'draft' || step === 'talk' || (!!v7 && step === 'stopped');
+/**
+ * What sits in Needs you: the Feedback Form, the Debrief, and (switch on) a stopped analysis (bd-f5a245) and a report she
+ * has not sent (bd-o15qnr.53, queue #246: the debrief is done, "Send the report" is hers — no report started, the preview
+ * ready or being made, or the send failed). Once she has pressed Send (stage `sending`) it is In progress, not hers.
+ * `stage` is the row's stageOf (needed for `report` only).
+ */
+function needsHer(step, v7, stage) {
+  if (step === 'draft' || step === 'talk') return true;
+  if (!v7) return false;
+  return step === 'stopped' || (step === 'report' && stage !== 'sending');
+}
+
+/** bd-o15qnr.53 — Needs you's one order, whatever waits (Form, Debrief, Send report, stopped): the one waiting longest first. */
+function oldestFirst(a, b) {
+  const at = (r) => { const t = Date.parse(isoStamp(r.createdAt || r.created_at) || ''); return Number.isNaN(t) ? Infinity : t; };
+  const d = at(a) - at(b);
+  return Number.isNaN(d) || d === 0 ? 0 : d;
 }
 
 /**
@@ -890,7 +919,8 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
     counts: {
       week: schedule.visits.length,
       overdue: schedule.overdue.length,
-      waiting: steps.filter((s) => needsHer(s, opts.v7)).length,
+      // bd-o15qnr.53 — a report she has not sent counts too (switch on), as Needs you lists it.
+      waiting: live.filter((r, i) => needsHer(steps[i], opts.v7, opts.v7 ? stageOf(r) : null)).length,
       inProgress: steps.filter((s) => s === 'analysing').length,
       // bd-17v39c.4.16 — the same total as the Teachers tab's number: teachers only, never a principal.
       teachers: patch.filter((t) => !t.isPrincipal).length,
@@ -915,8 +945,9 @@ async function getCoachPending(query, leaderUserId, opts = {}) {
     const patch = await getPatchTeachers(query, leaderUserId, { role: opts.role || 'coach' });
     ({ open: live, waitingOk, withheld } = staleRules(live, patch, opts.today || karachiToday()));
   }
+  // bd-o15qnr.53 — switch on: a report she has not sent too, as Needs you lists it.
   const ids = live
-    .filter((r) => needsHer(stepOf(r), opts.v7) && waitingOk(r))
+    .filter((r) => needsHer(stepOf(r), opts.v7, opts.v7 ? stageOf(r) : null) && waitingOk(r))
     .map((r) => r.id);
   return withheld ? { waiting: ids.length, ids, withheld } : { waiting: ids.length, ids };
 }
@@ -1032,8 +1063,12 @@ async function getCoachReports(query, leaderUserId, opts = {}) {
   if (q) matched = filterReports(shaped, q);
 
   const out = {
-    // bd-f5a245 — switch on: a stopped analysis too (hers: upload the lesson again).
-    waiting: shaped.filter((r) => needsHer(r.step, opts.v7) && !notToDo.has(r.id)),
+    // bd-f5a245 — switch on: a stopped analysis too (hers: upload the lesson again). bd-o15qnr.53 (queue #246) — and a
+    // report she has not sent ("Send report"), in ONE order: the one waiting longest first. Off: as before.
+    waiting: (() => {
+      const w = shaped.filter((r) => needsHer(r.step, opts.v7, r.stage) && !notToDo.has(r.id));
+      return opts.v7 ? w.sort(oldestFirst) : w;
+    })(),
     // bd-o15qnr.45 — switch on: everything under way that does not wait on her (Observe's In progress); off: as before.
     inProgress: shaped.filter((r) => (opts.v7 ? IN_PROGRESS_STAGES.has(r.stage) : r.step === 'analysing') && !notToDo.has(r.id)),
     all: {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { CalendarClock, CalendarPlus, ChevronDown, ChevronUp, Clock, Inbox, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,11 @@ import type { CoachReport, CoachVisit } from "../../coach/types";
 import { SCHEDULE } from "../../coach/schedule/copy";
 import { REPORTS } from "../../coach/reports/copy";
 import { SCHOOL_CARD } from "../../coach/card/copy";
-import { reportChip } from "../../coach/reports/ReportRows";
+import { classParts, reportChip, useCardLine, type ClassWords } from "../../coach/reports/ReportRows";
+import { pkTime } from "../../coach/reports/data";
+import { OBSERVE } from "../../coach/observe/copy";
+import { sendingPath, useSendingJobs } from "../../coach/observe/sender";
+import { useKitCopy } from "../ui/useKitCopy";
 import { FLOW_V6 } from "../../coach/flow/copy";
 import { BookedRow } from "../../coach/flow/BookedRow";
 import { groupBooked, oldestFirst, waitedDays } from "../../coach/flow/model";
@@ -43,11 +47,21 @@ const DAYS_AHEAD = 90;
  * coach/pages/CoachObserveToday.tsx), behind the v6/v7 switch for a principal on the principal app:
  *
  *   Schedule an observation   the dark button → Pick the teacher ("One of my teachers, or my own lesson"; Pick offers both)
+ *   Needs you                 her observations waiting on her, OLDEST first: two, then See all N opening in place; each row
+ *                             as the coach's ("2 days waiting · Grade 7 · English"). bd-o15qnr.53: a report she has not
+ *                             sent is here too ("Send report"; the server's rule)
+ *   In progress               (bd-o15qnr.53, queue #246; the coach's section from bd-o15qnr.45) started, not finished, NOT
+ *                             waiting on her: still going up from this phone ("Sending · 62%", opening her Sending page),
+ *                             analysing, the report sending, waiting for the teacher; one row each (the teacher, the time
+ *                             it started, the date and class, the stage chip), opening the observation. Never a row Needs
+ *                             you has; no section when there is none
  *   Booked for today          the visits she booked for today, each card opening that teacher's page (record OR upload:
  *                             bd-o15qnr.29); All booked opens IN PLACE (Late, Coming up), as the coach's does, never the old
  *                             My schedule page (the operator 21 Nov ~08:50: "not accessible from any other page")
- *   Needs you                 her observations waiting on her, OLDEST first: two, then See all N opening in place
  *   History                   how many she has made in all → My observations
+ *
+ * The order is the coach's (bd-o15qnr.53; the operator 24 Nov ~06:30, "4 and 6 also go"): Needs you, In progress, Booked
+ * for today, History.
  *
  * No coach-only roster actions (no Team schedule, no school step, no Cancel). Reads her observations (GET /coach/reports)
  * and her bookings from today to 90 days ahead, late ones too (GET /coach/schedule), both her own.
@@ -67,6 +81,24 @@ export function PrincipalObserveV6() {
   const g = useMemo(() => groupBooked(schedule.data, today), [schedule.data, today]);
   const more = g.late.length + g.coming.length;
   const waiting = useMemo(() => oldestFirst(reports.data?.waiting), [reports.data]);
+  // bd-o15qnr.53 — In progress, as the coach's: this phone's sends first, then the server's rows; nothing Needs you shows.
+  const O = useCopy(OBSERVE);
+  const classWords = O as unknown as ClassWords;
+  const line = useCardLine();
+  const kit = useKitCopy(); // the upload's words are the strip's own (notify.sending: "Sending · 62%")
+  const uploads = useSendingJobs();
+  const going = useMemo(() => {
+    const mine = new Set(waiting.map((r) => r.id));
+    return (reports.data?.inProgress || []).filter((r) => !mine.has(r.id));
+  }, [reports.data, waiting]);
+  const goingCount = uploads.length + going.length;
+  // A send that has just arrived leaves the list; read the reports again so its server row (Analysing) takes its place.
+  const lastUploads = useRef(uploads.length);
+  const reloadReports = reports.reload;
+  useEffect(() => {
+    if (uploads.length < lastUploads.current) reloadReports();
+    lastUploads.current = uploads.length;
+  }, [uploads.length, reloadReports]);
   const group = (label: string, testId: string, visits: CoachVisit[], warn = false) => visits.length > 0 && (
     <div data-testid={testId} className="border-t border-[#e5e7eb]">
       <h3 className="m-0 flex items-center gap-2 px-4 pb-1 pt-3 text-[15px] font-semibold text-[#4b5563]">
@@ -88,6 +120,51 @@ export function PrincipalObserveV6() {
           </Link>
           <p className="m-0 text-center text-[14px] text-[#6b7280]">{W.scheduleSub}</p>
         </section>
+
+        <section data-testid="needs-you" className="flex flex-col gap-2">
+          <SectionLabel count={reports.data ? waiting.length : undefined} countTone={waiting.length ? "warn" : "info"}>{S.needsYou}</SectionLabel>
+          {reports.failed && <Failed onRetry={reports.reload} />}
+          {!reports.data && !reports.failed && <Loading />}
+          {reports.data && waiting.length === 0 && (
+            <div className={cn(LIST_CARD, "flex min-h-[64px] items-center gap-3 px-4 text-[15px] font-semibold text-[#6b7280]")}>
+              <Inbox className="h-5 w-5 shrink-0" aria-hidden="true" />{S.nothingWaiting}
+            </div>
+          )}
+          {waiting.length > 0 && (
+            <div className={LIST_CARD}>
+              {shownWaiting.map((r, i) => (
+                <HistoryRow key={r.id} lead="person" first={i === 0} title={r.teacherName || S.dash}
+                  extra={[S.waitingSince(waitedDays(r, today)), ...classParts(r, classWords)].join(" · ")} chip={reportChip(r, R, true)}
+                  to={principalObservationPath(r.id)} />
+              ))}
+              {waiting.length > NEEDS_SHOWN && (
+                <button type="button" onClick={() => setNeedsOpen((o) => !o)} aria-expanded={needsOpen}
+                  className={cn("flex min-h-[56px] w-full items-center justify-center gap-1 border-t border-[#e5e7eb] text-[15px] font-semibold text-[#33374a]", FOCUS)}>
+                  {needsOpen ? S.showFewer : S.seeAllN(waiting.length)}
+                  {needsOpen ? <ChevronUp className="h-5 w-5" aria-hidden="true" /> : <ChevronDown className="h-5 w-5" aria-hidden="true" />}
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* In progress (bd-o15qnr.53): what the system is doing, one row each; no section when there is none */}
+        {goingCount > 0 && (
+          <section data-testid="in-progress" className="flex flex-col gap-2">
+            <SectionLabel count={goingCount}>{R.inProgress}</SectionLabel>
+            <div className={LIST_CARD}>
+              {uploads.map((j, i) => (
+                <HistoryRow key={`send-${j.visitId}`} lead="person" first={i === 0} title={j.teacherName || S.dash} time={pkTime(j.startedAt)}
+                  extra={line({ createdAt: j.startedAt, grade: j.grade, subject: j.subject }) || undefined}
+                  chip={{ text: kit.notify.sending(j.pct), tone: "info" }} to={j.waitHref || sendingPath(j.visitId)} />
+              ))}
+              {going.map((r: CoachReport, i) => (
+                <HistoryRow key={r.id} lead="person" first={uploads.length === 0 && i === 0} title={r.teacherName || S.dash} time={pkTime(r.createdAt)}
+                  extra={line(r) || undefined} chip={reportChip(r, R, true)} to={principalObservationPath(r.id)} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section data-testid="booked-today" className="flex flex-col gap-2">
           <SectionLabel count={schedule.data ? g.today.length : undefined}>{S.bookedToday}</SectionLabel>
@@ -122,33 +199,7 @@ export function PrincipalObserveV6() {
           )}
         </section>
 
-        <section data-testid="needs-you" className="flex flex-col gap-2">
-          <SectionLabel count={reports.data ? waiting.length : undefined} countTone={waiting.length ? "warn" : "info"}>{S.needsYou}</SectionLabel>
-          {reports.failed && <Failed onRetry={reports.reload} />}
-          {!reports.data && !reports.failed && <Loading />}
-          {reports.data && waiting.length === 0 && (
-            <div className={cn(LIST_CARD, "flex min-h-[64px] items-center gap-3 px-4 text-[15px] font-semibold text-[#6b7280]")}>
-              <Inbox className="h-5 w-5 shrink-0" aria-hidden="true" />{S.nothingWaiting}
-            </div>
-          )}
-          {waiting.length > 0 && (
-            <div className={LIST_CARD}>
-              {shownWaiting.map((r, i) => (
-                <HistoryRow key={r.id} lead="person" first={i === 0} title={r.teacherName || S.dash}
-                  extra={S.waitingSince(waitedDays(r, today))} chip={reportChip(r, R)} to={principalObservationPath(r.id)} />
-              ))}
-              {waiting.length > NEEDS_SHOWN && (
-                <button type="button" onClick={() => setNeedsOpen((o) => !o)} aria-expanded={needsOpen}
-                  className={cn("flex min-h-[56px] w-full items-center justify-center gap-1 border-t border-[#e5e7eb] text-[15px] font-semibold text-[#33374a]", FOCUS)}>
-                  {needsOpen ? S.showFewer : S.seeAllN(waiting.length)}
-                  {needsOpen ? <ChevronUp className="h-5 w-5" aria-hidden="true" /> : <ChevronDown className="h-5 w-5" aria-hidden="true" />}
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-
-        <nav aria-label={S.history} className={cn(LIST_CARD, "mt-1")}>
+        <nav aria-label={S.history} data-testid="observe-history" className={cn(LIST_CARD, "mt-1")}>
           <Link to={PRINCIPAL_MY_OBSERVATIONS} className={cn("flex min-h-[60px] items-center gap-3 px-4 text-[16px] font-semibold", FOCUS)}>
             <Clock className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />
             <span className="flex-1">{S.history}</span>
