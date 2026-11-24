@@ -673,7 +673,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       }
       void askSubmit();
     };
-    const chip = [draft.label, draft.toolName && draft.toolName !== draft.label ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
+    const chip = [draft.label, draft.toolName && !(draft.label || "").startsWith(draft.toolName) ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
       .filter(Boolean).join(" · ");
     const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
     const frame = (crumb: string, dock: ReactNode, body: ReactNode) => (
@@ -848,7 +848,7 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     const items = section ? fieldsOf(section.parts).some((f) => f.role === "item") : false;
     // FDE (not FICO-S, which has Rumi's levels): said once, under the part's title.
     const noteAt = !readOnly && items && draft.tool !== "ficos" ? Math.max(0, section.parts.findIndex((p) => p.type === "heading")) : -1;
-    const chip = [draft.label, draft.toolName && draft.toolName !== draft.label ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
+    const chip = [draft.label, draft.toolName && !(draft.label || "").startsWith(draft.toolName) ? draft.toolName : null, draft.grade ? F.gradeShort(draft.grade) : null]
       .filter(Boolean).join(" · ");
     const saved = savedAt ? clockOf(savedAt, kit.am, kit.pm) : null;
     return (
