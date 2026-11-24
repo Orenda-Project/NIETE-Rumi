@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T05:03:51Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"f2b324387a29","branch":"bd-97daxo.34.9-sbx","user":""}
 {"ts":"2026-11-24T05:04:57Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan,coaching)","sha":"f2b324387a29","branch":"bd-97daxo.34.9-sbx","user":""}
+{"ts":"2026-11-24T06:10:11Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (spec synced in the next commits 433421568a + ed2a597: @L62 GB grade 1-5, @L65 ICT 6-12 not offered; @no-mock-driver config-gated)","sha":"f2b324387a29","branch":"bd-97daxo.34.9-sbx","user":""}
