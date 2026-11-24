@@ -637,8 +637,8 @@ class GovernedKey(unittest.TestCase):
     of its latest row's to_phone, so the tool keys a number the same way."""
 
     def test_the_last_ten_digits_of_any_format(self):
-        for phone in ("923001234567", "+92 300 1234567", "03001234567", "3001234567"):
-            self.assertEqual(md.number_key(phone), "3001234567")
+        for phone in ("923007777777", "+92 300 7777777", "03007777777", "3007777777"):
+            self.assertEqual(md.number_key(phone), "3007777777")
 
     def test_no_number_or_a_freed_one_has_no_key(self):
         for phone in (None, "", "merged:7d0c1a2b-0000-4000-8000-000000000001"):
