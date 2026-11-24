@@ -81,6 +81,8 @@ const STR = {
     rumi_none: 'The NIETE Teaching Assistant could not set a level from the recording. Choose the level you saw.',
     rumi_none_why: (why) => `The NIETE Teaching Assistant could not set a level from the recording (${why}). Choose the level you saw.`,
     star_line: '★ Starred: yours alone. The NIETE Teaching Assistant never scores this one; set it from what you saw.',
+    // Queue #256: the "Indicator to work on" option the Digital Coach picked (its lowest level) says so, in its line.
+    dc_pick: "NIETE Teaching Assistant's pick",
     // bd-o15qnr.40.4 (queue #229, the operator 23 Nov: "Rumi is appearing in 6-12. It should be Digital Coach.") — the
     // PORTAL's words for the pre-fill, as the grades 1-5 form names it; the Flow above keeps its own (WhatsApp /observe
     // is being turned off).
@@ -171,6 +173,8 @@ const STR = {
     rumi_none: `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ ریکارڈنگ سے لیول نہیں چن سکی۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     rumi_none_why: (why) => `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ ریکارڈنگ سے لیول نہیں چن سکی (\u2068${why}\u2069)۔ جو لیول آپ نے دیکھا وہ چنیں۔`,
     star_line: `★ ستارے والا اشاریہ: یہ صرف آپ بھریں گے۔ ${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ اسے کبھی نہیں جانچتی؛ جو آپ نے دیکھا اسی سے لیول دیں۔`,
+    // Queue #256. NATIVE-CHECK (machine-drafted).
+    dc_pick: `${LRI}NIETE${PDI} ٹیچنگ اسسٹنٹ کا انتخاب`,
     // bd-o15qnr.40.4 — the portal's words: ڈیجیٹل کوچ, as the grades 1-5 form (copyV7form.ts). NATIVE-CHECK (machine-drafted).
     p_dc_chose: (level) => `ڈیجیٹل کوچ نے ریکارڈنگ سے ${level} چنا اور نیچے شواہد لکھے۔ اگر آپ نے کچھ اور دیکھا تو بدلیں۔`,
     p_dc_none: 'ڈیجیٹل کوچ ریکارڈنگ سے لیول نہیں چن سکا۔ جو لیول آپ نے دیکھا وہ چنیں۔',
@@ -349,11 +353,33 @@ function followsNa(code, draft, rubric) {
 }
 
 /** The indicator list for the feedback's dropdowns: "C4 · Student voice & choice" (≤ 30), the full name below. */
-function focusOptions(lang = 'en') {
+function focusOptions(lang = 'en', dcPick = null) {
   return FicoS.CODES.map((c) => {
     const name = FicoS.indicatorText(c, lang).name;
-    return { id: c, title: clip(`${c} · ${name}`, 30), description: clip(name, 300) };
+    // Queue #256: the Digital Coach's pick says so at the end of its line (the Flow's own name for it).
+    return { id: c, title: clip(`${c} · ${name}`, 30), description: c === dcPick ? clip(`${name} · ${strings(lang).dc_pick}`, 300) : clip(name, 300) };
   });
+}
+
+/**
+ * Queue #256 — the "Indicator to work on" a form opens on: hers when she saved one; on a Digital Coach visit the
+ * Digital Coach's pick (fico-s-dc.dcFocusOf; none when it set no level, never one made up); otherwise null (the Flow
+ * then keeps its own start, her lowest level).
+ */
+function focusStart(draft = {}, { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
+  const d = draft || {};
+  if (FicoS.CODES.includes(d.fs_focus)) return { code: d.fs_focus, dc: false };
+  if (dc && dc.levels) return { code: require('./fico-s-dc').dcFocusOf(dc, rubric), dc: true };
+  return null;
+}
+
+/**
+ * Queue #256 — the values the portal opens a FICO 6-12 form on: the saved draft, with the Digital Coach's pick in
+ * "Indicator to work on" when she has not chosen one. Shown, not saved: her next save posts it with every other value.
+ */
+function withDcFocus(draft = {}, { dc = null, rubric = FicoS.RUBRIC_KEY } = {}) {
+  const start = focusStart(draft, { dc, rubric });
+  return start && start.dc && start.code ? { ...(draft || {}), fs_focus: start.code } : (draft || {});
 }
 
 const yesNo = (lang) => [{ id: 'yes', title: strings(lang).yes }, { id: 'no', title: strings(lang).no }];
@@ -592,9 +618,12 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
   const lines = [s.score_line(r), ...r.sections.map((x) => s.section_line(x))];
   if (r.na.length) lines.push(s.na_line(r.na));
   const lowest = FicoS.lowestIndicator(d, rubric);
+  // Queue #256: hers, else on a Digital Coach visit its pick (or none), else her lowest level as before.
+  const start = focusStart(d, { dc: opts.dc, rubric });
+  const dcPick = opts.dc && opts.dc.levels ? require('./fico-s-dc').dcFocusOf(opts.dc, rubric) : null;
   const init = {
     fb_strengths: has(d.fb_strengths) ? String(d.fb_strengths) : '',
-    fs_focus: FicoS.CODES.includes(d.fs_focus) ? d.fs_focus : (lowest ? lowest.code : ''),
+    fs_focus: start ? (start.code || '') : (lowest ? lowest.code : ''),
     fs_action: has(d.fs_action) ? String(d.fs_action) : '',
     fs_by: has(d.fs_by) ? String(d.fs_by) : '',
     fs_focus_2: FicoS.CODES.includes(d.fs_focus_2) ? d.fs_focus_2 : '',
@@ -609,7 +638,7 @@ function screenData(screenId, draft = {}, lang = 'en', opts = {}) {
     lbl_strengths: s.lbl_strengths,
     help_strengths: s.help_strengths,
     lbl_focus: s.lbl_focus,
-    focus_opts: focusOptions(lang),
+    focus_opts: focusOptions(lang, dcPick),
     lbl_action: s.lbl_action,
     help_action: s.help_action,
     lbl_by: s.lbl_by,
@@ -685,6 +714,8 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       ...(extra.dcLevel ? { dcLevel: extra.dcLevel } : {}),
       // Queue #251: on the Evidence field, the text the Digital Coach pre-filled into it (absent: nothing pre-filled).
       ...(extra.dcText ? { dcText: extra.dcText } : {}),
+      // Queue #256: the option the Digital Coach picked ("Indicator to work on"), marked on that option (absent: none).
+      ...(extra.dcChoice ? { dcChoice: extra.dcChoice } : {}),
     };
   };
   return SCREENS.map((screen) => {
@@ -743,7 +774,8 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       if (r.max) parts.push({ type: 'score', total: r.total, max: r.max, pct: r.pct, band: r.band ? r.band.label : null });
       parts.push({ type: 'sub', text: s.fb_rule });
       parts.push(field('fb_strengths', 'other', `${s.lbl_strengths}: ${s.help_strengths}`));
-      parts.push(field('fs_focus', 'other', s.lbl_focus));
+      const dcPick = require('./fico-s-dc').dcFocusOf(dc, rubric);
+      parts.push(field('fs_focus', 'other', s.lbl_focus, dcPick ? { dcChoice: dcPick } : {}));
       parts.push(field('fs_action', 'other', `${s.lbl_action}: ${s.help_action}`));
       parts.push(field('fs_by', 'other', `${s.lbl_by}: ${s.help_by}`));
       parts.push({ type: 'sub', text: s.focus_two });
@@ -921,6 +953,8 @@ module.exports = {
   indicatorScreenId,
   levelOptions,
   focusOptions,
+  focusStart,
+  withDcFocus,
   mergeDraft,
   checkScreen,
   whatIsMissing,
