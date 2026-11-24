@@ -35,7 +35,7 @@
  * never a call.
  */
 
-require('dotenv').config();
+require('./load-env').loadEnv();
 const { createClient } = require('@supabase/supabase-js');
 const primary = require('./supabase');
 const { logToFile } = require('../utils/logger');
