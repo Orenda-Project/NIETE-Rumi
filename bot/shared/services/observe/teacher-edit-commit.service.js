@@ -392,6 +392,9 @@ async function commitPhone({ actorLeaderUserId, schoolExtId, userId, phone: raw 
   if (!move.ok) return { ok: false, reason: 'failed' };
 
   await _editAudit(actorLeaderUserId, person, 'edit_phone', moveDetail(oldPhone, phone, move));
+  // The accounts retired into hers follow her number, in this path's own words (never throws, never undoes the move).
+  await require('../identity/repoint-retired').repointRetired({ userId, toPhone: phone },
+    (detail) => _editAudit(actorLeaderUserId, person, 'edit_phone', detail));
   return { ok: true, outcome: 'moved', phone, case: move.verdict };
 }
 

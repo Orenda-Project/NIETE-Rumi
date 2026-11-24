@@ -31,11 +31,16 @@ function fakeSupabase() {
       let headCount = false;
       let single = false;
       let returning = false;
-      // `is` reads as PostgREST IS: a column the row does not carry is NULL.
+      // `is` reads as PostgREST IS: a column the row does not carry is NULL. `col->>key` reads a JSON key as text.
+      const get = (row, c) => {
+        if (!c.includes('->>')) return row[c];
+        const [col, key] = c.split('->>');
+        return row[col] == null || row[col][key] == null ? null : String(row[col][key]);
+      };
       const match = (row) => filters.every(([kind, c, v]) => {
-        if (kind === 'eq') return row[c] === v;
-        if (kind === 'is') return (row[c] === undefined ? null : row[c]) === v;
-        return v.includes(row[c]);
+        if (kind === 'eq') return get(row, c) === v;
+        if (kind === 'is') return (get(row, c) === undefined ? null : get(row, c)) === v;
+        return v.includes(get(row, c));
       });
       const where = () => filters.map(([kind, c, v]) => [kind, c, Array.isArray(v) ? [...v] : v]);
       const run = () => {
@@ -340,6 +345,40 @@ describe('commitPhone: what the coach path writes, in order', () => {
     refuse = (table) => table === 'leader_roster_audit';
     expect(await svc().commitPhone({ ...base, phone: FREE })).toEqual({ ok: true, outcome: 'moved', phone: FREE, case: 'free' });
     expect(user('u-ayesha').phone_number).toBe(FREE);
+  });
+});
+
+describe('commitPhone: the accounts retired into hers follow her number (repoint_retired_on_number_move_enabled)', () => {
+  // An account an earlier merge retired into hers: its latest edit_phone row names her, on her old number.
+  const RETIRED = 'a0000000-0000-4000-8000-000000000501';
+  beforeEach(() => {
+    tables.users.push({ id: RETIRED, phone_number: `merged:${RETIRED}`, deleted_at: '2026-11-01T08:00:00.000Z' });
+    tables.leader_roster_audit.push({
+      id: 'earlier-1', action: 'edit_phone', teacher_ext_id: 'u-ayesha', created_at: '2026-11-01T08:00:00.000Z',
+      detail: { via: 'rm_duplicate_review', retired_user_id: RETIRED, to_phone: OLD },
+    });
+  });
+
+  test("switch on: after her move row, a re-point row in the coach path's own words", async () => {
+    tables.app_settings = [{ key: 'repoint_retired_on_number_move_enabled', value: true }];
+    expect(await svc().commitPhone({ ...base, phone: FREE })).toEqual({ ok: true, outcome: 'moved', phone: FREE, case: 'free' });
+    expect(writes).toEqual([
+      W.phone(FREE),
+      W.visits(FREE),
+      W.audit(auditRow('edit_phone', { from_phone: OLD, to_phone: FREE, case: 'free', retired_user_id: null })),
+      W.audit(auditRow('edit_phone', {
+        case: 'repoint', retired_user_id: RETIRED, from_phone: OLD, to_phone: FREE, supersedes: 'earlier-1',
+      })),
+    ]);
+  });
+
+  test('switch off (the default): the writes are exactly as before', async () => {
+    await svc().commitPhone({ ...base, phone: FREE });
+    expect(writes).toEqual([
+      W.phone(FREE),
+      W.visits(FREE),
+      W.audit(auditRow('edit_phone', { from_phone: OLD, to_phone: FREE, case: 'free', retired_user_id: null })),
+    ]);
   });
 });
 

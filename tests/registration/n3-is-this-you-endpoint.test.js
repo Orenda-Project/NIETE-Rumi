@@ -167,6 +167,28 @@ describe('Finish', () => {
     expect(toHer.slice(retiredAt + 1).map((w) => w.patch)).toEqual([{ school_id: null }]);
   });
 
+  test("E5b: an account retired into the record follows it onto her number (repoint_retired_on_number_move_enabled)", async () => {
+    const RETIRED = 'b0000000-0000-4000-8000-000000000501';
+    world({
+      users: [her(), record(), { id: RETIRED, phone_number: `merged:${RETIRED}`, deleted_at: ago(30 * DAY) }],
+      leader_roster_audit: [{
+        id: 'earlier-1', action: 'edit_phone', actor_user_id: REC, teacher_ext_id: REC, created_at: ago(30 * DAY),
+        detail: { via: 'rm_duplicate_review', retired_user_id: RETIRED, to_phone: fx(247) },
+      }],
+    });
+    mockDb.tables.app_settings.push({ key: 'repoint_retired_on_number_move_enabled', value: true });
+    await asked();
+    await answer('yes');
+    const done = await finish();
+    expect(identity(done)).toBe('claimed');
+    const ours = audits('edit_phone').filter((r) => r.detail.via === 'registration_claim');
+    expect(ours.map((r) => [r.actor_user_id, r.teacher_ext_id, r.detail.case, r.detail.retired_user_id])).toEqual([
+      [HER, REC, 'shell', HER],
+      [HER, REC, 'repoint', RETIRED],
+    ]);
+    expect(ours[1].detail).toMatchObject({ from_phone: fx(247), to_phone: fx(1), supersedes: 'earlier-1' });
+  });
+
   const reviewCases = [
     ['record_active', () => Object.assign(row(REC), { first_message_at: ago(20 * DAY), last_message_at: ago(DAY) }), {}],
     ['record_used', () => mockDb.tables.chat_sessions.push({ id: 'c1', user_id: REC }), {}],
