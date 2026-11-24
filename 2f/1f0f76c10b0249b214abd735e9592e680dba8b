@@ -2,3 +2,4 @@
 {"ts":"2026-11-24T19:37:12Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"2f1f0f76c10b","branch":"bd-97daxo.34.7-staging","user":""}
 {"ts":"2026-11-24T19:38:12Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of the web quiz school league; no WhatsApp training message or flow changed)","sha":"2f1f0f76c10b","branch":"bd-97daxo.34.7-staging","user":""}
 {"ts":"2026-11-24T19:38:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-2f1f0f76c10b","sha":"2f1f0f76c10b","branch":"bd-97daxo.34.7-staging","user":""}
+{"ts":"2026-11-24T19:58:22Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"2f1f0f76c10b","branch":"bd-97daxo.34.7-staging","user":""}
