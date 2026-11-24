@@ -100,6 +100,14 @@ const ASSESSMENT_TOPIC_CTA_KEY = 'assessment_topic_cta_enabled';
  */
 const META_NUMBER_CHANGE_KEY = 'meta_number_change_enabled';
 
+/**
+ * After a teacher's number moves (coach edit, WhatsApp's number change, an "Is this you?" claim), the accounts retired
+ * into hers get a newer edit_phone row on her new number, so the analytics keep crediting them to her
+ * (services/identity/repoint-retired.js). Off by default: with it off a move writes what it always has.
+ */
+const REPOINT_ON_NUMBER_MOVE_KEY = 'repoint_retired_on_number_move_enabled'; // gitleaks:allow — an app_settings key name, not a secret
+const isRepointOnNumberMoveEnabled = () => isFlagEnabled(REPOINT_ON_NUMBER_MOVE_KEY);
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -309,6 +317,7 @@ module.exports = {
   ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY, fdeStemCheckSubjects,
   ASSESSMENT_TOPIC_CTA_KEY, isAssessmentTopicCtaEnabled,
   META_NUMBER_CHANGE_KEY, isMetaNumberChangeEnabled, metaNumberChangeState,
+  REPOINT_ON_NUMBER_MOVE_KEY, isRepointOnNumberMoveEnabled,
   ASSESSMENT_GRADES_6_12_KEY, ASSESSMENT_GRADES_6_12_KILL_KEY, ASSESSMENT_GRADES_6_12_KILL_CELLS_KEY,
   GradeGateSettings, isFlagEnabledForUser,
   REGISTRATION_IS_THIS_YOU_KEY, isRegistrationIsThisYouEnabled,
