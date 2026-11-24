@@ -2,7 +2,11 @@
  * bd-t8eevw — G6-8 plain papers get their own registry job, so they can move to another model
  * (Haiku, round-4 eval bd-rzjnjp) without moving G1-5 or G9-12 plain papers.
  */
-const { writerModel, SECONDARY_JOB } = require('../shared/services/assessment/secondary-writer-model');
+const { writerModel: pick, SECONDARY_JOB } = require('../shared/services/assessment/secondary-writer-model');
+const { resolveModelForJob } = require('../shared/config/model-registry');
+// The service resolves both jobs with the settings and hands them in; do the same here.
+const writerModel = (grade, family, cfg) => pick(grade,
+  resolveModelForJob('assessment.generate', { cfg, family }), resolveModelForJob(SECONDARY_JOB, { cfg, family }));
 
 const VARS = ['ASSESSMENT_GEN_MODEL', 'ASSESSMENT_GEN_MODEL_ENG', 'ASSESSMENT_GEN_MODEL_URDU',
   'ASSESSMENT_GEN_MODEL_SECONDARY'];
