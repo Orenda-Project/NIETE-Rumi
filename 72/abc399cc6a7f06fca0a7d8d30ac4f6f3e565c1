@@ -11,3 +11,4 @@
 {"ts":"2026-11-23T04:42:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"status=none-needed (nightly replica reads in the A/B rollup and teacher-activity workers switch POST to GET; no message, screen or flow a teacher sees changes)","sha":"72abc399cc6a","branch":"bd-3kshar.17-main","user":""}
 {"ts":"2026-11-23T04:42:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-72abc399cc6a","sha":"72abc399cc6a","branch":"bd-3kshar.17-main","user":""}
 {"ts":"2026-11-23T04:46:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"72abc399cc6a","branch":"bd-3kshar.17-main","user":""}
+{"ts":"2026-11-24T01:09:38Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"72abc399cc6a","branch":"bd-3kshar.17-main","user":""}
