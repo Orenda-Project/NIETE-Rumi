@@ -46,6 +46,7 @@ const { needsLanguageAsk, quizLanguageFor, teacherLanguageFor } = require('./tra
 const LessonClaim = require('./lp-lesson-claim');
 const Funnel = require('./quiz-funnel');
 const ReligiousHold = require('./lp-religious-hold');
+const LessonLink = require('./quiz-lesson-link');
 
 const SOURCE = LP_V8;
 const LABEL_KEY = 'tqRowFromLessonPlan';
@@ -331,6 +332,7 @@ async function insertQuiz(teacherId, item, { askLanguage, quizLanguage, via }) {
         ...(askLanguage ? {} : { accepted_at: new Date().toISOString() }),
         source: Funnel.metaSourceOf(via),
         lessons: [item.lesson],
+        lesson_links: LessonLink.fromPlanLessons([item.lesson]),
         class: { grade: item.grade, subject: item.subject },
         lesson_date: O.cohortRuleDate(item.deliveredAt),
         claimed_at: new Date().toISOString(),

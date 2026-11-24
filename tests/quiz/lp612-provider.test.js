@@ -175,6 +175,10 @@ describe('start — the tap makes the quiz, once', () => {
       })],
     }));
     expect(quiz.meta.lesson_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // bd-ptl6x9.13.1: the plan on the quiz — code, plan document, book and chapter.
+    expect(quiz.meta.lesson_links).toEqual([expect.objectContaining({
+      lesson_id: SEGMENTS[1].segment_id, plan_asset_id: `r-${URDU}`, book: 'grade_7_urdu', chapter: 6, via: 'plan',
+    })]);
     expect(mockJobs).toEqual([expect.objectContaining({ jobType: 'quiz_generate', payload: expect.objectContaining({ quizId: out.quizId }) })]);
     expect(mockSent.some((m) => m.fn === 'sendMessage' && m.args[0] === UX_STRINGS.lpQuizMaking.en)).toBe(true);
   });
