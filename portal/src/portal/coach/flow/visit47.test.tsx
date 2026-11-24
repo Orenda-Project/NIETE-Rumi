@@ -106,12 +106,12 @@ describe("6-12, the form filled, the debrief next (the operator's screenshot)", 
     return screen.findByTestId("visit-next", {}, { timeout: 8000 });
   }
 
-  it("the next step comes first: Next: Record the debrief, with its due day and both buttons", async () => {
+  // bd-o15qnr.49 (#254): the step is Take the debrief, one button to the notes (recording starts on the notes page)
+  it("the next step comes first: Next: Take the debrief, with its due day and its button", async () => {
     const next = await open();
-    expect(next).toHaveTextContent("Next: Record the debrief");
+    expect(next).toHaveTextContent("Next: Take the debrief");
     expect(within(next).getByTestId("debrief-due")).toHaveTextContent(/due (by )?Mon 23 Nov/i); // "Was due" once that day has passed
-    expect(within(next).getByRole("link", { name: /Start recording/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
-    expect(within(next).getByRole("link", { name: /Upload recording/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief?upload=1");
+    expect(within(next).getByRole("link", { name: "Take debrief" })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
     // nothing of the visit sits above it: the form, the recording and the line all come after
     for (const id of ["status-line", "class-recording"]) expect(before(next, screen.getByTestId(id))).toBe(true);
     expect(before(next, screen.getByTestId("visit-form"))).toBe(true);
@@ -120,8 +120,8 @@ describe("6-12, the form filled, the debrief next (the operator's screenshot)", 
   it("the status line under it does not say the same step again", async () => {
     await open();
     const line = screen.getByTestId("status-line");
-    expect(line).not.toHaveTextContent("Now: Record the debrief");
-    expect(within(line).getAllByTestId("status-label").map((s) => s.textContent)).toEqual(["Analysed", "Form filled", "Record the debrief", "Yet to send"]);
+    expect(line).not.toHaveTextContent("Now: Take the debrief");
+    expect(within(line).getAllByTestId("status-label").map((s) => s.textContent)).toEqual(["Analysed", "Form filled", "Take the debrief", "Yet to send"]);
   });
 
   it("the filled form is ONE summary card: Form filled · 52 / 88 · 59.1% · Developing, and View form", async () => {
@@ -168,7 +168,7 @@ describe("6-12, the form filled, the debrief next (the operator's screenshot)", 
   it("Urdu: اگلا (the form's own Next word), فارم دیکھیں; the result stays left-to-right", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     const next = await open();
-    expect(next).toHaveTextContent("اگلا: ڈی بریف ریکارڈ کریں");
+    expect(next).toHaveTextContent("اگلا: ڈی بریف کریں");
     const card = screen.getByTestId("visit-form");
     expect(card).toHaveTextContent("فارم بھر دیا");
     expect(within(card).getByTestId("visit-form-result")).toHaveAttribute("dir", "ltr");
@@ -250,7 +250,7 @@ describe("the principal: the same order, no scores", () => {
     L.getObservation.mockResolvedValue(VIEW("talk", FICOS_RUBRIC));
     renderVisit(true);
     const next = await screen.findByTestId("visit-next", {}, { timeout: 8000 });
-    expect(next).toHaveTextContent("Next: Record the debrief");
+    expect(next).toHaveTextContent("Next: Take the debrief");
     const card = screen.getByTestId("visit-form");
     expect(before(next, card)).toBe(true);
     expect(card).toHaveTextContent("Form filled");

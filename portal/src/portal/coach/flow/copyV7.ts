@@ -11,7 +11,9 @@ export const FLOW_V7_COPY = {
   steps: [
     { done: "Analysed", current: "Analysing", later: "To analyse" },
     { done: "Form filled", current: "Fill the form", later: "Form to fill" },
-    { done: "Debriefed", current: "Record the debrief", later: "Debrief to do" },
+    // bd-o15qnr.49 (queue #254): the step is Take the debrief (its button opens the notes); Record debrief is the notes
+    // page's own button
+    { done: "Debriefed", current: "Take the debrief", later: "Debrief to do" },
     { done: "Sent", current: "Send the report", later: "Yet to send" },
   ],
   now: (step: string) => `Now: ${step}`,
@@ -23,7 +25,7 @@ export const FLOW_V7_COPY = {
 
   /* the visit's step cards */
   yourDebrief: "Your debrief",
-  talkThenRecord: "Talk with the teacher, then record it here.",
+  talkThenRecord: "Read the guide, talk with the teacher, then record it.",
   fillTheForm: "Fill the Feedback Form",
   sendTitle: (name: string) => `Send ${name} the report`,
   getsOnWhatsApp: (name: string) => `${name} gets it on WhatsApp.`,
@@ -64,6 +66,11 @@ export const FLOW_V7_COPY = {
   viewReport: "View report",
   hideReport: "Hide report",
 
+  /* bd-o15qnr.49 (queue #254, the operator 24 Nov ~11:00: "It should be take debrief, next step debrief, debrief notes
+     and record") — the visit's one button opens the debrief notes; the notes page keeps Record debrief at the bottom */
+  takeDebrief: "Take debrief",
+  recordDebrief: "Record debrief",
+
   /* Check and send: the class question as chips (grades 6–12 pick the form) */
 } as const;
 
@@ -74,7 +81,7 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   steps: [
     { done: "تجزیہ ہو گیا", current: "تجزیہ جاری", later: "تجزیہ باقی" },
     { done: "فارم بھر دیا", current: "فارم بھریں", later: "فارم باقی" },
-    { done: "ڈی بریف ہو گیا", current: "ڈی بریف ریکارڈ کریں", later: "ڈی بریف باقی" },
+    { done: "ڈی بریف ہو گیا", current: "ڈی بریف کریں", later: "ڈی بریف باقی" },
     { done: "بھیج دی", current: "رپورٹ بھیجیں", later: "ابھی نہیں بھیجی" },
   ],
   now: (step: string) => `ابھی: ${step}`,
@@ -84,7 +91,7 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   wasDue: (day: string) => `${day} تک تھا`,
 
   yourDebrief: "آپ کا ڈی بریف",
-  talkThenRecord: "ٹیچر سے بات کریں، پھر یہاں ریکارڈ کریں۔",
+  talkThenRecord: "گائیڈ پڑھیں، ٹیچر سے بات کریں، پھر ریکارڈ کریں۔",
   fillTheForm: "فیڈبیک فارم بھریں",
   sendTitle: (name: string) => `${name} کو رپورٹ بھیجیں`,
   getsOnWhatsApp: (name: string) => `${name} کو یہ واٹس ایپ پر ملے گی۔`,
@@ -121,6 +128,10 @@ export const FLOW_V7_COPY_UR: FlowV7Copy = {
   viewDebrief: "ڈی بریف دیکھیں",
   viewReport: "رپورٹ دیکھیں",
   hideReport: "رپورٹ چھپائیں",
+
+  // NATIVE-CHECK (bd-o15qnr.49, machine-drafted; ڈی بریف ریکارڈ کریں was the step's own Urdu before)
+  takeDebrief: "ڈی بریف کریں",
+  recordDebrief: "ڈی بریف ریکارڈ کریں",
 };
 
 export const FLOW_V7 = bilingual(FLOW_V7_COPY, FLOW_V7_COPY_UR);
