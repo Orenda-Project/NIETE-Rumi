@@ -867,6 +867,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then no afternoon quiz offer names that lesson
     And if an offer for it had already arrived, tapping "Make the quiz" says I already have a quiz for this lesson and makes nothing new
 
+  # ADDED 2026-11-24 (bd-97daxo.34.10). Executed in tests/quiz/lp-quiz-offer-612.test.js (failed 6-12 read).
+  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L64
+  Scenario: A failure reading Grades 6-12 lessons does not stop the Grades 1-5 afternoon offer
+    Given the NIETE bot chat is open on a Grades 1-5 teacher who took a lesson plan today before 14:00 PKT
+    And reading today's Grades 6-12 and GB lessons fails at the send hour
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot still offers this teacher the afternoon quiz on that lesson
+    # lp-quiz-offer-612 classesFor catches, logs lp_quiz_offer.cohort_612_failed and returns no 6-12 classes.
+
   @e2e @quiz @language @wip @draft @config-gated @P1
   Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived
