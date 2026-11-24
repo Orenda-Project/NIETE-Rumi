@@ -16,6 +16,8 @@
  *   off a DC visit  nothing changes (the Flow still opens on her lowest level, the portal empty)
  */
 
+const fs = require('fs');
+const path = require('path');
 const { createFakeSupabase } = require('../observe2/helpers/fake-supabase');
 
 let mockFake;
@@ -58,20 +60,30 @@ describe('dcFocusOf: the Digital Coach\'s one indicator to work on', () => {
 });
 
 describe('the WhatsApp Flow\'s feedback screen', () => {
-  // (C4's own Urdu name ends in انتخاب, so the Urdu mark is matched whole; staging's Flow names the Digital Coach Rumi.)
-  const picked = (opts) => opts.filter((o) => /Rumi's pick$|Rumi کا انتخاب$/.test(o.description));
+  // (C4's own Urdu name ends in انتخاب, so the Urdu mark is matched whole.) Queue #271: the mark is the form's
+  // Digital Coach (the portal's rumiTag), as every other word on the form names it; never the bot's own name.
+  const picked = (opts) => opts.filter((o) => /Digital Coach's pick$|ڈیجیٹل کوچ کا انتخاب$/.test(o.description));
 
   test('a Digital Coach visit opens on its pick, and the option says it is the Digital Coach\'s (EN + UR)', () => {
     const { draft, dc } = dcOfAnalysis();
     const en = FS.screenData('FS_FEEDBACK', draft, 'en', { dc, rubric: 'fico_s_v1_2' });
     expect(en.init.fs_focus).toBe('B2');
-    expect(en.focus_opts.find((o) => o.id === 'B2').description).toMatch(/Rumi's pick$/);
+    expect(en.focus_opts.find((o) => o.id === 'B2').description).toMatch(/ · Digital Coach's pick$/);
     expect(picked(en.focus_opts).map((o) => o.id)).toEqual(['B2']);
     const ur = FS.screenData('FS_FEEDBACK', draft, 'ur', { dc, rubric: 'fico_s_v1_2' });
     expect(ur.init.fs_focus).toBe('B2');
-    expect(ur.focus_opts.find((o) => o.id === 'B2').description).toMatch(/Rumi کا انتخاب$/);
+    expect(ur.focus_opts.find((o) => o.id === 'B2').description).toMatch(/ · ڈیجیٹل کوچ کا انتخاب$/);
     expect(picked(ur.focus_opts).map((o) => o.id)).toEqual(['B2']);
     for (const o of [...en.focus_opts, ...ur.focus_opts]) expect(Array.from(o.description).length).toBeLessThanOrEqual(300);
+  });
+  test('queue #271: the mark says Digital Coach in the portal\'s own words (rumiTag), never a bot name (EN + UR)', () => {
+    // The portal's copy constant for the Digital Coach on this form (copyV7form.ts FORM_V7_COPY / _UR rumiTag).
+    const copy = fs.readFileSync(path.join(__dirname, '../../portal/src/portal/coach/flow/copyV7form.ts'), 'utf-8');
+    const tags = [...copy.matchAll(/^\s*rumiTag:\s*"([^"]+)"/gm)].map((m) => m[1]);
+    expect(tags).toEqual(['Digital Coach', 'ڈیجیٹل کوچ']);
+    expect(FS.STR.en.dc_pick).toBe(`${tags[0]}'s pick`);
+    expect(FS.STR.ur.dc_pick).toBe(`${tags[1]} کا انتخاب`);
+    for (const lang of ['en', 'ur']) expect(FS.STR[lang].dc_pick).not.toMatch(/\bRumi\b|رومی|NIETE|Teaching Assistant|ٹیچنگ اسسٹنٹ/);
   });
   test('her own saved pick wins (the mark stays on the Digital Coach\'s)', () => {
     const { draft, dc } = dcOfAnalysis();
