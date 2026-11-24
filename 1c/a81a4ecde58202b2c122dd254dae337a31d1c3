@@ -1,2 +1,4 @@
 {"ts":"2026-11-24T14:12:05Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"1ca81a4ecde5","branch":"bd-97daxo.34.16-29294","user":""}
 {"ts":"2026-11-24T14:12:20Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching owe their Gherkin","sha":"1ca81a4ecde5","branch":"bd-97daxo.34.16-29294","user":""}
+{"ts":"2026-11-24T14:12:22Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"1ca81a4ecde5","branch":"bd-97daxo.34.16-29294","user":""}
+{"ts":"2026-11-24T14:33:32Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (only the 15:00 quiz offer nudge changed; no coaching screen or message)","sha":"1ca81a4ecde5","branch":"bd-97daxo.34.16-29294","user":""}
