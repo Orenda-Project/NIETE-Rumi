@@ -184,43 +184,6 @@ async function resumeFromHandoff(user, from, code, ctx) {
 }
 
 /**
- * Queue #266 — the "Continue on WhatsApp" reply button that follows the app's button (app-redirect 2h), id
- * `coach_app_wa:<kind>`. whatsapp-bot.js asks this for a button_reply. true = handled; false = not this button (the
- * button chain goes on).
- *
- *   a coach      today's WhatsApp entry for that kind (observe → handleObserveCommand at its first step), as reply 1
- *                does, and the day's choice is recorded. It needs nothing armed: the button works whenever she taps it.
- *   anyone else  never the WhatsApp observe (the operator, 24 Nov: "Principal can only do it on the app"): the app's
- *                button again when her switches give one (redirectIfFlagged), else nothing. Still handled.
- *
- * Never throws: a failure is logged, and the tap is still reported handled so it does not fall to "Unknown button".
- *
- * @param {object} user      users row (id, role, preferred_language)
- * @param {string} from      WhatsApp number
- * @param {string} buttonId  the tapped button's id
- * @param {{ language?: string, now?: number }} [ctx]
- */
-async function handleContinueButton(user, from, buttonId, ctx = {}) {
-  const kind = Offer.continueKindOf(buttonId);
-  if (!kind || !user || !user.id || !from) return false;
-  try {
-    if (!isCoachRole(user.role)) {
-      funnelEvent('app_funnel.wa_button_tap', { journeyId: null, userId: user.id, feature: kind, kind, ok: false, why: 'not_a_coach' });
-      const { redirectIfFlagged } = require('./app-redirect.service');
-      await redirectIfFlagged(kind, { userId: user.id, from, language: langOf(user, ctx), reason: 'wa_button_not_coach' });
-      return true;
-    }
-    funnelEvent('app_funnel.wa_button_tap', { journeyId: null, userId: user.id, feature: kind, kind, audience: 'coach', ok: true });
-    // The reply-1 offer, if one was armed, is answered by this tap too: it must not turn her next "1" into a second one.
-    try { await redis.delete(replyKey(user.id)); } catch (_) { /* expires in 2 h anyway */ }
-    await runFallback({ kind, journeyId: null }, user, from, ctx);
-  } catch (err) {
-    logToFile('❌ coach observe WhatsApp button: the tap could not be handled', { tk: tkOf(user.id), kind, error: err?.message }, 'error');
-  }
-  return true;
-}
-
-/**
  * The text handler asks this first, for every message. true = handled (the handler returns). Only a coach's message
  * is looked at; for anyone else, and on any failure, false.
  *
@@ -250,5 +213,5 @@ module.exports = {
   replyKey, todayKey, handoffKey,
   secondsToPktMidnight, armReply, choseWhatsappToday, markWhatsappToday, readHandoff,
   isFallbackWord, parseHandoffLine,
-  handleInbound, handleContinueButton,
+  handleInbound,
 };

@@ -161,10 +161,11 @@ describe('a coach on the portal\'s HITL switches', () => {
     expect(interactive('cta_url')).toHaveLength(0);
   }, 30000);
 
-  test('the tap records the day\'s WhatsApp choice, as the app\'s own way back does', async () => {
+  test('the tap answers once: no second Flow, no app button', async () => {
     await post(tap(BUTTON_ID));
-    const { todayKey } = require('../../bot/shared/services/coach-app-offer');
-    expect(await mockRedis.get(todayKey(COACH))).toBeTruthy();
+    expect(visitFlows()).toHaveLength(1);
+    expect(interactive('cta_url')).toHaveLength(0);
+    expect(waButtonMessages()).toHaveLength(0);
   }, 30000);
 });
 

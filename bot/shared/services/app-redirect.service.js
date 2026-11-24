@@ -88,7 +88,7 @@
  *      HITL visit flow to (users.role coach AND the portal's own rule, observer-report-copy flowV6OnFor: portal_coach_v2,
  *      portal_coach_full_app and portal_coach_flow_v2 all name them) gets the app's button (cta_url, the coach app's
  *      Observe page) and then ONE reply-button message, "Continue on WhatsApp" (id coach_app_wa:observe), whose tap
- *      starts today's WhatsApp /observe (coach-app-nudge.service handleContinueButton). The operator, 24 Nov: "they
+ *      starts today's WhatsApp /observe (observe/coach-observe-continue handleContinueButton). The operator, 24 Nov: "they
  *      should still [get] the portal link, but a button to still continue thru the whatsapp just in case something
  *      breaks"; and "The WhatsApp fallback is just for the coaches. Principal can only do it on the app" (2g is
  *      unchanged). Two messages because a message carries a link button OR reply buttons, never both. No switch of its
@@ -272,15 +272,18 @@ const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObse
 /**
  * 2h — a coach on the portal's HITL switches asking to observe: request → the coach-app page, the app message's words,
  * and the WhatsApp reply button that follows it (its words and its id). Observe only. The button's id is answered by
- * coach-app-nudge.service handleContinueButton (whatsapp-bot.js routes the `coach_app_wa:` prefix there).
+ * observe/coach-observe-continue handleContinueButton (whatsapp-bot.js routes the `coach_app_wa:` prefix there).
  */
+// The button's id and its tap live in one leaf module (observe/coach-observe-continue.js); it requires this file only
+// at call time, so there is no load cycle.
+const CoachObserveContinue = require('./observe/coach-observe-continue');
 const COACH_WA_BUTTON = Object.freeze({
   observe: Object.freeze({
     landing: 'coach_observe',
     copy: ['coachObserveAppBody', 'coachObserveAppButton'],
     bodyKey: 'coachObserveWhatsappBody',
     buttonKey: 'coachObserveWhatsappButton',
-    id: CoachAppOffer.continueButtonId('observe'),
+    id: CoachObserveContinue.continueButtonId('observe'),
   }),
 });
 /** The portal's v6/v7 visit-flow switch (dashboard/lib/feature-flags.js), read with the portal's rule (flowV6OnFor). */
@@ -585,14 +588,14 @@ async function coachWaButtonCovers(feature, userId, now) {
     const { flowV6OnFor } = require('./observe/observer-report-copy');
     return flowV6OnFor(values, a);
   } catch (err) {
-    logToFile('⚠️ Coach observe WhatsApp button: the account could not be read — the next path decides', { tk: CoachAppOffer.tkOf(userId), feature, error: err?.message }, 'warn');
+    logToFile('⚠️ Coach observe WhatsApp button: the account could not be read — the next path decides', { tk: CoachObserveContinue.tkOf(userId), feature, error: err?.message }, 'warn');
     return false;
   }
 }
 
 /**
  * 2h — the reply-button message that follows the app's button: one line and ONE button whose id starts today's WhatsApp
- * flow (coach-app-nudge.service handleContinueButton). Best effort: the app's link already went, so a refusal or a throw
+ * flow (observe/coach-observe-continue handleContinueButton). Best effort: the app's link already went, so a refusal or a throw
  * is logged at error and the ask stays handled. Never throws.
  */
 async function sendWhatsappButton(feature, { userId, from, language, journey }) {
@@ -605,11 +608,11 @@ async function sendWhatsappButton(feature, { userId, from, language, journey }) 
       buttons: [{ id: spec.id, title: resolveUx(spec.buttonKey, { language }) }],
     });
   } catch (err) {
-    logToFile('❌ Coach observe WhatsApp button: send threw — she has the app link only', { tk: CoachAppOffer.tkOf(userId), feature, error: err?.message }, 'error');
+    logToFile('❌ Coach observe WhatsApp button: send threw — she has the app link only', { tk: CoachObserveContinue.tkOf(userId), feature, error: err?.message }, 'error');
   }
   if (sent) funnelEvent('app_funnel.wa_button_sent', fx);
   else {
-    logToFile('❌ Coach observe WhatsApp button not delivered — she has the app link only', { tk: CoachAppOffer.tkOf(userId), feature }, 'error');
+    logToFile('❌ Coach observe WhatsApp button not delivered — she has the app link only', { tk: CoachObserveContinue.tkOf(userId), feature }, 'error');
     funnelEvent('app_funnel.wa_button_failed', fx);
   }
   return Boolean(sent);

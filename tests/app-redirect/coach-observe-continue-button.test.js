@@ -71,10 +71,11 @@ const OTHER = '11111111-1111-4111-8111-111111111111';
 const FROM = '923330000099';
 const PORTAL = 'https://portal.example.test';
 const BUTTON_ID = 'coach_app_wa:observe';
+// No coach-app-nudge require: the change also ships to a branch that has no nudge, so this suite must not need it.
 
 const row = (role) => ({ id: ME, role, name: 'Test Coach', registration_completed: true, registration_state: 'completed' });
 
-let svc; let link; let nudge; let logger;
+let svc; let link; let logger;
 beforeEach(() => {
   jest.resetModules();
   mockRedis.clear();
@@ -87,7 +88,6 @@ beforeEach(() => {
   delete process.env.WEB_TRAINING_TOKEN_SECRET;
   svc = require('../../bot/shared/services/app-redirect.service');
   link = require('../../bot/shared/services/app-login-link');
-  nudge = require('../../bot/shared/services/coach-app-nudge.service');
   logger = require('../../bot/shared/utils/logger');
 });
 afterAll(() => { process.env = ENV; });
@@ -145,9 +145,9 @@ describe('a coach on the portal\'s HITL switches asks to observe', () => {
     expect(mockOrder).toEqual(['cta', 'buttons']);
   });
 
-  test('every ask gets both, even after she chose WhatsApp earlier today', async () => {
+  test('every ask gets both, even after she chose WhatsApp earlier today (the nudge\'s day key is not read)', async () => {
     hitl();
-    await nudge.markWhatsappToday(ME, Date.now());
+    mockRedis.set(`coach_app:whatsapp_today:${ME}`, '1');
     expect(await ask('observe')).toBe(true);
     expect(mockOrder).toEqual(['cta', 'buttons']);
   });
@@ -164,7 +164,7 @@ describe('a coach on the portal\'s HITL switches asks to observe', () => {
   test('no reply-1 offer is armed (the button is the way back)', async () => {
     hitl();
     await ask('observe');
-    expect(mockRedis.has(nudge.replyKey(ME))).toBe(false);
+    expect([...mockRedis.keys()].filter((k) => k.startsWith('coach_app:reply1:'))).toEqual([]);
   });
 
   test('Meta refuses the link button: the line and link go as text, then the WhatsApp button', async () => {
