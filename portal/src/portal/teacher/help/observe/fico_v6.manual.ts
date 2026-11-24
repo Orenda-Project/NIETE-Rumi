@@ -1631,7 +1631,7 @@ const guide = {
    ]
   }
  ],
- "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-23, part 'v6'), with the form's own indicator, section and level names and N/A (FICO17 v6 as on NIETE-Rumi sandbox (77cca0683, with #129's D…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here."
+ "provenance": "queue #217 / bd-3xf7vb: Dr Rifat Yasmeen's FICO Observer Manual (claude.ai canvas S8YWPruD7MhtcSGttXXByJ, read 2026-11-24, part 'v6'), with the form's own indicator, section and level names and N/A (FICO17 v6 as on NIETE-Rumi sandbox (77cca0683, with #129's D…); written by the work folder's workbench/make_manual_guides.py (Urdu digits as Western 0-9). When Rifat edits her manual, re-read it and rebuild; do not hand-edit here."
 };
 
 export default guide;
