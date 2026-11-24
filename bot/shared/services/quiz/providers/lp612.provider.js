@@ -87,7 +87,7 @@ function subjectAllowed(subject) {
 
 /** The 15:00 offer's lesson-date rule: a lesson taken after the cutoff is for the next school day. */
 function lessonDate(deliveredAt) {
-  return require('../../nudges/lp-quiz-offer.service').cohortRuleDate(deliveredAt);
+  return require('../../nudges/lp-quiz-offer-rules').cohortRuleDate(deliveredAt);
 }
 
 const lessonKey = (row) => `${row.segment_id}|${row.lang}`;
