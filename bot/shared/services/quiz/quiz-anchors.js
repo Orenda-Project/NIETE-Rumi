@@ -80,9 +80,14 @@ function pickAnchors(rows, { max = MAX_ANCHORS } = {}) {
 
 function carryRows(quizId, authored, anchors) {
   if (!anchors || !anchors.length) return { rows: authored, keep: authored.map((_, i) => i), anchors: [] };
+  // An exact copy of an anchor is always dropped. A question that only shares an anchor's stem (a generic
+  // "Choose the correct answer" with other options) is used last, so the quiz still keeps its length.
   const stems = new Set(anchors.map((a) => norm(a.question_text)));
-  const keep = authored.map((r, i) => i).filter((i) => !stems.has(norm(authored[i].question_text)))
-    .slice(0, Math.max(0, authored.length - anchors.length));
+  const keys = new Set(anchors.map(itemKey));
+  const idx = authored.map((_, i) => i).filter((i) => !keys.has(itemKey(authored[i])));
+  const sameStem = (i) => stems.has(norm(authored[i].question_text));
+  const keep = [...idx.filter((i) => !sameStem(i)), ...idx.filter(sameStem)]
+    .slice(0, Math.max(0, authored.length - anchors.length)).sort((a, b) => a - b);
   const copies = anchors.map((a) => {
     const row = { quiz_id: quizId };
     COPY_COLUMNS.forEach((c) => { if (a[c] !== undefined && a[c] !== null) row[c] = a[c]; });

@@ -92,7 +92,7 @@ describe('carryRows — the anchors take the last slots; the quiz keeps its leng
     const generic = authored.map((r, i) => ([1, 3, 5].includes(i) ? { ...r, question_text: stem } : r));
     const out = A.carryRows('R1', generic, anchors);
     expect(out.rows).toHaveLength(7);
-    expect(out.keep).toEqual([0, 1, 2, 3, 4]);
+    expect(out.keep).toEqual([0, 1, 2, 4, 6]); // other stems first, then one sharing the anchor's stem
     const copy = [...authored.slice(0, 6), { ...anchors[0], id: undefined, external_id: 'tq:R1:S1:7' }];
     const out2 = A.carryRows('R1', copy, anchors);
     expect(out2.keep).not.toContain(6);
