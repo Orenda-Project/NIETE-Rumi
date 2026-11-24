@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T01:20:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"c062936b8d89","branch":"HEAD","user":""}
+{"ts":"2026-11-24T01:20:23Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe owe their Gherkin","sha":"c062936b8d89","branch":"bd-3kshar.6.5.1-main","user":""}
