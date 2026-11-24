@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T18:52:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f2ba4a6ecd1d","branch":"bd-97daxo.34.7-43316","user":""}
+{"ts":"2026-11-24T18:52:41Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"f2ba4a6ecd1d","branch":"bd-97daxo.34.7-43316","user":""}
