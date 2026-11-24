@@ -488,7 +488,7 @@ describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () 
     base = `http://127.0.0.1:${server.address().port}/api/internal/tr`;
   });
   afterEach(() => new Promise((r) => server.close(r)));
-  const get = (p) => fetch(`${base}${p}`, { headers: { 'x-api-key': 'test-internal-key' }, redirect: 'manual' });
+  const get = (p, headers = {}) => fetch(`${base}${p}`, { headers: { 'x-api-key': 'test-internal-key', ...headers }, redirect: 'manual' });
 
   test('how=copy → 303 back to the class tab with this card open; logged {method:copy}', async () => {
     const tok = Token.signTeacherReport({ teacherId: T1 });
@@ -506,6 +506,16 @@ describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () 
     expect(r.headers.get('location')).toBe(`https://wa.me/?text=${encodeURIComponent(`https://quiz.example.org/j/${db.class_links[0].code}?f=1`)}`);
     expect(logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap').map((e) => e[1].method)).toEqual(['wa_me']);
     expect((await get(`/jlink/${tok}?class=${C2}&how=copy`)).status).toBe(404);
+  });
+
+  test('a QA walk (the dashboard relays the phone\'s user agent, " QFIXQA"): logged qa:true; a plain one: no qa key', async () => {
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    expect((await get(`/jlink/${tok}?class=${C1}&how=copy`, { 'user-agent': 'Mozilla/5.0 Chrome/124 QFIXQA' })).status).toBe(303);
+    expect((await get(`/jlink/${tok}?class=${C1}&how=copy`, { 'user-agent': 'Mozilla/5.0 Chrome/124' })).status).toBe(303);
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'quiz_forward_tap').map((e) => e[1]);
+    expect(ev).toHaveLength(2);
+    expect(ev[0].qa).toBe(true);
+    expect(ev[1]).not.toHaveProperty('qa');
   });
 });
 

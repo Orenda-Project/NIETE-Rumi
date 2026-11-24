@@ -635,7 +635,9 @@ async function wasSent(classId, termCode) {
   try { return Boolean(await r.get(sentKey(classId, termCode))); } catch (_) { return false; }
 }
 
-async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
+// `ua`: the phone's user agent (the dashboard / portal relay it). A QA walk's carries " QFIXQA": its tap says qa:true,
+// as quiz-forward.js marks every other surface's, so a read drops walks; any other user agent: no qa key.
+async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null, ua = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const copy = how === 'copy';
   if (copy && (typeof reportBase !== 'string' || !reportBase.startsWith('/'))) return null;
@@ -644,6 +646,7 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   if (!url) return null;
   emit('quiz_forward_tap', {
     share_code_id: null, surface: 'class_link', method: copy ? 'copy' : 'wa_me', origin: 'class_link', stale: false,
+    ...(/ QFIXQA/.test(String(ua || '')) ? { qa: true } : {}),
   }, { classId, bare: true });
   await markSent(classId);
   if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
