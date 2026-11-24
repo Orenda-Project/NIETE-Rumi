@@ -19,6 +19,8 @@
 
 const { logToFile } = require('../utils/logger');
 const { resolveUx } = require('../config/ux-strings');
+// A teacher's keyed reference for log lines, never the raw id (log-raw-ids gate).
+const teacherRef = (id) => { try { return id ? require('./quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 
 const MEDIA_DOWNLOAD_ERROR = 131052;
 const ONCE_PER_SECONDS = 24 * 60 * 60;
@@ -63,7 +65,7 @@ async function observeKeyFor(user, deps) {
     const st = await deps.getObserveState(user.id);
     return (st && OBSERVE_KEY_BY_STATE[st.state]) || null;
   } catch (err) {
-    logToFile('inbound_media_failed.observe_state_unknown', { userId: user.id, error: err && err.message }, 'warn');
+    logToFile('inbound_media_failed.observe_state_unknown', { tk: teacherRef(user.id), error: err && err.message }, 'warn');
     return null;
   }
 }
@@ -84,7 +86,7 @@ async function onFailedStatus(status, deps = defaultDeps) {
     if (observeKey) {
       const fresh = await deps.setNX(`${KEY_PREFIX}${phone}:observe`, '1', OBSERVE_BURST_SECONDS);
       if (!fresh) {
-        logToFile('inbound_media_failed.told_just_now', { phone: last4(phone), userId: user.id });
+        logToFile('inbound_media_failed.told_just_now', { phone: last4(phone), tk: teacherRef(user.id) });
         return { sent: false, reason: 'told_just_now' };
       }
     } else {
@@ -99,7 +101,7 @@ async function onFailedStatus(status, deps = defaultDeps) {
     const text = resolveUx(key, { user: user || undefined });
     const ok = await deps.send(phone, text);
     logToFile(ok ? 'inbound_media_failed.notice_sent' : 'inbound_media_failed.notice_not_sent',
-      { phone: last4(phone), userId: user ? user.id : null, key }, ok ? 'info' : 'error');
+      { phone: last4(phone), tk: teacherRef(user && user.id), key }, ok ? 'info' : 'error');
     return { sent: !!ok, key };
   } catch (err) {
     logToFile('inbound_media_failed.error', { error: err && err.message }, 'error');
