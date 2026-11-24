@@ -858,6 +858,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the bot offers a short quiz on that lesson's topic, with the buttons "Make the quiz" and "No thanks"
     When I tap "Make the quiz"
     Then the quiz is made from that lesson exactly as "/quiz" makes it, and the offer is tied to that quiz
+    # bd-97daxo.34.15: a GB grade 1-5 lesson opened in the teacher app is a surface 'portal' row too (gb-lp-serving
+    # portal hit, gb-lp-author app waiter); tests/lp612/gb-lp-serving.test.js + gb-lp-author-worker.test.js.
     # lp-quiz-offer-612 classesFor: niete_lp612_deliveries (every surface) on the cohort day, newest lesson per
     # class, never an assessment, a held lesson or one an lp612 quiz already covers; acceptLp612 starts the quiz
     # through lp612.provider with via lp_offer. Off with QUIZ_LP612_SOURCE. No new message, string or button.

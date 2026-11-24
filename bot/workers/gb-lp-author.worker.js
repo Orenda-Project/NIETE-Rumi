@@ -232,7 +232,13 @@ async function process(payload) {
     const waiters = await claimWaiters(renderId, snapshot);
     let delivered = 0;
     for (const w of waiters) {
-      if (!w.phone) continue;
+      if (!w.phone) {
+        // bd-97daxo.34.15: an app waiter is sent nothing, but the lesson is hers: the 15:00 quiz offer reads it.
+        if (w.surface === 'portal') {
+          await GbLane.recordAppDelivery({ userId: w.user_id, segmentId, lang, tv: templateVersion });
+        }
+        continue;
+      }
       try {
         await GbLane.deliver({
           phone: w.phone, userId: w.user_id, r2Key, segment, lang,
