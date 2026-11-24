@@ -157,18 +157,23 @@ async function requestLesson(req, depth = 0) {
   // anything, not even a status line, whatever phone the caller had in scope.
   const toWhatsApp = (surface || 'whatsapp') === 'whatsapp';
   const phone = toWhatsApp ? req.phone : null;
+  // bd-3zif2x: every answer is one gb_lp.serve.<outcome> event naming her and the surface, so GB health is countable.
+  const served = (outcome, fields = {}) => logEvent(`gb_lp.serve.${outcome}`, {
+    segmentId, userId: userId || null, surface: surface || 'whatsapp', correlationId, ...fields,
+  });
   if (!GbDelivery.isGbK5Segment(segment)) {
-    logToFile('LP GB: grade 6-12 GB lesson asked, design pending', { segmentId, correlationId });
+    served('design_pending', { grade: segment.grade });
     await tell(phone, 'lp612GbComingSoonTap', voice);
     return { outcome: 'gb_design_pending' };
   }
   if (!isGbOnRequestSubject(segment.grade, segment.subject)) {
     // Only English, Urdu, Maths and Science are written on request; nothing is read, written or queued.
-    logToFile('LP GB: subject not written on request', { segmentId, subject: segment.subject, correlationId });
+    served('subject_off', { subject: segment.subject });
     await tell(phone, 'lp612GbComingSoonTap', voice);
     return { outcome: 'gb_subject_off' };
   }
   if (depth > 2) {
+    served('error', { reason: 'row_kept_moving' });
     await tell(phone, 'lp612Failed', voice);
     return { outcome: 'error', error: 'gb render row kept moving' };
   }
@@ -177,6 +182,7 @@ async function requestLesson(req, depth = 0) {
   const again = () => requestLesson(req, depth + 1);
   const { render: row, readFailed } = await findRender(segmentId, lang, tv);
   if (readFailed) {
+    served('error', { lang, tv, reason: 'lookup_failed' });
     await tell(phone, 'lp612Failed', voice);
     return { outcome: 'error', error: 'render lookup failed' };
   }
@@ -186,17 +192,18 @@ async function requestLesson(req, depth = 0) {
     if (!toWhatsApp) {
       // bd-97daxo.34.15: her app open is the delivery the 15:00 quiz offer reads, as on ICT 6-12's portal hit.
       if (surface === 'portal') await recordAppDelivery({ userId, segmentId, lang, tv });
-      logEvent('gb_lp.serve.hit', { segmentId, lang, tv, renderId: row.id, surface, ms: Date.now() - t0, correlationId });
+      served('hit', { lang, tv, renderId: row.id, ms: Date.now() - t0 });
       return { outcome: 'cache_hit', renderId: row.id, r2Key: row.r2_key };
     }
     try {
       await deliver({
         phone, userId, r2Key: row.r2_key, segment, lang, askedAt, generatedAt: askedAt, correlationId,
       });
-      logEvent('gb_lp.serve.hit', { segmentId, lang, tv, renderId: row.id, ms: Date.now() - t0, correlationId });
+      served('hit', { lang, tv, renderId: row.id, ms: Date.now() - t0 });
       return { outcome: 'cache_hit', renderId: row.id };
     } catch (err) {
       logToFile('LP GB: cache delivery failed', { segmentId, r2Key: row.r2_key, error: err.message, correlationId });
+      served('deliver_failed', { lang, tv, renderId: row.id, error: String(err.message || '').slice(0, 200) });
       await tell(phone, 'lp612Failed', voice);
       return { outcome: 'deliver_failed', error: err.message };
     }
@@ -204,7 +211,7 @@ async function requestLesson(req, depth = 0) {
 
   if (!isAuthorEnabled()) {
     // Only the built plans are served; nothing is written, so no job is left waiting on a worker.
-    logEvent('gb_lp.serve.not_built', { segmentId, lang, tv, status: row ? row.status : null, correlationId });
+    served('not_built', { lang, tv, status: row ? row.status : null });
     await tell(phone, 'lp612GbComingSoonTap', voice);
     return { outcome: 'gb_not_built' };
   }
@@ -216,7 +223,7 @@ async function requestLesson(req, depth = 0) {
     const r = await join(row.id, entry);
     if (r === 'not_authoring' || r === 'missing') return again();
     await tell(phone, 'lp612AlreadyPreparing', voice);
-    logEvent('gb_lp.serve.joined', { segmentId, lang, tv, renderId: row.id, result: r, correlationId });
+    served('joined', { lang, tv, renderId: row.id, result: r });
     return { outcome: 'joined', renderId: row.id };
   }
 
@@ -239,6 +246,7 @@ async function requestLesson(req, depth = 0) {
     if (error && error.code === UNIQUE_VIOLATION) return again();
     if (error || !data) {
       logToFile('LP GB: could not claim render', { segmentId, error: error && error.message, correlationId });
+      served('error', { lang, tv, reason: 'claim_failed' });
       await tell(phone, 'lp612Failed', voice);
       return { outcome: 'error', error: error ? error.message : 'no row' };
     }
@@ -247,10 +255,11 @@ async function requestLesson(req, depth = 0) {
 
   await tell(phone, 'lp612Preparing', voice);
   if (!await enqueueOrFail({ renderId, segmentId, lang, tv, correlationId })) {
+    served('error', { lang, tv, renderId, reason: 'enqueue_failed' });
     await tell(phone, 'lp612Failed', voice);
     return { outcome: 'error', error: 'enqueue failed', renderId };
   }
-  logEvent('gb_lp.serve.queued', { segmentId, lang, tv, renderId, ms: Date.now() - t0, correlationId });
+  served('queued', { lang, tv, renderId, ms: Date.now() - t0 });
   return { outcome: 'queued', renderId };
 }
 

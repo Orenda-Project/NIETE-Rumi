@@ -230,3 +230,36 @@ describe('an app (portal) ask', () => {
     expect(mockRecordDelivery).not.toHaveBeenCalled();
   });
 });
+
+// bd-3zif2x: every answer to a GB ask is one gb_lp.serve.* event naming the teacher and the surface, so GB health
+// (who asked, who waited, who was told "coming soon" or "failed") can be counted from the logs alone.
+describe('every outcome is a gb_lp.serve event naming her and the surface', () => {
+  const { logEvent } = require('../../bot/shared/utils/structured-logger');
+  const served = () => logEvent.mock.calls.filter(([name]) => name.startsWith('gb_lp.serve.'));
+  const expectOne = (name, surface) => {
+    expect(served()).toHaveLength(1);
+    expect(served()[0][0]).toBe(name);
+    expect(served()[0][1]).toMatchObject({ userId: 'user-1', surface, segmentId: expect.any(String) });
+  };
+  const READY = { data: { id: 'g1', status: 'ready', r2_key: 'gb-lp/t/ur/x.pdf' }, error: null };
+  test.each([
+    ['hit on WhatsApp', () => mockDbResults.push(READY), REQ, 'gb_lp.serve.hit', 'whatsapp'],
+    ['hit in the app', () => mockDbResults.push(READY), { ...REQ, surface: 'portal' }, 'gb_lp.serve.hit', 'portal'],
+    ['queued', () => mockDbResults.push({ data: null, error: null }, { data: { id: 'n' }, error: null }), REQ, 'gb_lp.serve.queued', 'whatsapp'],
+    ['joined', () => { mockDbResults.push({ data: { id: 'w', status: 'authoring', started_at: new Date().toISOString() }, error: null }); mockRpc.mockResolvedValueOnce({ data: 'joined', error: null }); }, REQ, 'gb_lp.serve.joined', 'whatsapp'],
+    ['send failed', () => { mockDbResults.push(READY); mockDeliverRender.mockRejectedValueOnce(new Error('x')); }, REQ, 'gb_lp.serve.deliver_failed', 'whatsapp'],
+    ['lookup failed', () => mockDbResults.push({ data: null, error: { message: 'db down' } }), REQ, 'gb_lp.serve.error', 'whatsapp'],
+    ['subject not written', () => {}, { ...REQ, segment: { ...SEG, subject: 'Islamiat' } }, 'gb_lp.serve.subject_off', 'whatsapp'],
+    ['grade 6-12', () => {}, { ...REQ, segment: { ...SEG, grade: 7 } }, 'gb_lp.serve.design_pending', 'whatsapp'],
+  ])('%s', async (_label, arrange, req, name, surface) => {
+    arrange();
+    await GbLane.requestLesson(req);
+    expectOne(name, surface);
+  });
+  test('not built (authoring off)', async () => {
+    delete process.env.LP_GB_AUTHOR_ENABLED;
+    mockDbResults.push({ data: null, error: null });
+    await GbLane.requestLesson(REQ);
+    expectOne('gb_lp.serve.not_built', 'whatsapp');
+  });
+});
