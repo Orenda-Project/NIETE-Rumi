@@ -4703,11 +4703,11 @@ const UX_STRINGS = {
   // (no verb agrees with her). "Too big" is a separate line: a file over the limit fails as a Document too.
   inboundMediaResend: {
     en: 'Your file did not reach us: WhatsApp could not pass it on. Please send it again as a Document.',
-    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
   },
   inboundMediaTooBig: {
     en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
-    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
   },
 
   // ── her own grades 1-5 plan: the children-visible line (bd-snkn32.53) ────────
@@ -4727,14 +4727,14 @@ const UX_STRINGS = {
     en: 'Your debrief recording did not reach us: WhatsApp could not pass the file on. Your visit is safe and still waiting for it.\n\n'
       + 'Please send it again as a *Document*: tap 📎 → *Document*, pick the recording and tap *Send*. '
       + 'Or record the talk here with the 🎙 button.',
-    ur: 'آپ کی ڈی بریف کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
+    ur: 'آپ کی ڈی بریف کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔ '
       + 'یا یہیں 🎙 کا بٹن دبا کر گفتگو ریکارڈ کریں۔',
   },
   inboundMediaObserveLesson: {
     en: 'Your lesson recording did not reach us: WhatsApp could not pass the file on. Your visit is safe and still waiting for it.\n\n'
       + 'Please send it again as a *Document*: tap 📎 → *Document*, pick the recording and tap *Send*.',
-    ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
+    ur: 'آپ کی سبق کی ریکارڈنگ ہم تک نہیں پہنچی، واٹس ایپ یہ فائل آگے نہیں بھیج سکا۔ آپ کا مشاہدہ محفوظ ہے اور اسی ریکارڈنگ کا منتظر ہے۔\n\n'
       + 'براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں: 📎 دبائیں، پھر ⁦*Document*⁩، ریکارڈنگ چنیں اور ⁦*Send*⁩ دبائیں۔',
   },
 
