@@ -4703,11 +4703,11 @@ const UX_STRINGS = {
   // (no verb agrees with her). "Too big" is a separate line: a file over the limit fails as a Document too.
   inboundMediaResend: {
     en: 'Your file did not reach us: WhatsApp could not pass it on. Please send it again as a Document.',
-    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، واٹس ایپ اسے آگے نہیں بھیج سکا۔ براہ کرم اسے دوبارہ ڈاکیومنٹ کے طور پر بھیجیں۔',
   },
   inboundMediaTooBig: {
     en: 'Your file did not reach us: it is bigger than WhatsApp allows (100 MB). Please send a shorter or smaller file.',
-    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
+    ur: 'آپ کی فائل ہم تک نہیں پہنچی، یہ واٹس ایپ کی حد سے بڑی ہے۔ براہ کرم چھوٹی فائل بھیجیں۔',
   },
 
   // ── her own grades 1-5 plan: the children-visible line (bd-snkn32.53) ────────

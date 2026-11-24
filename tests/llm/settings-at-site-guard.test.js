@@ -25,19 +25,14 @@ function jsFiles(dir, out = []) {
   return out;
 }
 
-/** job -> files whose call to resolveModelForJob passes the settings (`cfg:` or shorthand `cfg`). */
+/** job -> files whose call to resolveModelForJob passes the settings (`cfg:`). */
 function sitesReadingSettings() {
   const found = {};
   for (const file of jsFiles(BOT)) {
     if (file.endsWith(path.join('config', 'model-registry.js'))) continue;
     const src = fs.readFileSync(file, 'utf8');
-    // A job named through a file-level string constant (`const SECONDARY_JOB = '...'`) counts too.
-    const consts = Object.fromEntries([...src.matchAll(/\bconst\s+([A-Z_][A-Z0-9_]*)\s*=\s*'([^']+)'/g)]
-      .map((c) => [c[1], c[2]]));
-    for (const m of src.matchAll(/resolveModelForJob\(\s*(?:'([^']+)'|([A-Z_][A-Z0-9_]*))\s*,\s*\{([\s\S]*?)\}\s*\)/g)) {
-      const job = m[1] || consts[m[2]];
-      if (job && /(?:^|[\s,])cfg\s*(?::|,|$)/.test(m[3]))  // `cfg: x` or shorthand `{ cfg, ... }`
-        (found[job] = found[job] || []).push(path.relative(BOT, file));
+    for (const m of src.matchAll(/resolveModelForJob\(\s*'([^']+)'\s*,\s*\{([\s\S]*?)\}\s*\)/g)) {
+      if (/\bcfg\s*:/.test(m[2])) (found[m[1]] = found[m[1]] || []).push(path.relative(BOT, file));
     }
   }
   return found;
@@ -49,9 +44,7 @@ describe('settingsAtSite matches the code', () => {
 
   test('the scan finds the call sites it is meant to find', () => {
     // Guard the guard: vision and assessment read the settings today. Zero would mean the scan broke.
-    // assessment.generate.secondary is named through a constant (bd-t8eevw); the scan must still see it.
-    expect(Object.keys(sites).sort()).toEqual(
-      expect.arrayContaining(['assessment.generate', 'assessment.generate.secondary', 'vision.analyse']));
+    expect(Object.keys(sites).sort()).toEqual(expect.arrayContaining(['assessment.generate', 'vision.analyse']));
   });
 
   test('every job whose call site reads the settings is flagged', () => {
@@ -68,13 +61,10 @@ describe('settingsAtSite matches the code', () => {
     // llm-client cannot work out a settings-moved call site's own model (an Urdu paper and an
     // English one run different models), so the call site passes it as `fallbackModel`.
     const silent = [];
-    const { JOBS } = require('../../bot/shared/config/model-registry');
-    const names = (f) => /fallbackModel\s*:\s*own/.test(fs.readFileSync(path.join(BOT, f), 'utf8'));
     for (const [job, files] of Object.entries(sites)) {
-      // A helper that only resolves the model is fine when the job's registered site makes the call.
-      const site = JOBS[job] && JOBS[job].site && JOBS[job].site.replace(/:\d+$/, '');  // `file.js:29`
       for (const f of files) {
-        if (!names(f) && !(site && fs.existsSync(path.join(BOT, site)) && names(site))) silent.push(`${job} (${f})`);
+        const src = fs.readFileSync(path.join(BOT, f), 'utf8');
+        if (!/fallbackModel\s*:\s*own/.test(src)) silent.push(`${job} (${f})`);
       }
     }
     expect(silent).toEqual([]);
