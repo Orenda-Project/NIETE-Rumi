@@ -10,7 +10,10 @@
  *
  * The seed is the session's own id (hashed): new for every sitting, the same on a resume, nothing stored. Answers stay
  * slots (the stored A-D column), so the score, the report, the league and every answer row read the same whatever order
- * a child saw. The served SET is not touched: the page drops nothing the server did not pick.
+ * a child saw. The served SET is not touched: the page drops nothing the server did not pick. Each question's place is a
+ * rank by a hash of the seed and the question's own id (ranked), not a shuffle of the list: when the served set changes
+ * under an open sitting (an answer-key hold set or cleared, a quiz edited), the resume keeps the sequence of the questions
+ * both lists share.
  *
  * Options that stay where they are (pinReason): true/false (the page draws ✓ on the first button), order / match / label
  * items (the positions are the question), a "listen" item (its clips are numbered), a P5 grid or "Sound n"/"Picture n"
@@ -78,6 +81,16 @@ function shuffled(list, seed) {
   return out;
 }
 
+// session_started.order_algo: how this code orders a sitting's questions. 'rank' (ranked below); the earlier list
+// shuffle was 'shuffle', and its events carry no order_algo, so a read can tell which code served a sitting.
+const ALGO = 'rank';
+
+/** The questions in the sitting's order: each id's rank by a hash of (seed, id), so one leaving or joining moves no other. */
+function ranked(ids, seed) {
+  const key = new Map(ids.map((id) => [id, Render.mulberry32(Render.hash32(`${seed}|q|${id}`))()]));
+  return ids.slice().sort((a, b) => (key.get(a) - key.get(b)) || (String(a) < String(b) ? -1 : (String(a) > String(b) ? 1 : 0)));
+}
+
 /** Why an item's options keep their places (null: they may move). `payload` is the page's question (questionPayload). */
 function pinReason(row, payload) {
   const opts = (payload && payload.options) || [];
@@ -95,7 +108,7 @@ function pinReason(row, payload) {
  */
 function sittingOrder(rows, payloads, sessionId) {
   const seed = seedOf(sessionId);
-  const q = shuffled(rows.map((r) => r.id), seed);
+  const q = ranked(rows.map((r) => r.id), seed);
   const o = {};
   let pinned = 0;
   rows.forEach((row, k) => {
@@ -107,4 +120,4 @@ function sittingOrder(rows, payloads, sessionId) {
   return { order: { q, o }, seed, pinned };
 }
 
-module.exports = { onFor, armOf, seedOf, pinReason, sittingOrder, ANCHORED_UR, ORDER_TEST, KEY: 'web_quiz_order_seed' };
+module.exports = { onFor, armOf, seedOf, pinReason, sittingOrder, ANCHORED_UR, ORDER_TEST, ALGO, KEY: 'web_quiz_order_seed' };
