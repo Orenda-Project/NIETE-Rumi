@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Info, MoreHorizontal, Pause, Pencil, Play, Plus } from "lucide-react";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { coach } from "../../services/api";
 import type { DraftObservationNote, DraftSection, EvidenceReview, ObservationDraft, V6Indicator } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { StatusChip } from "../../teacher/ui";
-import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE, ROW_DIVIDER } from "../../teacher/ui/styles";
+import { FOCUS, GRID, LIST_CARD, OUTLINE_WIDE, PRIMARY_WIDE } from "../../teacher/ui/styles";
 import { BottomButton } from "../ui";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
@@ -13,17 +12,15 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS, type ReportsCopy } from "./copy";
 import type { Values } from "./formModel";
 import {
-  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, SaveTrayV7, TIME_CHIP,
-  TextBox, UNDO_MS, focusField, levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
+  AboutLine, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, OwnEvidence, SaveTrayV7,
+  TextBox, focusField, levelWords, urduOf, useFormToast, v7Changes, v7Crumb,
 } from "./FormV7";
 import { Problem, problemText, V6Notes, v6RatingOptions } from "./V6Parts";
 import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList } from "./FormV7Nav";
 import { changedFromRumi, v6Problems, type V6Problems, type V6Section } from "./v6Model";
 import { useFormLevels } from "./formLevels";
-import {
-  addRow, clockSeconds, dropV7, editRow, evText, heldV7, initialReview, keepV7, normClock, removeRow, reviewOut, sameReview, setSummary, shownRows,
-  type Review, type ReviewRow,
-} from "./evidenceReview";
+import { dropV7, heldV7, initialReview, keepV7, ownReview, plainReview, reviewOut, sameReview, type Review } from "./evidenceReview";
+import { TimeChip, useLessonPlayer, type LessonPlayer } from "./lessonPlayer";
 
 /**
  * bd-o15qnr.31 (queue #204; #188's canvas-ff: "21 Nov: the Feedback Form review", and "21 Nov ~10:05: LOCKED for #204,
@@ -41,18 +38,16 @@ import {
  *                   An indicator is green when its rules hold (v6Model's, and a level) AND the coach has agreed it (one
  *                   of the assistant's 11) or set it (one of the six); a saved form counts as agreed. Gaps: a counted
  *                   toast, the first unfilled field scrolled to and focused, the inline marks kept.
- *   evidence (B)    the assistant's summary (pencil → a box sized to its text, Done) and each {time, quote} as a row:
- *                   a time chip (plays the lesson from there when the recording is on this page), the quote (Urdu
- *                   right to left in Nastaliq), ⋯ → Edit (in place, the time stays, an "edited" tag) / Remove (the toast
- *                   "Quote removed · Undo" for 5 s). "Add evidence" adds the coach's own line (what you saw, an optional
- *                   mm:ss time) with a dark "You" tag. No assistant list (an older bot): today's one Evidence box.
- *   saved           the same keys as today (ev_<code> one text: evidenceReview.ts evText; an evidence left as it came
- *                   keeps the server's own text), plus `evidence_review` per indicator that has the assistant's list.
+ *   evidence        queue #251 (the operator 24 Nov ~10:25; was option B, the quotes edited in place): the Digital
+ *                   Coach's evidence ONCE, read only: its line and each {time, quote} (Urdu right to left in Nastaliq);
+ *                   "Edit evidence" opens an EMPTY "Your evidence" box under it ("Keep the Digital Coach’s" closes it).
+ *                   No assistant list (an older bot): today's one Evidence box.
+ *   the time chip   plays the class recording from that time in a player under the evidence (lessonPlayer.tsx).
+ *   saved           the same keys as today: ev_<code> is her words when she typed some, else the server's own text, as
+ *                   it came (the bot's `rumiText` tells the two apart on a saved form); `evidence_review` per indicator
+ *                   with the assistant's list: its quotes kept, plus her words as one line of hers when she typed.
  *
- * The time chip: one recording per visit (the portal joins its chunks into ONE file, lib/lessonRecorder.ts; WhatsApp
- * sends one audio), and the assistant's MM:SS are read off that file's transcript, so its clock is the file's. The
- * recording's link comes from GET /coach/observation/:id (as the visit page plays it); without it the time is a plain
- * chip. Words: copyV7form.ts (and reports/copy.ts); the rubric's levels and the bot's text are data.
+ * Words: copyV7form.ts (and reports/copy.ts); the rubric's levels and the bot's text are data.
  */
 
 type MovesSection = Extract<DraftSection, { kind: "moves" }>;
@@ -71,57 +66,6 @@ function oneLine(text: string): string {
 
 
 
-/* ── the recording ────────────────────────────────────────────────────────────────────────────────────────────── */
-
-type Audio = { url: string; playing: string | null; play: (key: string, time: string) => void };
-
-function useLessonAudio(id: string, enabled: boolean) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [playing, setPlaying] = useState<string | null>(null);
-  const ref = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    if (!enabled || !id) return undefined;
-    let live = true;
-    Promise.resolve()
-      .then(() => coach.getObservation(id))
-      .then((r) => { if (live) setUrl(r && typeof r.audioUrl === "string" && r.audioUrl ? r.audioUrl : null); })
-      .catch(() => { /* no recording link: the times stay plain chips */ });
-    return () => { live = false; };
-  }, [id, enabled]);
-  const play = useCallback((key: string, time: string) => {
-    const el = ref.current;
-    const at = clockSeconds(time);
-    if (!el || at === null) return;
-    if (playing === key && !el.paused) { el.pause(); setPlaying(null); return; }
-    try { el.currentTime = at; } catch { /* not seekable yet: it plays from where it is */ }
-    setPlaying(key);
-    Promise.resolve(el.play()).catch(() => setPlaying(null));
-  }, [playing]);
-  const element = url ? (
-    <audio ref={ref} data-testid="ff-audio" src={url} preload="none" className="hidden"
-      onPause={() => setPlaying(null)} onEnded={() => setPlaying(null)} />
-  ) : null;
-  const audio: Audio | null = url ? { url, playing, play } : null;
-  return { audio, element };
-}
-
-function TimeChip({ time, rowKey, audio }: { time: string | null; rowKey: string; audio: Audio | null }) {
-  const F = useCopy(FORM_V7) as FormV7Copy;
-  if (!time) return null;
-  const chip = TIME_CHIP;
-  if (!audio || clockSeconds(time) === null) return <span data-testid="ff-time" dir="ltr" className={chip}>{time}</span>;
-  const on = audio.playing === rowKey;
-  return (
-    <button type="button" onClick={() => audio.play(rowKey, time)} aria-pressed={on} aria-label={on ? F.pauseAt(time) : F.playAt(time)}
-      className={cn("flex min-h-[56px] shrink-0 items-center", FOCUS)}>
-      <span dir="ltr" className={chip}>
-        {on ? <Pause className="h-3 w-3" aria-hidden="true" /> : <Play className="h-3 w-3" aria-hidden="true" />}
-        {time}
-      </span>
-    </button>
-  );
-}
-
 /* ── one of the six: the Digital Coach can't count it ─────────────────────────────────────────────────────────── */
 
 type Combined = Extract<V6Indicator, { kind: "combined" }>;
@@ -134,7 +78,7 @@ type Combined = Extract<V6Indicator, { kind: "combined" }>;
  * no box at all (never "Nothing for this in the recording"). What to look for and how to fill it are said once, in the
  * line under the indicator's name (no "You add: …"). An older bot sends only `body`: that text, in the same box.
  */
-function SixEvidence({ ind, audio }: { ind: Combined; audio: Audio | null }) {
+function SixEvidence({ ind, player }: { ind: Combined; player: LessonPlayer | null }) {
   const F = useCopy(FORM_V7) as FormV7Copy;
   const r = ind.recording;
   if (!r) {
@@ -148,7 +92,7 @@ function SixEvidence({ ind, audio }: { ind: Combined; audio: Audio | null }) {
   if (r.state === "found" && r.found.length) {
     what = r.found.map((f, i) => (
       <DcQuoteRow key={`${f.time ?? ""}-${i}`} time={f.time} quote={f.quote} first={i === 0}
-        chip={f.time ? <span className="mt-0.5 flex shrink-0"><TimeChip time={f.time} rowKey={`${ind.id}-rec-${i}`} audio={audio} /></span> : undefined} />
+        chip={player && f.time ? <TimeChip time={f.time} rowKey={`${ind.id}-rec-${i}`} player={player} /> : undefined} />
     ));
   } else if (r.state === "d2" && r.turns) what = <DcNote text={F.d2Turns(r.turns.first, r.turns.second)} />;
   else if (r.state === "ie") what = <DcNote text={F.recIe} />;
@@ -157,115 +101,23 @@ function SixEvidence({ ind, audio }: { ind: Combined; audio: Audio | null }) {
   return what ? <DcEvidenceBox boxId="dc-box">{what}</DcEvidenceBox> : null;
 }
 
-/* ── the evidence, option B with editing ──────────────────────────────────────────────────────────────────────── */
+/* ── queue #251: the Digital Coach's evidence, once ───────────────────────────────────────────────────────────── */
 
-function EvidenceBox({ code, review, onChange, onRemove, audio }: {
-  code: string; review: Review; onChange: (r: Review) => void; onRemove: (key: string) => void; audio: Audio | null;
-}) {
-  const F = useCopy(FORM_V7) as FormV7Copy;
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [menu, setMenu] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ key: string; text: string } | null>(null);
-  const [adding, setAdding] = useState<{ text: string; time: string; bad: boolean } | null>(null);
-
-  const row = (r: ReviewRow, first: boolean) => {
-    const mine = r.source === "coach";
-    const text = mine ? r.text : r.status === "edited" ? r.coachText ?? r.quote : r.quote;
-    const isEditing = editing?.key === r.key;
-    return (
-      <div key={r.key} data-testid="ff-quote" data-source={r.source} data-status={mine ? undefined : r.status}
-        className={cn("flex flex-col gap-1.5 py-1.5", !first && ROW_DIVIDER)}>
-        <div className="flex items-start gap-2">
-          {mine ? <span className="mt-4 inline-flex h-6 shrink-0 items-center rounded-full bg-[#33374a] px-2.5 text-[12px] font-bold text-white">{F.you}</span> : null}
-          <TimeChip time={r.time} rowKey={r.key} audio={audio} />
-          {isEditing ? (
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1">
-              <AutoText aria-label={F.edit} value={editing.text} onChange={(e) => setEditing({ key: r.key, text: e.target.value })}
-                className={cn("w-full rounded-xl border border-[#d1d5db] bg-white px-3 py-2.5 text-[16px] leading-snug", FOCUS)} />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setEditing(null)} className={cn("min-h-[56px] rounded-xl border border-[#d1d5db] bg-white px-4 text-[14px] font-semibold text-[#33374a]", FOCUS)}>{F.cancel}</button>
-                <button type="button" onClick={() => { onChange(editRow(review, r.key, editing.text)); setEditing(null); }}
-                  className={cn("min-h-[56px] rounded-xl bg-[#33374a] px-4 text-[14px] font-semibold text-white", FOCUS)}>{F.done}</button>
-              </div>
-            </div>
-          ) : (
-            <span className="min-w-0 flex-1 py-3.5 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(text)}>
-              {mine ? text : `“${text}”`}
-            </span>
-          )}
-          {!isEditing && !mine && r.status === "edited" ? <span className="mt-4 shrink-0 rounded-full bg-[#f3f4f6] px-2 text-[11.5px] font-bold leading-6 text-[#6b7280]">{F.edited}</span> : null}
-          {!isEditing ? (
-            <button type="button" aria-label={F.more} aria-expanded={menu === r.key} onClick={() => setMenu(menu === r.key ? null : r.key)}
-              className={cn("flex h-14 w-11 shrink-0 items-center justify-center rounded-xl text-[#6b7280]", FOCUS)}>
-              <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-        {menu === r.key ? (
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { setMenu(null); setEditing({ key: r.key, text }); }}
-              className={cn("min-h-[56px] rounded-xl border border-[#d1d5db] bg-white px-4 text-[15px] font-semibold text-[#33374a]", FOCUS)}>{F.edit}</button>
-            <button type="button" onClick={() => { setMenu(null); onRemove(r.key); }}
-              className={cn("min-h-[56px] rounded-xl border border-[#e5e7eb] bg-white px-4 text-[15px] font-semibold text-[#c8331f]", FOCUS)}>{F.remove}</button>
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
-  const add = () => {
-    if (!adding || !adding.text.trim()) return;
-    const raw = adding.time.trim();
-    const time = raw ? normClock(raw) : null;
-    if (raw && !time) { setAdding({ ...adding, bad: true }); return; }
-    onChange(addRow(review, adding.text.trim(), time));
-    setAdding(null);
-  };
-
-  const rows = shownRows(review);
-  // bd-o15qnr.39.1: the one "Digital Coach's evidence" box (was "Evidence" with a "Digital Coach heard" line inside).
+/** One of the eleven: the Digital Coach's line and every quote with its time, read only (the box's one title). */
+function DcEvidence({ ind, player }: { ind: Extract<V6Indicator, { kind: "dc" }>; player: LessonPlayer | null }) {
+  const ev = ind.rumiEvidence;
+  const because = (ev?.because ?? "").trim();
+  const items = (ev?.items ?? []).filter((it) => it && String(it.quote ?? "").trim());
+  if (!because && !items.length) return null;
   return (
     <DcEvidenceBox boxId="ff-evidence">
-        {summaryOpen ? (
-          <div className="flex flex-col gap-1.5">
-            <AutoText aria-label={F.editSummary} value={review.summary} onChange={(e) => onChange(setSummary(review, e.target.value))}
-              className={cn("w-full rounded-xl border border-[#d1d5db] bg-white px-3 py-2.5 text-[16px] leading-snug", FOCUS)} />
-            <button type="button" onClick={() => setSummaryOpen(false)}
-              className={cn("min-h-[56px] self-end rounded-xl border border-[#d1d5db] bg-white px-4 text-[14px] font-semibold text-[#33374a]", FOCUS)}>{F.done}</button>
-          </div>
-        ) : (
-          <div className="flex items-start gap-1.5">
-            <p data-testid="ff-summary" className="m-0 min-w-0 flex-1 py-3 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(review.summary)}>{review.summary}</p>
-            <button type="button" aria-label={F.editSummary} onClick={() => setSummaryOpen(true)}
-              className={cn("flex h-14 w-11 shrink-0 items-center justify-center rounded-xl text-[#6b7280]", FOCUS)}>
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        )}
-        {rows.map((r, i) => row(r, i === 0 && !review.summary))}
-        {adding ? (
-          <div className={cn("flex flex-col gap-2 py-2.5", ROW_DIVIDER)}>
-            <label htmlFor={`ff-add-${code}`} className={LABEL}>{F.whatYouSaw}</label>
-            <AutoText id={`ff-add-${code}`} value={adding.text} onChange={(e) => setAdding({ ...adding, text: e.target.value })}
-              className={cn("w-full rounded-xl border border-[#d1d5db] bg-white px-3 py-2.5 text-[16px] leading-snug", FOCUS)} />
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor={`ff-add-time-${code}`} className={LABEL}>{F.timeOptional}</label>
-              <input id={`ff-add-time-${code}`} dir="auto" inputMode="text" value={adding.time} aria-invalid={adding.bad || undefined}
-                onChange={(e) => setAdding({ ...adding, time: e.target.value, bad: false })}
-                className={cn("h-14 w-[88px] rounded-xl border border-[#d1d5db] bg-white px-2 text-center text-[16px] tabular-nums", adding.bad && "border-[#c8331f]", FOCUS)} />
-              <span className="flex-1" />
-              <button type="button" onClick={() => setAdding(null)} className={cn("min-h-[56px] rounded-xl border border-[#d1d5db] bg-white px-4 text-[14px] font-semibold text-[#33374a]", FOCUS)}>{F.cancel}</button>
-              <button type="button" onClick={add} disabled={!adding.text.trim()}
-                className={cn("min-h-[56px] rounded-xl bg-[#33374a] px-4 text-[14px] font-semibold text-white disabled:opacity-50", FOCUS)}>{F.add}</button>
-            </div>
-            <Problem text={adding.bad ? F.timeFormat : null} />
-          </div>
-        ) : (
-          <button type="button" onClick={() => setAdding({ text: "", time: "", bad: false })}
-            className={cn("flex min-h-[56px] items-center gap-2 text-[15px] font-semibold text-[#33374a]", ROW_DIVIDER, FOCUS)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />{F.addEvidence}
-          </button>
-        )}
+      {because ? (
+        <p data-testid="ff-summary" className="m-0 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(because)}>{because}</p>
+      ) : null}
+      {items.map((it, i) => (
+        <DcQuoteRow key={`${it.time ?? ""}-${i}`} time={it.time} quote={it.quote} first={i === 0 && !because}
+          chip={player && it.time ? <TimeChip time={it.time} rowKey={`${ind.id}-${i}`} player={player} /> : undefined} />
+      ))}
     </DcEvidenceBox>
   );
 }
@@ -333,6 +185,8 @@ export function V6FormV7({
     return out;
   });
   const [checked, setChecked] = useState<Set<string>>(() => new Set(kept ? kept.checked : []));
+  // Queue #251: the indicators whose "Your evidence" box she opened (a box holding her words is open anyway).
+  const [ownOpen, setOwnOpen] = useState<Set<string>>(() => new Set());
 
   // Kept on this phone with the values (formKeep.ts): what was agreed and how the evidence was checked.
   useEffect(() => {
@@ -353,8 +207,11 @@ export function V6FormV7({
     if (!focusNext.current) document.getElementById("ff-top")?.scrollIntoView?.({ block: "start" });
   }, [where]);
 
-  const timed = !readOnly && Object.values(reviews).some((r) => r.rows.some((row) => !!row.time));
-  const { audio, element: audioElement } = useLessonAudio(id, timed);
+  // Queue #251: the class recording plays from a Digital Coach time, under the evidence of the indicator on screen.
+  const timed = !readOnly && v6Indicators.some((ind) => (ind.kind === "dc"
+    ? (ind.rumiEvidence?.items ?? []).some((it) => !!it?.time)
+    : (ind.recording?.found ?? []).some((f) => !!f?.time)));
+  const { player, element: playerElement } = useLessonPlayer(id, timed, at.at === "indicator" ? `${at.letter}:${at.code}` : "");
 
   /* the rules, per indicator */
   const problemsOf = useCallback((sec: V6Section, ind: V6Indicator): V6Problems => {
@@ -404,15 +261,29 @@ export function V6FormV7({
   };
 
   /* the evidence */
-  const changeReview = (code: string, next: Review) => {
-    setReviews((cur) => ({ ...cur, [code]: next }));
-    const key = `ev_${code}`;
-    setValues((cur) => ({ ...cur, [key]: sameReview(next, firstReviews[code]) ? (start[key] ?? "") : evText(next) }));
+  /*
+   * Queue #251 — her own evidence. The Digital Coach's text is the bot's `rumiText` (an older bot: the box's text as the
+   * form opened). Hers: the ev_ value whenever it is something else. Typed: ev_ is her words and the record adds them;
+   * emptied, or "Keep the Digital Coach’s": ev_ goes back to the Digital Coach's text and the record to its quotes kept.
+   */
+  const dcTextOf = (ind: V6Indicator) => (ind.kind === "dc" && typeof ind.rumiText === "string" ? ind.rumiText : (start[`ev_${ind.field}`] ?? ""));
+  const ownOf = (ind: V6Indicator) => {
+    const v = values[`ev_${ind.field}`] ?? "";
+    return v.trim() && v.trim() !== dcTextOf(ind).trim() ? v : "";
   };
-  const removeQuote = (code: string, key: string) => {
-    const before = reviews[code];
-    changeReview(code, removeRow(before, key));
-    show(F.quoteRemoved, UNDO_MS, { label: F.undo, run: () => changeReview(code, before) });
+  const keepDc = (ind: V6Indicator) => {
+    const key = `ev_${ind.field}`;
+    const first = firstReviews[ind.id];
+    // the form opened on the Digital Coach's text: back to exactly how it opened (nothing changed); else to its text
+    const opened = (start[key] ?? "").trim() === dcTextOf(ind).trim();
+    setValues((cur) => ({ ...cur, [key]: opened ? (start[key] ?? "") : dcTextOf(ind) }));
+    if (first) setReviews((cur) => ({ ...cur, [ind.id]: opened ? first : plainReview(first) }));
+  };
+  const typeOwn = (ind: V6Indicator, text: string) => {
+    if (!text.trim()) { keepDc(ind); return; }
+    const first = firstReviews[ind.id];
+    setValues((cur) => ({ ...cur, [`ev_${ind.field}`]: text }));
+    if (first) setReviews((cur) => ({ ...cur, [ind.id]: ownReview(first, text.trim()) }));
   };
 
   const gapToast = (p: V6Problems) => {
@@ -452,7 +323,6 @@ export function V6FormV7({
       <div id="ff-top" />
       {head}
       {body}
-      {audioElement}
       <FormToast toast={toast} onDone={hide} />
       {tray}
     </ReportsFrame>
@@ -548,6 +418,7 @@ export function V6FormV7({
     else setAt({ at: "section", letter: sec.letter });
   };
   const review = reviews[ind.id];
+  const dcShown = ind.kind === "dc" && (!!(ind.rumiEvidence?.because ?? "").trim() || (ind.rumiEvidence?.items ?? []).some((it) => !!String(it?.quote ?? "").trim()));
   const crumb = F.indicatorCrumb(name || C.formTitle, sec.letter, index + 1, list.length);
   const dock = readOnly ? undefined : (
     <DockV7 single><BottomButton onClick={agree}>{F.agreeNext}</BottomButton></DockV7>
@@ -587,7 +458,8 @@ export function V6FormV7({
         )}
         {ind.kind === "combined" ? (
           <>
-            <SixEvidence ind={ind} audio={audio} />
+            <SixEvidence ind={ind} player={player} />
+            {playerElement}
             {levelBlock}
             <TextBox id={`why_${ind.field}`} label={F.noteOptional} value={values[`why_${ind.field}`] ?? ""}
               onChange={set(`why_${ind.field}`)} readOnly={readOnly} problem={why(`why_${ind.field}`)} />
@@ -628,9 +500,17 @@ export function V6FormV7({
                   )} />
               </div>
             ) : null}
-            {review && !readOnly
-              ? <EvidenceBox code={ind.id} review={review} audio={audio} onChange={(r) => changeReview(ind.id, r)} onRemove={(key) => removeQuote(ind.id, key)} />
-              : <TextBox id={`ev_${ind.field}`} label={F.evidence} value={values[`ev_${ind.field}`] ?? ""} onChange={set(`ev_${ind.field}`)} readOnly={readOnly} />}
+            {/* queue #251: the Digital Coach's evidence once, the player under it, then her own box (empty until she types) */}
+            {review && !readOnly && dcShown ? (
+              <>
+                <DcEvidence ind={ind} player={player} />
+                {playerElement}
+                <OwnEvidence id={`ev_${ind.field}`} open={ownOpen.has(ind.id) || !!ownOf(ind)} value={ownOf(ind)} readOnly={false}
+                  onOpen={() => { setOwnOpen((cur) => new Set(cur).add(ind.id)); focusNext.current = `ev_${ind.field}`; }}
+                  onChange={(v) => typeOwn(ind, v)}
+                  onKeep={() => { setOwnOpen((cur) => { const next = new Set(cur); next.delete(ind.id); return next; }); keepDc(ind); }} />
+              </>
+            ) : <TextBox id={`ev_${ind.field}`} label={F.evidence} value={values[`ev_${ind.field}`] ?? ""} onChange={set(`ev_${ind.field}`)} readOnly={readOnly} />}
             <TextBox id={`imp_${ind.field}`} label={C.toImprove} value={values[`imp_${ind.field}`] ?? ""} onChange={set(`imp_${ind.field}`)} readOnly={readOnly} />
           </>
         )}
