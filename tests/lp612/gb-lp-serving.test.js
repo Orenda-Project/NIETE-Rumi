@@ -234,12 +234,14 @@ describe('an app (portal) ask', () => {
 // bd-3zif2x: every answer to a GB ask is one gb_lp.serve.* event naming the teacher and the surface, so GB health
 // (who asked, who waited, who was told "coming soon" or "failed") can be counted from the logs alone.
 describe('every outcome is a gb_lp.serve event naming her and the surface', () => {
+  beforeEach(() => { process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(40); process.env.WEB_QUIZ_KID_KEY_V = 't1'; });
   const { logEvent } = require('../../bot/shared/utils/structured-logger');
   const served = () => logEvent.mock.calls.filter(([name]) => name.startsWith('gb_lp.serve.'));
   const expectOne = (name, surface) => {
     expect(served()).toHaveLength(1);
     expect(served()[0][0]).toBe(name);
-    expect(served()[0][1]).toMatchObject({ userId: 'user-1', surface, segmentId: expect.any(String) });
+    expect(served()[0][1]).toMatchObject({ tk: expect.stringMatching(/./), surface, segmentId: expect.any(String) });
+    expect(served()[0][1]).not.toHaveProperty('userId'); // a keyed reference, never the raw id (log-raw-ids)
   };
   const READY = { data: { id: 'g1', status: 'ready', r2_key: 'gb-lp/t/ur/x.pdf' }, error: null };
   test.each([

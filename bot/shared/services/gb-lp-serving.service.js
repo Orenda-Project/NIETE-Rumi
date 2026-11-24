@@ -149,6 +149,8 @@ async function join(renderId, entry) {
  * Her ask, on GB's lane. `segment` is already loaded and has passed the hold and the curriculum guard.
  * @returns {{outcome: string, renderId?: string, error?: string}}
  */
+const teacherRef = (id) => { try { return id ? require('./quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
+
 async function requestLesson(req, depth = 0) {
   const { segment, userId, voice, correlationId, askedAt, surface } = req;
   const segmentId = segment.segment_id;
@@ -157,9 +159,10 @@ async function requestLesson(req, depth = 0) {
   // anything, not even a status line, whatever phone the caller had in scope.
   const toWhatsApp = (surface || 'whatsapp') === 'whatsapp';
   const phone = toWhatsApp ? req.phone : null;
-  // bd-3zif2x: every answer is one gb_lp.serve.<outcome> event naming her and the surface, so GB health is countable.
+  // bd-3zif2x: every answer is one gb_lp.serve.<outcome> event naming her (keyed tk, never the raw id) and the
+  // surface, so GB health is countable.
   const served = (outcome, fields = {}) => logEvent(`gb_lp.serve.${outcome}`, {
-    segmentId, userId: userId || null, surface: surface || 'whatsapp', correlationId, ...fields,
+    segmentId, tk: teacherRef(userId), surface: surface || 'whatsapp', correlationId, ...fields,
   });
   if (!GbDelivery.isGbK5Segment(segment)) {
     served('design_pending', { grade: segment.grade });
