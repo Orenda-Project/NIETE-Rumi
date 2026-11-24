@@ -944,6 +944,9 @@ function v6Sections(analysis, lang = 'en') {
           // coach's saved review of them; additive (null when there is none), the fields above are unchanged.
           rumiEvidence: O.rumiEvidenceOf(analysis, code),
           evidenceReview: O.savedEvidenceReview(analysis, code),
+          // Queue #251: the Digital Coach's own Evidence text (the box's text before the coach wrote anything), so the
+          // form shows its evidence once and opens "Your evidence" only for her own words; additive.
+          rumiText: O.rumiEvidenceText(analysis, code),
           // bd-o15qnr.37: one plain line on what the indicator looks at (#217's guide line), under its name; additive.
           about: Lines.lineFor('fico17_v6', code, lang),
         };

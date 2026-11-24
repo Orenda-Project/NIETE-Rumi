@@ -117,7 +117,7 @@ describe("6-12: the Digital Coach's evidence once, and Edit evidence", () => {
     expect(dcBox().compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByTestId("char-count")).toHaveTextContent("0/20 characters");
     fireEvent.change(box, { target: { value: "Homework was copied from the book; no task applied the learning." } });
-    expect(screen.getByTestId("char-count")).toHaveTextContent("65/20 characters");
+    expect(screen.getByTestId("char-count")).toHaveTextContent("64/20 characters");
     fireEvent.click(screen.getByRole("button", { name: "Agree and next" }));
     await waitFor(() => expect(L.saveObs612Form).toHaveBeenCalledTimes(1));
     expect(L.saveObs612Form.mock.calls[0][1]).toMatchObject({ E4: "3", ev_E4: "Homework was copied from the book; no task applied the learning." });
@@ -196,7 +196,7 @@ describe("6-12: the Digital Coach's evidence once, and Edit evidence", () => {
     await toE4();
     fireEvent.click(await screen.findByRole("button", { name: "شواہد میں ترمیم کریں" }));
     expect(screen.getByLabelText("آپ کے شواہد")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "ڈیجیٹل کوچ کے شواہد رکھیں" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ڈیجیٹل کوچ کے شواہد رہنے دیں" })).toBeInTheDocument();
   });
 });
 
