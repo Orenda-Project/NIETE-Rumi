@@ -1,0 +1,3 @@
+{"ts":"2026-11-24T17:27:34Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"1ad40e5413f8","branch":"bd-97daxo.34.18-sbx","user":""}
+{"ts":"2026-11-24T17:28:12Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"1ad40e5413f8","branch":"bd-97daxo.34.18-sbx","user":""}
+{"ts":"2026-11-24T17:30:28Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (commit 1ad40e5 is itself the lesson-plan spec sync for revert d42bc78; validator OK)","sha":"1ad40e5413f8","branch":"bd-97daxo.34.18-sbx","user":""}
