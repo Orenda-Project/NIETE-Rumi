@@ -29,6 +29,11 @@
       remindBody: 'One reminder on this phone, on school-day evenings. You can stop it any time.',
       remindYes: 'Yes',
       remindLater: 'Not now',
+      // the ask's second wording (arm b, web_quiz_push_ask_v2): what it is, and when; no question, no names. "Weekdays",
+      // not "school days": the sender skips Saturday and Sunday only, it reads no holiday calendar
+      askBHead: 'Jugnu\'s evening reminder',
+      askBWhen: 'Weekdays, by 6 pm',
+      askBYes: 'Yes, remind us',
       remindWait: 'Turning reminders on…',
       remindHint: 'Now tap Allow below',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
@@ -54,6 +59,9 @@
       remindBody: 'اس فون پر، اسکول کے دنوں کی شام، بس ایک یاد دہانی۔ آپ جب چاہیں بند کر سکتے ہیں۔',
       remindYes: 'ہاں',
       remindLater: 'ابھی نہیں',
+      askBHead: 'جگنو کی شام کی یاد دہانی',
+      askBWhen: 'پیر سے جمعہ، شام ۶ بجے تک',
+      askBYes: 'ہاں، یاد دلائیں',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
       // names no button: Chrome's permission dialog follows the phone's language, not the page's
       remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
@@ -200,12 +208,14 @@
     var iab = false;
     var askedAt = 0; // when this sitting's ask was drawn; 0 = none up, or it was answered (or left)
     var permUp = false; // Yes was tapped and the browser's permission prompt has not answered yet
+    var arm = null; // the ask's arm from the key ('a' | 'b', web_quiz_push_ask_v2); null = no arm (today exactly)
     var watching = false;
 
     function ev(step, extra) {
       var b = { step: step, lang: lang, src: src };
       if (iab) b.iab = true;
       if (pageSession()) b.ps = pageSession();
+      if (arm) b.ask_v = arm;
       if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
       post('e', b);
     }
@@ -263,9 +273,12 @@
       hint: function () { draw('<p class="wq-sub" role="status" style="margin:0' + fs + lh + '">' + esc(c.remindHint) + '</p>'); },
       // the result screen (take A): one line, then 🔔 Yes and Not now on one row, so the score and "See my card" stay the
       // heroes; the /remind landing keeps the consent line under its own question
+      // arm b (take B's words): the head says what it is, one line says when; the same row, Yes reads "Yes, remind us"
       ask: function () {
-        var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.remindYes) + '</button>';
+        var b = arm === 'b';
+        var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(b ? c.askBYes : c.remindYes) + '</button>';
         var row = '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + yes + btn('wq-ghost', 'later', c.remindLater) + '</div>';
+        if (b) { draw(title(c.askBHead) + line(c.askBWhen) + row); return; }
         draw(landing ? line(c.remindBody) + row : title(onMonday() ? c.remindTitleMon : c.remindTitle) + row);
       },
       done: function () {
@@ -388,6 +401,8 @@
           // outside the canary: no card, no step, and any worker this phone already has stays
           if (r.body && r.body.ask === false) return null;
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
+          // the landing keeps its own question: no arm there
+          if (!landing && r.body && (r.body.ask_v === 'a' || r.body.ask_v === 'b')) arm = r.body.ask_v;
           var b = branch();
           if (b === 'iab') { iab = true; askShown(); show.iab(); return null; }
           if (b === 'ios') { ev('ios'); show.ios(); return null; }
