@@ -76,6 +76,13 @@ mkdir -p "$STAGE/$SUBDIR"
 git -C "$REPO" show "$SHA:$MANIFEST" > "$STAGE/${SUBDIR:+$SUBDIR/}package.json" 2>/dev/null \
   && git -C "$REPO" show "$SHA:$LOCK" > "$STAGE/${SUBDIR:+$SUBDIR/}package-lock.json" 2>/dev/null \
   || { log "cannot read $MANIFEST / $LOCK at $SHA"; exit 10; }
+# npm ci runs the manifest's lifecycle scripts, and the bot's postinstall runs `node scripts/assert-native-
+# modules.js` (bd-vq0mfv). Stage that commit's scripts/ beside the manifest, or every cold install dies on
+# MODULE_NOT_FOUND (bd-s4v3o7). Not --ignore-scripts: canvas and the other native modules need their builds.
+if git -C "$REPO" cat-file -e "$SHA:${SUBDIR:+$SUBDIR/}scripts" 2>/dev/null; then
+  git -C "$REPO" archive "$SHA" "${SUBDIR:+$SUBDIR/}scripts" | tar -x -C "$STAGE" \
+    || { log "cannot stage ${SUBDIR:+$SUBDIR/}scripts at $SHA"; exit 10; }
+fi
 
 log "installing the $KIND modules for lockfile ${WANT:0:12} (from $SHA) — one npm ci per dependency tree, cached at $ENTRY"
 if ! ( cd "$STAGE/$SUBDIR" && npm ci --no-audit --no-fund ) >"$STAGE/npm.log" 2>&1; then

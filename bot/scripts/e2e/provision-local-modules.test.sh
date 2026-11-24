@@ -44,6 +44,9 @@ cat > "$SHIM/npm" <<'NPM'
 #!/usr/bin/env bash
 echo "$PWD :: $*" >> "$NPM_CALLS"
 [ "${NPM_SHIM_FAIL:-}" = 1 ] && { echo "npm shim: forced failure" >&2; exit 1; }
+# Like the real npm, run the manifest's postinstall: a file it names that is not on disk fails the install.
+need=$(sed -n 's/.*"postinstall": *"node \([^ "]*\).*/\1/p' package.json 2>/dev/null)
+[ -n "$need" ] && [ ! -f "$need" ] && { echo "Error: Cannot find module '$PWD/$need'" >&2; exit 1; }
 mkdir -p node_modules/left-pad && echo installed > node_modules/.shim-marker
 exit 0
 NPM
@@ -117,6 +120,20 @@ t  "the cache keeps only E2E_MODULE_CACHE_KEEP entries" "$(entries bot)" "2"
 t  "  … the least recently USED one is evicted"         "$([ -d "$CACHE2/bot-${b2:0:12}" ] && echo kept || echo gone)" "gone"
 t  "  … a warm hit counts as a use and saves its entry" "$([ -d "$CACHE2/bot-${b1:0:12}" ] && echo kept || echo gone)" "kept"
 t  "  … and the cap is per kind, not global"            "$(entries root)" "0"
+
+# 8. bd-s4v3o7: since bd-vq0mfv the bot's postinstall runs `node scripts/assert-native-modules.js`. A cold
+#    install staged only package.json + lockfile, so npm ci died on MODULE_NOT_FOUND and the lane on "local
+#    stack did not come up" — for every commit whose lockfile was neither installed nor cached (staging, 24 Nov).
+mkdir -p "$REPO/bot/scripts"
+printf "require('fs');\n" > "$REPO/bot/scripts/assert-native-modules.js"
+printf '{"name":"bot","version":"1.0.0","scripts":{"postinstall":"node scripts/assert-native-modules.js"}}\n' > "$REPO/bot/package.json"
+printf '{"name":"bot","lockfileVersion":3,"gen":5}\n' > "$REPO/bot/package-lock.json"
+git -C "$REPO" add -A >/dev/null; git -C "$REPO" commit -qm five
+SHA5=$(git -C "$REPO" rev-parse HEAD)
+out5=$(run --repo "$REPO" --sha "$SHA5" --kind bot --cache-root "$TMP/cache5" --installed-root "$TMP/absent"); rc=$?
+t  "a cold install whose postinstall runs a file under scripts/ succeeds" "$rc" "0"
+t  "  … and publishes a warm entry"                     "$([ -d "$out5/bot/node_modules" ] && echo yes || echo no)" "yes"
+tc "  … the file came from the commit under test"       "$(cat "$out5/bot/scripts/assert-native-modules.js" 2>/dev/null)" "require('fs')"
 
 echo; if [ "$fails" -eq 0 ]; then echo "provision-local-modules: all passed"; else echo "provision-local-modules: $fails failed"; fi
 exit $([ "$fails" -eq 0 ] && echo 0 || echo 1)
