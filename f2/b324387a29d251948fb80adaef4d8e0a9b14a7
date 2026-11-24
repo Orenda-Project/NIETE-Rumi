@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T05:03:51Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"f2b324387a29","branch":"bd-97daxo.34.9-sbx","user":""}
+{"ts":"2026-11-24T05:04:57Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan,coaching)","sha":"f2b324387a29","branch":"bd-97daxo.34.9-sbx","user":""}
