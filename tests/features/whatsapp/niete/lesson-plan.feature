@@ -864,12 +864,12 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # class, never an assessment, a held lesson or one an lp612 quiz already covers; acceptLp612 starts the quiz
     # through lp612.provider with via lp_offer. Off with QUIZ_LP612_SOURCE. No new message, string or button.
 
-  # ADDED 2026-11-24 (bd-97daxo.34.9, q250: Amena "GB only for now"). @no-mock-driver as @L62.
-  # Executed in tests/quiz/lp-quiz-offer-612.test.js ("LP_QUIZ_OFFER_ICT612 not on").
+  # ADDED 2026-11-24 (bd-97daxo.34.9); CHANGED 2026-11-24 (bd-97daxo.34.16, q250: operator "offered to 6-10
+  # teachers too"): ICT grades 6-10 are offered, 11-12 are not. @no-mock-driver as @L62.
+  # Executed in tests/quiz/lp-quiz-offer-612.test.js ("who is offered").
   @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L65
-  Scenario: An ICT Grades 6-12 teacher is not offered the afternoon quiz while ICT 6-12 is switched off
-    Given LP_QUIZ_OFFER_ICT612 is not on
-    And the NIETE bot chat is open on a teacher who took one ICT Grades 6-12 lesson plan today before 14:00 PKT
+  Scenario: An ICT Grade 11 or 12 teacher is not offered the afternoon quiz
+    Given the NIETE bot chat is open on a teacher who took one ICT Grade 11 or 12 lesson plan today before 14:00 PKT
     When the send hour passes and the teacher-nudge sweep runs
     Then no afternoon quiz offer arrives for that lesson
     And "/quiz" still lists that lesson when QUIZ_LP612_SOURCE is on

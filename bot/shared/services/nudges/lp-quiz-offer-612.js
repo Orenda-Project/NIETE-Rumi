@@ -11,8 +11,8 @@
  * day's), never an assessment, a held lesson or a subject the quiz is off for (provider.toItem),
  * never a lesson she already made a quiz from. Kill switch: QUIZ_LP612_SOURCE.
  *
- * Who is offered (q250, Amena 24 Nov: "GB only for now"): GB grade 1-5 lessons always; ICT 6-12
- * lessons only when LP_QUIZ_OFFER_ICT612 is `on`/`true`. Unset or anything else = GB K-5 only.
+ * Who is offered (q250, operator 24 Nov: "offered to 6-10 teachers too"): GB grade 1-5 lessons and
+ * ICT grade 6-10 lessons. ICT grades 11-12 and GB grades 6-12 are not offered.
  *
  * Load: one paged read of the day's deliveries (delivered_at range), one IN read of their
  * segments, one read of recent lp612 quizzes per teacher with a lesson — once a day, at build.
@@ -29,14 +29,15 @@ const { lp612SourceOn } = require('../quiz/quiz-sources');
 const WINDOW_DAYS = 4;
 const KEY_PREFIX = 'lp612_';
 
-/** LP_QUIZ_OFFER_ICT612, read at call time: `on` adds ICT 6-12 lessons to the offer. */
-function ict612On() {
-  const v = String(process.env.LP_QUIZ_OFFER_ICT612 || '').trim().toLowerCase();
-  return v === 'on' || v === 'true';
-}
+const ICT_TOP_GRADE = 10;
 
-/** May this lesson's segment be offered at 15:00? GB K-5 always; anything else only with the switch. */
-const offerable = (segment) => Boolean(segment) && (require('../lp612-gb-delivery.service').isGbK5Segment(segment) || ict612On());
+/** May this lesson's segment be offered at 15:00? GB grade 1-5 or ICT grade 6-10. */
+function offerable(segment) {
+  if (!segment) return false;
+  const Gb = require('../lp612-gb-delivery.service');
+  if (Gb.isGbSegment(segment)) return Gb.isGbK5Segment(segment);
+  return Number(segment.grade) <= ICT_TOP_GRADE;
+}
 
 // The offer's pure rules come from their own module, never the offer service, which
 // requires this one (bd-97daxo.34.12: that closed an import cycle).
@@ -138,4 +139,4 @@ async function acceptLp612({ row, cls, from, user, language, reply }) {
   return true;
 }
 
-module.exports = { classesFor, acceptLp612, KEY_PREFIX, ict612On };
+module.exports = { classesFor, acceptLp612, KEY_PREFIX };
