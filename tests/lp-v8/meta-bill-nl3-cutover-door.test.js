@@ -39,7 +39,7 @@ const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const FLOW_ID = '1565529551677911';
 const LEGACY_JOB = {
-  requestId: 'req-1', userId: 'u-1', phoneNumber: '923365709413',
+  requestId: 'req-1', userId: 'u-1', phoneNumber: '923001234567',
   topic: 'photosynthesis', contentType: 'lesson_plan', language: 'ur',
 };
 const ENV = ['LP_612_ENABLED', 'LP_612_ROUTE_ALL', 'PAKISTAN_LP_FLOW_ID'];
@@ -61,7 +61,7 @@ test('the drained job opens ONE message — the Flow, its body led by the redire
   expect(messagesSent).toEqual([]);
   expect(flowsSent).toHaveLength(1);
   expect(flowsSent[0].flowId).toBe(FLOW_ID);
-  expect(flowsSent[0].to).toBe('923365709413');
+  expect(flowsSent[0].to).toBe('923001234567');
   expect(flowsSent[0].body).toBe(
     `${resolveUx('lp612RouteRedirect', { language: 'ur' })}\n\n${resolveUx('lpBrowseBody', { language: 'ur' })}`,
   );

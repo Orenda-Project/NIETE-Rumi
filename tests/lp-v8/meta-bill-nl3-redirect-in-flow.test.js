@@ -31,7 +31,7 @@ const { openLpBrowseFlow } = require('../../bot/shared/services/lp-browse-entry.
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const FLOW_ID = '1565529551677911';
-const PHONE = '923365709413';
+const PHONE = '923001234567';
 const cps = (s) => [...String(s || '')].length;
 const flows = () => WhatsAppService.sendFlow.mock.calls.map((c) => c[1]);
 const texts = () => WhatsAppService.sendMessage.mock.calls.map((c) => c[1]);

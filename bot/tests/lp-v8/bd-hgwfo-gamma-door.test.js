@@ -64,21 +64,21 @@ afterAll(() => { delete process.env.PAKISTAN_LP_FLOW_ID; });
 
 describe('the text door: intent lesson_plan / Oxbridge "Generate NIETE LP" tap', () => {
   test('opens the browse Flow, never the not-in-catalog reply', async () => {
-    await handleLessonPlanRequest('923365709413', 'grade 3 math chapter 2', user, null, 'en', typing());
+    await handleLessonPlanRequest('923001234567', 'grade 3 math chapter 2', user, null, 'en', typing());
     expect(flowsSent).toHaveLength(1);
     expect(flowsSent[0].flowId).toBe(FLOW_ID);
-    expect(flowsSent[0].to).toBe('923365709413');
+    expect(flowsSent[0].to).toBe('923001234567');
     expect(messagesSent.some((m) => /catalog|نصابی مجموعے/.test(m.text))).toBe(false);
   });
 
   test('the flow token starts with the user id, so the endpoint can resolve her', async () => {
-    await handleLessonPlanRequest('923365709413', 'x', user, null, 'en', typing());
+    await handleLessonPlanRequest('923001234567', 'x', user, null, 'en', typing());
     expect(flowsSent[0].flowToken.startsWith('u-1:pakistan-lp:')).toBe(true);
   });
 
   test('falls back to the not-in-catalog reply ONLY when no Flow is provisioned', async () => {
     delete process.env.PAKISTAN_LP_FLOW_ID;
-    await handleLessonPlanRequest('923365709413', 'x', user, null, 'ur', typing());
+    await handleLessonPlanRequest('923001234567', 'x', user, null, 'ur', typing());
     expect(flowsSent).toHaveLength(0);
     expect(messagesSent).toHaveLength(1);
     expect(messagesSent[0].text).toMatch(/نصابی مجموعے/);
