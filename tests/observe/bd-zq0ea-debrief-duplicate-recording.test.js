@@ -247,3 +247,28 @@ describe('a test account on the skip switch (bd-r98hph)', () => {
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(FROM, EN);
   });
 });
+
+// bd-ce6xwt — every test account (users.is_test_user = true) skips the debrief check too, with no switch row (the
+// operator, 24 Nov 2026). A real coach is refused exactly as before.
+describe('a test account (users.is_test_user) on its debrief (bd-ce6xwt)', () => {
+  beforeEach(() => {
+    require('../../bot/shared/services/coaching/duplicate-check-switch')._resetCache();
+  });
+
+  test('a test coach re-sends an analysed debrief: transcribed again, nothing refused', async () => {
+    mockCoach.row = { id: 'coach-uuid', preferred_language: 'en', is_test_user: true };
+    await run();
+    expect(mockDb.lookups).toHaveLength(0);
+    expect(TranscriptionProcessorService.transcribeWithDiarization).toHaveBeenCalled();
+    expect(debrief().transcript).toBe(LONG_TRANSCRIPT);
+    expect(debrief().duplicate_of_session_id).toBeUndefined();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalledWith(FROM, EN);
+  });
+
+  test('a real coach (is_test_user false) re-sends it: still refused', async () => {
+    mockCoach.row = { id: 'coach-uuid', preferred_language: 'en', is_test_user: false };
+    await run();
+    expect(TranscriptionProcessorService.transcribeWithDiarization).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(FROM, EN);
+  });
+});
