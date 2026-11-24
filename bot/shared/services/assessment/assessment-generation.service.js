@@ -29,6 +29,7 @@ const SeenPicked = require('./seen-picked');
 const PaperDiagram = require('./paper-diagram');
 const { capBlooms, appliesToGrade, APPLY_NOTE } = require('./bloom-ceiling');
 const { standardMarks } = require('./standard-marks');
+const { targetLine: fdeTargetLine, fdeTarget, paperMix } = require('./fde-level-target'); // bd-zrdvmi.50.7
 const { checkMcqAnswers, MSQ, OPTION_LABEL, _norm, _splitOption, _resolveOption } = require('./mcq-answer-check');
 
 // The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
@@ -338,6 +339,8 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   const askedTypes = [...(plan.questionTypes.length ? plan.questionTypes : (questionTypes || [])), ...(plan.seenTypes || [])];
   const drawIt = askedTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
   const drawnLine = PaperDiagram.promptLine(askedTypes.map((q) => q.id));
+  // bd-zrdvmi.50.7 — FDE's thinking-level mix for G1-5; '' for any grade/subject FDE gave no table for.
+  const mixLine = fdeTargetLine(grade, canonical(subject) || subject);
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -351,7 +354,8 @@ ${pageContent}
 **GENERATE THE FOLLOWING:**
 ${items.map((i) => `• ${i}`).join('\n')}
 • In total the paper must have exactly ${plan.total} questions — no more${sloBlock(slos)}${stemsBlock(plan.questionTypes)}${budget ? `
-• The whole paper must be worth ${budget} marks in total — allocate the marks across the questions so they add up to ${budget} and NEVER exceed it` : ''}
+• The whole paper must be worth ${budget} marks in total — allocate the marks across the questions so they add up to ${budget} and NEVER exceed it` : ''}${mixLine ? `
+${mixLine}` : ''}
 
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
@@ -763,6 +767,10 @@ async function generateExam(args) {
       totalMarks, removed: marksRemoved, marksNow: totalMarksOf(examJson),
     });
   }
+
+  // bd-zrdvmi.50.7 — the FDE target beside the mix the finished paper has, by marks.
+  const mixTarget = fdeTarget(grade, key);
+  if (mixTarget) logToFile('[assessment] thinking mix', { grade, subject: key, target: mixTarget, paper: paperMix(examJson) });
 
   const produced = countQuestions(examJson);
   if (produced === 0) {
