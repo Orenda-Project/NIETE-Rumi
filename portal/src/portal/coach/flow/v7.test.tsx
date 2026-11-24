@@ -278,15 +278,25 @@ describe("the visit while the Digital Coach works, and when it stopped (v7)", ()
     expect(screen.getByTestId("status-line")).toHaveTextContent("Now: Analysing");
   });
 
+  // bd-f5a245 (queue #245): a stopped ANALYSIS (failed, or the system gave up) says so, with Upload recording; one she
+  // cancelled keeps "Observation stopped".
   it("stopped: one card with a red edge and the plain line; no steps", async () => {
-    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
-    L.getObservation.mockResolvedValue(VIEW("stopped"));
+    C.getObservation.mockResolvedValue(OBS({ step: "stopped" }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { sessionStatus: "failed" }));
     renderVisit();
     const card = await screen.findByTestId("stage-stopped");
     expect(card.className).toContain("border-[#c8331f]");
-    expect(card).toHaveTextContent("Observation stopped");
+    expect(card).toHaveTextContent("Analysis stopped");
     expect(card).not.toHaveTextContent("Recording already used");
     expect(screen.queryByTestId("stage-analysing")).toBeNull();
+  });
+
+  it("stopped because she cancelled it: 'Observation stopped'", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "stopped", cancelled: true }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { sessionStatus: "cancelled" }));
+    renderVisit();
+    const card = await screen.findByTestId("stage-stopped");
+    expect(card).toHaveTextContent("Observation stopped");
   });
 
   // bd-k8uh1r (queue #238; the operator 23 Nov ~19:02: "it said Observation Stopped on prod" right after the upload) —
