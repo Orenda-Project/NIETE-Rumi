@@ -204,7 +204,7 @@ describe('Send / Copy (the tap)', () => {
       expect(r.status).toBe(200);
       expect(await r.json()).toEqual({ ok: true, href: before.classes[0].sendHref });
     } finally { s.server.close(); }
-    const ev = logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap');
+    const ev = logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap');
     expect(ev).toHaveLength(1);
     expect(ev[0][1]).toMatchObject({ surface: 'class_link', method: 'wa_me', origin: 'class_link', share_code_id: null });
     const after = await App().forApp(A, { now: NOW });
@@ -215,7 +215,7 @@ describe('Send / Copy (the tap)', () => {
     await App().forApp(A, { now: NOW });
     jest.clearAllMocks();
     expect(await App().tap({ teacherId: A, classId: C2, how: 'copy' })).toEqual({ ok: true });
-    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap')[0][1]).toMatchObject({ surface: 'class_link', method: 'copy' });
+    expect(logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap')[0][1]).toMatchObject({ surface: 'class_link', method: 'copy' });
     const after = await App().forApp(A, { now: NOW });
     expect(after.classes.find((c) => c.classId === C2).sent).toBe(true);
   });

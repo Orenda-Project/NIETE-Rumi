@@ -15,7 +15,8 @@
  *                             never a name. `reportHref`: the teacher report's "Evening rounds" section, once a child
  *                             has played.
  *   tap({teacherId, classId, how})  Send ('forward') or Copy ('copy') from the card: forwardHref logs the forward
- *                             lane's quiz_forward_tap{surface 'class_link'} exactly as the report card does, and the
+ *                             lane's quiz_forward_tap{surface 'class_link'} under that bare name, as every other
+ *                             surface logs it (quiz-forward.js), and the
  *                             class is remembered as sent for the rest of the term. null (404) when off, outside the
  *                             canary, or not this teacher's class; nothing is logged or remembered then.
  *
