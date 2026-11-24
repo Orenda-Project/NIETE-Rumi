@@ -18,9 +18,10 @@ import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
 import { clockOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import {
-  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, PartNote, PartTitle, TextBox, focusField, urduOf,
-  useFormToast, v7Crumb,
+  AboutLine, AutoText, DcEvidenceBox, DcNote, DcQuoteRow, DockV7, FormChips, FormToast, Legend, Levels, NextButton, OwnEvidence, PartNote, PartTitle, TextBox,
+  focusField, urduOf, useFormToast, v7Crumb,
 } from "./FormV7";
+import { TimeChip, useLessonPlayer } from "./lessonPlayer";
 import { IndicatorNav, IndicatorRow, IndicatorRows, SectionChips, SectionHead, SectionList, type SectionInfo } from "./FormV7Nav";
 import { heldV7, keepV7 } from "./evidenceReview";
 import { useFormLevels } from "./formLevels";
@@ -57,6 +58,13 @@ import { useBack } from "../../lib/useBack";
  * (the bot's `dcEvidence`) shows it once, read only, in the "Digital Coach's evidence" box after its levels: its line
  * and each quote as an evidence row (time + quote). None: no box. Its N/A (C2, C3 on v1.2) is already a 5th radio row.
  * The Evidence box below stays the observer's own field, saved as before.
+ *
+ * Queue #251 (the operator 24 Nov ~10:25, on this screen in production: "the evidence is being repeated") — where the
+ * Digital Coach pre-filled the Evidence box (the bot's `dcText` on ev_<code>) and the box still holds that text, only the
+ * "Digital Coach's evidence" box shows, with "Edit evidence" under it: an EMPTY "Your evidence" box (20 characters at
+ * least, its counter and "Too short" reason, as the Evidence box had). Typed: her words are ev_<code>; emptied, or "Keep
+ * the Digital Coach’s": ev_<code> is the Digital Coach's text again, as today. A time chip plays the class recording from
+ * there in a player under the box (lessonPlayer.tsx). No `dcText` (an older bot, nothing pre-filled): as before.
  */
 type Values = Record<string, string>;
 type Errors = Record<string, Obs612ErrorCode>;
@@ -187,6 +195,10 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
     return out;
   }, [draft.sections]);
   const [agreed, setAgreed] = useState<Set<string>>(() => new Set(heldV7(id)?.checked ?? []));
+  // Queue #251: the indicators whose "Your evidence" box she opened; and the class recording under the evidence on screen.
+  const [ownOpen, setOwnOpen] = useState<Set<string>>(() => new Set());
+  const timed = fsOn && !readOnly && draft.sections.some((x) => fieldsOf(x.parts).some((f) => (f.dcEvidence?.items ?? []).some((it) => !!it?.time)));
+  const { player, element: playerElement } = useLessonPlayer(id, timed, fsAt.at === "indicator" ? `${fsAt.key}:${fsAt.code}` : "");
   useEffect(() => { if (fsOn && !readOnly && agreed.size) keepV7(id, agreed, {}); }, [fsOn, id, agreed, readOnly]);
   const total = draft.sections.length;
   const section = draft.sections[Math.min(part, Math.max(0, total - 1))];
@@ -768,8 +780,8 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       if (min && ["evidence", "change", "text"].includes(shown[k])) return F.tooShort(chars(values[k]), min);
       return W.errors[shown[k]] ?? null;
     };
-    const counter = (k: string, min: number) => {
-      const n = chars(values[k]);
+    const counter = (k: string, min: number, text: string = values[k] ?? "") => {
+      const n = chars(text);
       return <span data-testid="char-count" className={cn("px-1 text-[13px] tabular-nums", n >= min ? "text-[#2f7a52]" : "text-[#6b7280]")}>{F.charCount(n, min)}</span>;
     };
     const typing = (k: string) => (v: string) => {
@@ -787,9 +799,25 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
         {dcEv?.because ? (
           <p data-testid="dc-summary" className="m-0 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(dcEv.because)}>{dcEv.because}</p>
         ) : null}
-        {(dcEv?.items ?? []).map((q, n) => <DcQuoteRow key={`${q.time ?? ""}-${n}`} time={q.time} quote={q.quote} first={n === 0 && !dcEv?.because && !ind.star && !ind.none} />)}
+        {(dcEv?.items ?? []).map((q, n) => (
+          <DcQuoteRow key={`${q.time ?? ""}-${n}`} time={q.time} quote={q.quote} first={n === 0 && !dcEv?.because && !ind.star && !ind.none}
+            chip={player && q.time ? <TimeChip time={q.time} rowKey={`${ind.code}-${n}`} player={player} /> : undefined} />
+        ))}
       </DcEvidenceBox>
     ) : null;
+    // Queue #251: the Digital Coach's pre-filled Evidence text; while the box holds it, the box is not shown again.
+    const evKey = ind.ev?.name ?? "";
+    const dcText = dcBox && ind.ev && typeof ind.ev.dcText === "string" && ind.ev.dcText.trim() ? ind.ev.dcText : null;
+    const evNow = values[evKey] ?? "";
+    const own = dcText !== null && evNow.trim() && evNow.trim() !== dcText.trim() ? evNow : "";
+    const ownShown = dcText !== null && (ownOpen.has(ind.code) || !!own || !!shown[evKey]);
+    // emptied (the box stays open) or "Keep the Digital Coach’s" (it closes): the Digital Coach's text again, exactly as
+    // saved when the form holds it already (so nothing is left to save)
+    const backToDc = () => { if (dcText !== null) typing(evKey)((stored[evKey] ?? "").trim() === dcText.trim() ? (stored[evKey] ?? "") : dcText); };
+    const keepDc = () => {
+      setOwnOpen((cur) => { const next = new Set(cur); next.delete(ind.code); return next; });
+      backToDc();
+    };
     const agree = async () => {
       const local = gapsOf(ind);
       if (Object.keys(local).length) { setShown(local); gaps(local, Object.keys(local)); return; }
@@ -835,7 +863,15 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
             </div>
           ) : null}
           {dcBox}
-          {ind.ev ? (
+          {playerElement}
+          {ind.ev && dcText !== null ? (
+            <OwnEvidence id={`fde-${ind.ev.name}`} open={ownShown} value={own} readOnly={readOnly}
+              onOpen={() => { setOwnOpen((cur) => new Set(cur).add(ind.code)); focusNext.current = `fde-${evKey}`; }}
+              onChange={(v) => { if (v.trim()) typing(evKey)(v); else backToDc(); }}
+              onKeep={keepDc}
+              problem={problem(evKey)} hint={ind.ev.required ? counter(evKey, FS_EVIDENCE_MIN, own) : null}
+              onBlur={ind.ev.required && own ? leave(evKey, FS_EVIDENCE_MIN, "evidence") : undefined} />
+          ) : ind.ev ? (
             <TextBox id={`fde-${ind.ev.name}`} label={F.evidence} value={values[ind.ev.name] ?? ""} onChange={typing(ind.ev.name)} readOnly={readOnly}
               problem={problem(ind.ev.name)} hint={readOnly || !ind.ev.required ? null : counter(ind.ev.name, FS_EVIDENCE_MIN)}
               onBlur={ind.ev.required ? leave(ind.ev.name, FS_EVIDENCE_MIN, "evidence") : undefined} />

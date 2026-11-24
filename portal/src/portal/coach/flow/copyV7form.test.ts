@@ -52,7 +52,13 @@ describe("the v7 Feedback Form's words", () => {
     expect(FORM_V7.ur.nextToCheck("C4", "بچوں کے انتخاب")).toBe("اگلا: C4 بچوں کے انتخاب");
     expect(FORM_V7.en.indicatorCrumb("Feedback Form", "C", 1, 8)).toBe("Feedback Form · C · 1 of 8");
     expect(FORM_V7.ur.agreeNext).toBe("متفق، اگلا");
-    expect(FORM_V7.ur.addEvidence).toBe("شواہد شامل کریں");
+    // queue #251: the Digital Coach's evidence once, and her own box under it (Edit = ترمیم کریں, Keep = رہنے دیں)
+    expect(FORM_V7.en.editEvidence).toBe("Edit evidence");
+    expect(FORM_V7.ur.editEvidence).toBe("شواہد میں ترمیم کریں");
+    expect(FORM_V7.ur.yourEvidence).toBe("آپ کے شواہد");
+    expect(FORM_V7.ur.keepDc).toBe("ڈیجیٹل کوچ کے شواہد رہنے دیں");
+    expect(FORM_V7.en.fromTime("37:46")).toBe("From 37:46");
+    expect(FORM_V7.en).not.toHaveProperty("addEvidence");
     expect(FORM_V7.en.needLevel(3)).toBe("3 items still need a level");
     expect(FORM_V7.en.needLevel(1)).toBe("1 item still needs a level");
   });

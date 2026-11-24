@@ -38,6 +38,14 @@ export interface AudioCardProps {
   action?: ReactNode;
   copy?: Partial<Pick<TeacherUiCopy, 'play' | 'pause' | 'speed' | 'back10' | 'forward10' | 'position'>>;
   className?: string;
+  /**
+   * Queue #251 (the operator 24 Nov: "when you click on the timestamp, it should show you the recording part of it") —
+   * play from here: each new `n` moves the player to `seconds` and plays (a compact one opens its bar). A seek asked
+   * before the file's length is known lands once it is (#239's rule), so a tap on a fresh player starts at that time.
+   */
+  startAt?: { seconds: number; n: number } | null;
+  /** Says when it starts or stops playing (a time chip shows which moment is playing). */
+  onPlaying?: (playing: boolean) => void;
 }
 
 /**
@@ -62,7 +70,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 /** A file's own length when it says one (a recorder's webm may say Infinity until it is read to the end). */
 const lengthOf = (d: number) => (Number.isFinite(d) && d > 0 ? d : null);
 
-export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, compact = false, testId }: AudioCardProps) {
+export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, compact = false, testId, startAt = null, onPlaying }: AudioCardProps) {
   const words = { ...useKitCopy(), ...copy };
   const bidi = useBidi();
   const audio = useRef<HTMLAudioElement>(null);
@@ -238,6 +246,27 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
     claimSound(el);
     void el.play()?.catch?.(() => setPlaying(false));
   };
+
+  // Queue #251 — play from here: a new request moves the player there and plays (the seek waits for the length if need be).
+  const jumped = useRef<number | null>(null);
+  const jumpTo = useRef<(seconds: number) => void>(() => undefined);
+  jumpTo.current = (seconds: number) => {
+    const el = audio.current;
+    if (!el || !held) return;
+    if (compact) setOpened(true);
+    seekTo(seconds);
+    if (playingRef.current) return;
+    claimSound(el);
+    void el.play()?.catch?.(() => setPlaying(false));
+  };
+  useEffect(() => {
+    if (!startAt || startAt.n === jumped.current) return;
+    jumped.current = startAt.n;
+    jumpTo.current(startAt.seconds);
+  }, [startAt]);
+  const said = useRef(onPlaying);
+  said.current = onPlaying;
+  useEffect(() => { said.current?.(playing); }, [playing]);
 
   // bd-o15qnr.47 — a compact player's second line is the recording's length when nothing else is given.
   const line = sub || (compact && length != null ? clock(length) : undefined);

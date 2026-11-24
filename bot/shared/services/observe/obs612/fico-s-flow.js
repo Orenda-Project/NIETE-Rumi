@@ -531,6 +531,19 @@ function dcEvidenceOf(code, dc, rubric = FicoS.RUBRIC_KEY) {
 }
 
 /**
+ * Queue #251 (the operator 24 Nov: "the evidence is being repeated") — the text the Digital Coach pre-filled into one
+ * indicator's Evidence box on a Digital Coach visit (fico-s-dc prefillDraft: the same function on the row kept on the
+ * form), so the portal shows its evidence once while the box still holds that text. '' off a Digital Coach visit, on a
+ * starred indicator, and where nothing was pre-filled.
+ */
+function dcPrefillOf(code, dc) {
+  if (!dc || !dc.levels || FicoS.isStarred(code)) return '';
+  const row = dc.levels[code];
+  if (!row || typeof row !== 'object') return '';
+  return require('../../coaching/frameworks/fico-s-framework').prefillEvidence(row) || '';
+}
+
+/**
  * A screen's data in the observer's language. `draft` pre-fills what was saved; `opts.errors` ({flowField: code}) and
  * `opts.note` show the check's result.
  */
@@ -702,6 +715,8 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
       ...(extra.dcLevel ? { dcLevel: extra.dcLevel } : {}),
       // Queue #256: the option the Digital Coach picked ("Indicator to work on"), marked on that option (absent: none).
       ...(extra.dcChoice ? { dcChoice: extra.dcChoice } : {}),
+      // Queue #251: on the Evidence field, the text the Digital Coach pre-filled into it (absent: nothing pre-filled).
+      ...(extra.dcText ? { dcText: extra.dcText } : {}),
     };
   };
   return SCREENS.map((screen) => {
@@ -745,7 +760,7 @@ function portalSections(draft = {}, lang = 'en', { dc = null, rubric = FicoS.RUB
         // Queue #218: the portal pre-picks N/A as the observer sets C1 (Obs612Form.tsx); the Flow does it per screen.
         ...(follows ? { follows: { code: follows.code, level: String(follows.level) } } : {}),
       }));
-      parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`));
+      parts.push(field(evidenceField(code), 'other', `${s.lbl_ev}: ${s.help_ev}`, { dcText: dcPrefillOf(code, dc) }));
       // bd-o15qnr.40.4: the portal's own help (the Flow's still names Rumi on staging and production).
       if (rumi.show && !starred) parts.push(field(changeField(code), 'other', `${s.lbl_chg}: ${s.p_help_chg}`));
     } else if (screen.kind === 'checklist') {
