@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T07:33:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"b086c7462930","branch":"bd-97daxo.34.15.2-05563","user":""}
 {"ts":"2026-11-24T07:33:27Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"b086c7462930","branch":"bd-97daxo.34.15.2-05563","user":""}
+{"ts":"2026-11-24T07:33:48Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"b086c7462930","branch":"bd-97daxo.34.15.2-05563","user":""}
