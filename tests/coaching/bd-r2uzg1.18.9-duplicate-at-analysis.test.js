@@ -85,6 +85,8 @@ let mockSession = null;
 let mockPrior = null;
 /** The filters the lookup applied, so the suite can see it asked for an analysed one. */
 const mockLookups = [];
+/** bd-ce6xwt: the users.id values whose users.is_test_user is true (the rest read null). */
+const mockTestUserIds = new Set();
 jest.mock('../../bot/shared/config/supabase', () => ({
   from: (table) => {
     if (table === 'app_settings') {
@@ -101,6 +103,10 @@ jest.mock('../../bot/shared/config/supabase', () => ({
       data: { ...mockSession, users: { name: 'Teacher', phone_number: '920000000001' } }, error: null,
     });
     b.maybeSingle = async () => {
+      if (table === 'users' && /is_test_user/.test(b._cols)) {
+        const id = (b.calls.find(([m, c]) => m === 'eq' && c === 'id') || [])[2];
+        return { data: { is_test_user: mockTestUserIds.has(id) ? true : null }, error: null };
+      }
       if (b.calls.some(([, c]) => c === 'audio_hash')) { mockLookups.push(b.calls); return { data: mockPrior, error: null }; }
       return { data: mockSession, error: null };
     };
@@ -128,6 +134,7 @@ function leaderObservation(over = {}) {
 beforeEach(() => {
   mockSent.length = 0;
   mockLookups.length = 0;
+  mockTestUserIds.clear();
   mockUpdateStatus.mockClear();
   mockPriorFeedback.mockClear();
   mockUpdateIfNotTerminal.mockClear();
@@ -323,5 +330,36 @@ describe('processAnalysis runs the check before the analysis starts', () => {
     expect(mockLookups[0]).toContainEqual(['eq', 'user_id', 'teacher-0001']);
     expect(mockLookups[0].find((c) => c[1] === 'observer_user_id')).toBeUndefined();
     expect(mockPriorFeedback).toHaveBeenCalled();
+  });
+});
+
+// bd-ce6xwt — every test account (users.is_test_user = true) skips the analysis-time check too (the operator,
+// 24 Nov 2026). A real coach is refused exactly as above.
+describe('a test account (users.is_test_user) at analysis (bd-ce6xwt)', () => {
+  const AnalysisProcessorService = require('../../bot/shared/services/coaching/analysis-processor.service');
+
+  test('a test coach\'s repeat of an analysed recording is analysed again: no lookup, nothing refused', async () => {
+    mockTestUserIds.add('coach-0001');
+    mockSession = leaderObservation({ id: 'obs-resent', created_at: '2026-11-02T09:53:17Z' });
+    mockPrior = { id: 'obs-first', status: 'completed', created_at: '2026-11-02T09:24:44Z' };
+
+    await AnalysisProcessorService.processAnalysis('obs-resent', { from: '920000000009' }).catch(() => {});
+
+    expect(mockLookups).toEqual([]);
+    expect(mockUpdateIfNotTerminal).not.toHaveBeenCalled();
+    expect(mockSent).toEqual([]);
+    expect(mockPriorFeedback).toHaveBeenCalled();
+  });
+
+  test('a real coach\'s repeat is still refused', async () => {
+    mockTestUserIds.add('teacher-0001');   // the bound teacher being a test account changes nothing
+    mockSession = leaderObservation({ id: 'obs-resent', created_at: '2026-11-02T09:53:17Z' });
+    mockPrior = { id: 'obs-first', status: 'completed', created_at: '2026-11-02T09:24:44Z' };
+
+    const out = await AnalysisProcessorService.processAnalysis('obs-resent', { from: '920000000009' }).catch((e) => e);
+
+    expect(mockPriorFeedback).not.toHaveBeenCalled();
+    expect(mockSent.map((x) => x.text)).toEqual([UR]);
+    expect(out).toEqual({ skipped: 'duplicate' });
   });
 });

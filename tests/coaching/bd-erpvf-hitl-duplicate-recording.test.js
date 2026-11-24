@@ -47,11 +47,21 @@ let mockLookupThrows = false;
 let mockUpdatedRows = null;
 // bd-r98hph: app_settings.skip_recording_duplicate_check, as the switch reads it ([] = no row).
 let mockSwitchRows = [];
+// bd-ce6xwt: the users.id values whose users.is_test_user is true (the rest read null, as most real accounts do).
+let mockTestUserIds = new Set();
 jest.mock('../../bot/shared/config/supabase', () => ({
   from(table) {
     if (table === 'app_settings') {
       const s = { select: () => s, eq: () => Promise.resolve({ data: mockSwitchRows, error: null }) };
       return s;
+    }
+    if (table === 'users') {
+      const u = {
+        select: () => u,
+        eq: (_col, id) => { u.id = id; return u; },
+        maybeSingle: async () => ({ data: { region: null, is_test_user: mockTestUserIds.has(u.id) ? true : null }, error: null }),
+      };
+      return u;
     }
     const q = {
       select() { return q; },
@@ -311,6 +321,53 @@ describe('a test account on the skip switch (bd-r98hph)', () => {
 
   test('switched on by the bound TEACHER\'s id, not the coach\'s: the coach is still refused', async () => {
     switchFor('teacher-uuid');
+    await run();
+    expect(mockUploadClassroomAudio).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith('923339998887', UR);
+  });
+});
+
+// bd-ce6xwt — every test account (users.is_test_user = true) skips the check too, with no switch row: the operator
+// (24 Nov 2026) is a test account and re-sends the same recording. A real coach is refused exactly as before.
+describe('a test account (users.is_test_user) at transcription (bd-ce6xwt)', () => {
+  const TranscriptionProcessor =
+    require('../../bot/shared/services/coaching/transcription-processor.service');
+  const run = () => TranscriptionProcessor.processTranscription('current-obs', {
+    from: '923339998887', audioId: 'wa-media-id',
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    require('../../bot/shared/services/coaching/duplicate-check-switch')._resetCache();
+    mockSwitchRows = [];
+    mockTestUserIds = new Set();
+    mockPriorRow = { id: 'prior-obs', status: 'completed', created_at: '2026-09-20T08:00:00Z' };
+    mockLookupThrows = false;
+    mockUpdateIfNotTerminal.mockResolvedValue({ applied: true });
+    mockDownloadMedia.mockResolvedValue(Buffer.from('identical observation audio'));
+  });
+  afterAll(() => { mockTestUserIds = new Set(); });
+
+  test('a test coach re-sends an analysed recording: it is analysed again, nothing refused', async () => {
+    mockTestUserIds.add('coach-uuid');
+    const transcribe = jest.spyOn(TranscriptionProcessor, 'transcribeWithDiarization')
+      .mockRejectedValue(new Error('transcription is out of scope for this test'));
+    await run().catch(() => {});
+    expect(mockUploadClassroomAudio).toHaveBeenCalled();
+    expect(transcribe).toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalledWith('923339998887', UR);
+    expect(mockUpdateIfNotTerminal.mock.calls.some(([, p]) => p && p.duplicate_of_session_id)).toBe(false);
+    transcribe.mockRestore();
+  });
+
+  test('a real coach re-sends it: still refused', async () => {
+    await run();
+    expect(mockUploadClassroomAudio).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith('923339998887', UR);
+  });
+
+  test('the bound TEACHER is a test account, the coach is not: the coach is still refused', async () => {
+    mockTestUserIds.add('teacher-uuid');
     await run();
     expect(mockUploadClassroomAudio).not.toHaveBeenCalled();
     expect(mockSendMessage).toHaveBeenCalledWith('923339998887', UR);
