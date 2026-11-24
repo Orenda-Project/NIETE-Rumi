@@ -36,6 +36,16 @@ const Provider = () => require('../quiz/providers/lp612.provider');
  * @returns {Promise<Map<string, object[]>>}
  */
 async function classesFor(nudgeDate) {
+  // A failure here must never stop the K-5 offer built in the same cohort: log it, offer no 6-12.
+  try {
+    return await read612(nudgeDate);
+  } catch (err) {
+    logEvent('lp_quiz_offer.cohort_612_failed', { nudgeDate, error: err.message });
+    return new Map();
+  }
+}
+
+async function read612(nudgeDate) {
   const out = new Map();
   if (!lp612SourceOn()) return out;
   const offer = Offer();
