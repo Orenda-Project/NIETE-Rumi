@@ -1,0 +1,3 @@
+{"ts":"2026-11-24T16:44:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"bf02eeb922a3","branch":"HEAD","user":""}
+{"ts":"2026-11-24T16:44:21Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"bf02eeb922a3","branch":"bd-6jaq0i-29715","user":""}
+{"ts":"2026-11-24T16:49:37Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,coaching owe their Gherkin","sha":"bf02eeb922a3","branch":"bd-6jaq0i-29715","user":""}
