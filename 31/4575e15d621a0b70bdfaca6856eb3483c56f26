@@ -2,3 +2,4 @@
 {"ts":"2026-11-24T02:02:02Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"314575e15d62","branch":"bd-chz35n.10.3-84993","user":""}
 {"ts":"2026-11-24T02:02:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (quiz-only change behind quiz_anchor_items, off by default)","sha":"314575e15d62","branch":"bd-chz35n.10.3-84993","user":""}
 {"ts":"2026-11-24T02:02:16Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"488c3ff5-d8fa-4d68-a2a0-a71ea21e6469","sha":"314575e15d62","branch":"bd-chz35n.10.3-84993","user":""}
+{"ts":"2026-11-24T06:00:43Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"314575e15d62","branch":"bd-chz35n.10.3-84993","user":""}
