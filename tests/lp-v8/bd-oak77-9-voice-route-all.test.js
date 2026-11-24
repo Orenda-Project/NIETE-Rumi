@@ -64,7 +64,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
 
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'ur');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan on photosynthesis', user, null, 'ur');
 
     expect(messagesSent).toHaveLength(1);
     expect(messagesSent[0].text).toBe(resolveUx('lp612RouteRedirect', { language: 'ur' }));
@@ -74,7 +74,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
   });
 
   test('BOTH flags off: the rollback lever — no Flow, and the Gamma job is still queued', async () => {
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan on photosynthesis', user, null, 'en');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan on photosynthesis', user, null, 'en');
 
     expect(flowsSent).toHaveLength(0);
     expect(LessonPlanQueueService.createAndQueue).toHaveBeenCalledTimes(1);
@@ -87,7 +87,7 @@ describe('the voice lesson-plan door follows the same cutover as the typed one',
     process.env.LP_612_ENABLED = 'true';
     process.env.LP_612_ROUTE_ALL = 'true';
 
-    await handleVoiceLessonPlanRequest('923365709413', 'make me a lesson plan', null, null, 'en');
+    await handleVoiceLessonPlanRequest('923001234567', 'make me a lesson plan', null, null, 'en');
 
     expect(flowsSent).toHaveLength(0);
     expect(LessonPlanQueueService.createAndQueue).not.toHaveBeenCalled();
