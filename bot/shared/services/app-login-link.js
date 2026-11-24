@@ -58,6 +58,9 @@ const LANDINGS = Object.freeze({
   // Observations page (My own lesson, One of my teachers, what she sent); /go lands it because the teacher app is on for
   // her (dashboard/lib/teacher-app teacherAppOnFor), else the legacy landing, like every teacher page.
   principal_observe: '/portal/teacher/observations',
+  // bd-zrdvmi.60 — not a command: the ONE grades 1-5 plan she tapped in the Flow, sent as a link because her programme
+  // is on lp_whatsapp_pdf_off. Opens that plan (OpenPlanPage, ?plan=k5:<lesson_id>), not the Lesson Plans home.
+  lp_open: '/portal/teacher/lessons/open',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
@@ -132,7 +135,17 @@ const PREFILL_FEATURES = Object.freeze({
  * subject ("Pakistan Studies") and the chapter key ("c01", "p3c01"). No query of its own; the pre-fill is the query.
  */
 const OWN_PREFILL = 'lp_make_own';
-const carriesPrefill = (f) => typeof f === 'string' && (own(PREFILL_FEATURES, f) || f === OWN_PREFILL);
+/** bd-zrdvmi.60 — the lp_open landing's pre-fill: {plan: 'k5:<lesson_id>'}, the key OpenPlanPage reopens a plan by. */
+const OPEN_PREFILL = 'lp_open';
+const carriesPrefill = (f) => typeof f === 'string' && (own(PREFILL_FEATURES, f) || f === OWN_PREFILL || f === OPEN_PREFILL);
+
+/** {plan} for a grades 1-5 catalogue lesson key, else null. */
+function openPrefillOf(q) {
+  if (!q || typeof q !== 'object') return null;
+  const { plan } = q;
+  if (typeof plan !== 'string' || !/^k5:[A-Za-z0-9_.-]{1,120}$/.test(plan)) return null;
+  return { plan };
+}
 
 /** {grade, subject, chapter} for a 6-12 chapter, else null. */
 function ownPrefillOf(q) {
@@ -146,7 +159,11 @@ function ownPrefillOf(q) {
 }
 
 /** {grade, subject, chapter} when `q` is a well-formed pre-fill for feature `f`, else null. */
-const prefillFor = (f, q) => (f === OWN_PREFILL ? ownPrefillOf(q) : prefillOf(q));
+const prefillFor = (f, q) => {
+  if (f === OWN_PREFILL) return ownPrefillOf(q);
+  if (f === OPEN_PREFILL) return openPrefillOf(q);
+  return prefillOf(q);
+};
 
 /** {grade, subject, chapter} when `q` is a well-formed pre-fill, else null. */
 function prefillOf(q) {
@@ -163,7 +180,8 @@ function landingQuery(payload) {
   if (!payload || !carriesPrefill(payload.f)) return '';
   const p = new URLSearchParams(PREFILL_FEATURES[payload.f] || {});
   if (payload.q) Object.entries(payload.q).forEach(([k, v]) => p.set(k, String(v)));
-  return `?${p}`;
+  const query = p.toString();
+  return query ? `?${query}` : '';
 }
 
 /**
