@@ -62,3 +62,12 @@ test('Copy: quiz_forward_tap{method copy}; no class_link_forwarded', async () =>
   expect(prefixed()).toHaveLength(0);
   expect(retired()).toHaveLength(0);
 });
+
+test('a QA walk (user agent carries " QFIXQA"): the tap says qa:true; any other user agent: no qa key', async () => {
+  await CL.forwardHref({ teacherId: T1, classId: C1, ua: 'Mozilla/5.0 (Linux; Android 14) Chrome/124 QFIXQA' });
+  await CL.forwardHref({ teacherId: T1, classId: C1, how: 'copy', reportBase: '/r/tok.sig', ua: 'Mozilla/5.0 (Linux; Android 14) Chrome/124' });
+  const t = taps();
+  expect(t).toHaveLength(2);
+  expect(t[0]).toMatchObject({ surface: 'class_link', method: 'wa_me', qa: true });
+  expect(t[1]).not.toHaveProperty('qa');
+});
