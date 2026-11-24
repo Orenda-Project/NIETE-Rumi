@@ -1006,7 +1006,7 @@ async function send(row, { now, windowTemplate = WindowClosedTemplate } = {}) {
   // counted as an offer yet, so the funnel counts it once, when it finally goes or finally fails.
   const retry = !ok && SendRetry.nextTry(row, sendError, at);
   if (retry) {
-    logEvent('lp_quiz.offer_retry', { nudgeId: row.id, userId: row.user_id, tries: retry.tries, code: retry.code });
+    logEvent('lp_quiz.offer_retry', { nudgeId: row.id, tries: retry.tries, code: retry.code });
     throw SendRetry.retryError(`lp quiz offer: WhatsApp not reached (${retry.code}); retry ${retry.tries}`, retry);
   }
   if (!ok) {

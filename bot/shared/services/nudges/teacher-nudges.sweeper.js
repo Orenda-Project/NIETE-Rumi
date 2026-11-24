@@ -182,7 +182,7 @@ async function handleRow(kind, row, handler, now) {
       && await store.defer(row.id, error.retryAt, error.retryContext || {}).catch(() => false)) {
       const ctx = error.retryContext || {};
       logEvent('teacher_nudges.retry', {
-        kind, nudgeId: row.id, userId: row.user_id, until: error.retryAt.toISOString(), tries: ctx.net_retries, code: ctx.net_error,
+        kind, nudgeId: row.id, until: error.retryAt.toISOString(), tries: ctx.net_retries, code: ctx.net_error,
       });
       return 'deferred';
     }
