@@ -1,0 +1,2 @@
+{"ts":"2026-11-24T02:24:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,coaching spec_sync=true","sha":"56ad1cf34d89","branch":"bd-97daxo.34.6-stg","user":""}
+{"ts":"2026-11-24T02:24:15Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,lesson-plan,coaching owe their Gherkin","sha":"56ad1cf34d89","branch":"bd-97daxo.34.6-stg","user":""}
