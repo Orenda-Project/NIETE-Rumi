@@ -9,7 +9,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `__mocks__/` | → (no door; 24 files: 0 test + 24 support) |
 | `ab-tracker/` | → (no door; 8 files: 7 test + 1 support) |
 | `app-funnel/` | → (no door; 12 tests) |
-| `app-redirect/` | → (no door; 33 tests) |
+| `app-redirect/` | → (no door; 34 tests) |
 | `assessment/` | Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers → `assessment/CLAUDE.md` |
 | `attendance/` | WhatsApp attendance: router, marking Flow, voice roll call, registers and portal service → `attendance/CLAUDE.md` |
 | `books/` | (no description yet) → `books/CLAUDE.md` |
@@ -25,7 +25,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `conversation-state/` | → (no door; 12 tests) |
 | `dashboard/` | Dashboard portal proxy routes to the bot: assessment, classes, board pattern → `dashboard/CLAUDE.md` |
 | `data-analyst/` | → (no door; 12 files: 11 test + 1 support) |
-| `database/` | → (no door; 31 tests) |
+| `database/` | → (no door; 32 tests) |
 | `deploy/` | → (no door; 1 tests) |
 | `e2e-mock/` | (no description yet) → `e2e-mock/CLAUDE.md` |
 | `exam-checker/` | → (no door; 4 tests) |
@@ -40,7 +40,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `identity/` | (no description yet) → `identity/CLAUDE.md` |
 | `language/` | → (no door; 6 tests) |
 | `lesson-plan-lifecycle/` | lesson_plan_requests lifecycle rows per LP path, plus the hourly health check → `lesson-plan-lifecycle/CLAUDE.md` |
-| `llm/` | → (no door; 29 tests) |
+| `llm/` | → (no door; 31 tests) |
 | `lp-v8/` | → (no door; 40 tests) |
 | `lp-whatsapp-off/` | → (no door; 5 tests) |
 | `lp612/` | Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate → `lp612/CLAUDE.md` |
@@ -54,7 +54,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `portal/` | Root jest tests pinning the portal's dashboard routes, services and Android shell → `portal/CLAUDE.md` |
 | `pregen/` | → (no door; 1 tests) |
 | `qfix-offers/` | → (no door; 6 tests) |
-| `queue/` | → (no door; 9 tests) |
+| `queue/` | → (no door; 11 tests) |
 | `quiz/` | Tests for the quiz stack: authoring, validator, offers, class reports, web quiz → `quiz/CLAUDE.md` |
 | `reading/` | → (no door; 4 tests) |
 | `region/` | → (no door; 7 tests) |
@@ -69,7 +69,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `setup/` | Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts → `setup/CLAUDE.md` |
 | `status/` | → (no door; 9 tests) |
 | `student-videos/` | → (no door; 2 tests) |
-| `teacher-activity/` | → (no door; 3 tests) |
+| `teacher-activity/` | → (no door; 4 tests) |
 | `textbook-lp-v2/` | → (no door; 5 tests) |
 | `training/` | Tests teacher training: levels, quizzes, exams, certificates, I-SAPS and portal routes → `training/CLAUDE.md` |
 | `tts/` | → (no door; 7 tests) |

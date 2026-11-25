@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=6068c5cc0fa0 gen=892642c258df overflow=471 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=4888fe6e5550 gen=0da205692dc6 overflow=471 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | … | 42 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+220)
-- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
+- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+221)
+- table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+102)
 - … 66 more → `CLAUDE.index.md`
 
 ## Never (human)

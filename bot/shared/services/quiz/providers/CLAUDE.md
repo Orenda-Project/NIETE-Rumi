@@ -1,7 +1,7 @@
 # providers — Lesson providers for /quiz that make a quiz from a Grades 6-12 lesson plan
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=396994c27f63 gen=50fece7286b3 overflow=7 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=c86d9b897683 gen=2369011b8208 overflow=7 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp612.provider.js` — lists received 6-12 plans and creates the lp612 quiz only when tapped
@@ -13,11 +13,11 @@ Full index: `CLAUDE.index.md`
 | `lp612.provider.js` | /quiz lesson provider listing Grades 6-12 plans a teacher received; makes an lp612 quiz only on tap |
 
 ## Who reads this (generated)
-- table `quizzes` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+68)
-- column `quizzes.meta` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+32)
-- column `quizzes.quiz_source` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+31)
+- table `quizzes` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+70)
+- column `quizzes.meta` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+33)
+- column `quizzes.quiz_source` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+33)
 - column `quizzes.status` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+30)
-- column `quizzes.teacher_id` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` · `bot/shared/routes/quiz-flow-endpoint.js:230:98889254` (+27)
+- column `quizzes.teacher_id` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` · `bot/shared/routes/quiz-flow-endpoint.js:230:98889254` (+28)
 - column `quizzes.topic` (written by `lp612.provider.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:230:98889254` · `bot/shared/routes/transcript-quiz-flow-endpoint.js:275:b52fa8e6` (+25)
 - … 7 more → `CLAUDE.index.md`
 

@@ -1,7 +1,7 @@
 # setup — Repo-wide guard tests: schema, migrations, flows, hygiene ratchets and setup scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=e0f9534ced94 gen=6f7005b86fb1 overflow=81 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/setup kg=3f23137b49ef gen=60adc86666e2 overflow=82 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `ratchet-verdict-lib.js` — shrink-only allowlist verdict most gates here share (fail above list, warn below)
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `migrate.test.js` | Tests infrastructure/scripts/migrate MigrationRunner with a mocked supabase client: applied versions, ordering |
 | `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
 | `web*` | 3 files; most used `web-quiz-owned-paths.js`: Helper listing the web quiz's own path prefixes so module lists beside query goldens compare only inside them |
-| … | 156 more → `CLAUDE.index.md` |
+| … | 157 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

@@ -1,7 +1,7 @@
 # coaching — Root jest suite for the AI coaching pipeline: analysis, reports, reflection, LP linking
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=06a80e127099 gen=d61c95d95ca7 overflow=246 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/coaching kg=ef2ef33b1470 gen=c03de87347ce overflow=251 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `bd-s192t-roles-threading.test.js` — model of a test that runs the real chain, not a helper plus a grep
@@ -18,11 +18,11 @@ Full index: `CLAUDE.index.md`
 | `video-reco/` | Tests for video recommendation: clip pick, copy, name redaction, strip, send and A/B → `video-reco/CLAUDE.md` |
 | `fico*` | 9 files; most used `fico-s-v1-2.test.js`: (unmapped) |
 | `coaching*` | 7 files; most used `coaching-flow-integration.test.js`: bd-622/bd-618 wiring: LP selection list vs buttons in the coaching flow and the coaching card in the report flow |
+| `fico17-v6-dc11-report-path.test.js` | (unmapped) |
 | `bd-9h2mm-section-b-not-assessed.test.js` | bd-9h2mm: Section B leaves the FICO total when no fidelity was measured and every surface says so |
 | `bd-r2uzg1.12-mismatch-soft-line.test.js` | (unmapped) |
 | `bd-hk2jm3-fde-ict-only.test.js` | (unmapped) |
-| `fico17-v6-hitl-report-evidence.test.js` | (unmapped) |
-| … | 320 more → `CLAUDE.index.md` |
+| … | 325 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

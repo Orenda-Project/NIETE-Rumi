@@ -13,12 +13,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz/` | Jest suite for the kid-facing web quiz, hub, Challenge, stories and share flows → `web-quiz/CLAUDE.md` |
 | `backfill-bank-quiz-audio.test.js` | Pins the video-bank quiz audio backfill script: ranking, dry-run makes zero calls, real publishQuizAudio with fakes |
 | `backfill-quiz-language.test.js` | Pins backfill-quiz-language: decideLanguage rule (ur if half of questions Arabic-script), dry-run default, filters |
+| `backfill-quiz-lesson-links.test.js` | (unmapped) |
 | `bd-v0toag-126-quiz-offer-window.test.js` | bd-v0toag.126: quiz offer processOffer checks the 24h window first; closed means no claim, digest or send (131047) |
 | `chat-quiz-report-send-checked.test.js` | Pins quiz_report_send_checked in quiz-job-handler handleQuizReport: flag set only if WhatsApp took it, 3 tries |
 | `child-flow-token.test.js` | bd-2475: ChildFlowToken build/parse round-trip of the phone-keyed flow token for anonymous quiz children |
 | `child-quiz-home.test.js` | Pins child /quiz opening a Home hub cta_url (flag web_quiz_child_quiz_home) via the real webhook; teacher never gets it |
 | `class-report-layout.test.js` | Prints the class-results report through real Chromium and checks page count and packing, Urdu and English |
 | `digest-failure-detail.test.js` | (unmapped) |
+| `fln-lesson-digest-run.test.js` | (unmapped) |
+| `fln-lesson-hint.test.js` | (unmapped) |
 | `handout-class-binding.test.js` | Pins deliverClassLink: known class mints a bound share code, ambiguous sends unbound then asks, none unchanged |
 | `handout-class-real-resolver.test.js` | Runs hand-out class binding through the real resolveQuizClass for one, two-section and out-of-grade class cases |
 | `latin-runs-rtl.test.js` | Pins that an English phrase with "&" or middle dot in an Urdu teacher PDF is one LTR isolate (wrapLatin) |
@@ -40,6 +43,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-stacked-fractions-katex.test.js` | Real-KaTeX check that flat $2/3$ fractions render stacked (mfrac) on the child card and teacher PDF |
 | `quiz-start-via-home.test.js` | Pins that a quiz started from teacher home is credited home: Funnel.metaSourceOf, teacher_home channel, failure copy |
 | `quiz-typeset-maths-katex.test.js` | bd-mg9c7.159.19 A: real-KaTeX check that fractions typeset as mfrac with KaTeX faces inlined, English and Urdu |
+| `quiz-word-help-flag.test.js` | (unmapped) |
+| `quiz-word-help.service.test.js` | (unmapped) |
+| `quiz-word-help.test.js` | (unmapped) |
 | `record-one-voice-shared-lines.test.js` | Pins scripts/quiz/record-one-voice-shared-lines: per-voice set naming, no calls without --apply, manifest and hash |
 | `record-welcome-lines.test.js` | Pins scripts/quiz/record-welcome-lines: one clip per welcome line and language in the plan voice, under 4.5 s |
 | `report-delivery-send.test.js` | Pins that an accepted class report keeps its wamid in Redis report_msg:<id> for 48h when quiz_report_send_checked is on |

@@ -1,7 +1,7 @@
 # deployment — Reference Meta Graph API scripts from the original Taleemabad WABA; ids are WABA-bound
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=9f04e6988256 gen=163cc6fc14f1 overflow=21 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=6e2786342f80 gen=02371ae5ab7c overflow=21 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — what is reusable and what is hardcoded
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `get-portal-test-tokens.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
+- table `users` (written by `get-portal-test-tokens.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+220)
 - column `users.phone_number` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+102)
 - column `users.preferred_language` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:767:6d7fc8d6` (+86)
 - column `users.name` (written by `get-portal-test-tokens.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` (+69)

@@ -141,6 +141,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `setup-state.test.js` | Tests SetupState: .setup-state.json load/save of flow, template and encryption registration status |
 | `setup-validator.test.js` | Tests bot setup-validator validateBootRequirements: boot-time env check returning ok, warnings, errors |
 | `skill-md-video-claims.test.js` | Guard: setup SKILL.md names VIDEO_GENERATION_ENABLED, not R2_* keys, as the video feature requirement |
+| `socket-guard-restored.test.js` | (unmapped) |
 | `source-hygiene.test.js` | Guard for the public repo: no internal ticket refs in shipped source or docs/flows JSON authoring metadata |
 | `spoken-replies-availability.test.js` | Tests feature-availability: spoken replies are available with any voice provider, not one vendor's key |
 | `stock-seed-titles.test.js` | Gate: Challenge stock seed SQL titles equal the passage files' titles in bot/shared/data/child-test/passages |

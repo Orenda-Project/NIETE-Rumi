@@ -27,7 +27,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `NewLessonPlans.tsx` ← `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx`
-- `lessonPlansApi.ts` ← `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` · `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` · `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx` (+30: `python3 kg/kg.py who-reads portal/src/portal/newui/lessons/lessonPlansApi.ts`)
+- `lessonPlansApi.ts` ← `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` · `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` · `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx` (+31: `python3 kg/kg.py who-reads portal/src/portal/newui/lessons/lessonPlansApi.ts`)
 
 ## Related (all, generated)
 - docs: `portal/src/portal/newui/DESIGN.md`?

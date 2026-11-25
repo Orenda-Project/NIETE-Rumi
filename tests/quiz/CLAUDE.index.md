@@ -59,6 +59,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp-quiz-start-failure.test.js` | A lesson-plan quiz that could not be started: what the teacher is told by case and whether /quiz can make it again |
 | `lp-quiz-strings.test.js` | R8 lane D 3.6: failure copy of an LP-born quiz says three different things, not one shared recording-based fallback |
 | `lp-quiz-topic-label.test.js` | An LP-born quiz's topic label is the lesson's catalog name, not a clipped sentence or the model's wording |
+| `lp-quiz-word-help-generate.test.js` | (unmapped) |
 | `lp-shelf.test.js` | Tests lp-shelf.service: FIFO cap, sliding TTL, delivery-type discriminator (segment vs chapter) and flush, Redis mocked |
 | `lp-v9-html-source.test.js` | lp-v9-html-source turns a v9 lesson's HTML into slide-script shape; no answers or exit ticket reach the author |
 | `lp612-provider.test.js` | /quiz provider for Grades 6-12 lesson plans a teacher received: listed as From lesson plan, made only on tap (lp612) |
@@ -105,6 +106,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-helped-by.test.js` | bd-v0toag.10 (c): who-helped one tap (no one/classmate/teacher/family, en/ur) stored on quiz_sessions.helped_by |
 | `quiz-intent-detector.test.js` | Tests the quiz-intent detector's deterministic regex priors: head-noun and header-style matches, negatives |
 | `quiz-job-handler.test.js` | Tests SQS-side quiz job handlers: cancel flag, idempotency, cascade re-queue dedup and firing (deps mocked) |
+| `quiz-lesson-link.test.js` | (unmapped) |
 | `quiz-lesson-providers.test.js` | /quiz lists K-5 lesson plans a teacher took and makes a quiz only on tap, once per lesson whichever door asked |
 | `quiz-math-equation-runs.test.js` | An equation written outside maths dollars reads as one expression in order on every surface, incl. an Urdu isolate |
 | `quiz-math-stacked-fractions.test.js` | A flat fraction $2/3$ is typeset stacked on the child's card and teacher PDF via stackFractions |

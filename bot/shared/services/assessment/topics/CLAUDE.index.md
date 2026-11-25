@@ -46,11 +46,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` · `bot/shared/services/assessment/topics/group-maths.js:20:22aff0f7` · `bot/shared/services/assessment/topics/group-science.js:7:22aff0f7`
 - `stem-bank.js` ← imported by `bot/shared/services/assessment/topics/stems.js:9:f84e7b6f`
 - `stem-bank.json` ← imported by `bot/shared/services/assessment/topics/stem-bank.js:13:893f4bed`
-- `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675` · `bot/shared/services/assessment/free-secondary.service.js:39:ef0762df`
+- `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:26:c93ea675` · `bot/shared/services/assessment/free-secondary.service.js:39:ef0762df`
 - `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1694:e3dd3ca4`
 - `topic-checks.js` ← imported by `bot/shared/services/assessment/topics/topic-exam.js:7:138e698b`
 - `topic-exam.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:658:85439a36`
-- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:854:b1d3239b`
+- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:860:b1d3239b`
 - `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1848:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:75:1fc5ef0e`
 
 ## Tests (all, generated)

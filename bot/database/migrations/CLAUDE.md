@@ -1,7 +1,7 @@
 # migrations — Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=72ea26ce9987 gen=7b09af5ec7f5 overflow=469 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=6998ef199759 gen=ddec358dbd89 overflow=471 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `web_quiz_challenge_registry.sql` — shows the requires/NON-DESTRUCTIVE/rollback convention
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `create*` | 4 files; most used `create_video_quiz_tables.sql`: Ports the main bot's video-quiz schema to NIETE: quiz_questions changes, share codes, invites, identity (bd-2482) |
 | `web_quiz_challenge_registry.sql` | Creates the five Challenge registry tables: passages, items, periods, equating links and draws |
 | `002_add_registration_fields.sql` | Adds teacher-onboarding columns to users (registration fields, v3.2.0) |
-| … | 145 more → `CLAUDE.index.md` |
+| … | 147 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `002_add_registration_fields.sql` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+220)
+- table `users` (written by `002_add_registration_fields.sql` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+221)
+- column `coaching_sessions.id` (written by `003_classroom_coaching.sql`) ← read by `bot/scripts/quiz/backfill-quiz-lesson-links.js:77:eb3d7381` · `bot/shared/calls/call-context.repo.js:64:24fe63d9` (+87)
 - column `users.preferred_language` (written by `add_preferred_language_to_users.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:767:6d7fc8d6` (+86)
-- column `coaching_sessions.id` (written by `003_classroom_coaching.sql`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/handlers/text-message.handler.js:2043:21597576` (+83)
 - … 375 more → `CLAUDE.index.md`
 
 ## Never (human)

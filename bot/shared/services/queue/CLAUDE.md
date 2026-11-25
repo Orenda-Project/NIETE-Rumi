@@ -1,7 +1,7 @@
 # queue — Queue driver selector: SQS default or BullMQ over Redis, same method surface
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=cad186c232a7 gen=d4e823cae384 overflow=58 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=e5659583ee38 gen=9fae4a3484a8 overflow=59 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — QUEUE_DRIVER selection used by producers and sqs-worker
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 - `tests/queue/queue-driver-parity.test.js` (bullmq-queue.service.js, sqs-queue.service.js)
 - `tests/quiz/quiz-queue-uses-driver.test.js` (bullmq-queue.service.js, sqs-queue.service.js)
 - `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` (sqs-queue.service.js)
-- … 58 more → `CLAUDE.index.md`
+- … 59 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `CLAUDE.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/architecture.md`?

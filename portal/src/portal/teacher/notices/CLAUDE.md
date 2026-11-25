@@ -1,7 +1,7 @@
 # notices — Shell notices: Being made strip, ready banner, Home Ready for you, evening reminder card
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/notices kg=0d47c1fe9a5c gen=ff41a4bc6240 overflow=60 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/notices kg=98b4a226e522 gen=caecb306e4a8 overflow=61 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `tracker.ts` — app-wide job tracker; `NoticeHost.tsx` — strip and banners mounted by PortalLayout
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/assessment/fde.r8.banner.test.tsx` (NoticeHost.tsx, model.ts, tracker.ts)
 - `portal/src/portal/teacher/notices/NoticeHost.test.tsx` (NoticeHost.tsx, model.ts, tracker.ts)
-- … 36 more → `CLAUDE.index.md`
+- … 37 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/remind/CLAUDE.md`?

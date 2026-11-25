@@ -38,6 +38,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-9tqqi-cancel-ack-buttons.test.js` | Pins the Cancel offer in the recording acknowledgement on the coach path (bd-9tqqi) |
 | `bd-9tqqi-cancel-terminal.test.js` | Pins the Flow endpoint and write predicate refusing a cancelled (terminal) observation (bd-9tqqi) |
 | `bd-9tqqi-raced-cancel-copy.test.js` | Pins obs_cancel outcome copy distinguishing a landed cancel from one that lost the race (bd-9tqqi) |
+| `bd-ah8f7y-quoted-percent-not-a-score.test.js` | (unmapped) |
 | `bd-b5elb-feedback-repair.test.js` | Pins one guided LLM repair when validateCoachFeedback rejects coach feedback (bd-b5elb) |
 | `bd-bos31-names-and-paging.test.js` | Pins teacher names on Pending Debriefs rows and paging through a coach's backlog (bd-bos31, bd-43474) |
 | `bd-by1v4-name-pending-debrief.test.js` | Pins pending-debrief rows naming the bound teacher from one source across three lists (bd-by1v4) |
@@ -61,6 +62,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-lh9c2-dedup-nonce-wired.test.js` | Pins dedupNonce reaching both dedupe layers so a re-sent debrief clip is not swallowed (bd-lh9c2) |
 | `bd-mwn4j-untapped-projection.test.js` | Pins the untapped-reports sweep never selecting full analysis_data (DB wedge, bd-mwn4j) |
 | `bd-n9832-cancelled-stays-cancelled-taps.test.js` | Pins photo_yes_ and coaching_finish_ taps not reviving a cancelled observation (bd-n9832) |
+| `bd-o15qnr.51-fico612-lp-wiring.test.js` | (unmapped) |
 | `bd-o8nt4-principal-self-coaching.test.js` | Pins the binding list letting a leader claim a parked recording as their own lesson (bd-o8nt4) |
 | `bd-o8nt4-self-coachee-suppressed.test.js` | Pins a leader never being their own coachee in the derived patch (bd-o8nt4) |
 | `bd-o98ji-coach-directory-match.test.js` | Pins coach-directory name normalisation and local-part matching with no similarity ratio (bd-o98ji) |

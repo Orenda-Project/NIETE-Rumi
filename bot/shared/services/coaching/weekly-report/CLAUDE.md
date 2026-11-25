@@ -1,7 +1,7 @@
 # weekly-report — Group B weekly usage report sent Saturday as a Meta template
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=bf45895c42d1 gen=6bd1b180d5f7 overflow=7 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=617bb11dac8f gen=43944d56994a overflow=7 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.js` — prepare and send, registers in the nudge sweeper
@@ -19,10 +19,10 @@ Full index: `CLAUDE.index.md`
 | `reader.js` | Bounded per-teacher reads behind the weekly report: group B cohort and one week's activity; throws on read error |
 
 ## Who reads this (generated)
-- `message.js` ← imported by `bot/shared/services/quiz/web-quiz-evening-round.js:1200:c0a1ec83` · `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
+- `message.js` ← imported by `bot/shared/services/quiz/web-quiz-evening-round.js:1201:c0a1ec83` · `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
 - `summarise.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:19:934b7eba` · `bot/shared/services/coaching/weekly-report/message.js:13:8fb51b5e`
 - `week.js` ← imported by `bot/shared/services/nudges/weak-skill-jugnu/job.js:23:c64a117a` · `bot/shared/services/coaching/weekly-report/job.js:18:6cec1210`
-- `job.js` ← imported by `bot/workers/sqs-worker.js:2063:3f57026f`
+- `job.js` ← imported by `bot/workers/sqs-worker.js:2188:3f57026f`
 - `reader.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:16:73533146`
 - `switch.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:17:2a9c4c5a`
 

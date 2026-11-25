@@ -25,6 +25,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-bank-wording.test.js` | (unmapped) |
 | `sa-bank.test.js` | Pins the generated SA battery bank: official sourcing, response modes, stop rules, en+ur copy and gender-neutral lines |
 | `sa-block-history.test.js` | Pins sa_block_by_history: block picked by rotation excluding blocks the visit holds and the child already took |
+| `sa-counts-served-form.test.js` | (unmapped) |
 | `sa-device-bundle.test.js` | (unmapped) |
 | `sa-device-events.test.js` | Pins round 8 device readiness events (device_ready, voice_not_ready, voice_retry) being kept; offline/online dropped |
 | `sa-device-viewport.test.js` | (unmapped) |

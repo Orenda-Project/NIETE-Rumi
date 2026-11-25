@@ -1,7 +1,7 @@
 # lp-coaching — Lesson-plan step of a coaching session: list, link, upload, paste
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=98d520ec7427 gen=84293e92b6aa overflow=42 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=11073bfe12ca gen=1c33bf139656 overflow=42 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp-step.service.js` — shared landing on the lesson-plan step
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `send-lp-prompt.js` | Routes an LP prompt to sendInteractiveMessage for lists or buttons so list payloads no longer crash (bd-lqpog) |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `lp-coaching-linker.service.js` (+2)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+99)
+- table `coaching_sessions` (written by `lp-coaching-linker.service.js` (+2)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+103)
 - column `coaching_sessions.status` (written by `lp-step.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+44)
 - table `coaching_sessions` whole row (`*`) (written by `lp-coaching-linker.service.js` (+2)) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+13)
 - … 21 more → `CLAUDE.index.md`

@@ -73,6 +73,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-bfagiy-school-search.test.js` | (unmapped) |
 | `bd-bmc9a0.2-save-recording-route.test.js` | Pins bd-bmc9a0.2: /coaching-upload/start forwards saveForLater only as a real boolean true to the bot |
 | `bd-c5reix-pending-portal-routes.test.js` | Pins bd-c5reix: /coaching-upload/pending and /check-duplicate relay to the bot, dark when off, 502 when bot is down |
+| `bd-chz35n.25-report-time.test.js` | (unmapped) |
 | `bd-dp9ipc-k5-open-band.db.test.js` | (unmapped) |
 | `bd-eygg2f-reflection-voice-client.test.js` | Pins bd-eygg2f: portal-coaching.client submitReflection posts the audio key and waits 90s+ for transcription |
 | `bd-f5a245-failed-analysis-listed.test.js` | (unmapped) |
@@ -95,6 +96,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-fxk3t8-me.test.js` | Pins bd-fxk3t8 GET /me: same user as /dashboard without the count queries, 401 signed out, 500 on bad read |
 | `bd-hl4a4y-card-training-route.test.js` | (unmapped) |
 | `bd-jjcofw-coach-full-app-flag.test.js` | (unmapped) |
+| `bd-mcksos-observe-upload-only-per-person.test.js` | (unmapped) |
 | `bd-o15qnr-coach-v2-flag.test.js` | Pins bd-o15qnr.1 portal_coach_v2 flag shape and fail-closed rule, and the /leader/observe gate |
 | `bd-o15qnr-coach-v2-routes.test.js` | Pins bd-o15qnr.3 /api/portal/coach/* read routes: 404 when portal_coach_v2 is off, session coach only, input validation |
 | `bd-o15qnr-coach-v2-service.test.js` | Pins bd-o15qnr.3 coach-v2.service read side: people, schedule, team numbers computed from existing tables |
@@ -115,8 +117,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-o15qnr.30-stale-home-items.test.js` | (unmapped) |
 | `bd-o15qnr.38-form-save-funnel.test.js` | (unmapped) |
 | `bd-o15qnr.45-observe-in-progress.test.js` | (unmapped) |
+| `bd-o15qnr.51-fico612-no-lp-report.test.js` | (unmapped) |
+| `bd-o15qnr.53-unsent-report-needs-you.test.js` | (unmapped) |
 | `bd-o15qnr.8-coach-feedback.test.js` | Pins bd-o15qnr.8 coach v2 round-1 server rules: past-dated visits allowed with no teacher notice, edit and reschedule |
 | `bd-o15qnr.9-visit-last.test.js` | Pins bd-o15qnr.9: coach-v2 Visit page Last visit row (id, observer, step, link) via TEACHER_FACTS |
+| `bd-oe6r47-observe-upload-only.test.js` | (unmapped) |
 | `bd-pw1ccr.26-held-topic-nudge.test.js` | (unmapped) |
 | `bd-pw1ccr.26-topic-paper-routes.test.js` | (unmapped) |
 | `bd-pw1ccr.39-skip-held-topic-nudge.test.js` | (unmapped) |
@@ -135,6 +140,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-tbprit.12-coach-undone-route.test.js` | Pins bd-tbprit.12 POST /coach/disagreements/:id/undone: moves a card back to To do, hers only, behind the flag |
 | `bd-tbprit.2-coach-disagreement-clip-route.test.js` | Pins bd-tbprit.2 GET /coach/disagreements/:id/clip: disputed step as inline never-cached mp3 for the assigned coach |
 | `bd-tbprit.4-cv-opens-portal-card.test.js` | Pins bd-tbprit.4: WhatsApp /cv/:token 303s to the portal disagreement card only when both flags are on, else v1 card |
+| `bd-v04lsh-principal-training-progress.test.js` | (unmapped) |
 | `bd-v0toag.1.2-report-opened.test.js` | Pins bd-v0toag.1.2: opening one's own report logs coaching.report.opened via dashboard telemetry; none for others |
 | `bd-v0toag.130-thing-to-try-leak.test.js` | (unmapped) |
 | `bd-v0toag.18-report-page.test.js` | Pins bd-v0toag.18 GET /cr/:token read-only coaching report page (groups C/D): private, expired link goes to sign-in |
@@ -170,6 +176,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `curriculum-grades-pagination.test.js` | Pins fetch-all-paged: grade picker pages past PostgREST's 1000-row cap so grades 6-12 are not dropped |
 | `curriculum-one-grade-list.test.js` | Pins bd-60083: one Lesson Plans list for grades 1-12 in the portal, no separate 6-12 tab, assessment on its own page |
 | `dashboard-stats.test.js` | Pins bd-60079: portal dashboard drops the frozen lesson_plans count and returns what the teacher actually does |
+| `dc-v6-classic-dashboard.test.js` | (unmapped) |
+| `dc-v6-leader-readers.test.js` | (unmapped) |
+| `dc-v6-report-history.test.js` | (unmapped) |
 | `exam-pass-mark-and-cooldown.test.js` | Pins bd-2489/bd-2475: exam gate reports the vendor pass mark and real cooldown_hours per exam kind |
 | `feature-flags-cache.test.js` | Pins lib/feature-flags cache: 100 concurrent /config requests read each of 13 app_settings keys once per TTL |
 | `feature-flags-user-parity.test.js` | (unmapped) |
@@ -177,6 +186,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fln-access-gb.test.js` | (unmapped) |
 | `fln-access.test.js` | Pins lib/fln-access: lessons/share access rule from role and portal_fln_* flags, requireFln no-store 401/404 |
 | `fln-corpus.test.js` | Pins fln-corpus.service: loads the FLN bundle from the mirror by app_settings version, gunzip, version check, in memory |
+| `fln-lesson-key.test.js` | (unmapped) |
 | `fln-link-scope.test.js` | Pins portal-link.routes portalLinkScope: a lessons-scoped link session reaches the FLN API and nothing else |
 | `fln-links-mount.test.js` | Pins the single hook line mounting portal-fln-links.routes inside portal-fln.routes, each behind no-store |
 | `fln-links-routes.real-access.test.js` | Runs FLN leader routes under the real fln-access middleware order; skipped where fln-access is absent |

@@ -1,7 +1,7 @@
 # web-quiz — Jest suite for the kid-facing web quiz, hub, Challenge, stories and share flows
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=f7ed11708ea2 gen=0633f580ef1c overflow=423 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=9be6d72a0fc9 gen=ec7f684d72e2 overflow=425 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz.service.test.js` — core web child quiz service: endpoints, one-attempt, 503 when off
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `fixture-phone.js` | Builds synthetic phone digits at runtime for tests, since the repo bans phone-shaped digit literals |
 | `story*` | 8 files; most used `story-teacher.test.js`: Pins the teacher storybook send (web_quiz_stories_teacher): shelf, one quizzes row per book, /q/ open, story report |
 | `web-quiz-identity-fixture.js` | Shared fixture for identity v2 tests: a synthetic school with two grade-4 sections, a quiz, a class code and collisions |
-| … | 452 more → `CLAUDE.index.md` |
+| … | 456 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

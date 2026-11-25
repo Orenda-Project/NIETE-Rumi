@@ -1,7 +1,7 @@
 # child-test — Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=d3402fcba99e gen=6eb2aca7fc13 overflow=82 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=0fd02d15c1e6 gen=ac066f6b6e27 overflow=83 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-score.test.js` — the SA scorer's core behaviour
@@ -25,7 +25,7 @@ Full index: `CLAUDE.index.md`
 | `sa-device-bundle.test.js` | (unmapped) |
 | `sa-r28-mcq-of-all.test.js` | (unmapped) |
 | `sa-voice-sustained-sounds.test.js` | Pins letter-sound clips saying each sound once (continuants held) using ffmpeg silencedetect on served clips |
-| … | 95 more → `CLAUDE.index.md` |
+| … | 96 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

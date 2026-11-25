@@ -67,6 +67,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `practice-play-routes.test.js` | Pins web_quiz_practice_play: a "Try it as a student" hub token opens read-only content; off, routes refuse it |
 | `practice-your-turn.test.js` | (unmapped) |
 | `presend-pdf-unchanged.test.js` | Pins that the pre-send teacher PDF stays byte-identical (hash per language) despite the web report change (W37 12b) |
+| `quiz-attempt-log-finish.test.js` | (unmapped) |
 | `quiz-report-renders.golden.js` | Builds the teacher report QUIZ renders (EN/UR, screen/PDF, class-tab rows) compared against the committed golden |
 | `quiz-report-renders.test.js` | Pins that 60 teacher quiz-report renders, class tab and message pages stay byte-identical (sha256) to the golden |
 | `quiz-teacher-label.test.js` | Pins quiz-teacher-label: drops a stored honorific so the label is "Teacher <name>" or «استاد <name>», not doubled |
@@ -76,6 +77,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `report-fold-parity.test.js` | Pins quiz_report_fold_by_child parity: web report, teacher home count and 12h WhatsApp report name the same children |
 | `report-guidance-stored.test.js` | Pins storing PDF reteach guidance in quizzes.meta.report_guidance so the web report shows the same advice |
 | `report-key-review.test.js` | (unmapped) |
+| `report-misconceptions.test.js` | (unmapped) |
 | `report-pdf-not-played.test.js` | Pins the post-completion PDF listing children who have not played (greyed names, list numbers) with remind links |
 | `report-web-arm-first-finish.test.js` | Pins that a web-arm quiz report counts each child's first finish while WhatsApp quizzes keep the latest |
 | `sample-ping-dry-run-script.test.js` | Pins scripts/sample-ping-dry-run.js: one JSON of counts only, calls service dryRun, never send, no ids or phones |
@@ -259,6 +261,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-fixture.test.js` | Pins the single test-child rule (web-quiz-fixture.js): test-name, run meta.test and other ordered checks the strip reads |
 | `web-quiz-fold-retry.test.js` | Pins web_quiz_fold_retry: folded end card offers a 0-word read a retry via menu field fold_retry (strict JSON true) |
 | `web-quiz-games-together.test.js` | Pins web_quiz_games_together: the games door's reads start together, payload identical, cold cache means off |
+| `web-quiz-gb-league.test.js` | (unmapped) |
 | `web-quiz-getquiz-cache.test.js` | Pins getQuiz media cache: a lesson page opened twice within 5 minutes presigns media and asks R2 only once |
 | `web-quiz-grade-change.test.js` | Pins web_quiz_grade_change: a grown-up can change the child's grade for good; switch rides the hub's one settings read |
 | `web-quiz-handset-session.test.js` | Pins session start after a handset bind: a bind-offered chip starts as that child on the trusted device only |
@@ -466,6 +469,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-watch-privacy.test.js` | Pins that a class-less child's watch-root code shows no other children as 'who are you' chips (privacy) |
 | `web-quiz-who-played.test.js` | Pins the teacher's Who played? on the signed preview link: one row per child, first name and roll only |
 | `web-quiz-word-blank-served.test.js` | Pins that a live word_blank not matching the question asked is left out of web serving (gates v2), logged by id |
+| `web-quiz-word-help.test.js` | (unmapped) |
 | `web-quiz.service.test.js` | Main web child quiz service suite (E2-E10): endpoints, one-attempt, scoring, 503 web_quiz_off with no secret |
 
 ## Who reads this (all, generated)

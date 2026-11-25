@@ -1,7 +1,7 @@
 # ui — Teacher UI kit: shared components, styles, bidi and copy defaults (see README.md)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=2d66372cbb19 gen=aad0e0f9aeb8 overflow=199 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=cc3998955bb1 gen=6dc6c94fe608 overflow=200 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — catalogue of every kit component, props and the rules; `index.ts` — barrel
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | … | 104 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` (+176)
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+137)
-- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` (+45)
+- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` (+178)
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+138)
+- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` (+46)
 - … 58 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/ui/checks.test.tsx` (ClassPicker.tsx, DateRangeBar.tsx, GradeSubjectButton.tsx, HistoryList.tsx, HistoryRow.tsx, ListRow.tsx, ProgressSteps.tsx, VoiceNote.tsx, copy.ts)
 - `portal/src/portal/teacher/ui/bidi.test.tsx` (GradeSubjectButton.tsx, HistoryRow.tsx, ListRow.tsx, StatusChip.tsx, bidi.ts)
-- … 56 more → `CLAUDE.index.md`
+- … 57 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/components/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

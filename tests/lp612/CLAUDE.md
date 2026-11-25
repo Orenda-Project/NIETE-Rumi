@@ -1,7 +1,7 @@
 # lp612 — Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=c42af62a6a88 gen=552803b82381 overflow=233 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/lp612 kg=4e3d301745df gen=59e0e2689af9 overflow=233 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `serving.test.js` — tap to PDF: cache hit vs author now; the lane's front door
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `vendor-integrity.test.js` | Pins integrity of the vendored bot/vendor/lp-v9 pipeline (brief, schemas, lint, renderer) against its upstream manifest |
 | `bidi-caps.test.js` | Pins the vendored 6-12 renderer's bidi pass and language-aware page caps for Urdu and English |
 | `overlay-backfill-over-cap.e2e.test.js` | bd-0t9ce: e2e: an over-cap lesson is repaired in place by the overlay backfill and served in Urdu |
-| … | 321 more → `CLAUDE.index.md` |
+| … | 322 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

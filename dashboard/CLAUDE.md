@@ -1,7 +1,7 @@
 # dashboard — Express server: admin pages, teacher/coach portal API, child-quiz edge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=20d155b096fc gen=6626da4beb78 overflow=24 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=99d7786e7ae4 gen=6f6bad3e937e overflow=24 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — app wiring: sessions, limits, every router mount, admin pages, portal build serving
@@ -18,7 +18,7 @@ Full index: `CLAUDE.index.md`
 | … | 31 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `index.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
+- table `coaching_sessions` (written by `index.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+102)
 - column `coaching_sessions.analysis_data` (written by `index.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:58:c286009d` (+37)
 - table `coaching_sessions` whole row (`*`) (written by `index.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+7)
 - … 29 more → `CLAUDE.index.md`

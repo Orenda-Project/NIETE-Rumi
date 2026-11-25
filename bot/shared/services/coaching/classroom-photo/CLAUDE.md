@@ -1,7 +1,7 @@
 # classroom-photo — Classroom photo step: capture, taps, vision reading, evidence cleaning
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=7ae35565d1ff gen=51f4d83dcc46 overflow=17 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=c8c30f5916f4 gen=7d025f5d531a overflow=17 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `capture.service.js` — photos sent as documents or racing analysis, one prompt per burst
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `scorer-image.js` | Downscales a classroom photo to 768px JPEG for the scoring call using lazily loaded sharp (bd-8s2xb) |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `add-another.service.js` (+1)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+99)
+- table `coaching_sessions` (written by `add-another.service.js` (+1)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+103)
 - column `coaching_sessions.status` (written by `add-another.service.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+44)
 - table `coaching_sessions` whole row (`*`) (written by `add-another.service.js`) ← read by `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:170:d2b02c3e`? (+11)
 - … 11 more → `CLAUDE.index.md`
