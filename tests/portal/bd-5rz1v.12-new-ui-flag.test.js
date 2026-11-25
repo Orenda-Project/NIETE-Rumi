@@ -193,6 +193,8 @@ describe('GET /config — features.newUi', () => {
       'newUi',
       // bd-w0zbbe — the observe page is hers: the observe API gate's answer (a principal only on the principal app).
       'observeOnPortal',
+      // bd-oe6r47 (queue #278) — upload-only recording on the observe and debrief steps: DEFAULT ON (true with no row).
+      'observeUploadOnly',
       // bd-33wxxi.1 — the principal app's switch, a real false unless portal_principal_app names her.
       'principalApp',
       // bd-o15qnr.27 (v6) — the flow switch for a principal on the principal app, a real false unless both name her.
