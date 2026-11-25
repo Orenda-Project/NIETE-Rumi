@@ -101,8 +101,10 @@ function overLoad(script, size) {
 
 const PER_CHILD = [
   /\b(?:check|mark|correct|tick|look at|listen to|hear)\s+(?:each|every)\s+(?:single\s+)?(?:child|student|pupil|learner)(?:'s|s')?\b/i,
-  /\bone by one\b/i,
-  /ایک ایک کر کے/,
+  // bd-snkn32.77 — "one by one" is a per-child check only next to the children: counting, pointing or reading items one
+  // by one ("count coins one by one", "I read the sentences one by one") refused 10 of 18 times on live, 9-24 Nov.
+  /\b(?:child|children|student|students|pupil|pupils|learner|learners)\b[^.;?!]{0,40}\bone by one\b|\bone by one\b[^.;?!]{0,15}\b(?:child|children|student|students|pupils)\b/i,
+  /(?:بچے|بچوں|بچہ|طلبہ|طالب علم)[^۔؛؟]{0,40}ایک ایک کر کے|ایک ایک کر کے[^۔؛؟]{0,15}(?:بچے|بچوں|طلبہ)/,
   /ہر (?:بچے|طالب علم) (?:کی|کا|سے)\s*(?:کاپی|کام)?\s*(?:چیک|سنیں|دیکھیں)/,
 ];
 /** An Urdu letter (not its punctuation, ۔ ، ؛): JS's \b does not see Urdu words, so a boundary is "no letter here". */
@@ -114,17 +116,26 @@ const SLATE = new RegExp(`\\bslates?\\b|سلیٹ|(?<!${UR})تختی(?:اں|وں)
 // bd-snkn32.44 — pair, group or peer work in either language. Precise on purpose: the old pattern matched "مل کر"
 // inside "مکمل کریں" / "شامل کر", a maths question ("packed in groups of 2") and rhyming pairs (ہم آواز جوڑیاں), and
 // refused 9 of 60 days in which each child worked alone. "مل کر" counts only with an instruction (…یں) in its clause.
+// bd-snkn32.77 — and on live (9-24 Nov) it still refused ~30 of 32 You Do lines in which each child worked alone: a
+// food or animal group (کس گروہ میں آتا ہے), things in groups of 10, a word and its meaning paired, "no pair work",
+// the whole class or the teacher together (سب مل کر, جماعت سے مل کر, کروائیں), "using both words together" (سے مل کر),
+// a sentence frame (مل کر کیا؟) and statements (مل کر نہر بناتے ہیں). Those are not pair or group work.
 const TOGETHER = new RegExp([
-  '(?<!\\b(?:not|never|no)\\s)(?<!\\b(?:packed|put|arranged|sorted|grouped|split|divided|shared|placed|tied|stacked|counted|bundled)\\s)\\b(?:in|into) (?:pairs|groups)\\b',
-  '\\bgroup work\\b', '\\bpair work\\b', '\\bwork together\\b', '\\bturn and talk\\b', '\\bthink[- ]pair[- ]share\\b',
+  '(?<!\\b(?:not|never|no)\\s)(?<!\\b(?:packed|put|arranged|sorted|grouped|split|divided|shared|placed|tied|stacked|counted|bundled)\\s)\\b(?:in|into) (?:pairs|groups)\\b(?! of\\b)',
+  // "in groups of 4" is children in groups, but "14 cookies in groups of 2" / "fingers in groups of 10" is maths.
+  '(?<!\\b(?!(?:children|students|pupils|learners|kids|girls|boys)\\b)[a-z]{2,}s\\s)(?<!\\b\\d+\\s)(?<!\\b(?:not|never|no|packed|put|arranged|sorted|grouped|split|divided|shared|placed|tied|stacked|counted|bundled)\\s)\\b(?:in|into) (?:pairs|groups) of\\b',
+  '\\bgroup work\\b', '\\bpair work\\b', '(?<!\\b(?:systems|organs|parts|muscles|bones)\\s)\\bwork together\\b', '\\bturn and talk\\b', '\\bthink[- ]pair[- ]share\\b',
   '\\b(?:with|and|to|tell|ask|show)\\s+(?:a |your |their |the )?(?:partner|neighbou?r|desk-?mate)s?\\b',
   '\\bthe (?:child|person|student) next to (?:you|them|her|him)\\b',
-  'جوڑی(?:وں)?\\s*(?:میں|بنا)', `(?<!${UR})(?:اپنی|اپنے) جوڑی`, 'گروپ میں', 'گروہ میں',
-  `(?<!${UR})مل\\s*کر[^۔،؛:.!?]*?(?:یں)(?!${UR})`, `(?<!${UR})ساتھی (?:کے ساتھ|کو|سے)`,
+  '(?<!کی\\s)جوڑی(?:وں)?\\s*(?:میں|بنا)', `(?<!${UR})(?:اپنی|اپنے) جوڑی`, 'گروپ میں',
+  '(?<!(?:کس|ہر|اسی|کون سے|کون سی)\\s)گروہ میں(?!\\s*(?:آت|شامل))', '(?:دو دو|تین تین|چار چار) بچے',
+  `(?<!${UR})(?<!(?:سب|سے|جماعت)\\s)(?<!(?:استاد|معلم)[^۔،؛]*)مل\\s*کر[^۔،؛:.!?؟)'"]*?(?<!ہ|وائ)(?:یں)(?!${UR})`, `(?<!${UR})ساتھی (?:کے ساتھ|کو|سے)`,
 ].join('|'), 'i');
+/** bd-snkn32.77 — the plan saying there are NO pairs: stripped before TOGETHER is tested. */
+const NOT_TOGETHER = /\bno (?:pair or group|pair|group|partner) (?:work|talk)\b|\bno talking to (?:a|your|their|the) (?:partner|neighbou?r)\b|\b(?:not|never) (?:in pairs|in groups|with a partner)\b/gi;
 
 /** The pair/group words in one line, or null. */
-const together = (s) => { const m = String(s || '').match(TOGETHER); return m ? m[0] : null; };
+const together = (s) => { const m = String(s || '').replace(NOT_TOGETHER, ' ').match(TOGETHER); return m ? m[0] : null; };
 
 const inParts = (script, re) => SECTIONS.flatMap((k) => strings((script || {})[k] || {})).filter((x) => re.some((r) => r.test(x)));
 
@@ -133,4 +144,4 @@ const perChildChecks = (script) => inParts(script, PER_CHILD);
 /** Slates: ICT classes work in the book. */
 const slates = (script) => inParts(script, [SLATE]);
 
-module.exports = { LOAD, IDO_STEPS, SECTIONS, periodOf, timingLine, timingProblems, loadLine, overLoad, perChildChecks, slates, together };
+module.exports = { LOAD, IDO_STEPS, SECTIONS, SLATE, periodOf, timingLine, timingProblems, loadLine, overLoad, perChildChecks, slates, together };

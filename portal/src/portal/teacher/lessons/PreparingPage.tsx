@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
-import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
+import { lessonPlans, type FailReason } from '../../newui/lessons/lessonPlansApi';
 import { clock, dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { LeaveNote, StatusChip } from '../ui';
@@ -18,6 +18,7 @@ import { dcFor, useOpenLesson } from './useOpenLesson';
 import { ownChangeAt } from './own/change';
 import { GOAL } from './own/goalCopy';
 import { OWN_BOOK, ownUrl } from './own/state';
+import { OWN } from './own/copy';
 
 /**
  * bd-fmf24g.3 — a grades 6–12 plan being written (v28 canvas LessonPreparing): a countdown ring over
@@ -72,7 +73,9 @@ function Preparing({ at }: { at: AtRender }) {
   const [failed, setFailed] = useState(false);
   // bd-snkn32.58.3 — a goal plan the check refused: another goal or the book, never Try again on the same goal.
   const [unsure, setUnsure] = useState(false);
+  const [why, setWhy] = useState<Exclude<FailReason, 'goal_unsure'> | null>(null); // bd-snkn32.77
   const G = useCopy(GOAL);
+  const O = useCopy(OWN);
   // bd-ipoxhx.2 — the clock runs from when she first asked for this plan (the shell's tracker holds it), not from
   // when this page mounted: coming back carries on the countdown instead of starting again at the top.
   const [startedAt] = useState(
@@ -122,7 +125,7 @@ function Preparing({ at }: { at: AtRender }) {
           });
           return;
         }
-        if (s.state === 'failed') { setUnsure(s.reason === 'goal_unsure'); setFailed(true); return; }
+        if (s.state === 'failed') { setUnsure(s.reason === 'goal_unsure'); setWhy(s.reason && s.reason !== 'goal_unsure' ? s.reason : null); setFailed(true); return; }
       } catch { /* keep asking */ }
       if (!live) return;
       timer = setTimeout(tick, nextPollMs(Date.now() - t0));
@@ -151,6 +154,8 @@ function Preparing({ at }: { at: AtRender }) {
         ) : failed ? (
           <>
             <p className="text-[20px] font-semibold text-[#c8331f]">{C.notPrepared}</p>
+            {/* bd-snkn32.77 — what to change before trying again */}
+            {why ? <p className="text-[16px] text-[#33374a]" data-testid="own-refused-why">{O.madeRefused[why]}</p> : null}
             <button
               type="button"
               disabled={busy}
