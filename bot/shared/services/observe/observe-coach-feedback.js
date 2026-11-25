@@ -198,6 +198,38 @@ const SCORE_PATTERNS = [
   /\bscore\s*[:\s]\s*\d+/i,
 ];
 
+// bd-ah8f7y — the guard is for OUR words: a figure the coach or teacher said in the recorded talk is a quote, not a
+// score on the officer. 25 Nov 2026 (NIETE prod): a coach said "50% of the class", the card quoted it as evidence,
+// and the guard refused the debrief twice, Try again included. A match is excused only when the transcript says the
+// same figure (Urdu/Arabic digits read as 0-9; "50 فیصد" or "50 percent" counts as 50%); anything else still throws.
+const PERCENT_WORD = '(?:%|٪|percent|per\\s*cent|فیصد|پرسنٹ|پرسینٹ|asilimia)';
+function _asciiDigits(s) {
+  return String(s)
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+}
+function _escapeRx(s) {
+  return s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+function _saidInTranscript(match, transcript) {
+  const t = _asciiDigits(transcript);
+  const pct = match.match(/^(\d+)\s*%$/);
+  if (pct) {
+    return new RegExp(`(?<!\\d)${pct[1]}\\s*${PERCENT_WORD}|asilimia\\s*${pct[1]}(?!\\d)`, 'i').test(t);
+  }
+  const body = _escapeRx(match.trim()).replace(/\s+/g, '\\s*').replace(/\\\//g, '\\s*\\/\\s*');
+  return new RegExp(`(?<!\\d)${body}(?!\\d)`, 'i').test(t);
+}
+function _scoreLeak(text, transcript) {
+  for (const rx of SCORE_PATTERNS) {
+    const all = new RegExp(rx.source, rx.flags.includes('g') ? rx.flags : `${rx.flags}g`);
+    for (const m of text.matchAll(all)) {
+      if (!transcript || !_saidInTranscript(m[0], transcript)) return rx;
+    }
+  }
+  return null;
+}
+
 function _allFeedbackText(fb) {
   const parts = [fb.praise_line || '', fb.reflection_question || ''];
   for (const w of fb.wins || []) parts.push(w.behaviour || '', w.evidence || '');
@@ -247,16 +279,18 @@ function _normaliseJudgeLines(fb) {
 
 /**
  * @param {object} fb    the model's card
- * @param {{rehearsal?: boolean}} [opts]  rehearsal: the ur/en judge was asked to score rehearsed_the_step, so it must
- *   be there (a card without it would show seven marks for a debrief judged on eight)
+ * @param {{rehearsal?: boolean, transcript?: string}} [opts]  rehearsal: the ur/en judge was asked to score
+ *   rehearsed_the_step, so it must be there (a card without it would show seven marks for a debrief judged on eight).
+ *   transcript: the debrief the card was written from; a figure it says is a quote, not a score (bd-ah8f7y)
  */
 function validateCoachFeedback(fb, opts = {}) {
+  // bd-ah8f7y: a null model answer (25 Nov repair pass) must fail as itself, not as a TypeError on `.value`.
+  if (!fb || typeof fb !== 'object' || Array.isArray(fb)) throw new Error('feedback missing');
   // bd-44: the value is OPTIONAL decoration (D36) — normalize, never reject.
   {
     const { normalizeCoachValue } = require('./observe-coach-card');
     fb.value = normalizeCoachValue(fb.value);
   }
-  if (!fb) throw new Error('feedback missing');
 
   // Rubric first — the harm gate is derived from it, so it must be complete.
   if (!fb.rubric || typeof fb.rubric !== 'object') throw new Error('rubric missing');
@@ -306,10 +340,8 @@ function validateCoachFeedback(fb, opts = {}) {
     throw new Error('feedback needs one try with move + evidence');
   }
 
-  const text = _allFeedbackText(fb);
-  for (const rx of SCORE_PATTERNS) {
-    if (rx.test(text)) throw new Error(`feedback leaks a score on the officer (${rx})`);
-  }
+  const leak = _scoreLeak(_allFeedbackText(fb), typeof opts.transcript === 'string' ? opts.transcript : '');
+  if (leak) throw new Error(`feedback leaks a score on the officer (${leak})`);
   return true;
 }
 
