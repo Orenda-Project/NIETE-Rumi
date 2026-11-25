@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T01:51:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"59d633be9d5a","branch":"bd-rzjnjp.1.1-main","user":""}
+{"ts":"2026-11-25T02:03:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"59d633be9d5a","branch":"bd-rzjnjp.1.1-main","user":""}
