@@ -36,7 +36,7 @@
 
 // bd-33wxxi.1 — every principal check reads the role through one helper.
 const { isPrincipalRole } = require('../lib/leader-role');
-const { getOverall } = require('./coaching-frameworks.service');
+const { getOverall, isV6Scored } = require('./coaching-frameworks.service');
 // bd-pni007 — an FDE (obs612) visit's result, rows and feedback as the portal shows them (pure).
 const { portalSummary } = require('../../bot/shared/services/observe/obs612/view');
 const { createScoreMemo } = require('./schools-analytics.service');
@@ -382,11 +382,20 @@ function lessonPlansOf(rows = [], opens = []) {
  * Governed dc_complete counts scored sessions whatever their status and keeps the re-sends; schools-analytics
  * counts every 'completed' one, re-sends and unscored included. The re-send carries the earlier report's score,
  * so counting it would count one lesson twice.
+ *
+ * Queue #282 / bd-ra8xu.64.2: a recording scored on a rubric of its own (`ownRubric`, e.g. 'fico17_v6': ICT's
+ * self-recordings on the 11) has no V3 percentage, and is still a scored lesson: it counts as DC use. Its null V3
+ * percentage keeps it out of every average only (mean() skips it; the score lists show it with no score).
  */
-function isDcObservation(row, pct) {
+function isDcObservation(row, pct, ownRubric = null) {
   return !!row && row.observation_type == null && row.status === 'completed'
-    && !row.duplicate_of_session_id && typeof pct === 'number' && Number.isFinite(pct);
+    && !row.duplicate_of_session_id && ((typeof pct === 'number' && Number.isFinite(pct)) || !!ownRubric);
 }
+/** Queue #282 / bd-ra8xu.64.2: does this session count as DC use (its V3 percentage, or its own rubric, from the read)? */
+const dcCounted = (act) => (s) => {
+  const e = act.scored.get(s.id) || {};
+  return isDcObservation(s, e.pct, (e.info || {}).own);
+};
 
 /**
  * COACH OBSERVATIONS. A coach's visit (observation_type 'leader_observation') by any coach, that happened: not
@@ -665,7 +674,8 @@ function infoOf(r) {
     const k = code.toLowerCase();
     sections[code] = sectionPctOf(r[`${k}_score`], r[`${k}_max`], r[`${k}_assessed`]);
   }
-  return { sections, grade: text(r.grade), subject: text(r.subject), rubric: text(r.rubric) };
+  // own: the rubric of its own this score is on (queue #282 / bd-ra8xu.64.2: a v6 self-recording is DC use), else null.
+  return { sections, grade: text(r.grade), subject: text(r.subject), rubric: text(r.rubric), own: getOverall({ scores: r.scores }).rubric || null };
 }
 
 function overallOf(scores) {
@@ -811,10 +821,9 @@ async function loadActivity(query, ids, range, { memo, sessionsRange } = {}) {
 
 /** The four features as dated events { userId, day, at, ... } (DC: only those that count). */
 function featureEvents(act) {
-  const pctOf = (s) => (act.scored.get(s.id) || {}).pct;
   return {
     lp: act.plans,
-    dc: act.sessions.filter((s) => isDcObservation(s, pctOf(s))).map((s) => ({ ...s, userId: s.user_id })),
+    dc: act.sessions.filter(dcCounted(act)).map((s) => ({ ...s, userId: s.user_id })),
     training: act.parts,
     papers: act.papers,
   };
@@ -871,9 +880,8 @@ function coachVisitsOf(period, act, teachers) {
 /** One kind's sessions, the score that counts for it, and whether one is in the period / the period before. */
 function scoredKind(kind, act, period) {
   const prev = P.previousOf(period);
-  const pctOf = (s) => (act.scored.get(s.id) || {}).pct;
   const list = kind === 'dc'
-    ? act.sessions.filter((s) => isDcObservation(s, pctOf(s)))
+    ? act.sessions.filter(dcCounted(act))
     : act.sessions.filter(isCoachObservation);
   const scoreOf = kind === 'dc' ? (s) => pctOfSession(act, s) : (s) => ficoVisitScore(act, s);
   const inP = (s) => P.inPeriod(period, s.day);
@@ -1458,6 +1466,36 @@ function practiceOrder(id) {
 }
 
 /**
+ * Queue #282 / bd-ra8xu.64.2 — a DC report scored on FICO17 v6 keeps its sections under its own keys (v6_teacher,
+ * v6_children, v6_subject; frameworks/fico17-v6 SECTIONS), so the V3 reads find none and the coach's view opened empty.
+ * Its sections, practices and overall here, each on its own report only (never averaged with a V3 one):
+ *   B the plan steps followed (lp_fidelity, as for V3), then C, D, F as stored (domain_score / domain_max; a section
+ *   with no levelled row is not scored, never 0%); every DC row (the six combined ones never) on the v6 scale, 1-4;
+ *   the overall % only when at least one row was levelled.
+ */
+const V6_SCALE_MAX = 4;
+function v6ReportOf(a, reviewed) {
+  const v6 = require('../../bot/shared/services/coaching/frameworks/fico17-v6');
+  const domains = a.domains && typeof a.domains === 'object' ? a.domains : {};
+  const secs = Object.values(v6.SECTIONS).filter((sec) => domains[sec.domain] && typeof domains[sec.domain] === 'object');
+  const sections = [];
+  if (a.lp_fidelity && typeof a.lp_fidelity === 'object') {
+    sections.push({ code: 'B', name: SECTIONS[0].name, pct: reviewed ? round((measuredPlanOf(a.lp_fidelity) || {}).pct) : null });
+  }
+  for (const sec of secs) {
+    const d = domains[sec.domain];
+    sections.push({ code: sec.key, name: text(d.name) || sec.name, pct: reviewed ? sectionPctOf(d.domain_score, d.domain_max, true) : null });
+  }
+  const practices = secs.flatMap((sec) => (Array.isArray(domains[sec.domain].indicators) ? domains[sec.domain].indicators : [])
+    .filter((i) => i && i.id && i.kind !== 'combined')
+    .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id))
+    .map((i) => ({ id: i.id, name: text(i.name) || i.id, section: sec.key, score: reviewed && typeof i.score === 'number' ? i.score : null, scaleMax: V6_SCALE_MAX })));
+  const s = a.scores || {};
+  const overall = reviewed && Number(s.counted) > 0 && Number.isFinite(Number(s.overall_percentage)) ? round(Number(s.overall_percentage)) : null;
+  return { sections, practices, overall };
+}
+
+/**
  * GET /session/:id — one report of a teacher in her patch, coach view: a DC report (the v10 rule for its next step; a
  * re-send opens the report it repeats) or a coach observation (any coach; one that happened, not by the teacher, not by
  * a test account, as the counts). A coach observation's scores show only once it is reviewed; its step is the step
@@ -1486,6 +1524,8 @@ async function getSession(query, coachId, sessionId, opts = {}) {
   const pa = row.prioritized_action && typeof row.prioritized_action === 'object' ? row.prioritized_action : {};
   // bd-pni007 — an FDE visit is scored on FDE's own tool: its block replaces the FICO numbers (none exist for it).
   const obs612 = visit ? portalSummary(a) : null;
+  // Queue #282 / bd-ra8xu.64.2 — a DC report on FICO17 v6: its own sections, practices and overall (v6ReportOf).
+  const v6 = !visit && isV6Scored(a) ? v6ReportOf(a, reviewed) : null;
 
   return {
     sessionId: row.id,
@@ -1500,20 +1540,20 @@ async function getSession(query, coachId, sessionId, opts = {}) {
     date: P.pkDayOf(row.created_at),
     grade: a.grade == null || a.grade === '' ? null : String(a.grade),
     subject: text(a.subject),
-    overall: reviewed ? round(overallOf(a.scores)) : null,
+    overall: v6 ? v6.overall : reviewed ? round(overallOf(a.scores)) : null,
     whatWentWell: wells(a, languageOf(narrative, teacher), narrative),
     nextStep: visit
       ? text(pa.action) || text(a.focus_area && a.focus_area.try_this_tomorrow)
       : nextStepShown(row.prioritized_action, group),
     // B is the share of plan steps followed (bd-dgfkgs.3), never the old B section's own score.
-    sections: SECTIONS.filter((s) => domains[s.key]).map((s) => ({
+    sections: v6 ? v6.sections : SECTIONS.filter((s) => domains[s.key]).map((s) => ({
       code: s.code, name: s.name,
       pct: !reviewed ? null
         : s.key === 'lesson_plan_fidelity' ? round((measuredPlanOf(a.lp_fidelity) || {}).pct)
           : sectionPctOf(domains[s.key].domain_score, domains[s.key].domain_max, domains[s.key].assessed),
     })),
     // Every practice but B's: Lesson Plan Fidelity is the plan steps (lpSteps), not the removed B1-B10.
-    practices: indicatorsOf(a).filter((sec) => sec.key !== 'lesson_plan_fidelity').flatMap((sec) => {
+    practices: v6 ? v6.practices : indicatorsOf(a).filter((sec) => sec.key !== 'lesson_plan_fidelity').flatMap((sec) => {
       const code = (SECTIONS.find((s) => s.key === sec.key) || {}).code || null;
       const scaleMax = scaleMaxOf(domains[sec.key]);
       return sec.items.filter((i) => i.id)
@@ -1558,6 +1598,6 @@ module.exports = {
   // bd-17v39c.4.14 — Where to coach (where-to-coach.service.js) reads through the same access rules and readers.
   internals: {
     teacherOf, schoolContext, teacherActivity, loadActivity, resolvePeriod, groupOf, teacherOut, trainingsOf,
-    frameworkConstants, pctOfSession, ficoVisitScore, rowsOf,
+    frameworkConstants, pctOfSession, ficoVisitScore, rowsOf, dcCounted,
   },
 };

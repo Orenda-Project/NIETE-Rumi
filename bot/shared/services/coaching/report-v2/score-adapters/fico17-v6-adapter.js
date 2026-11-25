@@ -63,10 +63,18 @@ function buildFico17V6Groups(a, language) {
       score += lv;
       counted += 1;
     }
+    // Queue #282: a section with no numeric level (every row couldn't-tell, or couldn't-tell and N/A) is not assessed,
+    // never "0/0" over an empty bar. Easy on a self-recording scored on the 11: "What the children do" is D1 and D5.
+    if (!counted) {
+      return {
+        key, domainKey: sec.domain, name: nameOf(key, language),
+        score: null, max: null, pct: null, notAssessed: true, notAssessedWords: notAssessedWords(language),
+      };
+    }
     const max = counted * 4;
     return {
       key, domainKey: sec.domain, name: nameOf(key, language),
-      score, max, pct: max > 0 ? Math.round((score / max) * 100) : 0,
+      score, max, pct: Math.round((score / max) * 100),
     };
   });
   return [fidelityGroup(a, language), ...groups];

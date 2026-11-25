@@ -18,6 +18,7 @@ import { bilingual, type Bilingual, type Words } from '../i18n';
 import type { CopyEntry } from '../copyRegistry';
 import { PICKER_WORDS_EN } from '../../newui/coaching/pickerWords';
 import type { PickerWords } from '../../newui/coaching/pickerWords';
+import { DC_GUIDE_ENTRY } from './dcGuide/copy';
 
 /** A band's word, by BandKey. English is lib/scoreBands' own, so the two can never drift. */
 const BANDS_EN = Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label])) as Record<BandKey, string>;
@@ -456,3 +457,10 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-bmc9a0.2: ICT's "recording saved, come back later" confirmation (row 31).
     'recordingSaved'],
 };
+
+/**
+ * bd-ra8xu.64.3 (queue #282) — the teacher's indicator guide on her own DC report (dcGuide/copy.ts), registered here:
+ * the registry's glob finds teacher/<folder>/copy.ts only. Its own module, so its legend lines (who sets the level,
+ * what the Digital Coach listens for, the credit) keep the draft's words past the 4-word rule this page's copy holds.
+ */
+export const COPY_ENTRIES: readonly CopyEntry[] = [DC_GUIDE_ENTRY];

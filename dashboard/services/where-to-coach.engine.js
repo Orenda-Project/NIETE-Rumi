@@ -188,20 +188,29 @@ function planOf(reports) {
 /**
  * GET WHERE TO COACH for one teacher.
  * @param {{dc: Array, coach: Array}} input her DC reports and her reviewed FICO-form coach observations in the period,
- *   each { id, date (YYYY-MM-DD), domains (analysis_data.domains), lp_fidelity (analysis_data.lp_fidelity) }
+ *   each { id, date (YYYY-MM-DD), domains (analysis_data.domains), lp_fidelity (analysis_data.lp_fidelity), own? }
  * @param {object} [settings] the settings table (default: dashboard/data/where-to-coach/settings.json)
  * @param {{scaleMax?: number}} [opts] the deployed framework's scale, for a report that does not store its own
+ *
+ * Queue #282 / bd-ra8xu.64.2 — a report marked `own` was scored on a rubric of its own (FICO17 v6): it counts as one of
+ * her DC sessions and its plan steps (B, rubric-free) count, but none of its practices is read and it never picks the
+ * period's scale (a v6 C1 is not a V3 C1; without this, a newer v6 report took the deployed scale and dropped every V3
+ * report of another scale).
  */
 function whereToCoach(input = {}, settings = DEFAULT_SETTINGS, opts = {}) {
   const s = { ...DEFAULT_SETTINGS, ...(settings || {}) };
-  const read = (list) => (Array.isArray(list) ? list : []).filter(Boolean).map((r) => readReport(r, opts.scaleMax))
+  const rows = (list) => (Array.isArray(list) ? list : []).filter(Boolean);
+  const read = (list) => rows(list).filter((r) => !r.own).map((r) => readReport(r, opts.scaleMax))
     .filter((r) => r.scaleMax).sort(byDate);
+  // Its date and its plan only: no domains, so no practice and no scale.
+  const readOwn = (list) => rows(list).filter((r) => r.own).map((r) => readReport({ id: r.id, date: r.date, lp_fidelity: r.lp_fidelity }, null));
   let dcAll = read(input.dc);
   let coachAll = read(input.coach);
   // Ours: one scale per period, the newest report's.
   const newest = [...dcAll, ...coachAll].sort(byDate).pop();
   const scaleMax = newest ? newest.scaleMax : null;
-  dcAll = dcAll.filter((r) => r.scaleMax === scaleMax);
+  const dcRead = dcAll.filter((r) => r.scaleMax === scaleMax);
+  dcAll = [...dcRead, ...readOwn(input.dc)].sort(byDate);
   coachAll = coachAll.filter((r) => r.scaleMax === scaleMax);
   const framework = scaleMax ? (s.frameworkByScale[String(scaleMax)] || null) : null;
   const sessions = { dc: dcAll.length, coach: coachAll.length };
@@ -209,9 +218,10 @@ function whereToCoach(input = {}, settings = DEFAULT_SETTINGS, opts = {}) {
   const empty = { framework, scaleMax, sessions, signal, sections: [], practices: [], focus: null, weakest: [], strength: null, plan: null };
   if (signal === 'empty') return empty;
 
-  // Step 1: the DC reports, or the coach observations alone when she has no DC.
-  const sourceKind = sessions.dc ? 'dc' : 'coach';
-  const source = sessions.dc ? dcAll : coachAll;
+  // Step 1: the DC reports, or the coach observations alone when she has no DC (none whose practices can be read:
+  // a v6-only period ranks her coach observations, queue #282 / bd-ra8xu.64.2).
+  const sourceKind = dcRead.length ? 'dc' : 'coach';
+  const source = dcRead.length ? dcRead : coachAll;
   const practices = practiceStats(source, s, scaleMax);
   const sections = sectionPatterns(dcAll, coachAll, s);
   const plan = planOf(dcAll);
