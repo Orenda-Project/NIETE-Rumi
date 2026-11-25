@@ -2331,6 +2331,8 @@ const EVENT_PROPS = Object.freeze({
   class_link_code: /^[A-HJ-NP-Z2-9]{8,16}$/, round_code: /^[A-Z0-9]{4,12}$/i,
   // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
   when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
+  // and every meter row's platform (from the user agent) and display mode, so installs count by platform.
+  platform: /^(android|ios|desktop|other)$/, display_mode: /^(browser|standalone|minimal-ui|fullscreen)$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
