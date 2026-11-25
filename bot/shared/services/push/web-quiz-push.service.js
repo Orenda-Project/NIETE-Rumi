@@ -49,7 +49,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const HubDevice = require('../quiz/web-quiz-hub-device');
 
 const TABLE = 'web_quiz_push_subscriptions';
-const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children', askV2: 'web_quiz_push_ask_v2', primer: 'web_quiz_push_primer' });
+const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children', askV2: 'web_quiz_push_ask_v2', primer: 'web_quiz_push_primer', installAndroid: 'web_quiz_install_android' });
 const CANARY_KEY = 'web_quiz_push_canary';
 const ENV = Object.freeze(['WQ_PUSH_VAPID_PUBLIC', 'WQ_PUSH_VAPID_PRIVATE', 'WQ_PUSH_VAPID_SUBJECT', 'WQ_PUSH_ENC_KEY', 'WQ_PUSH_HASH_SALT']);
 const OFF = Object.freeze({ remind: false, test: false, portal: false, names: false });
@@ -129,6 +129,8 @@ async function switches(now = Date.now()) {
     if (remind && on(KEYS.askV2)) s.askV2 = true;
     // the permission primer: one "your phone will ask next" screen between our Yes and the browser's prompt
     if (remind && on(KEYS.primer)) s.primer = true;
+    // c2: the finish screen may offer the Android install once the reminder ask is settled (not the reminder's canary)
+    if (on(KEYS.installAndroid)) s.installAndroid = true;
     lastGood = s;
   } catch (err) {
     s = lastGood || { ...OFF, unread: true };
@@ -268,9 +270,10 @@ function armOf(device) {
 async function keyFor({ code, device } = {}, { now = Date.now() } = {}) {
   const ask = await canaryAllows(code, now);
   const out = { key: vapidPublic(), ask };
-  const sw = ask ? await switches(now) : {};
-  if (sw.askV2) out.ask_v = armOf(device);
-  if (sw.primer) out.primer = true;
+  const sw = await switches(now);
+  if (ask && sw.askV2) out.ask_v = armOf(device);
+  if (ask && sw.primer) out.primer = true;
+  if (sw.installAndroid) out.install_android = true;
   return out;
 }
 

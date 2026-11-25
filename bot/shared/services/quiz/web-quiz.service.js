@@ -2330,6 +2330,8 @@ const EVENT_PROPS = Object.freeze({
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
   // class-link: round_done_for_tonight (wq.js, "Done for tonight!" shown): the round's two codes the start's reply named.
   class_link_code: /^[A-HJ-NP-Z2-9]{8,16}$/, round_code: /^[A-Z0-9]{4,12}$/i,
+  // reminders c2: where an install meter row came from (the finish screen's card; the hub's rows carry none).
+  at: /^(hub|finish)$/,
   // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
   when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
   // reminders c1: every install meter row's platform (from the user agent) and display mode, so installs count by platform.
