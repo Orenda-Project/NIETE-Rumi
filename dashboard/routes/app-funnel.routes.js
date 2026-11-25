@@ -487,8 +487,106 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * bd-ma9jiy (queue #262) — the recorder's heartbeat (portal lib/recordingBeat.ts), for the ONE lesson recorder (teacher
+   * Digital Coaching 'dc', coach/principal observation 'obs', coach debrief 'dbrf'). The phone takes a sample on every save
+   * of a piece (every second) and sends them in batches: columns once (`cols`), then one short row per sample (`rows`), and
+   * events (`ev`). One batch → ONE `recording.beats` row (never one per second): per-recording numbers a reader filters
+   * on, plus the samples as one compact string (`beats`: the cols joined by ',' per sample, samples by ';'). Each event →
+   * its own `recording.event` row. Ids are checked shapes only; the user is the SESSION's. Query per recording:
+   *   ["niete-logs"] | where ['event'] in ("recording.beats","recording.event") and recordingId == "<id>" | order by _time asc
+   */
+  router.post(
+    '/funnel/recording',
+    requireSession,
+    express.text({ type: 'text/*', limit: '64kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !REC_KINDS.includes(body.kind) || !REC_ID.test(String(body.rid || ''))) {
+        return res.status(400).end();
+      }
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, 600) : [];
+      const events = Array.isArray(body.ev) ? body.ev.slice(0, 50) : [];
+      const cols = Array.isArray(body.cols) ? body.cols.map(String) : [];
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const { journeyId, ...base } = who(req, now);
+      const idOr = (v, rx) => (typeof v === 'string' && rx.test(v) ? v : null);
+      const shared = {
+        ...base,
+        journeyId,
+        feature: REC_FEATURE[body.kind],
+        browser: browserClass(req, body.b),
+        recordingId: body.rid,
+        kind: body.kind,
+        visitId: idOr(body.visitId, REC_ID),
+        observationId: idOr(body.observationId, REC_ID),
+        teacherExtId: idOr(body.teacherExtId, /^[A-Za-z0-9_.:-]{1,64}$/),
+      };
+      const t0 = Number.isFinite(Number(body.t0)) ? Number(body.t0) : now;
+      // The phone's clock places the batch only when it is near ours (a wrong phone clock must not move rows by days).
+      const base0 = Math.abs(now - t0) < 6 * 60 * 60 * 1000 ? t0 : now;
+      if (rows.length) {
+        const at = (r, k) => { const i = cols.indexOf(k); return i >= 0 && Array.isArray(r) ? r[i] : undefined; };
+        const nums = (k) => rows.map((r) => Number(at(r, k))).filter((v) => Number.isFinite(v));
+        const count = (k, v) => rows.filter((r) => at(r, k) === v).length;
+        const words = (k) => [...new Set(rows.map((r) => at(r, k)).filter((v) => typeof v === 'string' && /^[A-Za-z0-9_/.-]{1,40}$/.test(v)))].join(',') || null;
+        const min = (k) => { const v = nums(k); return v.length ? Math.min(...v) : null; };
+        const max = (k) => { const v = nums(k); return v.length ? Math.max(...v) : null; };
+        const charge = rows.map((r) => at(r, 'c')).filter((v) => v === 0 || v === 1);
+        const clean = (v) => (v == null ? '' : String(v).replace(/[^A-Za-z0-9_/.-]/g, '').slice(0, 40));
+        emit('recording.beats', {
+          _time: new Date(base0).toISOString(),
+          ...shared,
+          final: body.final === true,
+          samples: rows.length,
+          seqFrom: min('s'),
+          seqTo: max('s'),
+          recordedMsFrom: min('ms'),
+          recordedMsTo: max('ms'),
+          spanS: rows.length ? Math.round(((max('dt') || 0) - (min('dt') || 0)) / 1000) : 0,
+          kbTo: max('kb'),
+          offlineSamples: count('on', 0),
+          hiddenSamples: count('vis', 0),
+          backgroundSamples: count('foc', 0),
+          pausedSamples: count('st', 'p'),
+          saveFailed: count('ok', 0),
+          saveErrors: words('e'),
+          storageMinMb: min('q'),
+          batteryMin: min('b'),
+          batteryMax: max('b'),
+          charging: charge.length ? charge[charge.length - 1] === 1 : null,
+          nets: words('n'),
+          cols: cols.join(','),
+          beats: rows.map((r) => (Array.isArray(r) ? r.slice(0, cols.length).map(clean).join(',') : '')).join(';').slice(0, 48_000),
+        });
+      }
+      for (const ev of events) {
+        if (!ev || typeof ev !== 'object' || typeof ev.k !== 'string' || !REC_EVENTS.includes(ev.k)) continue;
+        const props = { _time: new Date(base0 + (Number.isFinite(Number(ev.dt)) ? Number(ev.dt) : 0)).toISOString(), ...shared, event: ev.k };
+        for (const [k, v] of Object.entries(ev)) {
+          if (k === 'k' || k === 'dt' || !/^[A-Za-z][A-Za-z0-9]{0,23}$/.test(k)) continue;
+          if (typeof v === 'number' && Number.isFinite(v)) props[k] = v;
+          else if (typeof v === 'boolean' || v === null) props[k] = v;
+          else if (typeof v === 'string') props[k] = v.replace(/[^A-Za-z0-9_/.;=:-]/g, '').slice(0, 60);
+        }
+        emit('recording.event', props);
+      }
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
 }
+
+// bd-ma9jiy — the recorder heartbeat's kinds, events and id shape.
+const REC_KINDS = ['dc', 'obs', 'dbrf'];
+const REC_FEATURE = { dc: 'ai_coaching', obs: 'observe', dbrf: 'debrief' };
+const REC_EVENTS = ['start', 'resume', 'pause', 'unpause', 'stop', 'discard', 'cut', 'save_failed', 'mic_blocked', 'kept_shown', 'kept_send',
+  'save_to_phone', 'save_to_phone_failed', 'resend', 'send_failed', 'sent', 'join_failed'];
+const REC_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
 // bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
 // bd-o15qnr.27 (v6): observe.schedule = Observe's "Schedule an observation"; schedule.now_record / schedule.now_upload =

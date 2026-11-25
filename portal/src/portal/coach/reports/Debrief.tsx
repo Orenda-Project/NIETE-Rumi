@@ -33,6 +33,10 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useUploadOnly } from "../observe/uploadOnly";
+import { keptDebriefFor, useKept } from "../observe/keptRecording";
+import { rememberRecording } from "../../lib/coachObserve";
+import { extOf, recordingFilename } from "../../lib/saveRecording";
+import { tellSent } from "../../lib/recordingBeat";
 import { OBSERVE } from "../observe/copy";
 
 /**
@@ -199,7 +203,10 @@ export default function Debrief() {
     setStage("sending");
     try {
       await sendTalk(id, { blob: audio.blob, filename: audio.filename }, undefined, undefined, setProgress);
-      if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* already gone */ } }
+      if (audio.recordingId) {
+        tellSent(audio.recordingId, { kind: "dbrf", observationId: id }, id); // bd-ma9jiy: heartbeat → this observation
+        try { await deleteRecording(audio.recordingId); } catch { /* already gone */ }
+      }
       if (v7) { setJustSent(true); setStage("guide"); reload(); return; }
       navigate(home, { replace: true });
     } catch (err) {
@@ -209,6 +216,20 @@ export default function Debrief() {
   };
 
   const onRecorded = (out: FinishedRecording) => { void send({ blob: out.blob, filename: `Talk${out.type.ext}`, recordingId: out.id }); };
+  // bd-ma9jiy (queue #262) — the talk is remembered as THIS observation's debrief the moment it starts, so a kill, a reload
+  // or a failed send never loses the way back to it: reopening Debrief finds it (keptDebriefFor) and opens it PAUSED —
+  // Continue carries on in the same recording, Finish sends it (the re-send of a talk that did not go).
+  const onTalkStarted = (recordingId: string) => rememberRecording(recordingId, {
+    teacherExtId: "", schoolExtId: null, teacherName: name || "", kind: "dbrf", observationId: id,
+  });
+  const keptTalk = useKept(view && !uploadOnly ? () => keptDebriefFor(id) : null, [id, !!view, uploadOnly]);
+  const resumableTalk = keptTalk && keptTalk.meta.ext === ".webm" ? keptTalk : null;
+  const keptOpened = useRef(false);
+  useEffect(() => {
+    if (keptOpened.current || !resumableTalk || stage !== "guide" || !hers) return;
+    keptOpened.current = true;
+    setStage("recording");
+  }, [resumableTalk, stage, hers]);
   const onFile = async (picked: File | undefined) => {
     setFileError(null);
     if (!picked) return;
@@ -276,7 +297,8 @@ export default function Debrief() {
             </DebriefListeningStage>
           )}
           {feedbackReady && <FeedbackCard id={id} to={feedbackTo} />}
-          {talkAudio && <AudioCard title={W.debriefRecording} src={talkAudio} controls testId="debrief-recording" />}
+          {talkAudio && <AudioCard title={W.debriefRecording} src={talkAudio} controls testId="debrief-recording"
+            save={{ kind: "dbrf", filename: recordingFilename({ kind: "dbrf", at: view?.talk.recordedAt, ext: extOf(talkAudio) }) }} />}
 
           {problem && (
             <div role="alert" className="flex items-center gap-3 rounded-2xl bg-[#fef3c7] p-4 text-[#b45309]">
@@ -305,7 +327,8 @@ export default function Debrief() {
       )}
 
       {stage === "recording" && (
-        <CoachRecorder label={C.debriefWith(first)} copy={C.recorder} shortMs={3 * 60_000} onFinished={onRecorded} onMicBlocked={() => setStage("micBlocked")} />
+        <CoachRecorder label={C.debriefWith(first)} copy={C.recorder} shortMs={3 * 60_000} onFinished={onRecorded} onMicBlocked={() => setStage("micBlocked")}
+          onStarted={onTalkStarted} kept={keptOpened.current ? resumableTalk : null} beat={{ kind: "dbrf", observationId: id }} />
       )}
 
       {stage === "micBlocked" && (

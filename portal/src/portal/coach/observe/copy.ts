@@ -198,6 +198,8 @@ export const OBSERVE_COPY = {
   uploadOnlyLine: "Record in your phone's Recorder app, then upload it here.",
   savedOnPhone: (name = '') => `${name}’s recording is saved on this phone.`,
   sendKept: 'Send saved recording',
+  /* bd-ma9jiy (queue #262) — a kept recording opens as a paused recording: the visit page's way back to it. */
+  continueKept: 'Continue recording',
   openingFile: 'Opening the recording…',
 };
 
@@ -365,6 +367,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   uploadOnlyLine: 'فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
   savedOnPhone: (name = '') => `${name} کی ریکارڈنگ اس فون میں محفوظ ہے۔`,
   sendKept: 'محفوظ ریکارڈنگ بھیجیں',
+  continueKept: 'ریکارڈنگ جاری رکھیں',
   openingFile: 'ریکارڈنگ کھل رہی ہے…',
 };
 

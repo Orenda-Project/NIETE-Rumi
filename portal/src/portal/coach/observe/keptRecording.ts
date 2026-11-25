@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { latestUnsent } from "../../lib/recordingStore";
+import { latestUnsent, type KeptRecording } from "../../lib/recordingStore";
 import { recordingTeacher } from "../../lib/coachObserve";
 
 /**
@@ -13,7 +13,36 @@ import { recordingTeacher } from "../../lib/coachObserve";
  */
 export function keptFor(teacherExtId: string): ReturnType<typeof latestUnsent> {
   // Inside a promise: a phone without IndexedDB (or a store that throws at once) answers "none", never breaks the page.
-  return Promise.resolve().then(() => latestUnsent((meta) => recordingTeacher(meta.id)?.teacherExtId === teacherExtId));
+  // bd-ma9jiy: a debrief talk is never offered as the classroom recording.
+  return Promise.resolve().then(() => latestUnsent((meta) => {
+    const who = recordingTeacher(meta.id);
+    return who?.teacherExtId === teacherExtId && who.kind !== "dbrf";
+  }));
+}
+
+/** bd-ma9jiy — the debrief talk this phone keeps for THIS observation (cut, or stopped and never sent), or null. */
+export function keptDebriefFor(observationId: string): ReturnType<typeof latestUnsent> {
+  return Promise.resolve().then(() => latestUnsent((meta) => {
+    const who = recordingTeacher(meta.id);
+    return who?.kind === "dbrf" && who.observationId === observationId;
+  }));
+}
+
+/**
+ * bd-ma9jiy (queue #262) — the kept recording itself (to open it as paused), read once: undefined while the phone is
+ * asked (or nothing to ask), then the recording or null. A failed read is null.
+ */
+export function useKept(ask: (() => Promise<KeptRecording | null>) | null, deps: unknown[]): KeptRecording | null | undefined {
+  const [kept, setKept] = useState<KeptRecording | null | undefined>(undefined);
+  useEffect(() => {
+    if (!ask) { setKept(undefined); return undefined; }
+    let live = true;
+    setKept(undefined);
+    ask().then((k) => { if (live) setKept(k); }).catch(() => { if (live) setKept(null); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return kept;
 }
 
 /** Whether one is kept: null while the phone is asked (or with no teacher yet), then true or false. A failed read is false. */
