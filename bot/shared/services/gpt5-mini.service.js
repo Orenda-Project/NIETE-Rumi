@@ -2043,7 +2043,9 @@ GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisDa
   // bd-ra8xu.52: a self-recording reported on FICO17 v6 (fico_dc_rubric 'v6') keeps its v6 record exactly as the first
   // pass wrote it: the OECD-shaped enhance pass sees it and may echo or rewrite any of it. V3 analyses never have these.
   if (analysisData && analysisData.framework === 'fico17_v6') {
-    for (const key of ['levels', 'combined_evidence', 'rubric', 'prompt_version', 'transcript_quality', 'v3_fico', 'dc', 'shadow']) {
+    // Queue #282: indicator_set ('dc11') and dropped_six are part of that record; losing indicator_set (prod smoke, 25 Nov)
+    // silently turned off the report's 11-only rules.
+    for (const key of ['levels', 'combined_evidence', 'rubric', 'prompt_version', 'transcript_quality', 'v3_fico', 'dc', 'shadow', 'indicator_set', 'dropped_six']) {
       if (analysisData[key] !== undefined) enhancedAnalysis[key] = analysisData[key];
     }
   }
