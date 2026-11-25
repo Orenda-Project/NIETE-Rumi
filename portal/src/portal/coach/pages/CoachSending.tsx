@@ -41,6 +41,8 @@ const CoachSending = () => {
   const failed = job.state === "failed";
   const sent = job.state === "sent";
   const unread = failed ? unreadablePart(job.errorCode) : null;
+  // bd-r2uzg1.23.5 (queue #274, ICT call 6A): an empty recording can't be sent again as it is: choose the file again.
+  const empty = failed && (job.errorCode === "empty_recording" || job.errorCode === "recording_empty");
   const hue = failed ? "#c8331f" : "#2f7a52";
   const length = lengthShort(job.durationMs, C);
   const caption = failed ? C.couldntSend : sent ? C.sent : C.sending;
@@ -50,7 +52,7 @@ const CoachSending = () => {
       dock={sent ? (
         <Link replace to={routes.observation(job.observationId || "")}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>
-      ) : unread && unread.kind === "audio" ? (
+      ) : empty || (unread && unread.kind === "audio") ? (
         <Link replace to={routes.attach(id)}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.chooseFile}</Link>
       ) : unread ? (
@@ -86,7 +88,7 @@ const CoachSending = () => {
           {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
         {failed && v7 && (
-          <div className="w-full"><ErrorCard testId="error-couldnt-send" title={C.couldntSend} line={`${failureWords(job.errorCode, C)} ${E.nothingLost}`} /></div>
+          <div className="w-full"><ErrorCard testId="error-couldnt-send" title={C.couldntSend} line={empty ? failureWords(job.errorCode, C) : `${failureWords(job.errorCode, C)} ${E.nothingLost}`} /></div>
         )}
         {failed && !v7 && (
           <p role="alert" className="w-full rounded-2xl bg-[#fef2f1] px-3.5 py-3 text-[15px] leading-snug text-[#7a271a]">{failureWords(job.errorCode, C)}</p>

@@ -104,6 +104,21 @@ describe("sendLesson", () => {
       .rejects.toMatchObject({ kind: reason });
   });
 
+  // bd-r2uzg1.23.5 (queue #274, call 6A): an empty recording is stopped here, before any upload, and the server's
+  // own refusal of one reads the same.
+  it("an empty recording (0 bytes) is refused before anything is uploaded", async () => {
+    const err = await sendLesson({ audio: { blob: new Blob([]), filename: "Lesson.webm" }, plan: null, photos: [] }, a as never).catch((e) => e);
+    expect(err).toBeInstanceOf(SendError);
+    expect(err).toMatchObject({ kind: "empty_recording" });
+    expect(a.presignCoachingUpload).not.toHaveBeenCalled();
+    expect(a.startCoachingUpload).not.toHaveBeenCalled();
+  });
+
+  it("the server refusing an empty recording reads as an empty recording, not 'not accepted'", async () => {
+    a.startCoachingUpload.mockRejectedValue({ response: { status: 400, data: { status: "invalid", reason: "recording_empty" } } });
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never)).rejects.toMatchObject({ kind: "empty_recording" });
+  });
+
   it("a server that cannot be reached is a network problem, so she can try again", async () => {
     a.startCoachingUpload.mockRejectedValue({ response: { status: 502, data: {} } });
     await expect(sendLesson({ audio, plan: null, photos: [] }, a as never)).rejects.toMatchObject({ kind: "network" });

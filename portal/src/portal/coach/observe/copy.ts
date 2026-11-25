@@ -178,6 +178,8 @@ export const OBSERVE_COPY = {
     recordingUnreadable: 'The recording could not be read on this phone. Select the file again.',
     /* bd-tfya0m — every file arrived, the start got no answer after its own tries */
     startFailed: 'Your recording arrived, but the observation did not start. Tap Try again.',
+    /* bd-r2uzg1.23.5 (queue #274, ICT call 6A; the operator's words, 25 Nov) — the recording is empty (0 bytes) */
+    recordingEmpty: "This recording didn't reach us complete. Record or upload it again.",
   },
 
   /** Short weekday and month names, for "Tue 6 Oct" (index 0 = Sunday / January). */
@@ -339,6 +341,8 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
     planUnreadable: 'لیسن پلان اس فون پر نہیں کھل سکا۔ اس کے بغیر بھیجیں۔',
     recordingUnreadable: 'ریکارڈنگ اس فون پر نہیں کھل سکی۔ فائل دوبارہ چنیں۔',
     startFailed: 'آپ کی ریکارڈنگ پہنچ گئی، مگر مشاہدہ شروع نہیں ہوا۔ دوبارہ کوشش کریں دبائیں۔',
+    // bd-r2uzg1.23.5 — MACHINE-DRAFTED: NATIVE-CHECK
+    recordingEmpty: 'یہ ریکارڈنگ ہم تک مکمل نہیں پہنچی۔ دوبارہ ریکارڈ کریں یا اپ لوڈ کریں۔',
   },
 
   weekdays: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],

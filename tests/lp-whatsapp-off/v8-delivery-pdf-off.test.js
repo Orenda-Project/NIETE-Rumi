@@ -91,7 +91,7 @@ describe.each(Fake.PER_TEACHER)('lp_whatsapp_pdf_off %s (%j), %s teacher', (_lab
     if (off) {
       expect(WA.sendDocumentByLink).not.toHaveBeenCalled();
       expect(WA.sendMessage).not.toHaveBeenCalled();
-      expect(mockLink).toHaveBeenCalledWith(expect.objectContaining({ userId, from: PHONE, language: 'ur' }));
+      expect(mockLink).toHaveBeenCalledWith(expect.objectContaining({ userId, from: PHONE, language: 'ur', plan: `k5:${LESSON}` }));
       expect(mockInserts.find((i) => i.table === 'niete_lp_downloads')).toBeUndefined();
       expect(LpFeedback.scheduleFeedbackPrompt).not.toHaveBeenCalled();
       expect(res).toEqual(expect.objectContaining({ ok: true, appLink: true }));
