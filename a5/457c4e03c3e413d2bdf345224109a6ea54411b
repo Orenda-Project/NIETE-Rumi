@@ -5,3 +5,4 @@
 {"ts":"2026-11-22T02:16:48Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"a5457c4e03c3","branch":"bd-ptl6x9.7-sb","user":""}
 {"ts":"2026-11-23T04:05:54Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"a5457c4e03c3","branch":"bd-ptl6x9.7-sb","user":""}
 {"ts":"2026-11-24T01:10:02Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"a5457c4e03c3","branch":"bd-ptl6x9.7-sb","user":""}
+{"ts":"2026-11-25T00:46:20Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"a5457c4e03c3","branch":"bd-ptl6x9.7-sb","user":""}
