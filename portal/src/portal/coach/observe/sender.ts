@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { tellSent } from '../../lib/recordingBeat';
 import { SendError, type PlanChoice } from '../../lib/coachingSend';
 import { planKindOf, type PlanKind } from '../../lib/coachingUpload';
 import { forgetRecording, sendObservation } from '../../lib/coachObserve';
@@ -172,6 +173,8 @@ async function run(visitId: string): Promise<void> {
     );
     // The server has it: only now is the phone's copy let go.
     if (args.recordingId) {
+      // bd-ma9jiy: the heartbeat's recording joined to the observation it became.
+      tellSent(args.recordingId, { kind: 'obs', visitId }, out.coachingSessionId);
       try { await deleteRecording(args.recordingId); } catch { /* already gone */ }
       forgetRecording(args.recordingId);
     }

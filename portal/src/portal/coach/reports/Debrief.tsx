@@ -36,6 +36,7 @@ import { useUploadOnly } from "../observe/uploadOnly";
 import { keptDebriefFor, useKept } from "../observe/keptRecording";
 import { rememberRecording } from "../../lib/coachObserve";
 import { extOf, recordingFilename } from "../../lib/saveRecording";
+import { tellSent } from "../../lib/recordingBeat";
 import { OBSERVE } from "../observe/copy";
 
 /**
@@ -202,7 +203,10 @@ export default function Debrief() {
     setStage("sending");
     try {
       await sendTalk(id, { blob: audio.blob, filename: audio.filename }, undefined, undefined, setProgress);
-      if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* already gone */ } }
+      if (audio.recordingId) {
+        tellSent(audio.recordingId, { kind: "dbrf", observationId: id }, id); // bd-ma9jiy: heartbeat → this observation
+        try { await deleteRecording(audio.recordingId); } catch { /* already gone */ }
+      }
       if (v7) { setJustSent(true); setStage("guide"); reload(); return; }
       navigate(home, { replace: true });
     } catch (err) {

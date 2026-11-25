@@ -12,6 +12,7 @@ import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
 import { deleteRecording, latestUnsent, type KeptRecording } from '../../lib/recordingStore';
 import { useRecordingResume } from '../../lib/recordingResume';
+import { tellSent } from '../../lib/recordingBeat';
 import { withDuration } from '../../lib/webmDuration';
 import { isInAppBrowser } from '@/lib/runtime';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
@@ -392,6 +393,8 @@ export function NewObservationPage() {
         ...(saveForLater ? { saveForLater: true } : {}),
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) {
+        // bd-ma9jiy: the heartbeat's recording joined to the coaching session it became.
+        tellSent(audio.recordingId, { kind: 'dc' }, coachingSessionId);
         try { await deleteRecording(audio.recordingId); } catch { /* gone */ }
         letGo(audio.recordingId);
       }

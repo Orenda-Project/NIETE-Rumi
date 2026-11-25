@@ -288,3 +288,15 @@ export async function sendLeftoverBeats(rid: string, beats: Record<string, unkno
   } catch { /* instrumentation only */ }
   writeSent(rid, null);
 }
+
+/**
+ * bd-ma9jiy — the recording reached us: one `sent` event joining the recording's id (every heartbeat row carries it) to
+ * the coaching session / observation it became, so a reader goes from an observation to its heartbeat. Best effort.
+ */
+export function tellSent(rid: string | null | undefined, ctx: BeatContext, sessionId: string | null | undefined, env: BeatEnv = defaultBeatEnv()): void {
+  if (!rid || !/^[A-Za-z0-9_-]{6,64}$/.test(rid)) return;
+  try {
+    const sid = sessionId && /^[A-Za-z0-9_-]{6,64}$/.test(sessionId) ? sessionId : null;
+    void env.post(encodeBatch(rid, { ...ctx, ...(ctx.kind === 'dbrf' ? {} : { observationId: sid }) }, [], [{ k: 'sent', t: env.now(), sessionId: sid }]), true).catch(() => {});
+  } catch { /* instrumentation only */ }
+}
