@@ -1,3 +1,4 @@
 {"ts":"2026-11-25T00:53:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"7b73a6241541","branch":"bd-vo9fkc-digits","user":""}
 {"ts":"2026-11-25T00:53:53Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"7b73a6241541","branch":"bd-vo9fkc-digits","user":""}
 {"ts":"2026-11-25T00:54:06Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"registration,menu,training,lesson-plan,coaching,language,status,observe,child-test=none-needed (template-internal digits helper swap, same output; block ships off)","sha":"7b73a6241541","branch":"bd-vo9fkc-digits","user":""}
+{"ts":"2026-11-25T00:54:07Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-7b73a6241541","sha":"7b73a6241541","branch":"bd-vo9fkc-digits","user":""}
