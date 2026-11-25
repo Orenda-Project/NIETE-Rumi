@@ -1,1 +1,2 @@
 {"ts":"2026-11-25T06:43:26Z","hook":"post-commit","event":"armed","switch":"","detail":"features=web-quiz-child-page spec_sync=true","sha":"4f7d078b4208","branch":"bd-ralqu8.6-stg","user":""}
+{"ts":"2026-11-25T06:43:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"4f7d078b4208","branch":"bd-ralqu8.6-stg","user":""}
