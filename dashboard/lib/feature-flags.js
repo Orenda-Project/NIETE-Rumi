@@ -325,23 +325,43 @@ const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
  * recorder is back, with Upload recording and a weak-internet line beside it. Same shapes as the keys above:
  *
  *   true (or "true")       → upload-only for everyone
- *   ["<users.id>", …]      → upload-only for those users (a per-person override)
+ *   ["<users.id>", …]      → upload-only for those users
  *   no row, anything else, a failed read → OFF (the in-app recorder)
  *
- * /config sends it as features.observeUploadOnly. It only changes what the portal draws: the upload routes take a
+ * bd-mcksos (queue #279; the operator, 25 Nov: "the upload only functionality should be behind a person only flag as
+ * well") — two PER-PERSON rows on top of it, read LIST-ONLY like portal_role_switch (true, "true", "teachers", an object
+ * or bad JSON names nobody, so neither can flip everyone; a failed read names nobody, so everyone stays on the global):
+ *
+ *   portal_observe_upload_only_on   ["<users.id>", …] → upload-only even with the global off
+ *   portal_observe_upload_only_off  ["<users.id>", …] → the in-app recorder even with the global on (testers)
+ *
+ * Per-person beats global; a person on both lists is upload-only (the protective answer). No rows at all = today.
+ *
+ * /config sends the answer as features.observeUploadOnly. It only changes what the portal draws: the upload routes take a
  * file however it was recorded, so there is no server gate to keep in step. Teachers' own recording is not touched.
  */
 const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
+const PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY = 'portal_observe_upload_only_on';
+const PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY = 'portal_observe_upload_only_off';
 
 /**
- * bd-oe6r47 / bd-ih6cej — is upload-only recording on for this user? isFlagEnabledForUser's rule (fail-closed). Never throws.
+ * bd-oe6r47 / bd-ih6cej / bd-mcksos — is upload-only recording on for this user? Her per-person row first (on, then off),
+ * else the global (isFlagEnabledForUser's rule). The three rows are read at once. Fail-closed; never throws.
  *
  * @param {object} supabase
  * @param {string|null} userId the SESSION user
  * @returns {Promise<boolean>}
  */
 async function isObserveUploadOnlyFor(supabase, userId) {
-  return isFlagEnabledForUser(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY, userId);
+  if (!userId) return false;
+  const [forced, kept, global] = await Promise.all([
+    isUserListedInFlag(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY, userId),
+    isUserListedInFlag(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY, userId),
+    isFlagEnabledForUser(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY, userId),
+  ]);
+  if (forced) return true;
+  if (kept) return false;
+  return global;
 }
 
 /**
@@ -656,6 +676,8 @@ module.exports = {
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
   PORTAL_OBSERVE_UPLOAD_ONLY_KEY,
+  PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY,
+  PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY,
   isObserveUploadOnlyFor,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
