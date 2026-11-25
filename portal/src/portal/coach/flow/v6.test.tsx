@@ -18,6 +18,8 @@ import i18n from "i18next";
  *   Words         never him or her: the teacher's name or "the teacher"
  */
 
+// bd-oe6r47 (queue #278): these tests cover the in-app recorder, so upload-only (default ON) is switched off here.
+vi.mock("../observe/uploadOnly", () => ({ useUploadOnly: () => false, uploadOnlyOn: () => false }));
 vi.mock("../../components/PortalLayout", () => ({
   default: ({ children, bare }: any) => <div data-testid="layout" data-bare={bare ? "yes" : "no"}>{children}</div>,
 }));

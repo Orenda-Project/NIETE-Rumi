@@ -96,13 +96,13 @@ export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
  * screen while she reads, above the menu and the phone's safe area (TeacherPage's sticky dock: in flow, so the last note
  * scrolls clear of it). Record is the dark button with the red recording dot; Upload sits beside it.
  */
-export function DebriefDock({ onRecord, onUpload }: { onRecord: () => void; onUpload: () => void }) {
+export function DebriefDock({ onRecord, onUpload, recordLabel }: { onRecord: () => void; onUpload: () => void; recordLabel?: string }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   return (
     <div data-testid="debrief-dock" className="flex w-full gap-2.5">
       <button type="button" onClick={onRecord} className={cn(BIG, "flex-[3] bg-[#33374a] text-white shadow-[0_4px_12px_rgba(16,24,40,0.18)]", FOCUS)}>
         <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
-        {W.recordDebrief}
+        {recordLabel || W.recordDebrief}
       </button>
       <button type="button" onClick={onUpload} className={cn(BIG, "flex-[2] border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
         <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
