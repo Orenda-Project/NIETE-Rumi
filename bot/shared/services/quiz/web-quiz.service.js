@@ -33,6 +33,7 @@ const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const WordHelp = require('./quiz-word-help');
 const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
@@ -350,6 +351,21 @@ function questionPayload(row, i, code, audio, zoom) {
   return out;
 }
 
+/**
+ * bd-0q8b4x — short Urdu meanings under hard English words (media.word_help), as `words`
+ * on each question, only while app_settings quiz_word_help is on (and, with
+ * quiz_word_help_lot, only for the class links the lot puts in the help half). Off: nothing added.
+ */
+async function withWordHelp(rows, payloads, shareCodeId) {
+  if (!rows.some((r) => r && r.media && Array.isArray(r.media.word_help))) return payloads;
+  const f = await require('./quiz-word-help-flag').readFlag();
+  payloads.forEach((p, i) => {
+    const words = WordHelp.servedWords(rows[i], { ...f, shareCodeId });
+    if (words) p.words = words;
+  });
+  return payloads;
+}
+
 /** The sibling media helpers (read-aloud clips, lesson video); absent or failing = no audio / no video, never an error. */
 function mediaHelpers() {
   try { return require('./web-quiz-media'); } catch { return null; }
@@ -662,7 +678,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
       ...(lateMs ? { late_ms: lateMs } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
+      questions: await withWordHelp(questions, questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])), ctx.shareCodeId),
     },
     cls: {
       // A friend's challenge names only the challenger: never the challenger's teacher or class.
@@ -2465,6 +2481,7 @@ module.exports = {
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
+  withWordHelp,
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
   shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,
