@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { CalendarDays, MapPin, User, X } from "lucide-react";
+import { CalendarDays, MapPin, Send, User, X } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { HistoryRow, RecordUploadPair, StatStrip } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
@@ -21,6 +21,8 @@ import { AnalysisStoppedCard, ErrorAction, ErrorCard } from "../flow/VisitV7";
 import { REPORTS } from "../reports/copy";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useObserveRoutes } from "../observe/observeRoutes";
+import { useUploadOnly } from "../observe/uploadOnly";
+import { useKeptFor } from "../observe/keptRecording";
 import { SCHOOL_CARD } from "../card/copy";
 import { PRINCIPAL } from "../../teacher/principal/copy";
 import { LESSONS } from "../../teacher/lessons/copy";
@@ -76,6 +78,9 @@ const CoachVisit = () => {
   const [asking, setAsking] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const job = useSendJob(id);
+  // bd-ih6cej — the switch (upload-only for a person it names; everyone else the in-app recorder) and a kept copy.
+  const uploadOnly = useUploadOnly();
+  const kept = useKeptFor(data?.visit?.status === "upcoming" ? data.visit.teacherExtId : null) === true;
   // bd-o15qnr.28 (v7, board m9-errors card 1): an observation that did not reach the server says so here, with the fix.
   const v7 = useFlowV6() === true;
   const E = useCopy(FLOW_V7_ERRORS);
@@ -154,6 +159,16 @@ const CoachVisit = () => {
                   <Chevron />
                 </Link>
               ) : (
+                <div className="flex flex-col gap-3">
+                {/* bd-ih6cej (queue #278) — a recording this phone keeps for this teacher (cut or never sent) comes first,
+                    then the one line with the buttons: the weak-internet advice (upload-only: how to record first). */}
+                {kept && (
+                  <Link to={routes.check(id)} data-testid="send-kept"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+                    <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{C.sendKept}
+                  </Link>
+                )}
+                {uploadOnly !== null && <p data-testid="record-tip" className="m-0 text-[15px] leading-snug text-[#4b5563]">{uploadOnly ? C.uploadOnlyLine : C.weakInternet}</p>}
                 <RecordUploadPair
                   recordTo={routes.record(id)} uploadTo={routes.attach(id)}
                   copy={{ startRecording: C.startRecording, uploadRecording: C.uploadRecording }}
@@ -161,6 +176,7 @@ const CoachVisit = () => {
                     { key: "reschedule", label: C.reschedule, icon: <CalendarDays className="h-5 w-5" aria-hidden="true" />, to: rescheduleLink() },
                     { key: "cancel", label: C.cancelVisit, icon: <X className="h-5 w-5" aria-hidden="true" />, onPress: () => setAsking(true), danger: true },
                   ] : undefined} />
+                </div>
               )}
             </div>
           )}
