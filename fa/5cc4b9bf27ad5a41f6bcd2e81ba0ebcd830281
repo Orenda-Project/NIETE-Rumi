@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T16:19:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"fa5cc4b9bf27","branch":"bd-rzjnjp.6-main","user":""}
+{"ts":"2026-11-25T16:21:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"fa5cc4b9bf27","branch":"bd-rzjnjp.6-main","user":""}
