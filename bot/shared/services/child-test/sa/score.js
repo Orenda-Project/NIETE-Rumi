@@ -572,7 +572,7 @@ async function call(deps, calls, { prompt, schema, clip, job, name = null }) {
  * The speech gate (CHILD_TEST_SA_SPEECH_GATE), as a reason: 'duration' when the clip is shorter than the minimum speech
  * duration, 'no_words' when STT hears no word in it, false when it hears some, null when it cannot say (switch off, STT
  * failed): then the model's verdicts stand as they are. Every caller mutes on any truthy reason. `heard` (when given)
- * gets what STT heard, for the echo check. `vad` (sa_r28_letter_gate, letter sounds): no STT call; an energy
+ * gets what STT heard, for the echo check. `vad` (sa_r28_letter_gate, letter sounds and names): no STT call; an energy
  * voice-activity check on the clip (voice-activity.js) decides instead: 'no_voice' when it fails, false when it passes;
  * the call record says model 'skipped_r28' with the check's numbers, and `heard.vad` gets them. A check that cannot run
  * leaves the decision to the STT gate as before (never to the model alone).
@@ -679,9 +679,11 @@ function timedNumbers(rows, res, { stopped, attemptedTo = null, pending = false,
   return { correct, attempted, per_minute: correct ? round1((correct / used) * SECONDS) : 0, seconds_used: round1(used) };
 }
 
-// sa_r28_letter_gate's scope: letter SOUNDS, by subtask name, never /letter/ (letter names keep the STT gate; a future
-// letter_pick recording is not letters)
-const LETTER_GATE_SUBTASK = 'letter_sound_identification';
+// sa_r28_letter_gate's scope: letter SOUNDS and letter NAMES, by subtask name, never /letter/ (a future letter_pick
+// recording is not letters). A single spoken letter name often comes back from speech-to-text as no word at all, so
+// names take the same voice-activity gate as sounds; the letter-sounds prompt (variant B) stays letter sounds only.
+const LETTER_SOUNDS_SUBTASK = 'letter_sound_identification';
+const LETTER_GATE_SUBTASKS = new Set([LETTER_SOUNDS_SUBTASK, 'letter_name_identification']);
 
 /** The phone's clock is missing (or 0): usedSeconds would assume the minute. */
 const noClock = (res) => { const ms = Number(res && res.time_used_ms); return !Number.isFinite(ms) || ms <= 0; };
@@ -737,9 +739,10 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   const letters = /letter/.test(task.subtask || task.task);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   let rows;
-  // sa_r28_letter_gate ON, letter sounds: bare sounds are no word, so a voice-activity check replaces STT's word count;
-  // each item carries the gate's numbers (and the mute's reason) so the cut can be re-made from the stored marks
-  const r28 = letterGate === true && task.subtask === LETTER_GATE_SUBTASK;
+  // sa_r28_letter_gate ON, letter sounds and letter names: a bare sound or a single letter name is often no word to
+  // STT, so a voice-activity check replaces STT's word count; each item carries the gate's numbers (and the mute's
+  // reason) so the cut can be re-made from the stored marks
+  const r28 = letterGate === true && LETTER_GATE_SUBTASKS.has(task.subtask);
   const heard = {};
   const mute = await silent(deps, calls, clip, task.lang, heard, { vad: r28 });
   const gate = r28 ? {
@@ -750,7 +753,7 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade, { letterGate =
   const note = letterGate === true && !r28 ? sttNote(heard, clip) : null;
   if (mute) rows = timedRows(items, () => (gate || note ? { ...MUTE, gate: { ...(gate || note), reason: mute } } : MUTE));
   else if (letters) {
-    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time', variantB: r28 }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
+    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time', variantB: r28 && task.subtask === LETTER_SOUNDS_SUBTASK }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     // E-11: the model's own found:false overrides its marks; ON, each item keeps the model's verdict and what it heard,
     // under its own reason ('found_false': the third mute cause beside 'duration' and 'no_voice' / 'no_words')
