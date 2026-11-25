@@ -58,6 +58,7 @@ const V21 = require('./teacher-report-v21');
 const SloCode = require('./quiz-slo-code');
 const FoldFlag = require('./report-fold-flag');
 const LivePreviewFlag = require('./reminder-live-preview-flag');
+const Misconceptions = require('./report-misconceptions');
 // the fold-by-child rule and its facts read: one home, shared with the WhatsApp report's count
 const { childFacts, foldByChild, typedKey } = require('./report-fold');
 
@@ -338,7 +339,7 @@ function withLivePlayed(link, played) {
 }
 
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
-async function questionStats(quizId, counted, { codeOf = null } = {}) {
+async function questionStats(quizId, counted, { codeOf = null, raw = null } = {}) {
   const { data: qs, error } = await supabase.from('quiz_questions').select(QUESTION_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true });
   if (error) throw new Error(error.message);
@@ -361,6 +362,8 @@ async function questionStats(quizId, counted, { codeOf = null } = {}) {
     const wrongN = mine.length - right;
     const top = [...wrongs.entries()].sort((a, b) => b[1] - a[1])[0];
     const code = codeOf ? codeOf(q.external_id) : null;
+    // quiz_report_misconceptions: the raw tally for report-misconceptions.js, kept apart so the rows below stay as they were
+    if (raw) raw.push({ id: q.id, n: i + 1, text: q.question_text || '', answered: mine.length, wrongN, picks: Object.fromEntries(wrongs), row: q });
     return {
       n: i + 1,
       text: q.question_text || '',
@@ -589,7 +592,10 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const { roster: rosterView, notPlayed } = who;
   const provisional = who.provisional !== null && who.provisional !== undefined ? who.provisional : provisionalRows(provisionalRaw, facts, listedIds);
 
-  const questions = await questionStats(quiz.id, counting, v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {});
+  // quiz_report_misconceptions (off unless JSON true): the class's common wrong answers on confirmed keys only
+  const misOn = quiz.quiz_source !== 'story' && await Misconceptions.on();
+  const raw = misOn ? [] : null;
+  const questions = await questionStats(quiz.id, counting, { ...(v21 ? { codeOf: (ext) => SloCode.codeOf(meta, ext) } : {}), raw });
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = sent ? (primary && primary.code) || null
@@ -638,6 +644,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     notPlayed,
     provisional,
     questions,
+    ...(misOn ? { misconceptions: await Misconceptions.forQuiz(raw) } : {}),
     guidance: handout.report_guidance && typeof handout.report_guidance === 'object' ? handout.report_guidance : null,
     reminder: link ? {
       language: lang,
