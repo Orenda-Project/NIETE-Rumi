@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { TEACHER_FRAME } from "../../copy";
 import { useCopy } from "../../i18n";
@@ -22,12 +23,14 @@ function isPermutation(order: readonly HomeTileKey[], tiles: readonly { key: Hom
  * @param tiles the features and their art, in Home's fixed order
  * @param order the server's order; used only when it is a whole permutation of `tiles`
  */
-export function FeatureTiles({ tiles, order, className, quiz }: {
+export function FeatureTiles({ tiles, order, className, quiz, extra }: {
   tiles: readonly { key: HomeTileKey; art: AnyFeature }[];
   order?: HomeTileKey[] | null;
   className?: string;
   /** The Quizzes tile (portal_teacher_home_quiz_tile): drawn right after Lesson plans; absent → today's eight tiles. */
   quiz?: { quizHome: string; onGo: (kind: TapKind, href: string) => void } | null;
+  /** bd-v04lsh — one more tile after the features (a principal's Principal Training); absent → nothing added. */
+  extra?: ReactNode;
 }) {
   const C = useCopy(TEACHER_FRAME);
   const art = new Map(tiles.map((t) => [t.key, t.art]));
@@ -42,6 +45,7 @@ export function FeatureTiles({ tiles, order, className, quiz }: {
           if (key === "quiz") return quiz ? <QuizFeatureTile key="quiz" quizHome={quiz.quizHome} onGo={quiz.onGo} compact /> : null;
           return <FeatureTile key={key} feature={art.get(key)!} label={C.home.tiles[key]} to={teacherPath(key)} compact />;
         })}
+        {extra ?? null}
       </nav>
     </FeatureMotionProvider>
   );
