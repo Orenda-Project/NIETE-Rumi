@@ -1,2 +1,4 @@
 {"ts":"2026-11-25T17:52:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan spec_sync=true","sha":"f6d0183961fe","branch":"bd-cu8noh.2.6-28263","user":""}
 {"ts":"2026-11-25T17:52:35Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,lesson-plan owe their Gherkin","sha":"f6d0183961fe","branch":"bd-cu8noh.2.6-28263","user":""}
+{"ts":"2026-11-25T17:53:06Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan spec_sync=true","sha":"f6d0183961fe","branch":"bd-cu8noh.2.6-28263","user":""}
+{"ts":"2026-11-25T17:53:24Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"397aa8d2-89d1-4b4d-9586-c88992347abb","sha":"f6d0183961fe","branch":"bd-cu8noh.2.6-28263","user":""}
