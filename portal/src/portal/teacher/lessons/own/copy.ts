@@ -145,6 +145,13 @@ export const OWN_COPY = {
     grr: 'Each lesson keeps I do, We do and You do. Change how it is taught, not whether.',
     rote: "Plans don't use rote drill. Say what children should understand or do instead.",
   },
+  /** bd-snkn32.77 — her own plan was refused: what to change before Try again (shown on the waiting page). */
+  madeRefused: {
+    needs_board: 'The lesson plan kept using a board. If you have one, tick Board in your answers. Or select another teaching way.',
+    slates: 'The lesson plan kept using slates. Select another teaching way and try again.',
+    group_work: 'The lesson plan kept putting pair work in You do. Select another teaching way and try again.',
+    not_urdu: 'The lesson plan did not come out in Urdu. Please try again.',
+  },
 } as const;
 
 const OWN_COPY_UR: Words<typeof OWN_COPY> = {
@@ -264,6 +271,12 @@ const OWN_COPY_UR: Words<typeof OWN_COPY> = {
     grr: 'ہر سبق میں میں کروں، ہم کریں اور آپ کریں رہتے ہیں۔ یہ بدلیں کہ کیسے پڑھایا جائے، یہ نہیں کہ پڑھایا جائے یا نہیں۔',
     rote: 'لیسن پلان رٹا نہیں لگواتے۔ بتائیں کہ بچے کیا سمجھیں یا کریں۔',
   },
+  madeRefused: {
+    needs_board: 'لیسن پلان بار بار بورڈ استعمال کرتا رہا۔ اگر آپ کے پاس بورڈ ہے تو اپنے جوابات میں بورڈ منتخب کریں۔ یا پڑھانے کا کوئی اور طریقہ منتخب کریں۔',
+    slates: 'لیسن پلان بار بار سلیٹ استعمال کرتا رہا۔ پڑھانے کا کوئی اور طریقہ منتخب کر کے دوبارہ کوشش کریں۔',
+    group_work: 'لیسن پلان بار بار "آپ کریں" میں جوڑی کا کام ڈالتا رہا۔ پڑھانے کا کوئی اور طریقہ منتخب کر کے دوبارہ کوشش کریں۔',
+    not_urdu: 'لیسن پلان اردو میں نہیں بنا۔ براہ کرم دوبارہ کوشش کریں۔',
+  },
 };
 
 export const OWN = bilingual(OWN_COPY, OWN_COPY_UR);
@@ -281,7 +294,7 @@ export const OWN_COPY_ENTRY: CopyEntry = {
     // bd-snkn32.14 — the two shapes are named in full: "one period" vs "double" is the whole choice.
     'addNext', 'extends.one_period', 'extendHints',
     // bd-snkn32.15 — Change this plan: its titles and questions, and each refusal she is told about, are sentences.
-    'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals',
+    'changeThisPlan', 'changeTitle', 'whichPart', 'whatToChange', 'changeHint', 'changeMyPlan', 'usedBoth', 'refusals', 'madeRefused',
     // the unified flow: questions, hints, guardrail lines and the book's states are sentences; a resource
     // or way named for a subject classroom, and a label carrying its method in brackets, run past four words.
     'tickAll', 'resourceNames612', 'objectsHint612', 'ways.writing', 'ways.phonics', 'ways.exam_fde', 'grrLine', 'purposeHints', 'purposeHintsK5', 'pickHint', 'levelHints',

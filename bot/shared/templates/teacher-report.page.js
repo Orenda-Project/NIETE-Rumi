@@ -38,6 +38,7 @@ const path = require('path');
 const { wrapLatinRuns } = require('./latin-runs');
 const { PALETTE, FONTS, TYPE_FLOOR, scriptOf, dirOf, diamondSvg } = require('./niete-brand');
 const V21 = require('./teacher-report-v21.parts');
+const Confusions = require('./teacher-report-confusions.parts');
 // Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 const { resolveUx, digitsFor } = require('../config/ux-strings');
@@ -674,6 +675,8 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
       ? `<div class="wrong">${L(C.mostChose(`<span class="num">${esc(q.wrongTop.option)}</span>`))} ${M(q.wrongTop.text)}</div>` : '';
     return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span>${V21.codeChip(q.code)}</div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
   }).join('');
+  // quiz_report_misconceptions: the class's common wrong answers on confirmed keys; '' when the data has none
+  const confusions = Confusions.confusionsSection(r.misconceptions, { lang, L, M, K, esc });
   const questions = qrows ? `<section class="card" id="questions"><h2>${L(C.questions)}</h2><ul class="qs">${qrows}</ul></section>` : '';
 
   // 6. what to reteach
@@ -684,7 +687,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
 
   // A storybook the teacher sent: its own tiles and rows (story-teacher-report.js); the class follow-up as for a quiz.
   if (r.story) return { header, main: `${notice}${require('../services/quiz/story-teacher-report').pageSections(r.story, { lang, L, K, esc })}${follow}` };
-  return { header, main: `${tiles}${notice}${extra}${follow}${provisional}${scores}${questions}${reteach}` };
+  return { header, main: `${tiles}${notice}${extra}${follow}${provisional}${scores}${confusions}${questions}${reteach}` };
 }
 
 /**

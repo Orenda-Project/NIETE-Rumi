@@ -7407,6 +7407,10 @@ CREATE INDEX IF NOT EXISTS idx_lp_opens_user_recent
 ALTER TABLE niete_lp_opens ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE niete_lp_opens IS
   'Internal. One row per lesson plan a teacher opened in the portal (append-only; same teacher + plan + lang within 5 minutes is stored once). Written by the portal service after the open succeeded; read for "last opened", recent lesson plans and the Home''s lesson-plans-used count. Ids only — no phone, name or message text. Owner: Digital Coach team.';
+-- V1.10.11 (bd-chz35n.26): an FLN open's lesson + skill key, as served (bot/shared/services/fln-lesson-key.js).
+ALTER TABLE niete_lp_opens ADD COLUMN IF NOT EXISTS lesson_key TEXT;
+COMMENT ON COLUMN niete_lp_opens.lesson_key IS
+  '[Internal] FLN opens only: the plan''s lesson + skill key, fln1:<book>:<strand>:u<unit>:l<lesson>:<skill|none>:p<plan_id>, as served. NULL for k5/g612 and for FLN opens not yet keyed. bd-chz35n.26.';
 COMMENT ON COLUMN niete_lp_opens.plan_kind IS
   'Internal. k5 = grades 1-5 (plan_ref is a catalogue lesson_id); g612 = grades 6-12 (plan_ref is a niete_lp612_segments.segment_id).';
 COMMENT ON COLUMN niete_lp_opens.plan_ref IS

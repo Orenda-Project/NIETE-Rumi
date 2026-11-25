@@ -18,7 +18,7 @@ const { fitK5, repairOnly } = require('./lp-own-fit');
 const JOB = 'lp.k5own';
 const ROUNDS = 2;
 
-async function rewriteK5({ script: given, answers, edit, lang, grade, subject, dayPages = null, bookText = null, client, model, log = () => {} }) {
+async function rewriteK5({ script: given, answers, edit, lang, grade, subject, dayPages = null, bookText = null, client, model, log = () => {}, onRefused = () => {} }) {
   // bd-snkn32.59 — a unit day is made, fitted and gated for HER period (answers.unit.period), never the book's.
   const script = !edit && answers && answers.unit ? withUnitPeriod(given, answers.unit) : given;
   const llm = client || require('./llm-client').getClient();
@@ -34,6 +34,7 @@ async function rewriteK5({ script: given, answers, edit, lang, grade, subject, d
   // root's answers (lp612-own-change), and without them a change could put pairs back in You Do.
   const gate = make || !answers ? opts : { lang, resources: answers.resources, size: answers.size, noBook: !!answers.goal };
   let kept = null; // round 1's plan when its only fault was a repair-only one
+  let lastReasons = [];
   for (let round = 1; round <= ROUNDS; round++) {
     const res = await llm.chat.completions.create({
       model: useModel, job: JOB, temperature: 0.3, messages: [...messages],
@@ -56,9 +57,11 @@ async function rewriteK5({ script: given, answers, edit, lang, grade, subject, d
       reasons = [...hard, ...repair];
     }
     log('LP K-5 own: rewrite refused', { round, reasons });
+    lastReasons = reasons;
     messages.push({ role: 'assistant', content }, { role: 'user', content: `Refused: ${reasons.join('; ')}. Send the whole plan again, fixed.` });
   }
-  if (!kept) return null;
+  // bd-snkn32.77 — the last round's reasons go to the caller, so her row can say what to change.
+  if (!kept) { onRefused(lastReasons); return null; }
   log('LP K-5 own: soft fixes', { round: kept.rounds, fixes: kept.fixes, warnings: kept.warnings, keptRound1: true });
   return { ...kept, rounds: ROUNDS };
 }

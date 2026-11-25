@@ -296,7 +296,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     await tellSkip(reason);
     return { skipped: reason, quizId };
   }
-  const { digest, grade, gradeSource, lpHint, model, costUsd } = result;
+  const { digest, grade, gradeSource, lpHint, flnLesson, model, costUsd } = result;
 
   if (digest.confidence < MIN_CONFIDENCE || digest.slos.length < MIN_SLOS || digest.language_of_instruction === 'unknown') {
     const reason = digest.confidence < MIN_CONFIDENCE ? 'low_confidence'
@@ -328,6 +328,7 @@ async function processOffer(coachingSessionId, payload = {}) {
       ...(accepted ? { via: 'report_button' } : {}),
       ...(auto ? { via: 'auto' } : {}),
       digest, grade, grade_source: gradeSource, lp_hint: lpHint,
+      ...(flnLesson ? { fln_lesson: flnLesson } : {}),
       digest_model: model, cost_usd: costUsd || 0,
       teacher_language: teacherLang, offered_at: new Date().toISOString(),
     },
