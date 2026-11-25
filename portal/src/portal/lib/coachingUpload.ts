@@ -59,6 +59,15 @@ export const MAX_PHOTOS = 3;
 export const DC_MAX_PHOTOS = 10;
 
 /**
+ * bd-r2uzg1.23.3 (queue #274, ICT sheet IAB Experience View 16; the operator 25 Nov ~17:08: "On the max photos, make them
+ * 10") — a coach's or a principal's Check and send takes ten photos, picked several at once, like the teacher's Digital
+ * Coaching above. The WhatsApp photo step keeps MAX_PHOTOS. The server's cap is MAX_OBSERVE_PHOTOS in
+ * bot/shared/services/coaching/portal-coaching.service.js: keep the two in step. Each photo is one vision read in the
+ * analysis, so this is also a cost decision (see MAX_DC_PHOTOS there).
+ */
+export const OBSERVE_MAX_PHOTOS = 10;
+
+/**
  * bd-fgj73x.7 — the shortest recording Digital Coaching takes: 15 minutes, the WhatsApp bot's own line
  * (bot/shared/config/classroom-audio.config.js CLASSROOM_AUDIO_THRESHOLD). A few seconds recorded by
  * accident got a full report (operator, 16 Oct): Recording says the minimum up front, and a shorter one

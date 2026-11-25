@@ -51,6 +51,11 @@ const MAX_PHOTOS = 3;
 // DC_MAX_PHOTOS in portal/src/portal/lib/coachingUpload.ts.
 const MAX_DC_PHOTOS = 10;
 
+// bd-r2uzg1.23.3 (queue #274, ICT sheet IAB Experience View 16; the operator 25 Nov: "On the max photos, make them 10") —
+// a coach's or principal's portal observation (portal-observe.service) takes ten photos too; the WhatsApp step keeps
+// MAX_PHOTOS. Keep in step with OBSERVE_MAX_PHOTOS in portal/src/portal/lib/coachingUpload.ts.
+const MAX_OBSERVE_PHOTOS = 10;
+
 /**
  * One entry per thing a teacher can upload. Types are keyed by EXTENSION because
  * browsers disagree on MIME types for the same file (an .m4a is audio/mp4,
@@ -625,6 +630,7 @@ module.exports = {
   MAX_UPLOAD_BYTES,
   MAX_PHOTOS,
   MAX_DC_PHOTOS,
+  MAX_OBSERVE_PHOTOS,
   SHORT_RECORDING_SECONDS,
   PRESIGN_TTL_SECONDS,
   isPortalSession,
