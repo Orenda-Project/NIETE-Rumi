@@ -6,3 +6,4 @@
 {"ts":"2026-11-24T03:06:04Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (writer prompt gains one FDE thinking-mix line + a log line; no teacher-facing step, screen or message changes)","sha":"752989f3ba1e","branch":"bd-zrdvmi.50.7-staging","user":""}
 {"ts":"2026-11-24T03:24:59Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"3f7c80b7-787e-4d5d-8029-80ec1f8a5a7e","sha":"752989f3ba1e","branch":"bd-zrdvmi.50.7-staging","user":""}
 {"ts":"2026-11-24T03:38:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.4","sha":"752989f3ba1e","branch":"bd-zrdvmi.50.7-staging","user":""}
+{"ts":"2026-11-25T00:47:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"752989f3ba1e","branch":"bd-zrdvmi.50.7-staging","user":""}
