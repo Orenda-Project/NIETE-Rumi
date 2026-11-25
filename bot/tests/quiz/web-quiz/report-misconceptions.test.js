@@ -150,4 +150,21 @@ describe('the page block', () => {
     expect(html).toMatch(/۳/);
     expect(html).toMatch(/۵/);
   });
+
+  // bd-vp2567: on prod (25 Nov) two real reports printed the authored feedback's TeX as code. These are those two lines,
+  // verbatim; the block must typeset them the way the question text already is (M → mathHtml / KaTeX), on both pages.
+  const REAL = [
+    'Remember, for arrays, we multiply the rows and columns, we don\'t add them. $5 + 4 = 9$, but $5 \\times 4 = 20$.',
+    'یہ $16\\,\\text{m}^2$ نہیں ہے۔ $m^2$ Area کی unit ہے، Perimeter کی نہیں۔ Perimeter کی unit \'m\' ہوتی ہے۔',
+  ];
+  const section = (html) => html.slice(html.indexOf('id="confusions"'), html.indexOf('</section>', html.indexOf('id="confusions"')));
+  test.each([['en'], ['ur']])('%s page: the likely confusion shows maths typeset, never raw TeX', (lang) => {
+    for (const confusion of REAL) {
+      const html = page({ ...base, quiz: { ...base.quiz, language: lang }, misconceptions: [{ ...block[0], confusion }] }, lang);
+      const cf = section(html).slice(section(html).indexOf('cf-why'));
+      expect(cf).toContain('class="katex"');
+      expect(cf).not.toMatch(/\$|\\times|\\text|\\,/);
+      expect(html).toContain('.katex');
+    }
+  });
 });
