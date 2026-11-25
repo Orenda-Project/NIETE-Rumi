@@ -9,3 +9,4 @@
 {"ts":"2026-11-23T18:36:10Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-coaching=none-needed (dbbede2 is a merge of origin/main; this session changed no portal behaviour, main carries its own specs)","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-23T18:36:10Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"34dab174-48cb-4aea-a698-af9c8387b7a9","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-24T01:09:53Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
+{"ts":"2026-11-25T00:46:08Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
