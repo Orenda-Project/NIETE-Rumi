@@ -18,9 +18,16 @@ const {
 } = require('../../config/teacher-activity-contract');
 const { pktDate, PKT_OFFSET_MIN } = require('../nudges/pkt-time');
 
+const { isOwnRubric } = require('../coaching/frameworks/own-rubric');
+
 const WINDOW_DAYS = 30;
-/** The top of each framework's indicator scale (fico: 0 Not observed / 1 Developing / 2 Proficient). */
-const INDICATOR_MAX = Object.freeze({ fico: 2, 'fico17-v6': 2 });
+/**
+ * The top of each framework's indicator scale (fico: 0 Not observed / 1 Developing / 2 Proficient; fico17_v6: levels
+ * 1-4). Queue #282 / bd-ra8xu.64.2: the v6 key was 'fico17-v6' (the stored framework is 'fico17_v6'), so v6 reports
+ * never reached the trend; and at 2 a v6 level 3 or 4 would have been dropped. A trend only ever compares two reports
+ * on the same framework, each banded on its own scale, so V3 and v6 never share a comparison.
+ */
+const INDICATOR_MAX = Object.freeze({ fico: 2, fico17_v6: 4 });
 /** Band rank, best first (score-bands order). */
 const RANK = Object.fromEntries(BAND_KEYS.map((k, i) => [k, BAND_KEYS.length - i]));
 
@@ -42,26 +49,35 @@ function planLabel(ref) {
   return m ? { grade: Number(m[1]), subject: m[2] } : {};
 }
 
-function stepMeta(kind, ref, meta) {
+/**
+ * A report step's meta: its band, never its mark. Queue #282 / bd-ra8xu.64.2: the band is the V3 bands over the V3
+ * overall %; a report on a rubric of its own (FICO17 v6: levels 1-4, out of up to 44) gets none. Its rubric is the
+ * step's own stamp (meta.rubric, when the read sends one) or the framework the reports read gives that session
+ * (`frameworkOf`). The SQL (V1.10.6) sends no rubric on the step, so a v6 report outside the six newest reports is not
+ * recognised here; the report read covers the newest six.
+ */
+function stepMeta(kind, ref, meta, frameworkOf = () => null) {
   const out = { ...meta };
   if (kind === 'plan_opened' && out.grade === undefined) Object.assign(out, planLabel(ref));
   if (kind === 'report') {
-    const band = scoreBandFor(out.pct);
+    const own = isOwnRubric({ rubric: out.rubric, framework: frameworkOf(ref) });
+    const band = own ? null : scoreBandFor(out.pct);
     delete out.pct;
+    delete out.rubric;
     if (band) out.band = band;
     if (out.opened_at !== undefined) out.opened_at = isoOf(out.opened_at) || undefined;
   }
   return JSON.parse(JSON.stringify(out));
 }
 
-function shapeJourney(steps) {
+function shapeJourney(steps, frameworkOf) {
   if (!Array.isArray(steps)) return [];
   return steps
     .map((s) => {
       const at = isObj(s) ? isoOf(s.at) : null;
       const ref = isObj(s) && s.ref_id !== undefined && s.ref_id !== null ? String(s.ref_id) : '';
       if (!at || !ref || !JOURNEY_KINDS.includes(s.kind)) return null;
-      return { kind: s.kind, at, ref_id: ref, meta: stepMeta(s.kind, ref, isObj(s.meta) ? s.meta : {}) };
+      return { kind: s.kind, at, ref_id: ref, meta: stepMeta(s.kind, ref, isObj(s.meta) ? s.meta : {}, frameworkOf) };
     })
     .filter(Boolean)
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
@@ -138,7 +154,11 @@ function shapeTeacher(row, { now = Date.now(), slot, teacher } = {}) {
     if (!isObj(t)) return null;
     tiles[k] = { now: Number(t.now), prev: Number(t.prev) };
   }
-  const journey = shapeJourney(row.journey);
+  // session id → its framework, from the reports read (queue #282 / bd-ra8xu.64.2: a v6 report step gets no V3 band).
+  const frameworks = new Map((Array.isArray(row.reports) ? row.reports : [])
+    .filter((r) => isObj(r) && r.session_id != null && text(r.framework))
+    .map((r) => [String(r.session_id), r.framework]));
+  const journey = shapeJourney(row.journey, (ref) => frameworks.get(ref) || null);
   const value = {
     updated_at: new Date(now).toISOString(),
     slot,

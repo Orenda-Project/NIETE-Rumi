@@ -88,7 +88,10 @@ function evidenceRow(code, ev, S) {
  * @param {{language?: string, transcriptQuality?: {status: string}|null, combinedEvidence?: object|null}} [opts]
  *   combinedEvidence  the analysis's `combined_evidence` (C3 C5 C7 D3 D4 items, D2 turn counts)
  */
-function buildTeacherReport(levels = {}, { language = 'en', transcriptQuality = null, combinedEvidence = null } = {}) {
+function buildTeacherReport(levels = {}, { language = 'en', transcriptQuality = null, combinedEvidence = null, indicatorSet = null } = {}) {
+  // Queue #282: a self-recording scored on the 11 only (indicator_set 'dc11') has nothing for the six combined ones in
+  // her report: no evidence rows and no line naming them.
+  const eleven = indicatorSet === 'dc11';
   const lang = STRINGS[language] ? language : 'en';
   const O = observe2Strings(lang);
   const S = { ...STRINGS[lang], lang, ie: O.v6_report_ie || STRINGS[lang].ie, broken: O.v6_report_broken || STRINGS[lang].broken };
@@ -117,10 +120,10 @@ function buildTeacherReport(levels = {}, { language = 'en', transcriptQuality = 
     });
   }
   const ce = combinedEvidence || {};
-  const evidenceRows = broken ? [] : v6.COMBINED_CODES.map((code) => evidenceRow(code, ce[code], S));
+  const evidenceRows = broken || eleven ? [] : v6.COMBINED_CODES.map((code) => evidenceRow(code, ce[code], S));
   const body = broken ? S.broken : rows.length ? rows.map((r) => `• ${r.line}`).join('\n\n') : S.none;
   // A broken recording has no evidence to show; the six are still named, as the coach's.
-  const six = evidenceRows.length
+  const six = eleven ? '' : evidenceRows.length
     ? `\n\n${S.sixHead}\n${evidenceRows.map((r) => `• ${r.line}`).join('\n')}`
     : `\n\n${S.sixCoach(v6.COMBINED_CODES.map((c) => v6.indicator(c).name).join(', '))}`;
   const text = `*${S.head}*\n\n${body}${six}`;
@@ -130,7 +133,7 @@ function buildTeacherReport(levels = {}, { language = 'en', transcriptQuality = 
     draft: DRAFT_LANGUAGES.includes(lang),
     rows,
     evidence_rows: evidenceRows,
-    coach_codes: v6.COMBINED_CODES.slice(),
+    coach_codes: eleven ? [] : v6.COMBINED_CODES.slice(),
     text,
   };
 }

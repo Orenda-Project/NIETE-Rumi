@@ -70,12 +70,45 @@ function attachSubjectNote(groups, analysis, language) {
   const { subjectUnconfirmedNote } = require('./narrative.service');
   const note = subjectUnconfirmedNote(language);
   for (const g of (groups || [])) {
-    if (!g || (g.domainKey || g.key) !== 'teacher_subject_knowledge') continue;
+    // Queue #282: a FICO17 v6 report's subject section is v6_subject.
+    if (!g || !['teacher_subject_knowledge', 'v6_subject'].includes(g.domainKey || g.key)) continue;
     const existing = typeof g.why === 'string' ? g.why.trim() : '';
     if (existing.includes(note)) continue;
     g.why = existing ? `${existing} ${note}` : note;
   }
   return groups;
+}
+
+// Queue #282: the v6 report's "couldn't tell" line (the /observe2 v6 report's words, CONTRACTS §6.5).
+const V6_REPORT_IE = {
+  en: "The recording didn't cover this part of the lesson.",
+  ur: 'ریکارڈنگ میں سبق کا یہ حصہ شامل نہیں تھا۔',
+};
+
+/**
+ * Queue #282 — a teacher's own recording reported on FICO17 v6 with the 11 (indicator_set 'dc11'): a couldn't-tell row
+ * is said once, by its v6 name, on its section's row; an N/A row is not named; a section with no numeric level reads
+ * "not assessed" (the adapter already set it) with its couldn't-tell lines. With no numeric level in any section there
+ * is no headline (noLevels). Mutates `groups`.
+ * @returns {null|{noLevels: boolean}} null for any other analysis: nothing changed.
+ */
+function dcV6HeroRows(groups, analysis, language) {
+  if (!analysis || analysis.indicator_set !== 'dc11' || analysis.observe2) return null;
+  const V6 = require('../frameworks/fico17-v6');
+  const ie = V6_REPORT_IE[language] || V6_REPORT_IE.en;
+  const domainKeys = new Set(Object.values(V6.SECTIONS).map((s) => s.domain));
+  const rubricGroups = [];
+  for (const g of (groups || [])) {
+    const key = g && (g.domainKey || g.key);
+    if (!domainKeys.has(key)) continue;
+    rubricGroups.push(g);
+    const rows = (((analysis.domains || {})[key] || {}).indicators || []).filter(Boolean);
+    const gaps = rows.filter((ind) => String(ind.result) === 'IE').map((ind) => `${ind.name}: ${ie}`);
+    if (!gaps.length) continue;
+    const existing = g.notAssessed ? '' : (typeof g.why === 'string' ? g.why.trim() : '');
+    g.why = [existing, ...gaps].filter(Boolean).join(' ');
+  }
+  return { noLevels: rubricGroups.length > 0 && rubricGroups.every((g) => g.notAssessed) };
 }
 
 /**
@@ -150,6 +183,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
   attachSubjectNote(score.groups, analysis, lang);
   // bd-r2uzg1.12: a recording the grader read as a different lesson keeps Section B's why and adds one soft line.
   require('./lesson-mismatch-note').attachLessonMismatchNote(score.groups, analysis, session, lang);
+  const v6 = dcV6HeroRows(score.groups, analysis, lang);
 
   // bd-pv2tl: the teacher's own classroom photos, framed under the scorecard.
   // Non-fatal: the helper skips any broken photo and returns [] on failure.
@@ -177,7 +211,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
     teacherName,
     topic: (narrative && narrative.topic) || analysis.topic || '',
     date: String(session.created_at || '').slice(0, 10),
-    score: { overall: score.overall, marks: score.marks, max: score.max },
+    score: v6 && v6.noLevels ? { overall: null, marks: null, max: null } : { overall: score.overall, marks: score.marks, max: score.max },
     groups: score.groups,
     narrative: narrative || {},
     tryNext: commitmentAction || '',
@@ -243,4 +277,4 @@ async function generateHeroReport(session, analysis, opts = {}) {
   return out;
 }
 
-module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };
+module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote, dcV6HeroRows };

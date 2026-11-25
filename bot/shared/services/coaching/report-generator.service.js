@@ -78,10 +78,31 @@ function _voiceFidelity(analysis, notAssessed) {
   };
 }
 
+/**
+ * Queue #282 — a FICO17 v6 report's voice note: the model sees the v6 analysis only (never v3_fico or the raw read,
+ * GPT5MiniService.modelView), and is told the strength and the next step the image names (target-resolver), so the
+ * voice cannot pick a V3 strength or focus that contradicts the image. Null for any other analysis.
+ */
+function _v6VoiceFocus(analysis) {
+  const { resolveTarget, resolveStrength, v6NextLevel } = require('./target-resolver');
+  const target = resolveTarget(analysis);
+  if (!target || target.rubric !== 'fico17_v6') return null;
+  const strength = resolveStrength(analysis, target);
+  const next = v6NextLevel(target);
+  return {
+    strength: strength ? `${strength.name} (level ${strength.rung} of 4)${strength.rationale ? `: ${strength.rationale}` : ''}` : null,
+    next_step: `${target.name} (level ${target.rung} of 4)${next ? `. The next level asks: ${next}` : ''}`,
+    rule: 'Take the strength and the growth area from voice_focus: they are the ones the report image names.',
+  };
+}
+
 function _projectAnalysisForVoice(rawAnalysis) {
   // bd-b3pop: the grading's runs, spread and photo readings stay on the stored analysis for the watch; the voice never
   // sees them, or it could speak a run's percentage beside the card's.
-  const analysis = require('./fidelity/fidelity-telemetry').stripFidelityTelemetry(rawAnalysis);
+  const stripped = require('./fidelity/fidelity-telemetry').stripFidelityTelemetry(rawAnalysis);
+  const viewed = require('./frameworks/fico17-v6/model-view').modelView(stripped);
+  const focus = viewed !== stripped ? _v6VoiceFocus(viewed) : null;
+  const analysis = focus ? { ...viewed, voice_focus: focus } : viewed;
   const sectionB = analysis && analysis.domains && analysis.domains.lesson_plan_fidelity;
   const measuresOwnFidelity = !!(analysis && analysis.lp_fidelity);
 

@@ -11,7 +11,8 @@ jest.mock('../../bot/shared/config/supabase', () => {
     update: jest.fn((patch) => { if (patch && patch.analysis_data) global.__PERSISTED = patch.analysis_data; return builder; }),
     eq: jest.fn(() => builder), not: jest.fn(() => builder), in: jest.fn(() => builder),
     single: jest.fn(() => Promise.resolve({ data: global.__SESSION, error: null })),
-    maybeSingle: jest.fn(() => Promise.resolve({ data: { users: { preferred_language: 'en' }, region: 'Sihala' }, error: null })),
+    // Queue #282: a PRIMARY-only teacher, so fico_dc_rubric 'v6' reaches her recording (fico17-v6/dc-grade.js).
+    maybeSingle: jest.fn(() => Promise.resolve({ data: { users: { preferred_language: 'en' }, teacher_level: ['PRIMARY'], region: 'Sihala' }, error: null })),
     then: (resolve) => resolve({ data: null, error: null }),
   };
   return { from: jest.fn(() => builder) };
@@ -142,7 +143,10 @@ describe('DC rubric switch on the self-recording pipeline', () => {
     const s = on.shadow.fico17_v6;
     expect(s.status).toBe('ok');
     expect(s.rubric).toBe('fico17_v6');
-    expect(s.prompt_version).toBe(v6.DC_PROMPT_VERSION);
+    // Queue #282: a self-recording is read with the 11-only prompt, whatever the mode.
+    expect(s.prompt_version).toBe(require('../../bot/shared/services/coaching/frameworks/fico17-v6-framework').DC11_PROMPT_VERSION);
+    expect(s.indicator_set).toBe('dc11');
+    expect(s.combined_evidence).toBeUndefined();
     expect(s.levels.C1.result).toBe(3);
     expect(s.scores.overall_max_marks).toBe(44);
     const { shadow, ...v3Only } = on;

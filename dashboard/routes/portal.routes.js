@@ -1292,9 +1292,12 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
         // scores.{overall_marks, overall_max_marks, overall_percentage} —
         // getOverall normalises that AND the legacy max_marks/percentage shape
         // (the old inline read showed 0% for FICO rows).
+        // Queue #282 / bd-ra8xu.64.2: a session with no V3 max (a FICO17 v6 one: getOverall's points 0, max 0) has no
+        // marks: null, never 0 of the old `|| 118` stand-in ("0/118"). The CoachingSession type's own rule.
         ...(() => {
           const o = getOverall(recentCoachingSessionData.analysis_data);
-          return { score: o.points, overallScore: o.points, maxScore: o.maxPoints || 118, percentage: o.percentage };
+          const marks = o.maxPoints > 0 ? o.points : null;
+          return { score: marks, overallScore: marks, maxScore: o.maxPoints || null, percentage: o.percentage };
         })()
       } : null
     });
