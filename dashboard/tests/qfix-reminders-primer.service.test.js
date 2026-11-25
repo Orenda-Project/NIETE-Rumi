@@ -142,3 +142,13 @@ describe('primer, then arm b\'s retry', () => {
     expect(p.ctx.asked).toBe(2);
   });
 });
+
+describe('a second Yes tap while the primer is up', () => {
+  test('one yes, one primer_shown (the funnel\'s denominator counts the child once)', async () => {
+    const p = await mounted({ key: { key: KEY, ask: true, primer: true } });
+    await p.tap('yes');
+    await p.tap('yes');
+    expect(only(p, 'yes')).toHaveLength(1);
+    expect(only(p, 'primer_shown')).toHaveLength(1);
+  });
+});
