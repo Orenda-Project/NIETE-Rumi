@@ -1,2 +1,4 @@
 {"ts":"2026-11-25T00:31:46Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"80bfff267bb8","branch":"bd-0q8b4x","user":""}
 {"ts":"2026-11-25T00:31:54Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,web-quiz-child-page owe their Gherkin","sha":"80bfff267bb8","branch":"bd-0q8b4x","user":""}
+{"ts":"2026-11-25T00:31:55Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,web-quiz-child-page spec_sync=true","sha":"80bfff267bb8","branch":"bd-0q8b4x","user":""}
+{"ts":"2026-11-25T00:32:14Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"1b930f6f-00b0-40ba-8886-74ba108f4c4d","sha":"80bfff267bb8","branch":"bd-0q8b4x","user":""}
