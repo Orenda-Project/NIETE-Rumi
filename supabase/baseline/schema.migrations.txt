@@ -1,5 +1,6 @@
 # the migration files the committed sandbox copy (schema.sql) already carries — written by local-db.sh baseline;
 # up applies every newer one on top of the copy (bd-5b3u70.6). Seeded from the files present at d3552a9699, the commit that last re-cut schema.sql.
+# Not listed, though older than the dump: the migrations whose columns the dump lacks (tests/setup/mock-lane-baseline-migrations.test.js named them), so up applies them too.
 infrastructure/supabase/migrations/V1.0.0__baseline.sql
 infrastructure/supabase/migrations/V1.0.1__users_teacher_uuid_idx.sql
 infrastructure/supabase/migrations/V1.0.2__users_portal_admin_read_policy.sql
@@ -115,9 +116,7 @@ infrastructure/supabase/migrations/V1.9.5__gk_sst_en_subjects.sql
 infrastructure/supabase/migrations/V1.9.6__lp612_own_plans.sql
 infrastructure/supabase/migrations/V1.9.7__own_plans_k5_lessons.sql
 infrastructure/supabase/migrations/V1.9.8__own_plans_changes.sql
-infrastructure/supabase/migrations/V1.9.9__own_plans_review.sql
 infrastructure/supabase/migrations/V1.10.0__lp612_join_waiters_portal_dedupe.sql
-infrastructure/supabase/migrations/V1.10.1__own_plans_library_decision.sql
 infrastructure/supabase/migrations/V1.10.2__schools_district.sql
 infrastructure/supabase/migrations/V1.10.3__own_plans_teacher_rating.sql
 infrastructure/supabase/migrations/V1.10.4__lp_feedback_in_app_and_replica_check.sql
