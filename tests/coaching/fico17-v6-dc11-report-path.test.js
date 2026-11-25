@@ -217,3 +217,36 @@ describe('the v6 text report (built, not wired) never prints the six for a dc11 
     }
   });
 });
+
+describe('v10 arms A and B (target null: "the card chooses its own area")', () => {
+  test('a v6 card chooses its own v6 area and is phrased by the card model, not the canned template', async () => {
+    const G = require('../../bot/shared/services/gpt5-mini.service');
+    let prompt = '';
+    const real = G.openai;
+    G.openai = { chat: { completions: { create: jest.fn(async (req) => {
+      prompt = req.messages[0].content;
+      return { choices: [{ message: { content: JSON.stringify({ commitment: 'We value choice.', action: 'Next class, when you hand out the worksheet, let the children pick which question to start with.', lesson_label: 'Maths', highlights: ['worksheet'] }) } }] };
+    }) } } };
+    try {
+      const { generateCommitmentCard } = require('../../bot/shared/services/coaching/coaching-card/commitment-card.service');
+      const card = await generateCommitmentCard(dc11Analysis({ C4: 1, F1: 4 }), { questions: [] }, 'en', { teacherName: 'T', target: null });
+      expect(card._source).toBe('llm');
+      expect(card.indicator).toBe('C4');
+      expect(prompt).toMatch(/next level on the rubric asks/i);
+    } finally {
+      G.openai = real;
+    }
+  });
+});
+
+describe('the voice note says the marks the right way round in Urdu', () => {
+  test('Urdu: "<max> میں سے <marks> نمبر" is given word for word; English unchanged', () => {
+    const G = require('../../bot/shared/services/gpt5-mini.service');
+    const data = { analysis: { scores: { overall_percentage: 61.4, overall_marks: 27, overall_max_marks: 44 } } };
+    const ur = G.voiceScoreRule(data, 'ur');
+    expect(ur).toContain('44 میں سے 27 نمبر');
+    const en = G.voiceScoreRule(data, 'en');
+    expect(en).toContain('61% (27 of 44 marks)');
+    expect(en).not.toContain('میں سے');
+  });
+});

@@ -1789,13 +1789,17 @@ Recommendations: ${JSON.stringify(recommendations)}
    * WhatsApp shows numbers; mock runs 20261026-2335-par / 20261026-201716, bd-1r3k2h). Empty when the
    * analysis carries no overall score, so nothing is invented.
    */
-  static voiceScoreRule(observationData) {
+  static voiceScoreRule(observationData, language = 'en') {
     const sc = observationData && observationData.analysis && observationData.analysis.scores;
     const pct = sc && Number.isFinite(Number(sc.overall_percentage)) ? Math.round(Number(sc.overall_percentage)) : null;
     if (pct === null) return '';
-    const marks = sc && Number.isFinite(Number(sc.overall_marks)) && Number.isFinite(Number(sc.overall_max_marks))
-      ? ` (${Number(sc.overall_marks)} of ${Number(sc.overall_max_marks)} marks)` : '';
-    return `SCORE — right after the greeting, say the lesson's overall score as a NUMBER, exactly as the report shows it: ${pct}%${marks}. Say the number itself; never a band word (Excellent, Good, Average, Below average, Needs support) in its place.
+    const hasMarks = sc && Number.isFinite(Number(sc.overall_marks)) && Number.isFinite(Number(sc.overall_max_marks));
+    const marks = hasMarks ? ` (${Number(sc.overall_marks)} of ${Number(sc.overall_max_marks)} marks)` : '';
+    // Queue #282: in Urdu "X میں سے Y" is "Y out of X"; a script said "27 میں سے 44" (44 out of 27) for 27 of 44.
+    const urdu = language === 'ur' && hasMarks
+      ? ` In Urdu say the marks in exactly this order: "${Number(sc.overall_max_marks)} میں سے ${Number(sc.overall_marks)} نمبر" (the total first, then her marks), with the numbers as words.`
+      : '';
+    return `SCORE — right after the greeting, say the lesson's overall score as a NUMBER, exactly as the report shows it: ${pct}%${marks}.${urdu} Say the number itself; never a band word (Excellent, Good, Average, Below average, Needs support) in its place.
 
 `;
   }
@@ -1854,7 +1858,7 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-${GPT5MiniService.voiceScoreRule(observationData)}${voiceFidelityRule(observationData)}
+${GPT5MiniService.voiceScoreRule(observationData, language)}${voiceFidelityRule(observationData)}
 
 ${GPT5MiniService.voiceExamplesRule(moments)}
 TONE:

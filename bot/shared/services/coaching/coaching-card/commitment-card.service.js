@@ -335,7 +335,14 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
-  const target = opts.target !== undefined ? opts.target : cardTarget(analysis, loop);
+  let target = opts.target !== undefined ? opts.target : cardTarget(analysis, loop);
+  // Queue #282: while the v10 test is on, groups A and B pass target null ("the card chooses its own area"). A V3
+  // analysis then gets the rule card's per-indicator example; a FICO17 v6 one would get its generic line ("try
+  // dedicating 5 minutes …"). So a v6 card chooses its own area the v6 way (its lowest level) and is phrased below.
+  if (!target && analysis && (analysis.framework === 'fico17_v6' || (analysis.scores && analysis.scores.rubric === 'fico17_v6'))) {
+    const own = cardTarget(analysis, loop);
+    if (own && own.rubric === 'fico17_v6') target = own;
+  }
   // The reflection gates the COMMITMENT half of the card, never the ACTION half.
   // When a loop target is open the ask must carry THIS attempt's angle and the
   // prior-action do-not-reuse block, so it is phrased by the model whether or
