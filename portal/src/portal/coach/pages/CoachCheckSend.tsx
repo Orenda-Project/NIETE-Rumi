@@ -18,7 +18,7 @@ import { PLAN_V7 } from "../flow/copyV7plan";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
-import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
+import { checkPlanFile, formatSize, OBSERVE_MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
@@ -452,8 +452,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
       {planError === "wont_open" && <Alert>{C.fileWontOpen}</Alert>}
 
-      <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
+      <SectionHeading chip={[C.upToN(OBSERVE_MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
+      {/* bd-r2uzg1.23.3 — up to ten, several picked at once (the grid's input is `multiple`) */}
+      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" max={OBSERVE_MAX_PHOTOS} readOnPick />
 
       <Tray open={ownOpen} title={v7 ? P.ownPlan : C.ownPlan} onClose={() => setOwnOpen(false)}>
         <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />
