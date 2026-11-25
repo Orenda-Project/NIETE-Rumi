@@ -1,3 +1,4 @@
 {"ts":"2026-11-25T01:42:20Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"dc5f1a5ee005","branch":"bd-vo9fkc-staging-2","user":""}
 {"ts":"2026-11-25T01:42:37Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"registration,menu,training,lesson-plan,coaching,language,status,observe,child-test=none-needed (template-internal digits helper swap, same output; block ships off)","sha":"dc5f1a5ee005","branch":"bd-vo9fkc-staging-2","user":""}
 {"ts":"2026-11-25T01:42:37Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-dc5f1a5ee005","sha":"dc5f1a5ee005","branch":"bd-vo9fkc-staging-2","user":""}
+{"ts":"2026-11-25T01:42:44Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"dc5f1a5ee005","branch":"bd-vo9fkc-staging-2","user":""}
