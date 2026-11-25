@@ -1,3 +1,4 @@
 {"ts":"2026-11-25T15:22:38Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d28307431bc3","branch":"HEAD","user":""}
 {"ts":"2026-11-25T15:22:59Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"d28307431bc3","branch":"bd-5jmnfj.38.43-stg","user":""}
 {"ts":"2026-11-25T15:23:06Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"d28307431bc3","branch":"bd-5jmnfj.38.43-stg","user":""}
+{"ts":"2026-11-25T15:23:10Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.38.43-stg: training spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"d28307431bc3","branch":"bd-5jmnfj.38.43-stg","user":""}
