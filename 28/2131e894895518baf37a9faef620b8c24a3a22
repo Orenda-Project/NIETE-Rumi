@@ -4,3 +4,4 @@
 {"ts":"2026-11-24T05:27:35Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (model routing for the G6-8 paper writer only; no teacher-facing step, message or flow changes)","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
 {"ts":"2026-11-24T05:27:35Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-282131e89489","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
 {"ts":"2026-11-25T00:46:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
+{"ts":"2026-11-25T00:46:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"282131e89489","branch":"bd-t8eevw-main-x","user":""}
