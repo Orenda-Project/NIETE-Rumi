@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T00:55:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"b083957b4137","branch":"bd-vo9fkc-main","user":""}
+{"ts":"2026-11-25T01:27:36Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"b083957b4137","branch":"bd-vo9fkc-main","user":""}
