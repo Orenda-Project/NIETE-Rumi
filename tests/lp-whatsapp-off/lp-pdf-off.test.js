@@ -52,6 +52,12 @@ describe('the link itself', () => {
     expect(mockLink).not.toHaveBeenCalled();
   });
 
+  test('bd-zrdvmi.60: the plan she tapped goes on to the link', async () => {
+    Fake.setPdfOff(['ict']);
+    await pdfOffLink({ userId: Fake.ICT_TEACHER, phone: PHONE, language: 'en', reason: 'lp_v8_tap', plan: 'k5:grade_1_english_ch4_seg2' });
+    expect(mockLink).toHaveBeenCalledWith(expect.objectContaining({ plan: 'k5:grade_1_english_ch4_seg2' }));
+  });
+
   test('no user: today', async () => {
     Fake.setPdfOff(['ict', 'gb']);
     expect(await pdfOffLink({ userId: null, phone: PHONE })).toEqual({ off: false });

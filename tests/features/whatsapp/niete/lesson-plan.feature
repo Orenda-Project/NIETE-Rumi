@@ -1290,6 +1290,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then I get one message with an "open in the app" button carrying my own sign-in link
     And no lesson-plan menu opens and no PDF arrives
 
+  # ADDED 2026-11-24 (bd-zrdvmi.60, ICT sheet Lesson Plan row 983): a grades 1-5 plan tapped in the Flow while PDFs are
+  # off sends a link that opens THAT plan (/portal/teacher/lessons/open?plan=k5:<lesson_id>), not Lesson Plans home.
+  # Unit: tests/app-redirect/app-link-lp-open.test.js, tests/lp-whatsapp-off/v8-delivery-pdf-off.test.js.
+  @e2e @config-gated @no-mock-driver @P1 @L13b
+  Scenario: With lesson-plan PDFs off, tapping one grades 1-5 plan in the Flow sends a link that opens that plan
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the ICT programme
+    When I tap one grades 1-5 lesson plan in the WhatsApp Flow
+    Then I get one message with an "open in the app" button
+    And tapping it opens that same lesson plan in the app, not the Lesson Plans home
+    # @no-mock-driver: the tap arrives through the Flow's data exchange, which the mock lane does not drive.
+
   @e2e @config-gated @negative @P1 @L14
   Scenario: With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged
     Given the NIETE bot chat is open
