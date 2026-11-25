@@ -61,7 +61,8 @@ export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSr
       className={cn("relative flex flex-col gap-3.5 overflow-hidden bg-[#333748] px-5 pb-[52px] pt-[calc(18px+env(safe-area-inset-top))] text-white", className)}
     >
       <NieteLattice className="absolute inset-y-0 end-0 w-[70%]" strength={0.5} />
-      <div className="relative flex min-h-[44px] items-center gap-2.5">
+      {/* bd-sil83f (queue #269): a corner too wide for a narrow phone wraps under the mark, never off the band */}
+      <div className="relative flex min-h-[44px] flex-wrap items-center gap-x-2.5 gap-y-2">
         <img src={markSrc} alt={logoAlt} className="ms-[-6px] h-11 w-11 object-contain" />
         <span dir="ltr" className="text-[17px] font-bold tracking-[0.14em]">{brand}</span>
         {corner ? <span className="ms-auto flex">{corner}</span> : null}
