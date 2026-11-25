@@ -285,6 +285,7 @@ router.get('/jlink/:token', handle(async (req, res) => {
   const how = req.query.how === 'copy' ? 'copy' : 'forward';
   const href = await require('../services/quiz/web-quiz-class-link').forwardHref({
     teacherId: v.teacherId, classId: uuidOr(req.query.class), how, reportBase: `${REPORT_PATH}/${encodeURIComponent(req.params.token)}`,
+    ua: req.get('user-agent'),
   });
   if (!href) { notFound(req, res, v); return; }
   noStore(res);
