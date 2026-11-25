@@ -2,3 +2,4 @@
 {"ts":"2026-11-25T16:15:39Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,portal-smoke spec_sync=true","sha":"1e7feaa22291","branch":"bd-ke5dtg-22697","user":""}
 {"ts":"2026-11-25T16:18:08Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (test files, a doc line and one log field; nothing a teacher sees changed)","sha":"1e7feaa22291","branch":"bd-ke5dtg-22697","user":""}
 {"ts":"2026-11-25T16:18:09Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (no portal code changed; only a kg door/summary text line)","sha":"1e7feaa22291","branch":"bd-ke5dtg-22697","user":""}
+{"ts":"2026-11-25T16:18:19Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"bcc65cdd-e05a-40f0-950c-152a68da32b9","sha":"1e7feaa22291","branch":"bd-ke5dtg-22697","user":""}
