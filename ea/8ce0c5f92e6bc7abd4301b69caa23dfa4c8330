@@ -4,3 +4,4 @@
 {"ts":"2026-11-25T00:44:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"ea8ce0c5f92e","branch":"bd-0q8b4x","user":""}
 {"ts":"2026-11-25T00:54:56Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (ships OFF behind app_settings quiz_word_help; off path byte-identical, pinned by unit tests)","sha":"ea8ce0c5f92e","branch":"bd-0q8b4x","user":""}
 {"ts":"2026-11-25T00:54:57Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"web-quiz-child-page=none-needed (page loads the word strip only when the server sends words, which it never does while the switch is off)","sha":"ea8ce0c5f92e","branch":"bd-0q8b4x","user":""}
+{"ts":"2026-11-25T00:55:23Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"1b930f6f-00b0-40ba-8886-74ba108f4c4d","sha":"ea8ce0c5f92e","branch":"bd-0q8b4x","user":""}
