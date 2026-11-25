@@ -1,1 +1,2 @@
 {"ts":"2026-11-25T00:00:08Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,teacher-lessons,portal-smoke spec_sync=true","sha":"689045c0781d","branch":"bd-chz35n.26-staging","user":""}
+{"ts":"2026-11-25T00:00:32Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"689045c0781d","branch":"bd-chz35n.26-staging","user":""}
