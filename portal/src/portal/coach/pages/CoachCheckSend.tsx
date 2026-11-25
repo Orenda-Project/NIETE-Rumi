@@ -19,7 +19,7 @@ import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, getNotes, MAX_NOTES, setDraft, setNotes, withTyped, type DraftAudio } from "../observeDraft";
 import { AddNote, NotesList, shownNote } from "../observe/ObservationNotes";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
-import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
+import { checkPlanFile, formatSize, OBSERVE_MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
@@ -468,8 +468,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
       {planError === "wont_open" && <Alert>{C.fileWontOpen}</Alert>}
 
-      <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
+      <SectionHeading chip={[C.upToN(OBSERVE_MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
+      {/* bd-r2uzg1.23.3 — up to ten, several picked at once (the grid's input is `multiple`) */}
+      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" max={OBSERVE_MAX_PHOTOS} readOnPick />
 
       {showNotes && (
         <section aria-labelledby={notesHeading} data-testid="observation-notes" className="flex flex-col gap-3">

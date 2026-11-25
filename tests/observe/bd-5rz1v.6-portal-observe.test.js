@@ -226,6 +226,21 @@ describe('startPortalObservation — the row startFromAudio writes, from the por
     expect(d.supabase.writes.inserts).toEqual([]);
   });
 
+  // bd-r2uzg1.23.3 (queue #274, ICT sheet IAB Experience View 16; the operator 25 Nov: "On the max photos, make them
+  // 10"): a coach's or principal's observation takes up to ten photos, as the teacher's own Digital Coaching does.
+  test('ten board photos are taken and written, in the order she picked them', async () => {
+    const d = deps();
+    const photos = Array.from({ length: 10 }, (_, i) => `images/${COACH}/portal_ph${i}.jpg`);
+    expect(await start({ photoKeys: photos }, d)).toEqual({ status: 'ok', coachingSessionId: SID });
+    const insert = d.supabase.writes.inserts.find((w) => w.table === 'coaching_sessions');
+    expect(insert.row.classroom_photos.map((p) => p.url)).toEqual(photos.map(URL));
+  });
+
+  test('four photos, which the old cap of three refused, are taken', async () => {
+    const photos = [1, 2, 3, 4].map((i) => `images/${COACH}/portal_p${i}.jpg`);
+    expect(await start({ photoKeys: photos }, deps())).toEqual({ status: 'ok', coachingSessionId: SID });
+  });
+
   test('refuses without a teacher at all — a portal observation is never unbound', async () => {
     const d = deps();
     expect(await start({ teacherExtId: '' }, d)).toEqual({ status: 'invalid', reason: 'no_teacher' });
@@ -234,7 +249,8 @@ describe('startPortalObservation — the row startFromAudio writes, from the por
   test('refuses a missing upload, too many photos, and two plans', async () => {
     const missing = deps({ r2: { headObject: jest.fn().mockResolvedValue({ exists: false }) } });
     expect(await start({}, missing)).toMatchObject({ status: 'invalid', reason: 'upload_missing' });
-    const photos = [1, 2, 3, 4].map((i) => `images/${COACH}/portal_p${i}.jpg`);
+    // bd-r2uzg1.23.3 (queue #274): the coach's and principal's cap is ten now; the eleventh is refused.
+    const photos = Array.from({ length: 11 }, (_, i) => `images/${COACH}/portal_p${i}.jpg`);
     expect(await start({ photoKeys: photos }, deps())).toEqual({ status: 'invalid', reason: 'too_many_photos' });
     expect(await start({ lessonPlanKey: `lesson_plans/${COACH}/portal_p.pdf`, lessonPlan: { assetId: 'a' } }, deps()))
       .toEqual({ status: 'invalid', reason: 'two_lesson_plans' });
