@@ -2,3 +2,4 @@
 {"ts":"2026-11-23T04:06:09Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"46c0d50132bb","branch":"HEAD","user":""}
 {"ts":"2026-11-24T01:10:13Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"46c0d50132bb","branch":"HEAD","user":""}
 {"ts":"2026-11-25T00:46:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"46c0d50132bb","branch":"HEAD","user":""}
+{"ts":"2026-11-25T00:46:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"46c0d50132bb","branch":"HEAD","user":""}
