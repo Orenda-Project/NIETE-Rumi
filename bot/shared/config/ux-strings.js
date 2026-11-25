@@ -4710,6 +4710,15 @@ const UX_STRINGS = {
     en: 'Send it to your class on WhatsApp',
     ur: 'واٹس ایپ پر اپنی کلاس کو بھیجیں',
   },
+  // the quiz-only page when the offer is neither held nor made: the /quiz door, the page's own noun (کوئز)
+  qfix_offers_cq_none: {
+    en: 'This quiz offer has closed. You can still make a quiz for any lesson: send /quiz to us on WhatsApp.',
+    ur: 'کوئز کی یہ پیشکش اب بند ہو گئی ہے۔ کسی بھی سبق کا کوئز اب بھی بنایا جا سکتا ہے: واٹس ایپ پر ہمیں \u2066/quiz\u2069 بھیجیں۔',
+  },
+  qfix_offers_cq_open_wa: {
+    en: 'Open WhatsApp',
+    ur: 'واٹس ایپ کھولیں',
+  },
 };
 
 /**

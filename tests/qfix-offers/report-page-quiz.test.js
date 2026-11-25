@@ -217,6 +217,9 @@ describe('the page: /cr carries "Make a quiz" only for a held offer with the swi
       .map((m) => decodeURIComponent(m[1]));
     expect(hrefs).toContain('Make a quiz for my class · CR-a1b2c3d4');
     expect(r.body).toContain('>Make a quiz</a>');
+    // 48 px touch target on the new button only (the page's shared a.btn is 44 px in English)
+    expect(r.body).toMatch(/\.qz a\.btn\{[^}]*min-height:48px/);
+    expect(r.body).toMatch(/<section class="qz">/);
   });
 
   test('Urdu teacher → the Urdu block and prefill', async () => {
@@ -291,11 +294,19 @@ describe('the quiz-only page: /cq/:token for a teacher outside the new report', 
     expect(r.body).not.toContain('>Make a quiz</a>');
   });
 
-  test('neither held nor made → the /quiz door', async () => {
+  test('neither held nor made → the /quiz door, with a way to WhatsApp', async () => {
     const r = await get({ quizzes: [] });
     expect(r.status).toBe(200);
     expect(r.body).toContain('/quiz');
     expect(r.body).not.toContain('>Make a quiz</a>');
+    expect(r.body.replace(/&amp;/g, '&')).toContain('href="https://wa.me/923206281951?text=%2Fquiz"');
+  });
+
+  test('neither, in Urdu: one noun on the page (کوئز), never the Latin "quiz" in Urdu prose', async () => {
+    const r = await get({ quizzes: [], view: { ...VIEW, language: 'ur' } });
+    const prose = r.body.replace(/<[^>]+>/g, ' ').replace(/\/quiz/g, '');
+    expect(prose).toContain('کوئز');
+    expect(prose).not.toMatch(/\bquiz\b/i);
   });
 
   test('switch off → 404 (link not complete); a bad token → 404', async () => {

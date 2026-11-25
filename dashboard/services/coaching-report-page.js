@@ -164,7 +164,7 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
   } else if (links.makeQuiz) {
     // qfix offers: the quiz offer held for a closed window (quiz/report-page-quiz.js); the link opens WhatsApp to us.
     const ux = (key) => esc(resolveUx(key, { language: l }));
-    parts.push(`<section><h2>${ux('qfix_offers_cr_quiz_head')}</h2><p>${ux('qfix_offers_cr_quiz_body')}</p>`
+    parts.push(`<section class="qz">${require('./report-quiz-page').QZ_CSS}<h2>${ux('qfix_offers_cr_quiz_head')}</h2><p>${ux('qfix_offers_cr_quiz_body')}</p>`
       + `<a class="btn" href="${esc(links.makeQuiz)}">${ux('qfix_offers_cr_quiz_button')}</a></section>`);
   }
   // Once she has sent the coach ping (C and D only), the question is answered: don't ask again.
