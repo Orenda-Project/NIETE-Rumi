@@ -189,6 +189,12 @@ export const OBSERVE_COPY = {
   troubleAsk: 'Having trouble?',
   continueOnWhatsApp: 'Continue on WhatsApp',
   handoffLine: (code = '') => (code ? `Continue my visit on WhatsApp (code ${code})` : 'Continue my visit on WhatsApp'),
+  /* bd-oe6r47 (queue #278) — upload-only recording (portal_observe_upload_only): the observe and debrief recording steps
+   * offer the phone's own recorder and Upload recording, never the in-app recorder. "Upload recording" is the locked word. */
+  recordOnPhone: 'Record on phone',
+  phoneHint: "Record with your phone's recorder, then upload it here.",
+  sendKept: 'Send saved recording',
+  openingFile: 'Opening the recording…',
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -348,6 +354,11 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   continueOnWhatsApp: 'واٹس\u00A0ایپ پر کریں',
   // «واٹس ایپ» is one unit (U+00A0), as in the bot's copy; the bot reads the line with either space.
   handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
+  // bd-oe6r47 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «اپ لوڈ» as in the locked «ریکارڈنگ اپ لوڈ کریں».
+  recordOnPhone: 'فون پر ریکارڈ کریں',
+  phoneHint: 'فون کے ریکارڈر سے ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  sendKept: 'محفوظ ریکارڈنگ بھیجیں',
+  openingFile: 'ریکارڈنگ کھل رہی ہے…',
 };
 
 /** The Observe screens' words in both languages. */
@@ -359,6 +370,10 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
  * the strip's question ("Having trouble?", the operator's words in the option B mockups) and the line typed into
  * WhatsApp, which the bot reads.
  */
-export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine'] as const;
+export const SENTENCES = [
+  'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine',
+  // bd-oe6r47 — the one-line hint beside Record on phone / Upload recording (the operator's ask, queue #278).
+  'phoneHint',
+] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;
