@@ -157,10 +157,10 @@ describe("Record observation — the in-app recorder is back", () => {
     expect(screen.queryByRole("link", { name: "Send saved recording" })).toBeNull();
   });
 
+  // bd-ma9jiy: a kept recording now opens the paused recorder, so the line is checked where it always sits: the visit page.
   it("in Urdu: the weak-internet line is Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
-    keep("rec-ayesha", AYESHA, "2026-11-25T04:38:00Z");
-    record();
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
     expect(await screen.findByText("انٹرنیٹ کمزور ہے؟ فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔")).toBeInTheDocument();
   });
 });
