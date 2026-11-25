@@ -36,7 +36,8 @@ export type PlanChoice =
 export type TeacherClass = { grade: number; subject: string; subjectKey?: string };
 
 /** already_sent (bd-c5reix): that recording is already a DC observation of hers (a kept WhatsApp recording sent twice). */
-export type SendKind = "network" | "in_progress" | "already_sent" | "plan_not_ready" | "plan_not_found" | "refused";
+/** empty_recording (bd-r2uzg1.23.5, ICT call 6A): the recording is 0 bytes — nothing was recorded or it never arrived. */
+export type SendKind = "network" | "in_progress" | "already_sent" | "plan_not_ready" | "plan_not_found" | "refused" | "empty_recording";
 
 /** bd-bmc9a0.1 — the part that did not go: the recording, her plan file, or photo N (1-based; 0 for the others). */
 export type SendPart = { kind: "audio" | "lesson_plan" | "photo"; photo: number };
@@ -175,6 +176,9 @@ export async function sendLesson(
   report: (f: SendFailure) => void = reportSendFailure,
 ): Promise<{ coachingSessionId: string }> {
   const saved = "key" in audio ? audio.key : null;
+  // bd-r2uzg1.23.5 (queue #274, ICT call 6A): an empty recording is stopped before anything is uploaded; the server
+  // refuses one too (reason recording_empty), so an analysis is never started on it.
+  if (!("key" in audio) && audio.blob.size === 0) throw new SendError("empty_recording");
   const items: Item[] = [
     ...("key" in audio ? [] : [{ blob: audio.blob, filename: audio.filename, kind: "audio" as const, photo: 0 }]),
     ...(plan && plan.kind === "file" ? [{ blob: plan.file, filename: plan.file.name, kind: "lesson_plan" as const, photo: 0 }] : []),
@@ -269,6 +273,7 @@ export async function sendLesson(
     if (status === 400 && (b.reason === "plan_not_ready" || b.reason === "plan_not_found")) {
       throw new SendError(b.reason);
     }
+    if (status === 400 && b.reason === "recording_empty") throw new SendError("empty_recording");
     if (status === 403 || status === 404) throw new SendError("refused", undefined, NOT_AVAILABLE);
     if (status != null && status >= 400 && status < 500) throw new SendError("refused", undefined, String(b.reason || ""));
     throw new SendError("network", undefined, undefined, { part: null, offline: isOffline(), unreadable: false });
