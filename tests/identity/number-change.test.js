@@ -417,3 +417,43 @@ describe('what the event carries, and what it never does', () => {
     expect(applied()).toEqual([{ tk: null, verdict: 'free', action: 'moved', reason: null }]);
   });
 });
+
+describe('the accounts retired into hers follow her number (repoint_retired_on_number_move_enabled)', () => {
+  // An account an earlier merge retired into hers: its latest edit_phone row names her, on her old number.
+  const RETIRED = 'a0000000-0000-4000-8000-000000000501';
+  const changedIso = new Date(CHANGED_AT).toISOString();
+  beforeEach(() => {
+    db.tables.users.push({ id: RETIRED, phone_number: `merged:${RETIRED}`, deleted_at: '2026-11-01T08:00:00.000Z' });
+    db.tables.leader_roster_audit.push({
+      id: 'earlier-1', action: 'edit_phone', teacher_ext_id: HER.id, created_at: '2026-11-01T08:00:00.000Z',
+      detail: { via: 'rm_duplicate_review', retired_user_id: RETIRED, to_phone: OLD },
+    });
+  });
+
+  test('switch on: after her move row, a re-point row for it, in this flow\'s own words and with the change\'s time', async () => {
+    db.tables.app_settings.push({ key: 'repoint_retired_on_number_move_enabled', value: true });
+    await apply();
+    expect(audits()).toEqual([
+      metaAudit('edit_phone', { from_phone: OLD, to_phone: NEW, case: 'free', retired_user_id: null, changed_at: changedIso }),
+      metaAudit('edit_phone', {
+        case: 'repoint', retired_user_id: RETIRED, from_phone: OLD, to_phone: NEW, supersedes: 'earlier-1', changed_at: changedIso,
+      }),
+    ]);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: null }]);
+  });
+
+  test('switch off (the default): her move row only, as before', async () => {
+    await apply();
+    expect(audits()).toEqual([
+      metaAudit('edit_phone', { from_phone: OLD, to_phone: NEW, case: 'free', retired_user_id: null, changed_at: changedIso }),
+    ]);
+  });
+
+  test('the re-point failing never touches the move or its outcome', async () => {
+    db.tables.app_settings.push({ key: 'repoint_retired_on_number_move_enabled', value: true });
+    db.refuse = (table, op, rows) => table === 'leader_roster_audit' && rows[0].detail.case === 'repoint';
+    await apply();
+    expect(row(HER.id).phone_number).toBe(NEW);
+    expect(applied()).toEqual([{ tk: tk(HER.id), verdict: 'free', action: 'moved', reason: null }]);
+  });
+});
