@@ -15,6 +15,8 @@
 #   bash bot/scripts/e2e/local-db.sh demo-seed <run_dir>   # LOCAL PORTAL ONLY: add a made-up school network to this run
 #   bash bot/scripts/e2e/local-db.sh sandbox-copy <run_dir> [--refresh]   # LOCAL PORTAL ONLY: the sandbox's rows into this run
 #   bash bot/scripts/e2e/local-db.sh refresh-views <run_dir>             # populate the run's materialized views (dashboard numbers)
+#   bash bot/scripts/e2e/local-db.sh pending-migrations    # migrations newer than the sandbox copy: `up` applies them on top
+#   bash bot/scripts/e2e/local-db.sh golden                # build (or reuse) the golden database and print its name
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
@@ -53,6 +55,10 @@ PG_PORT="${LOCAL_DB_PG_PORT:-54329}"
 REST_PORT="${LOCAL_DB_REST_PORT:-54330}"
 API_PORT="${E2E_SUPABASE_PORT:-54321}"
 SCHEMA="${LOCAL_DB_SCHEMA:-$REPO/supabase/baseline/schema.sql}"
+# The migration files the committed sandbox copy already carries, written by `baseline` (bd-5b3u70.6). Every migration
+# file in MIGRATION_DIRS that it does not list is applied on top of the copy when the golden is built.
+SCHEMA_MIGRATIONS="${LOCAL_DB_SCHEMA_MIGRATIONS:-$REPO/supabase/baseline/schema.migrations.txt}"
+MIGRATION_DIRS="${LOCAL_DB_MIGRATION_DIRS:-infrastructure/supabase/migrations bot/database/migrations}"
 SEED="${LOCAL_DB_SEED:-$REPO/supabase/baseline/seed.sql}"
 SEED_TABLES="${LOCAL_DB_SEED_TABLES:-$REPO/supabase/baseline/seed-tables.txt}"
 SEED_DIR="$LOCAL_DB_HOME/seed"
@@ -132,7 +138,8 @@ cluster_up() {   # once per machine: init on first use, start if stopped
 # (portal_app_user, …), gets a NOLOGIN stand-in so the GRANT/POLICY applies; nothing can log in as it.
 ensure_schema_roles() {
   local role
-  for role in $(grep -hE '^(GRANT|REVOKE|CREATE POLICY|ALTER DEFAULT PRIVILEGES)' "$SCHEMA" \
+  for role in $({ cat "$SCHEMA"; pending_migrations | while IFS= read -r f; do cat "$REPO/$f"; done; } \
+                | grep -hE '^(GRANT|REVOKE|CREATE POLICY|ALTER DEFAULT PRIVILEGES)' \
                 | grep -oE '\b(TO|FROM|FOR ROLE) [a-z_][a-z0-9_, ]*' | sed -E 's/^(TO|FROM|FOR ROLE) //' | tr ',' '\n' \
                 | tr -d ' ;' | grep -vE '^(public|current_user|session_user|anon|authenticated|service_role|authenticator)$' | sort -u); do
     # (the four API roles are local-db-bootstrap.sql's: a bare stand-in here would lack BYPASSRLS / LOGIN)
@@ -140,11 +147,60 @@ ensure_schema_roles() {
   done
 }
 
-golden_name() {   # golden_<12 hex of bootstrap + schema + seed>
+# Every migration file in MIGRATION_DIRS, repo-relative, in the order they apply: folder by folder, a V<x.y.z>__ file by
+# its version numbers (V1.10.11 after V1.9.9), anything else by name; a rollback file never.
+migration_files() {
+  python3 - "$REPO" $MIGRATION_DIRS <<'PY'
+import os, re, sys
+repo, dirs = sys.argv[1], sys.argv[2:]
+def key(name):
+    m = re.match(r"V(\d+(?:\.\d+)*)__", name)
+    return (0, tuple(int(x) for x in m.group(1).split(".")), name) if m else (1, (), name)
+for d in dirs:
+    full = os.path.join(repo, d)
+    if not os.path.isdir(full):
+        continue
+    for f in sorted((f for f in os.listdir(full) if f.endswith(".sql") and "rollback" not in f.lower()), key=key):
+        print(d + "/" + f)
+PY
+}
+
+# The migrations newer than the sandbox copy: every migration file the stamp does not list. No stamp (a checkout from
+# before bd-5b3u70.6) means none, so an old checkout builds exactly what it always did.
+pending_migrations() {
+  [ -f "$SCHEMA_MIGRATIONS" ] || return 0
+  migration_files | python3 -c '
+import sys
+have = {l.strip() for l in open(sys.argv[1]) if l.strip() and not l.startswith("#")}
+for l in sys.stdin:
+    if l.strip() not in have: print(l.strip())' "$SCHEMA_MIGRATIONS"
+}
+
+stamp_migrations() {   # `baseline` just dumped the sandbox: record the migration files that dump already carries
+  { echo "# the migration files the committed sandbox copy (schema.sql) already carries — written by local-db.sh baseline;"
+    echo "# up applies every newer one on top of the copy (bd-5b3u70.6)"
+    migration_files; } > "$SCHEMA_MIGRATIONS.tmp.$$" && mv "$SCHEMA_MIGRATIONS.tmp.$$" "$SCHEMA_MIGRATIONS"
+}
+
+# Apply the pending migrations to the golden being built, each in its own transaction: one that does not apply on top
+# of the copy (already in it under another name, or needing something the copy lacks) is skipped with a warning, so an
+# older schema still runs instead of no run at all.
+apply_pending_migrations() {
+  local db="$1" f n=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if psql_ -d "$db" --single-transaction -f "$REPO/$f" >>"$LOCAL_DB_HOME/golden.log" 2>&1; then n=$((n + 1))
+    else log "warning: $f does not apply on top of the sandbox copy — skipped ($(grep -m1 'ERROR' "$LOCAL_DB_HOME/golden.log" | tail -1 | cut -c1-160))"; : > "$LOCAL_DB_HOME/golden.log"; fi
+  done < <(pending_migrations)
+  [ "$n" = 0 ] || log "applied $n migration(s) newer than the sandbox copy"
+}
+
+golden_name() {   # golden_<12 hex of bootstrap + schema + pending migrations + seed>
   local h
-  h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
+  h=$({ cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
         "$([ -f "$SEED_DIR/manifest.json" ] && echo "$SEED_DIR/manifest.json" || echo /dev/null)" \
-        "$([ -f "$SEED_OVERRIDES" ] && echo "$SEED_OVERRIDES" || echo /dev/null)" | sha256_of | cut -c1-12)
+        "$([ -f "$SEED_OVERRIDES" ] && echo "$SEED_OVERRIDES" || echo /dev/null)"
+      pending_migrations | while IFS= read -r f; do echo "$f"; cat "$REPO/$f"; done; } | sha256_of | cut -c1-12)
   echo "golden_$h"
 }
 
@@ -157,11 +213,14 @@ golden_ensure() {   # once per schema hash
   psql_ -d postgres -c "drop database if exists $tmpdb" >/dev/null
   psql_ -d postgres -c "create database $tmpdb" >/dev/null || exit 6
   ensure_schema_roles || exit 6
-  local f files=("$BOOTSTRAP" "$SCHEMA")
-  [ -f "$SEED" ] && files+=("$SEED")
-  for f in "${files[@]}"; do
+  local f
+  for f in "$BOOTSTRAP" "$SCHEMA"; do
     psql_ -d "$tmpdb" -f "$f" >"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed applying $f:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
   done
+  apply_pending_migrations "$tmpdb"
+  if [ -f "$SEED" ]; then
+    psql_ -d "$tmpdb" -f "$SEED" >"$LOCAL_DB_HOME/golden.log" 2>&1 || { log "golden build failed applying $SEED:"; tail -5 "$LOCAL_DB_HOME/golden.log" >&2; exit 6; }
+  fi
   if [ -f "$SEED_DIR/seed.dump" ]; then
     # Data only, triggers off: the snapshot is a subset of tables, so a foreign key into a table it does not
     # carry (a catalogue row's author, say) must not reject the row. postgres is superuser here.
@@ -539,6 +598,7 @@ baseline() {
       | grep -vE '^CREATE SCHEMA public;$|^COMMENT ON SCHEMA public '
   } > "$tmp" || { rm -f "$tmp"; log "pg_dump failed"; exit 3; }
   mv "$tmp" "$out"
+  [ "$out" = "$REPO/supabase/baseline/schema.sql" ] && stamp_migrations   # the committed copy: what it already carries
   local objs; objs="$(dirname "$out")/schema.objects.txt"
   { echo "# every public column + function in the sandbox schema, from local-db.sh baseline — what local-db.sh drift compares"
     schema_objects "$url"; } > "$objs.tmp.$$" && mv "$objs.tmp.$$" "$objs"
@@ -740,6 +800,14 @@ PY
 
 stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null 2>&1; return 0; }
 
+golden_cmd() {   # build (or reuse) the golden `up` would clone, and print its name — no run database, no PostgREST
+  [ -n "$PGBIN" ] || { log "Postgres 17 not found"; exit 4; }
+  setup_lock; cluster_up
+  local g; g=$(golden_name); golden_ensure "$g"
+  setup_unlock
+  echo "$g"
+}
+
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
@@ -747,5 +815,6 @@ case "$CMD" in
   demo-seed) demo_seed "$@";;
   sandbox-copy) sandbox_copy "$@";;
   refresh-views) refresh_views "$@";;
+  pending-migrations) pending_migrations;; golden) golden_cmd;;
   *) sed -n '2,17p' "$0" >&2; exit 2;;
 esac
