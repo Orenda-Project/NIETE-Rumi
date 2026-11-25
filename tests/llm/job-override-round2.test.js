@@ -245,8 +245,10 @@ describe('an override the call site cannot reach says so', () => {
 // ---------------------------------------------------------------------------------------------
 describe('the output-limit allowance is bounded', () => {
   test('a large limit gets 4096 more, not twice as much', async () => {
-    const { getClient } = await loadWithSettings({ ANTHROPIC_API_KEY: 'grant-key', ...moveTo('coaching.enhance', 'anthropic-direct/claude-sonnet-5') });
-    await getClient().chat.completions.create(ask({ job: 'coaching.enhance', max_tokens: undefined, max_completion_tokens: 16000 }));
+    // coaching.pedagogy, a 16,000-token job with no limit of its own. (coaching.enhance, the example here before, now
+    // has its own larger limit on Claude, JOB_OUTPUT_LIMIT, bd-lk7e3f.26: tests/llm/job-output-limit.test.js.)
+    const { getClient } = await loadWithSettings({ ANTHROPIC_API_KEY: 'grant-key', ...moveTo('coaching.pedagogy', 'anthropic-direct/claude-sonnet-5') });
+    await getClient().chat.completions.create(ask({ job: 'coaching.pedagogy', max_tokens: undefined, max_completion_tokens: 16000 }));
     expect(mockState.an[0].max_tokens).toBe(20096);
   });
 

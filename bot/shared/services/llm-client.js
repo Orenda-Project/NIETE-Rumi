@@ -590,6 +590,9 @@ const isClaude = (m) => /(^|\/)claude-/.test(String(m || ''));
  * Thinking, on a model that thinks by default and only when the call says nothing about it: under a
  * small limit it is switched off (or held to low effort where it cannot be), as before; otherwise the
  * job's own effort, if the registry gives it one (JOB_EFFORT, bd-lk7e3f.6.3), is asked for.
+ *
+ * The output limit, on a moved Claude call: the allowance above, or the job's own larger limit if the
+ * registry gives it one (JOB_OUTPUT_LIMIT, bd-lk7e3f.26).
  */
 function adaptForTarget(model, params, moved = true, job = null) {
   const p = { ...params };
@@ -608,6 +611,10 @@ function adaptForTarget(model, params, moved = true, job = null) {
   }
   if (moved && isClaude(model) && Number.isFinite(p.max_tokens) && p.max_tokens > 0) {
     p.max_tokens = Math.min(Math.ceil(p.max_tokens * TOKENIZER_ALLOWANCE), p.max_tokens + ALLOWANCE_CAP, MAX_OUTPUT_TOKENS);
+    // A job whose reply needs more room on Claude than that (JOB_OUTPUT_LIMIT, bd-lk7e3f.26): raised, never lowered,
+    // never above the ceiling. Every other job, and every call that is not a moved Claude call, is as before.
+    const jobLimit = job ? (require('../config/model-registry').JOB_OUTPUT_LIMIT || {})[job] : undefined;
+    if (Number.isFinite(jobLimit) && jobLimit > p.max_tokens) p.max_tokens = Math.min(jobLimit, MAX_OUTPUT_TOKENS);
   }
   return p;
 }
