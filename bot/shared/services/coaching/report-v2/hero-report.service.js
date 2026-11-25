@@ -79,11 +79,13 @@ function attachSubjectNote(groups, analysis, language) {
   return groups;
 }
 
-// Queue #282: the v6 report's "couldn't tell" line (the /observe2 v6 report's words, CONTRACTS §6.5).
-const V6_REPORT_IE = {
-  en: "The recording didn't cover this part of the lesson.",
-  ur: 'ریکارڈنگ میں سبق کا یہ حصہ شامل نہیں تھا۔',
-};
+// Queue #282: the v6 report's "couldn't tell" line, in the report's language: the v6 teacher report's own strings
+// (frameworks/fico17-v6/teacher-report.js STRINGS), English when a language has none.
+function v6CouldntTell(language) {
+  const { STRINGS } = require('../frameworks/fico17-v6/teacher-report');
+  const S = STRINGS[language] || STRINGS.en;
+  return S.ie;
+}
 
 /**
  * Queue #282 — a teacher's own recording reported on FICO17 v6 with the 11 (indicator_set 'dc11'): a couldn't-tell row
@@ -95,7 +97,7 @@ const V6_REPORT_IE = {
 function dcV6HeroRows(groups, analysis, language) {
   if (!analysis || analysis.indicator_set !== 'dc11' || analysis.observe2) return null;
   const V6 = require('../frameworks/fico17-v6');
-  const ie = V6_REPORT_IE[language] || V6_REPORT_IE.en;
+  const ie = v6CouldntTell(language);
   const domainKeys = new Set(Object.values(V6.SECTIONS).map((s) => s.domain));
   const rubricGroups = [];
   for (const g of (groups || [])) {
