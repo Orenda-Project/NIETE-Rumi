@@ -21,6 +21,8 @@ import { rememberRecording } from "../../lib/coachObserve";
 import { SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import { clockText } from "../../components/coaching/coach/CoachRecorder";
 import type { CoachVisit } from "../types";
+import { useUploadOnly } from "../observe/uploadOnly";
+import PhoneRecord from "../observe/PhoneRecord";
 
 /**
  * bd-4404s7.4 — Record observation, for one scheduled visit (Blueprint: Coach_Record; it was Record live): a
@@ -278,13 +280,18 @@ const CoachRecord = () => {
   const flowRead = useFlowV6(); // a coach on the flow switch, or a principal on the principal app it names
   const v6 = flowRead === true;
   const session = useRecordingSession();
+  // bd-oe6r47 (queue #278) — upload-only (default ON): the phone's recorder + Upload recording, never the in-app recorder.
+  // Read before any recorder starts, like the flow switch: while it is read (null) the page waits. A recording the app is
+  // ALREADY making when she arrives (the v6 session, started before the switch) keeps its screen, so it can be stopped.
+  const uploadOnly = useUploadOnly();
+  const [arrivedRecording] = useState(() => !!session?.active);
   const { data, failed, reload } = useLoad(() => routes.loadVisit(id), [id]);
   const [attempt, setAttempt] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const block = useCallback(() => setBlocked(true), []);
   const visit = data?.visit;
 
-  if (!visit || blocked || flowRead === null) {
+  if (!visit || blocked || flowRead === null || uploadOnly === null) {
     return (
       <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)} trouble={blocked ? "mic" : null}
         crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
@@ -306,6 +313,7 @@ const CoachRecord = () => {
   }
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
   if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={routes.visit(id)} replace />;
+  if (uploadOnly && !(v6 && session && arrivedRecording)) return <PhoneRecord visit={visit} />;
   // bd-o15qnr.27 (v6): the recording that keeps going while she moves round the app; switch off, production's Recorder.
   if (v6 && session) return <SessionRecorder key={attempt} visit={visit} session={session} onBlocked={block} />;
   return <Recorder key={attempt} visit={visit} onBlocked={block} />;
