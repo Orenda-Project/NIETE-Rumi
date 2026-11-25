@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T04:00:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
+{"ts":"2026-11-25T04:01:07Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
