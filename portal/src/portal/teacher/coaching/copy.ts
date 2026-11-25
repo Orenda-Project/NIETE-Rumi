@@ -197,6 +197,9 @@ export const COACHING_V2_COPY = {
   classDeadline: "No answer in 24 hours? This recording will be closed and won't count.",
   classNoAnswerNote: "Not carried forward: this recording didn't sound like a class being taught and we didn't get your answer within 24 hours, so no report was made.",
   classRecordAgainNote: 'Not carried forward: you chose to record this class again, so no report was made.',
+  /* bd-r2uzg1.18.15 — the same recording sent again while the first copy is still being checked: this copy closed, the
+     first one's report is on its way (the bot's duplicateRecordingInFlight, for the page). */
+  duplicateInFlightNote: 'You sent this recording a little earlier and it is already being checked. Its report will come with that lesson, no need to send it again.',
   stoppedChip: 'Stopped',
   /* bd-sy4kcv — her list while the report is made: the ontology's in-progress phrase ("Being made", never "Preparing"),
      bd-sy4kcv.1 — with what is being made (operator, 2026-11-17). Digital Coaching's own: other features keep "Being made". */
@@ -380,6 +383,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   classDeadline: '24 گھنٹے میں جواب نہ دیا تو یہ ریکارڈنگ بند ہو جائے گی اور شمار نہیں ہوگی۔',
   classNoAnswerNote: 'آگے نہیں بڑھایا گیا: یہ ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگی اور 24 گھنٹے میں آپ کا جواب نہیں ملا، اس لیے رپورٹ نہیں بنی۔',
   classRecordAgainNote: 'آگے نہیں بڑھایا گیا: آپ نے یہ کلاس دوبارہ ریکارڈ کرنے کا انتخاب کیا، اس لیے رپورٹ نہیں بنی۔',
+  // bd-r2uzg1.18.15 — machine-drafted, for review; impersonal («موصول ہو چکی ہے»), so no آپ + verb form.
+  duplicateInFlightNote: 'یہ ریکارڈنگ کچھ دیر پہلے بھی موصول ہو چکی ہے اور اس کی جانچ جاری ہے۔ اس کی رپورٹ اسی سبق کے ساتھ آئے گی، دوبارہ بھیجنے کی ضرورت نہیں۔',
   stoppedChip: 'روک دیا گیا',
   /* bd-sy4kcv.1 — رپورٹ is feminine: رہی, not رہا; without the closing ہے so the chip stays four words and as narrow as
      «آپ کا جواب چاہیے» at 360px (operator, 2026-11-17, after the phone-width render). Machine-drafted, for review. */
@@ -442,6 +447,8 @@ export const COPY_ENTRY: CopyEntry = {
     'tooShort',
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
     'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
+    // bd-r2uzg1.18.15: why a re-sent copy stopped, and that the first copy's report will come.
+    'duplicateInFlightNote',
     // bd-i0u6n2: why a video cannot go in the recording slot, and what to send instead.
     'notVideo',
     // bd-rt8wky/bd-hsgah5: the photo count is five words in Urdu («10 میں سے 4 تصاویر»).
