@@ -17,13 +17,16 @@ function memberIds(examJson) {
  * Plus every D18 item (the key stands out; bd-qyi45h.4) and every D17 item (asks the same as another; bd-qyi45h.14),
  * in a group or not: nothing after rewrite 1 re-asks them otherwise, and neither ships as a last-try note.
  * Plus every D13 item (an MCQ shape fault, e.g. a key run settleKeys cannot move because the options are numbers;
- * bd-qyi45h.16); a D13 row keyed by a group or section id (KEY_SHARE) names no item, so it is left out. */
-const CUE = new Set(['D18', 'D17', 'D13']);
+ * bd-qyi45h.16); a D13 row keyed by a group or section id (KEY_SHARE) names no item, so it is left out.
+ * Plus every N20 item (points at a figure the paper never prints) and every D16 item (the key is not its own worked
+ * result; bd-qyi45h.18): neither ships as a last-try note, so an item still faulted after rewrite 1 failed the paper. */
+const CUE = new Set(['D18', 'D17', 'D13', 'N20', 'D16']);
+const ITEM_ONLY = new Set(['D13', 'N20', 'D16']); // these rows may be keyed by a slot or group id: only real items are re-asked
 function stuck(checks, examJson) {
   const members = memberIds(examJson);
   const items = new Set(leaves(examJson).map((l) => l.item && l.item.id).filter((id) => id != null));
   const leaking = (r) => Object.keys(r.why || {}).filter((id) => r.why[id] === 'N18');
-  const cue = (r) => Object.keys(r.why || {}).filter((id) => CUE.has(r.why[id]) && (r.why[id] !== 'D13' || items.has(id)));
+  const cue = (r) => Object.keys(r.why || {}).filter((id) => CUE.has(r.why[id]) && (!ITEM_ONLY.has(r.why[id]) || items.has(id)));
   return new Set(checks.shortfall.flatMap((r) => [...[...Object.keys(r.review || {}), ...leaking(r)].filter((id) => members.has(id)), ...cue(r)]));
 }
 
