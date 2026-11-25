@@ -29,7 +29,9 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const crypto = require('crypto');
 const express = require('express');
 // The page embeds its fonts as base64 (~200 KB), so the snapshot holds the page's sha256 and length, not the page.
-const digest = (html) => ({ sha256: crypto.createHash('sha256').update(html).digest('hex'), bytes: Buffer.byteLength(html) });
+// The sha256 is kept as eight 8-character groups split by spaces: raw hex can hold a phone-shaped digit run by chance
+// (tests/setup/phone-shaped-fixtures needs 11 digits in a row); a group never can.
+const digest = (html) => ({ sha256: crypto.createHash('sha256').update(html).digest('hex').match(/.{8}/g).join(' '), bytes: Buffer.byteLength(html) });
 const { makeFake } = require('./fake-supabase');
 
 const FIXED_NOW = Date.parse('2026-10-15T09:30:00Z');
