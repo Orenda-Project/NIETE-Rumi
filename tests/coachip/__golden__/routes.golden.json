@@ -384,6 +384,7 @@
           "lpWhatsappSend": "boolean",
           "newUi": "boolean",
           "observeOnPortal": "boolean",
+          "observeUploadOnly": "boolean",
           "principalApp": "boolean",
           "principalFlowV2": "boolean",
           "roleSwitch": "boolean",
