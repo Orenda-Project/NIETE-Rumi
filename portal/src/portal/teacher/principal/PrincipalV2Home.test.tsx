@@ -85,9 +85,11 @@ describe("the principal app v2 Home (option C)", () => {
     renderHome(PRINCIPAL);
     await screen.findByTestId("home-my-school");
     await waitFor(async () => expect(await tileWords()).toEqual(
-      ["Observations", "Attendance", "Analytics", "Lesson Plans", "Assessment", "Training", "My Classes"],
+      ["Observations", "Attendance", "Analytics", "Lesson Plans", "Assessment", "Training", "My Classes", "Principal Training"],
     ));
     const nav = screen.getByTestId("feature-tiles");
+    // bd-v04lsh (queue #257) — Principal Training, last, opens her Principal Training list
+    expect(within(nav).getByText("Principal Training").closest("a")?.getAttribute("href")).toBe("/portal/teacher/principal-training");
     expect(within(nav).queryByText("Digital Coaching")).toBeNull();
     // Observations opens the Observe page (the principal's Observations)
     expect(within(nav).getByText("Observations").closest("a")?.getAttribute("href")).toBe(teacherPath("observations"));
@@ -98,7 +100,7 @@ describe("the principal app v2 Home (option C)", () => {
     renderHome(PRINCIPAL);
     await screen.findByTestId("home-my-school");
     await waitFor(async () => expect(await tileWords()).toEqual(
-      ["Observations", "Attendance", "Analytics", "Lesson Plans", "Quizzes", "Assessment", "Training", "My Classes"],
+      ["Observations", "Attendance", "Analytics", "Lesson Plans", "Quizzes", "Assessment", "Training", "My Classes", "Principal Training"],
     ));
   });
 
