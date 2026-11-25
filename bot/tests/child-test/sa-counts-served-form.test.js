@@ -5,7 +5,8 @@
  * ma.add2i is committed with 2 sums; sa_r8_counts serves 5 (three spares appended as .03-.05). The scorer used to infer
  * the form from the cells that came back, so a child cut off after the first 2 sums of the 5-item form looked like the
  * 2-item form and scored 2/2 (Add met), while another child with the same 2 right on the same form scored 2/5. The
- * phone now records served_n (the number of items it served) on a one-at-a-time result, and the scorer takes the form
+ * phone now records served_n (the number of items it served) on a one-at-a-time result when sa_r8_counts served the
+ * battery (ui.r8_counts), and the scorer takes the form
  * from it; under sa_r28_ceiling the base it recorded (base_n) says the same for the words. A result without either (an
  * older phone) keeps today's inference. No level cut-off changes. Synthetic rows only.
  */
@@ -97,7 +98,8 @@ describe('end to end: the phone\'s own result → the scorer → the Add rung', 
     const task = { id: 'ma.add2i', w3: true, kind: 'oral', subtask: 'mental_addition', response: 'record', present: 'one_at_a_time', time_limit_s: null, stop: {},
       items: all.slice(0, n).map(([show, a], k) => ({ id: `ma.add2i.${pad(k + 1)}`, show, target: a, answer: a, src: `fixture:sums[${k}]` })) };
     let t = 0;
-    const r = core.createRunner({ battery: { battery_id: 'b', tasks: [task] }, now: () => t, mic: () => 'ok', one_at_a_time: true, manual: true });
+    // as the route serves it with sa_r8_counts on: ui.r8_counts on the battery
+    const r = core.createRunner({ battery: { battery_id: 'b', tasks: [task], ui: { r8_counts: true } }, now: () => t, mic: () => 'ok', one_at_a_time: true, manual: true });
     r.start(); r.instructionDone(); r.begin();
     t += 3000; r.nextCell('tap');
     t += 20000;

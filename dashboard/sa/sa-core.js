@@ -586,12 +586,11 @@
           r.position_source = heard ? 'voice' : 'none';
         }
       }
-      if (st.cells) {
-        r.cells = st.cells.slice();
-        // the number of items this phone SERVED (the counts form's 5 sums, or today's 2), so the scorer reads the form
-        // from what was served, never from how far the child got (cells for .01 and .02 fit both forms)
-        r.served_n = t.items.length;
-      }
+      if (st.cells) r.cells = st.cells.slice();
+      // round 8 item 35 (battery.ui.r8_counts): the number of items this phone SERVED (the counts form's 5 sums), so the
+      // scorer reads the form from what was served, never from how far the child got (cells .01 and .02 fit both forms);
+      // with the switch off the result is as before
+      if (st.cells && countsOn) r.served_n = t.items.length;
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
       if (mcqOn && t.kind === 'mcq') {
         // round 28 (B-17): a question whose clips were lost is not asked; presented = the questions whose clips all played

@@ -1,9 +1,9 @@
 'use strict';
 /**
- * The phone records the form it SERVED on a one-at-a-time result (served_n: the number of items it served), so the
- * scorer reads the counts form (sa_r8_counts: 5 sums in place of 2) from what was served, never from how far the child
- * got. A child cut off on the 2nd of 5 sums sends cells for .01 and .02 only, which the 2-item form has too.
- * Synthetic battery only.
+ * With sa_r8_counts on (the served battery's ui.r8_counts), the phone records the form it SERVED on a one-at-a-time
+ * result (served_n: the number of items it served), so the scorer reads the counts form (5 sums in place of 2) from
+ * what was served, never from how far the child got. A child cut off on the 2nd of 5 sums sends cells for .01 and .02
+ * only, which the 2-item form has too. With the switch off the result is as before. Synthetic battery only.
  */
 const core = require('../sa/sa-core');
 
@@ -14,9 +14,10 @@ const add = (n) => ({
   items: SUMS.slice(0, n).map(([show, a], k) => ({ id: `ma.add2i.${pad(k + 1)}`, show, target: a, answer: a, src: `fixture:sums[${k}]` })),
 });
 
-function runner(task, extra = {}) {
+function runner(task, { counts = true } = {}) {
   let t = 0;
-  const r = core.createRunner({ battery: { battery_id: 'b', tasks: [task] }, now: () => t, mic: () => 'ok', one_at_a_time: true, manual: true, ...extra });
+  const battery = { battery_id: 'b', tasks: [task], ...(counts ? { ui: { r8_counts: true } } : {}) };
+  const r = core.createRunner({ battery, now: () => t, mic: () => 'ok', one_at_a_time: true, manual: true });
   return { r, step: (ms) => { t += ms; } };
 }
 
@@ -40,6 +41,16 @@ describe('served_n on a one-at-a-time result', () => {
     const res = r.view().result;
     expect(res.stop_reason).toBe('complete');
     expect(res.served_n).toBe(2);
+  });
+
+  test('sa_r8_counts off (no ui.r8_counts): no served_n, the result as before', () => {
+    const { r, step } = runner(add(2), { counts: false });
+    r.start(); r.instructionDone(); r.begin();
+    step(3000); r.nextCell('tap');
+    step(20000); r.silence(20);
+    const res = r.view().result;
+    expect(res.stop_reason).toBe('early_stop_silence');
+    expect(res).not.toHaveProperty('served_n');
   });
 
   test('a task with no cells (a tap task) gets no served_n: its result keys are as before', () => {
