@@ -406,6 +406,16 @@ describe('the OpenRouter key budget', () => {
     expect(m.text).toMatch(/does not reset/);
     expect(m.color).toBe(W.COLOR.yellow);
   });
+  it('a key already at its limit says so plainly (calls are being refused), not "days left"', () => {
+    const spent = reading({ limit: 300, usage: 300.3, remaining: 0, weekly: 0 });
+    const v = W.keyBudgetVerdict(spent, NOW, cfg);
+    expect(v.level).toBe('critical');
+    const m = W.buildKeyBudget(spent, v, NOW, cfg);
+    expect(m.text).toMatch(/has reached its limit · calls are being refused/);
+    expect(m.text).toMatch(/\$300 of \$300 used · does not reset/);
+    expect(m.text).not.toMatch(/days? left|before then/);
+    expect(m.color).toBe(W.COLOR.red);
+  });
   it('posts at most once a day per level, logs every reading', async () => {
     const store = memStore();
     const post = jest.fn().mockResolvedValue('5.5');

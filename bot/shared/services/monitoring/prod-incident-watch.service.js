@@ -854,6 +854,19 @@ function pktDayLabel(isoTime) {
 const pktDayKey = (now) => new Date(now.getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
 
 function buildKeyBudget(reading, v, now = new Date(), cfg = DEFAULTS) {
+  const footer = `_read from OpenRouter's key-usage endpoint (no model call) · checked every ${cfg.keyTickMin} min · posted at most once a day; `
+    + `again at ${100 - cfg.keyCritPctLeft}% or under ${plural(cfg.keyCritDays, 'day')} left_`;
+  if (v.remaining <= 0) {
+    return {
+      color: COLOR.red,
+      text: [
+        '🔴 *OpenRouter key has reached its limit · calls are being refused*',
+        `${money(reading.usage)} of ${money(reading.limit)} used${reading.reset ? ` · resets ${reading.reset}` : ' · does not reset'}`,
+        'Raise the limit or swap the key now (OpenRouter → Keys).',
+        footer,
+      ].join('\n'),
+    };
+  }
   const left = !Number.isFinite(v.daysLeft) ? 'no spend in the last 7 days'
     : v.daysLeft < 1 ? 'under a day left' : `about ${plural(Math.round(v.daysLeft), 'day')} left`;
   const runsOut = v.runsOutAt && !reading.reset ? ` → runs out around ${pktDayLabel(v.runsOutAt)}` : '';
@@ -866,8 +879,7 @@ function buildKeyBudget(reading, v, now = new Date(), cfg = DEFAULTS) {
       `${v.level === 'critical' ? '🔴' : '🟡'} *OpenRouter key at ${v.pctUsed}% of its limit · ${left}*`,
       `${money(reading.limit - v.remaining)} of ${money(reading.limit)} used · last 7 days: about ${money(v.burnPerDay)} a day${runsOut}`,
       resets,
-      `_read from OpenRouter's key-usage endpoint (no model call) · checked every ${cfg.keyTickMin} min · posted at most once a day; `
-        + `again at ${100 - cfg.keyCritPctLeft}% or under ${plural(cfg.keyCritDays, 'day')} left_`,
+      footer,
     ].join('\n'),
   };
 }
