@@ -20,6 +20,7 @@
 const { getClient, getClientForModel } = require('../llm-client');
 const { resolveModelForJob } = require('../../config/model-registry');
 const { configForRequest, ensureCurrent } = require('../../config/model-settings');
+const { objectiveWriter, OBJECTIVE_JOB } = require('./objective-writer-model');
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 const { stemsBlock, applyStems } = require('./topics/stem-prompt');
@@ -624,7 +625,12 @@ async function generateExam(args) {
   // bd-gr4fy.5.8: this job picks its model here, before the client's own wait for stale settings runs, so
   // settings too old to trust are read first (one bounded wait). familyModel stays synchronous for MODELS.
   if (typeof ensureCurrent === 'function') await ensureCurrent();
-  const model = familyModel(family);
+  // bd-rzjnjp.6: a G1-5 objective or maths paper with no SLOs runs on its own job, so its writer can be
+  // set apart (ASSESSMENT_GEN_MODEL_OBJECTIVE); unset, it inherits and nothing moves.
+  const cfg = configForRequest() || {};
+  const { model, job } = objectiveWriter({ grade, subjectKey: key, slos, questionTypes },
+    resolveModelForJob('assessment.generate', { cfg, family }),
+    resolveModelForJob(OBJECTIVE_JOB, { cfg, family }));
   // The model this family runs with no settings at all (bd-gr4fy.7). Named as `fallbackModel` only
   // when the settings moved the call, so llm-client stands this paper's own model behind the moved
   // one: Urdu and English papers run different models, and only this call site knows which.
@@ -641,7 +647,7 @@ async function generateExam(args) {
   ];
 
   logToFile('[assessment] generating', {
-    grade, subject: key, model, pageReference, contentSource,
+    grade, subject: key, model, job, pageReference, contentSource,
     total: plan.total, seenTarget: plan.seenTarget,
     types: plan.questionTypes.map((q) => `${q.count} ${q.id}`), contentChars: (pageContent || '').length,
   });
@@ -650,7 +656,7 @@ async function generateExam(args) {
     model,
     // Names the spender. llm-client records it on api.cost.incurred and strips it
     // before the request goes out, so this job stops being $11.34/day of anonymous spend.
-    job: 'assessment.generate',
+    job,
     ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
     messages,
     temperature: 0.7,
