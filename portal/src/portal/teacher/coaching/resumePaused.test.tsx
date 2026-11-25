@@ -135,17 +135,21 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
     expect(session.resume).toHaveBeenCalledTimes(1);
   });
 
-  it("switch OFF (the default): the Not sent card, exactly as before; nothing restored", async () => {
+  it("switch OFF (the default): nothing restored, no paused recording: the screen as before", async () => {
     open();
-    expect(await screen.findByTestId("dc-unsent")).toBeInTheDocument();
+    await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) });
+    await new Promise((r) => setTimeout(r, 50));
     expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dc-record-clock")).toBeNull();
   });
 
-  it("switch ON but an MP4 kept (an iPhone): the Not sent card (only WebM parts can be joined)", async () => {
+  it("switch ON but an MP4 kept (an iPhone): not reopened (only WebM parts can be joined)", async () => {
     sw.on = true;
     store.latestUnsent.mockImplementation(async () => stored({ ext: ".m4a", mimeType: "audio/mp4" }));
     open();
-    expect(await screen.findByTestId("dc-unsent")).toBeInTheDocument();
+    await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) });
+    await new Promise((r) => setTimeout(r, 50));
     expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dc-record-clock")).toBeNull();
   });
 });
