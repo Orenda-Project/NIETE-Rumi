@@ -1,3 +1,4 @@
+import type { PiecesApi } from '../lib/pieceUpload';
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
 import { ANALYTICS_LOGIN } from '../lib/homeRoute';
@@ -17,6 +18,11 @@ import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData
 // (VITE_API_BASE_URL) is required. getApiBaseUrl() picks the right one and
 // fails loudly if a native build is missing its config.
 const API_BASE_URL = getApiBaseUrl();
+
+/** bd-q261rec — a pieces ask (begin, sign) on a dead line is given up after this; the sender waits and asks again. */
+const PIECES_ASK_MS = 30_000;
+/** A join reads every piece back from storage and writes the whole file (the bot allows it 120 s). */
+const PIECES_JOIN_MS = 150_000;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -194,6 +200,20 @@ export const portal = {
     const response = await api.post('/coaching-upload/presign', args);
     return response.data;
   },
+
+  /**
+   * bd-q261rec (queue #261) — her recording in PIECES (lib/pieceUpload): begin (or pick up again with `key`), sign the
+   * pieces still to send, join. Each ask has its own timeout so a dead line never hangs a send (the sender waits and
+   * asks again); a join reads every piece back on the server, so it gets longer.
+   */
+  pieces: {
+    begin: async (a: { filename: string; sizeBytes: number; pieceBytes: number; key?: string }) =>
+      (await api.post('/coaching-upload/pieces/begin', a, { timeout: PIECES_ASK_MS })).data,
+    sign: async (a: { key: string; pieces: number[]; attempt: number }) =>
+      (await api.post('/coaching-upload/pieces/sign', a, { timeout: PIECES_ASK_MS })).data,
+    join: async (a: { key: string; sizeBytes: number; pieceBytes: number; digests?: string[] }) =>
+      (await api.post('/coaching-upload/pieces/join', a, { timeout: PIECES_JOIN_MS })).data,
+  } as PiecesApi,
 
   /**
    * PUT the file straight to R2. Plain XHR rather than the `api` instance: it
@@ -1321,6 +1341,16 @@ export const leader = {
     const response = await api.post('/leader/observe-upload/presign', args);
     return response.data;
   },
+
+  /** bd-q261rec (queue #261) — her recording (observation or debrief talk) in pieces, signed under her own id. */
+  observePieces: {
+    begin: async (a: { filename: string; sizeBytes: number; pieceBytes: number; key?: string }) =>
+      (await api.post('/leader/observe-upload/pieces/begin', a, { timeout: PIECES_ASK_MS })).data,
+    sign: async (a: { key: string; pieces: number[]; attempt: number }) =>
+      (await api.post('/leader/observe-upload/pieces/sign', a, { timeout: PIECES_ASK_MS })).data,
+    join: async (a: { key: string; sizeBytes: number; pieceBytes: number; digests?: string[] }) =>
+      (await api.post('/leader/observe-upload/pieces/join', a, { timeout: PIECES_JOIN_MS })).data,
+  } as PiecesApi,
 
   /** Start the observation of one teacher in her patch. A refusal rejects with err.response. */
   startObservation: async (args: {

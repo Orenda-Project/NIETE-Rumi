@@ -36,12 +36,21 @@ function defaultEnv(): Env {
   };
 }
 
-/** Turn the screen-on hold on; resolves to the function that turns it off. */
-export async function keepScreenOn(env: Env = defaultEnv()): Promise<() => Promise<void>> {
+/**
+ * bd-q261rec (queue #261) — how the screen was held, told once at the start (the heartbeat's keep_awake event): native
+ * (the app's KeepScreen plugin), wakelock (Screen Wake Lock), wakelock_refused (asked, the browser said no), none (no way
+ * on this phone). Nothing said before whether it worked, so whether screens still go off, and on which phones, was unknown.
+ */
+export type KeepAwakeMode = "native" | "wakelock" | "wakelock_refused" | "none";
+
+/** Turn the screen-on hold on; resolves to the function that turns it off. `tell`: how it was held (never throws). */
+export async function keepScreenOn(env: Env = defaultEnv(), tell?: (mode: KeepAwakeMode) => void): Promise<() => Promise<void>> {
+  const say = (m: KeepAwakeMode) => { try { tell?.(m); } catch { /* instrumentation only */ } };
   const plugin = env.plugin();
   if (plugin) {
     try {
       await plugin.on();
+      say("native");
       return async () => { try { await plugin.off(); } catch { /* nothing to do */ } };
     } catch {
       // fall through to the web API
@@ -49,7 +58,7 @@ export async function keepScreenOn(env: Env = defaultEnv()): Promise<() => Promi
   }
 
   const wakeLock = env.wakeLock();
-  if (!wakeLock) return async () => {};
+  if (!wakeLock) { say("none"); return async () => {}; }
 
   let sentinel: WakeLockSentinelLike | null = null;
   let released = false;
@@ -60,6 +69,7 @@ export async function keepScreenOn(env: Env = defaultEnv()): Promise<() => Promi
     if (!released && env.doc.visibilityState === "visible") void take();
   };
   await take();
+  say(sentinel ? "wakelock" : "wakelock_refused");
   env.doc.addEventListener("visibilitychange", onVisible);
 
   return async () => {

@@ -1,5 +1,7 @@
 import { Link, Navigate, useParams } from "react-router-dom";
-import { AlertTriangle, Check, RotateCcw, Send, Upload } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Send, Upload, WifiOff } from "lucide-react";
+import { wakePieces } from "../../lib/pieceUpload";
+import { RetryIn } from "../../lib/retryClock";
 import { useCopy } from "../../teacher/i18n";
 import { NOTICES } from "../../teacher/notices/copy";
 import { LeaveNote } from "../../teacher/ui";
@@ -27,6 +29,10 @@ import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
  * fail again): a photo or her plan → its reason and Send without it (the rest goes; what already arrived is not sent
  * again); an uploaded recording → its reason and Select file (Upload recording, to pick it again).
  */
+/**
+ * bd-q261rec (queue #261) — while the line is down the job carries `wait`: the page says Weak internet (amber), how many
+ * pieces arrived and when it tries again, and Try now ends the wait at once. Nothing is lost: the pieces that arrived stay.
+ */
 const CoachSending = () => {
   const C = useCopy(OBSERVE);
   const L = useCopy(NOTICES);
@@ -43,9 +49,10 @@ const CoachSending = () => {
   const unread = failed ? unreadablePart(job.errorCode) : null;
   // bd-r2uzg1.23.5 (queue #274, ICT call 6A): an empty recording can't be sent again as it is: choose the file again.
   const empty = failed && (job.errorCode === "empty_recording" || job.errorCode === "recording_empty");
-  const hue = failed ? "#c8331f" : "#2f7a52";
+  const waiting = !failed && !sent && job.wait ? job.wait : null;
+  const hue = failed ? "#c8331f" : waiting ? "#b45309" : "#2f7a52";
   const length = lengthShort(job.durationMs, C);
-  const caption = failed ? C.couldntSend : sent ? C.sent : C.sending;
+  const caption = failed ? C.couldntSend : sent ? C.sent : waiting ? C.weakLine : C.sending;
 
   return (
     <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={routes.visit(id)} feature="observations"
@@ -65,6 +72,11 @@ const CoachSending = () => {
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
           <RotateCcw className="h-5 w-5" aria-hidden="true" />{C.tryAgain}
         </button>
+      ) : waiting ? (
+        <button type="button" onClick={() => wakePieces()}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+          <RotateCcw className="h-5 w-5" aria-hidden="true" />{C.tryNow}
+        </button>
       ) : (
         <Link replace to={routes.reports}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.goToReports}</Link>
@@ -74,8 +86,8 @@ const CoachSending = () => {
           className="flex h-[220px] w-[220px] items-center justify-center rounded-full"
           style={{ background: `conic-gradient(${hue} 0 ${failed ? 0 : job.pct}%, ${failed ? "#fee4e2" : "#e5e7eb"} ${failed ? 0 : job.pct}% 100%)` }}>
           <span className="flex h-[188px] w-[188px] flex-col items-center justify-center gap-2 rounded-full bg-white">
-            <i className="flex h-11 w-11 items-center justify-center rounded-full not-italic" style={{ background: failed ? "#fee4e2" : "#eaf6ef", color: hue }}>
-              {failed ? <AlertTriangle className="h-6 w-6" aria-hidden="true" /> : sent ? <Check className="h-6 w-6" strokeWidth={3} aria-hidden="true" /> : <Upload className="h-6 w-6" aria-hidden="true" />}
+            <i className="flex h-11 w-11 items-center justify-center rounded-full not-italic" style={{ background: failed ? "#fee4e2" : waiting ? "#fef3c7" : "#eaf6ef", color: hue }}>
+              {failed ? <AlertTriangle className="h-6 w-6" aria-hidden="true" /> : waiting ? <WifiOff className="h-6 w-6" aria-hidden="true" /> : sent ? <Check className="h-6 w-6" strokeWidth={3} aria-hidden="true" /> : <Upload className="h-6 w-6" aria-hidden="true" />}
             </i>
             {/* bd-jjcofw.10 (M6): no percentage once sent; a % reads as a score */}
             {!failed && !sent && <b data-testid="send-pct" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{job.pct}%</b>}
@@ -87,6 +99,12 @@ const CoachSending = () => {
           <StatusChip text={job.teacherName} tone="info" />
           {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
+        {waiting && (
+          <p role="status" data-testid="send-waiting" className="flex w-full flex-col items-center gap-1 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-center text-[15px] font-semibold leading-snug text-[#7c2d12]">
+            <span>{C.piecesSent(waiting.sent, waiting.pieces)}</span>
+            <RetryIn testId="send-retry-in" until={waiting.until} words={C.retryIn} />
+          </p>
+        )}
         {failed && v7 && (
           <div className="w-full"><ErrorCard testId="error-couldnt-send" title={C.couldntSend} line={empty ? failureWords(job.errorCode, C) : `${failureWords(job.errorCode, C)} ${E.nothingLost}`} /></div>
         )}

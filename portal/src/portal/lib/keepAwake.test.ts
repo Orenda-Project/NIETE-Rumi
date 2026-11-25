@@ -44,3 +44,18 @@ describe("keepScreenOn", () => {
     await expect(release()).resolves.toBeUndefined();
   });
 });
+
+// bd-q261rec (queue #261) — which way the screen was kept on is told (the heartbeat's keep_awake event), so we can see
+// whether screens still go off, and on which phones. Before, nothing said whether it worked.
+describe("keepScreenOn tells which way it held the screen", () => {
+  it("native, wakelock, wakelock_refused, none", async () => {
+    const seen: string[] = [];
+    const tell = (m: string) => { seen.push(m); };
+    const plugin = { on: vi.fn().mockResolvedValue(undefined), off: vi.fn() };
+    await keepScreenOn({ plugin: () => plugin, wakeLock: () => undefined, doc: document }, tell);
+    await keepScreenOn({ plugin: () => null, wakeLock: () => ({ request: vi.fn().mockResolvedValue({ release: vi.fn() }) }), doc: document }, tell);
+    await keepScreenOn({ plugin: () => null, wakeLock: () => ({ request: vi.fn().mockRejectedValue(new Error("NotAllowedError")) }), doc: document }, tell);
+    await keepScreenOn({ plugin: () => null, wakeLock: () => undefined, doc: document }, tell);
+    expect(seen).toEqual(["native", "wakelock", "wakelock_refused", "none"]);
+  });
+});

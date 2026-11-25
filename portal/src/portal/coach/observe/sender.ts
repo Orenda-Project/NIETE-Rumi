@@ -8,6 +8,7 @@ import { itemId } from '../../teacher/notices/model';
 import { noticeTracker } from '../../teacher/notices/tracker';
 import { clearDraft } from '../observeDraft';
 import type { ObserveLesson } from '../../services/api';
+import type { WaitInfo } from '../../lib/pieceUpload';
 
 /**
  * bd-4404s7.4 — the coach's observation, sent IN THE BACKGROUND.
@@ -54,6 +55,11 @@ export interface SendJob {
   startedAt: string;
   grade: number | null;
   subject: string | null;
+  /**
+   * bd-q261rec (queue #261) — the line dropped while her recording went up in pieces: the send waits and goes on by
+   * itself. `until`: when it tries again (epoch ms); `sent` of `pieces` arrived. Absent / null while it is moving.
+   */
+  wait?: { until: number; sent: number; pieces: number } | null;
 }
 
 export interface SendArgs {
@@ -155,13 +161,20 @@ async function run(visitId: string): Promise<void> {
   try {
     const out = await sendObservation(
       {
-        teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, audio: args.audio, plan: args.plan, photos: args.photos,
+        teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId,
+        audio: args.audio, plan: args.plan, photos: args.photos,
+        // bd-q261rec: the phone's copy's id, so a killed send is picked up again from the pieces already sent.
+        ...(args.recordingId ? { recordingId: args.recordingId } : {}),
         ...(args.lesson ? { lesson: args.lesson } : {}),
         uploaded,
+        // bd-q261rec (queue #261): the line dropped; the pieces wait and go on by themselves (the Sending page says so).
+        onWait: (w: WaitInfo) => { change(visitId, { wait: { until: Date.now() + w.ms, sent: w.sent, pieces: w.pieces } }); },
       },
       undefined, undefined,
       (pct) => {
         const whole = Math.max(0, Math.min(100, Math.round(pct)));
+        // bd-q261rec: bytes moving again — the wait is over.
+        if (held.get(visitId)?.job.wait) change(visitId, { wait: null });
         if (whole === last) return;
         last = whole;
         change(visitId, { pct: whole });
@@ -176,14 +189,14 @@ async function run(visitId: string): Promise<void> {
       forgetRecording(args.recordingId);
     }
     clearDraft(visitId);
-    change(visitId, { state: 'sent', pct: 100, observationId: out.coachingSessionId, errorCode: null });
+    change(visitId, { state: 'sent', pct: 100, observationId: out.coachingSessionId, errorCode: null, wait: null });
     noticeTracker.update(id, {
       state: 'ready', progress: 1, readyAt: Date.now(), observationId: out.coachingSessionId,
       ...(args.observationHref ? { openHref: args.observationHref(out.coachingSessionId) } : {}),
     });
   } catch (err) {
     const code = errorCodeOf(err);
-    change(visitId, { state: 'failed', errorCode: code });
+    change(visitId, { state: 'failed', errorCode: code, wait: null });
     noticeTracker.update(id, { state: 'failed', errorCode: code });
   }
 }
