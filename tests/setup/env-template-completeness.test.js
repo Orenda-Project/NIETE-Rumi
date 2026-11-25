@@ -77,6 +77,7 @@ const ALLOWED_MISSING = new Set([
   'PWD',
 
   // Railway-injected (auto-set by platform, not user-configurable)
+  'RAILWAY_DEPLOYMENT_ID',
   'RAILWAY_REPLICA_ID',
   'RAILWAY_SERVICE_NAME',
   'RAILWAY_ENVIRONMENT_NAME',

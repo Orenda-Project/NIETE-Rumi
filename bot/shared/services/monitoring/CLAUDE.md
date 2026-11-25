@@ -5,6 +5,7 @@
 ## Entry points
 - `lesson-plan-health.service.js` — reads lesson_plan_requests, alerts when unhealthy
 - `quiz-funnel-watch.service.js` — one Slack DM stream, de-duplicated
+- `prod-incident-watch.service.js` — rule-based production alerts to one Slack channel, no model; replay with `bot/scripts/prod-incident-watch.js --dry-run`
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Children (generated)
