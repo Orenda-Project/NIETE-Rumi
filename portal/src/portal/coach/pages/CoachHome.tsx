@@ -2,6 +2,7 @@ import { ClipboardCheck } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
+import { ObserveHelpButton } from "../../teacher/help/observe/ObserveHelp";
 import { AttentionBanner, FeatureTile, HistoryList, HomeGreeting } from "../../teacher/ui";
 import { FeatureMotionProvider } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
@@ -51,6 +52,7 @@ const CoachHome = () => {
             brand={F.brand}
             logoAlt={F.logoAlt}
             className="rounded-b-[28px] pb-6"
+            corner={<ObserveHelpButton pill onDark />}
           />
         )}
       >

@@ -184,7 +184,7 @@ export function LookHome({ tiles, data, order, onGo, role, school, extraTile }: 
           school={cleanSchool(user?.schoolName)}
           brand={C.brand}
           logoAlt={C.logoAlt}
-          corner={<HelpCorner feature="start"><LanguagePill lang={switcher} /></HelpCorner>}
+          corner={<HelpCorner feature="start">{(help) => <LanguagePill lang={switcher} compact={help} />}</HelpCorner>}
           footer={switcher.status === 'failed' ? <StatusChip text={C.more.notSaved} tone="error" className="bg-white/10 text-white" /> : role}
         />
       )}

@@ -15,6 +15,8 @@ export const HELP_COPY = {
   help: 'Help',
   /** The operator, 12 Nov 2026 (bd-ik5e8j.6): "How to Use might be a better name". */
   howTo: 'How to Use',
+  /** bd-sil83f (queue #269) — the "?" as words, then its glyph: "How to use ?" (the operator 24 Nov ~19:20). */
+  pill: 'How to use',
   watch: 'Watch video',
   smaller: 'Play a smaller copy',
   comingSoon: 'Video coming soon',
@@ -58,6 +60,8 @@ export const HELP_COPY = {
 export const HELP_COPY_UR: typeof HELP_COPY = {
   help: 'مدد',
   howTo: 'استعمال کا طریقہ',
+  // #269: the More row's and the tray's own word, so the "?" and what it opens say one thing.
+  pill: 'استعمال کا طریقہ',
   watch: 'ویڈیو دیکھیں',
   smaller: 'ہلکی ویڈیو چلائیں',
   comingSoon: 'ویڈیو جلد آئے گی',
