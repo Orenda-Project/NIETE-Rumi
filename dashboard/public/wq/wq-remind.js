@@ -9,7 +9,15 @@
  *
  * First GET /api/wqpush/key: a 404 means the switch is off, so any of our workers (/sw.js) is unregistered and nothing
  * is drawn. Never drawn beside an install card (#wqp-inst non-empty or [data-door="install"]), never on a class phone
- * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e. */
+ * (4+ chips). The browser's permission is asked only inside the Yes tap. Steps go to POST /api/wqpush/e.
+ *
+ * Each step, the subscribe and the context kept for the worker carry `ps`, this page load's telemetry session id, when
+ * wq-tel.js has one (window.WQT.on; it keeps the id in sessionStorage as wq_ps), so a funnel read can drop QA walks by
+ * page_start.ua. Telemetry off, no wq-tel on the page (the /remind landing) or no id: the bodies are as they were.
+ *
+ * How a sitting ended: the first answer after `shown` (yes / later / escape) carries dwell_ms, how long the ask was up;
+ * the page going away (hidden, or pagehide) with the ask up and unanswered posts one `gone` step with dwell_ms (once
+ * per sitting, through post()'s keepalive). No ask drawn, no `gone`. Nothing a child sees changes. */
 (function () {
   'use strict';
   var T = {
@@ -67,6 +75,7 @@
   };
   var IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;
   var CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+  var PS_RX = /^[a-z0-9]{12}$/;
   // The reminder comes on the next school evening (Mon–Fri, PKT; the bot's nextAt): on a Friday or a Saturday that is
   // Monday, so the ask and the done line say Monday there, and tomorrow on every other day.
   function onMonday() { var d = new Date(Date.now() + 5 * 3600000).getUTCDay(); return d === 5 || d === 6; }
@@ -80,6 +89,13 @@
   function lsSet(k, v) { try { window.localStorage.setItem(k, String(v)); } catch (_) { /* private mode: no snooze */ } }
   function within(k, days) { var t = Number(lsGet(k)) || 0; return t > 0 && Date.now() - t < days * DAY; }
   function snoozed() { return within('wq_rm_asked', 30) || within('wq_rm_later', 7); }
+  // This page load's telemetry session id, or '' (telemetry off: a wq_ps left by an earlier page in the tab is not this one)
+  function pageSession() {
+    if (!window.WQT || window.WQT.on !== true) return '';
+    var v = '';
+    try { v = String(window.sessionStorage.getItem('wq_ps') || ''); } catch (_) { v = ''; }
+    return PS_RX.test(v) ? v : '';
+  }
 
   function post(op, body) {
     try {
@@ -143,7 +159,7 @@
     for (var i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
     return out;
   }
-  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang}). Best effort. */
+  /** Keep what the worker needs to re-subscribe on its own ({key, code, lang, ps?}). Best effort. */
   function keep(ctxVal) {
     return new Promise(function (resolve) {
       try {
@@ -180,12 +196,34 @@
     var key = null;
     var busy = false;
     var iab = false;
+    var askedAt = 0; // when this sitting's ask was drawn; 0 = none up, or it was answered (or left)
+    var watching = false;
 
     function ev(step, extra) {
       var b = { step: step, lang: lang, src: src };
       if (iab) b.iab = true;
+      if (pageSession()) b.ps = pageSession();
       if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
       post('e', b);
+    }
+    // The ask's first answer takes how long it was up; every step after it carries nothing new.
+    function dwell(extra) {
+      var o = extra || {};
+      if (!askedAt) return o;
+      var ms = Math.round(Date.now() - askedAt);
+      askedAt = 0;
+      if (ms >= 0) o.dwell_ms = ms;
+      return o;
+    }
+    function gone() { if (askedAt) ev('gone', dwell()); }
+    function askShown() {
+      ev('shown');
+      askedAt = Date.now();
+      if (watching) return;
+      watching = true;
+      var d = window.document;
+      try { window.addEventListener('pagehide', gone); } catch (_) { /* no lifecycle events: no gone */ }
+      try { d.addEventListener('visibilitychange', function () { if (d.visibilityState === 'hidden') gone(); }); } catch (_) { /* as above */ }
     }
     function remindUrl() { return 'https://' + host + '/remind/' + code + '?from=iab&lang=' + lang; }
     function intentHref() {
@@ -249,7 +287,9 @@
       return Promise.resolve(sw.register('/sw.js', { scope: '/' }))
         .then(function () { return sw.ready; })
         .then(function (reg) {
-          return keep({ key: key, code: code, lang: lang }).then(function () {
+          var kept = { key: key, code: code, lang: lang };
+          if (pageSession()) kept.ps = pageSession();
+          return keep(kept).then(function () {
             return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
           });
         })
@@ -258,6 +298,7 @@
           try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) { tz = ''; }
           var body = { sub: sub.toJSON(), code: code, lang: lang, chips: Number(ctx.chips) || 0, tz: tz };
           if (typeof ctx.chip === 'string' && ctx.chip) body.chip = ctx.chip;
+          if (pageSession()) body.ps = pageSession();
           return post('subscribe', body).then(function (r) {
             if (r && r.status === 200) return 'ok';
             try { sub.unsubscribe(); } catch (_) { /* best effort */ }
@@ -270,7 +311,7 @@
     function onYes() {
       if (busy) return;
       busy = true;
-      ev('yes');
+      ev('yes', dwell());
       show.hint();
       var asked = new Promise(function (resolve) {
         var r = window.Notification.requestPermission(resolve);
@@ -319,12 +360,12 @@
       var act = el && el.getAttribute('data-act');
       if (!act) return;
       if (act === 'yes') onYes();
-      else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later'); draw(''); }
+      else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); }
       else if (act === 'stop') onStop();
       else if (act === 'test') onTest();
       else if (act === 'copy') { if (e.preventDefault) e.preventDefault(); onCopy(); }
-      else if (act === 'escape') ev('escape', { how: 'intent' });
-      else if (act === 'how') { ev('escape', { how: 'menu' }); show.iab(true); }
+      else if (act === 'escape') ev('escape', dwell({ how: 'intent' }));
+      else if (act === 'how') { ev('escape', dwell({ how: 'menu' })); show.iab(true); }
     };
 
     return {
@@ -340,7 +381,7 @@
           if (r.body && r.body.ask === false) return null;
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
           var b = branch();
-          if (b === 'iab') { iab = true; ev('shown'); show.iab(); return null; }
+          if (b === 'iab') { iab = true; askShown(); show.iab(); return null; }
           if (b === 'ios') { ev('ios'); show.ios(); return null; }
           if (b === 'nopush') { ev('nopush'); show.nopush(); return null; }
           if (!key) return null;
@@ -348,7 +389,7 @@
           if (perm === 'denied') { if (landing) show.denied(); return null; }
           return (perm === 'granted' ? currentSub() : Promise.resolve(null)).then(function (sub) {
             if (sub) { if (landing) show.done(); return; }
-            ev('shown');
+            askShown();
             show.ask();
           });
         }).catch(function () { return null; });
