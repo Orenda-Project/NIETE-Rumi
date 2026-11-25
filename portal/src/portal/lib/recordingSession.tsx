@@ -178,7 +178,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     }
     recorderRef.current = rec;
     heartRef.current = heart || null;
-    releaseScreen.current = await keepScreenOn();
+    releaseScreen.current = await keepScreenOn(undefined, (mode) => heartRef.current?.event('keep_awake', { mode }));
     setLive({ active: true, paused: false, stream: media, screenWentOff: false, recordingId: rec.id ?? null, returnTo });
     return 'recording';
   }, []);
@@ -223,7 +223,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
       }
       recorderRef.current = rec;
       keptRef.current = null;
-      releaseScreen.current = await keepScreenOn();
+      releaseScreen.current = await keepScreenOn(undefined, (mode) => heartRef.current?.event('keep_awake', { mode }));
       setLive((l) => ({ ...l, active: true, paused: false, stream: media }));
       return 'recording';
     })().finally(() => { resuming.current = null; });
