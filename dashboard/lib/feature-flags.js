@@ -341,6 +341,13 @@ const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
  * file however it was recorded, so there is no server gate to keep in step. Teachers' own recording is not touched.
  */
 const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
+/**
+ * bd-ma9jiy (queue #262) — portal_recording_resume: a TEACHER's own Digital Coaching recording kept on the phone (cut by a
+ * kill, or never sent) reopens as a paused recording with Resume / Stop. Read with isFlagEnabledForUser (fail-closed:
+ * no row / false = off; true or "teachers" = every teacher; a list of users.id = those). Served as
+ * features.recordingResume. Coaches and principals have it on by default, unswitched.
+ */
+const PORTAL_RECORDING_RESUME_KEY = 'portal_recording_resume';
 const PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY = 'portal_observe_upload_only_on';
 const PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY = 'portal_observe_upload_only_off';
 
@@ -679,6 +686,7 @@ module.exports = {
   PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY,
   PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY,
   isObserveUploadOnlyFor,
+  PORTAL_RECORDING_RESUME_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,

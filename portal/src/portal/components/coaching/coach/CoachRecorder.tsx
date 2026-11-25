@@ -5,6 +5,8 @@ import { ConfirmTray } from '../../../teacher/ui/ConfirmTray';
 import { useRecordingBackGuard } from '../../../lib/useRecordingBackGuard';
 import { type FinishedRecording } from '../../../lib/lessonRecorder';
 import { useCoachRecording } from '../../../lib/useCoachRecording';
+import type { KeptRecording } from '../../../lib/recordingStore';
+import type { BeatContext } from '../../../lib/recordingBeat';
 
 /**
  * bd-5rz1v.6 — the recorder a coach uses, for her teacher's lesson and for her
@@ -17,6 +19,9 @@ import { useCoachRecording } from '../../../lib/useCoachRecording';
  * It starts on mount. A refused microphone calls onMicBlocked; Finish hands the
  * recording to onFinished. The engine itself is useCoachRecording (bd-o15qnr.9),
  * shared with the coach app v2's Record live page.
+ *
+ * bd-ma9jiy (queue #262) — `kept`: a recording this phone kept opens paused (the clock at its length, Continue carries on
+ * in the same recording, Finish hands it over); `beat`: the heartbeat's context for every save.
  */
 
 export function clockText(ms: number): string {
@@ -54,8 +59,10 @@ export type CoachRecorderCopy = {
 };
 
 const CoachRecorder = ({
-  label, copy, shortMs, onStarted, onFinished, onMicBlocked,
+  label, copy, shortMs, onStarted, onFinished, onMicBlocked, kept = null, beat,
 }: {
+  kept?: KeptRecording | null;
+  beat?: BeatContext;
   /** "Observing: Ayesha Bibi" / "Your talk with Ayesha Bibi". */
   label: string;
   copy: CoachRecorderCopy;
@@ -69,7 +76,7 @@ const CoachRecorder = ({
   const [confirmFinish, setConfirmFinish] = useState(false);
   const {
     recording, paused, elapsed, level, screenWentOff, togglePause, finish: stopRecording, elapsedNow,
-  } = useCoachRecording({ onStarted, onMicBlocked });
+  } = useCoachRecording({ onStarted, onMicBlocked, kept, beat });
 
   // Back while recording asks "Finish recording?" instead of leaving the lesson.
   useRecordingBackGuard(recording, () => setConfirmFinish(true));

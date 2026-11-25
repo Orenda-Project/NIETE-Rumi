@@ -405,7 +405,7 @@ describe("Record, switch on: the recording keeps going while the coach moves rou
 
   it("the recorder is the app's session (returnTo this screen), and the menu stays", async () => {
     renderAt("/portal/coach/visit/v1/record");
-    await waitFor(() => expect(rec.session.start).toHaveBeenCalledWith({ returnTo: "/portal/coach/visit/v1/record" }));
+    await waitFor(() => expect(rec.session.start).toHaveBeenCalledWith(expect.objectContaining({ returnTo: "/portal/coach/visit/v1/record" })));
     expect(oldRecorder.used).toBe(0);
     await screen.findByRole("timer");
     expect(screen.getAllByTestId("layout").every((el) => el.getAttribute("data-bare") === "no")).toBe(true);

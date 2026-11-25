@@ -15,10 +15,12 @@ vi.mock("../../services/api", () => ({
   portal: { uploadToR2: vi.fn() },
 }));
 // The in-app web recorder: counted, so a test can say whether it started.
-const engine = vi.hoisted(() => ({ started: 0 }));
+const engine = vi.hoisted(() => ({ started: 0, kept: null as string | null }));
 vi.mock("../../lib/useCoachRecording", () => ({
-  useCoachRecording: () => {
+  useCoachRecording: (opts?: { kept?: { meta: { id: string } } | null }) => {
     engine.started += 1;
+    // bd-ma9jiy: which kept recording the recorder opens (paused) — resumeKept.test.tsx runs the real engine.
+    if (opts?.kept) engine.kept = opts.kept.meta.id;
     return { recording: true, paused: false, elapsed: 0, level: 0, screenWentOff: false, micBlocked: false,
       togglePause: vi.fn(), finish: vi.fn(), elapsedNow: () => 0 };
   },
@@ -96,6 +98,7 @@ const m4a = (name = "Voice 001.m4a") => new File(["0000ftypM4A "], name, { type:
 beforeEach(async () => {
   vi.clearAllMocks();
   engine.started = 0;
+  engine.kept = null;
   kept.list = [];
   sw.on = false;
   if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
@@ -129,28 +132,22 @@ describe("Record observation — the in-app recorder is back", () => {
     expect(screen.queryByRole("link", { name: "Send saved recording" })).toBeNull();
   });
 
-  it("a recording kept for THIS teacher: Send saved recording first, Start recording and Upload recording beside it, the weak-internet line above; nothing records until she chooses", async () => {
+  // bd-ma9jiy (queue #262) — the operator 25 Nov ~19:45: a kept recording reopens as the PAUSED recording (Resume / Stop),
+  // not as a Send saved recording card. The real engine's paused state, Resume and Stop: resumeKept.test.tsx.
+  it("a recording kept for THIS teacher: the recorder opens WITH it (paused there); no Send saved recording card", async () => {
     keep("rec-ayesha", AYESHA, "2026-11-25T04:38:00Z");
     record();
-    const send = await screen.findByRole("link", { name: "Send saved recording" });
-    expect(send).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/check`);
-    expect(screen.getByText(WEAK)).toBeInTheDocument();
-    expect(screen.getByText("Ayesha Bibi’s recording is saved on this phone.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Upload recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/attach`);
-    expect(engine.started).toBe(0);
-    expect(screen.queryByRole("timer")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Start recording" }));
     expect(await screen.findByRole("timer")).toBeInTheDocument();
-    expect(engine.started).toBeGreaterThan(0);
+    expect(engine.kept).toBe("rec-ayesha");
+    expect(screen.queryByRole("link", { name: "Send saved recording" })).toBeNull();
   });
 
-  it("her copy is still offered when a NEWER kept recording belongs to another teacher", async () => {
+  it("her copy is the one reopened when a NEWER kept recording belongs to another teacher", async () => {
     keep("rec-huma", "923009990009", "2026-11-25T06:30:00Z");
     keep("rec-ayesha", AYESHA, "2026-11-25T04:38:00Z");
     record();
-    expect(await screen.findByRole("link", { name: "Send saved recording" })).toBeInTheDocument();
-    expect(engine.started).toBe(0);
+    expect(await screen.findByRole("timer")).toBeInTheDocument();
+    expect(engine.kept).toBe("rec-ayesha");
   });
 
   it("a kept recording of ANOTHER teacher only: no card here, the recorder starts", async () => {
@@ -160,10 +157,10 @@ describe("Record observation — the in-app recorder is back", () => {
     expect(screen.queryByRole("link", { name: "Send saved recording" })).toBeNull();
   });
 
+  // bd-ma9jiy: a kept recording now opens the paused recorder, so the line is checked where it always sits: the visit page.
   it("in Urdu: the weak-internet line is Urdu", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
-    keep("rec-ayesha", AYESHA, "2026-11-25T04:38:00Z");
-    record();
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
     expect(await screen.findByText("انٹرنیٹ کمزور ہے؟ فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔")).toBeInTheDocument();
   });
 });
@@ -205,10 +202,12 @@ describe("the visit page — the line above Start recording / Upload recording, 
     expect(within(group).getByRole("link", { name: "Upload recording" })).toBeInTheDocument();
   });
 
-  it("a recording kept for this teacher: Send saved recording on the visit page", async () => {
+  // bd-ma9jiy (queue #262) — with the in-app recorder, the visit page's way back is Continue recording (the record step
+  // opens it paused); upload-only keeps Send saved recording.
+  it("a recording kept for this teacher: Continue recording on the visit page, to the record step", async () => {
     keep("rec-ayesha", AYESHA, "2026-11-25T04:38:00Z");
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    expect(await screen.findByRole("link", { name: "Send saved recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/check`);
+    expect(await screen.findByRole("link", { name: "Continue recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/record`);
   });
 });
 
