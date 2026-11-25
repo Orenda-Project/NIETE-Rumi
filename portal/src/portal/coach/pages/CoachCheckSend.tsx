@@ -18,7 +18,7 @@ import { PLAN_V7 } from "../flow/copyV7plan";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
-import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
+import { checkPlanFile, formatSize, OBSERVE_MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
@@ -452,8 +452,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
       {planError === "wont_open" && <Alert>{C.fileWontOpen}</Alert>}
 
-      <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" readOnPick />
+      <SectionHeading chip={[C.upToN(OBSERVE_MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
+      {/* bd-r2uzg1.23.3 — up to ten, several picked at once (the grid's input is `multiple`) */}
+      <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" max={OBSERVE_MAX_PHOTOS} readOnPick />
 
       <Tray open={ownOpen} title={v7 ? P.ownPlan : C.ownPlan} onClose={() => setOwnOpen(false)}>
         <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />
@@ -522,7 +523,8 @@ const CoachCheckSend = () => {
   useEffect(() => {
     if (audio || !visit) return undefined;
     let live = true;
-    latestUnsent().then(async (u) => {
+    // bd-ih6cej: THIS teacher's kept copy, even when a newer kept recording belongs to someone else.
+    latestUnsent((m) => recordingTeacher(m.id)?.teacherExtId === visit.teacherExtId).then(async (u) => {
       const who = u ? recordingTeacher(u.meta.id) : null;
       if (live && u && who && who.teacherExtId === visit.teacherExtId) {
         const blob = await withDuration(u.blob, u.meta.ext, u.meta.elapsedMs);
@@ -552,6 +554,7 @@ const CoachCheckSend = () => {
       {visit && looked && !audio && (
         <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-xl font-light">{C.noRecording}</h2>
+          <p data-testid="record-tip" className="m-0 text-[15px] leading-snug text-[#4b5563]">{C.weakInternet}</p>
           <div className="[display:grid] grid-cols-2 gap-2.5">
             <Link to={routes.record(id)} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
             <Link to={routes.attach(id)} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>

@@ -12,13 +12,14 @@ import { FORM_V7, type FormV7Copy } from "./copyV7form";
 import { debriefDueDay } from "./debriefDue";
 import { karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
+import { REPORTS } from "../reports/copy";
 
 /**
  * bd-o15qnr.28 (queue #204, v7) — the visit's own step cards (#188's LOCK round: "Actions live on the visit only"):
  *
  *   DebriefDue      "Due by Mon 23 Nov" (3 school days after the visit), "Was due …" once past
- *   DebriefStage    Your debrief: talk with the teacher, then record it here: Start recording / Upload recording (the
- *                   Debrief screen, its guide on screen; ?upload=1 opens the file picker side)
+ *   DebriefStage    Next: Take the debrief: read the guide, talk with the teacher, then record it; ONE button, Take
+ *                   debrief, opens the Debrief screen (the notes), where Record debrief floats at the bottom (DebriefDock)
  *   FeedbackCard    the report's own top card (%, the 5 stars, the teacher line) as ONE tap target to the one feedback
  *                   page; no sentence, no button
  *   SendStage       Send {name} the report: "{name} gets it on WhatsApp." and Send report
@@ -64,10 +65,15 @@ export function NextCard({ step, children }: { step: string; children: ReactNode
   );
 }
 
-/** The debrief, next: its due day, "Talk with the teacher, then record it here." and Start recording / Upload recording. */
+/**
+ * The debrief, next: its due day, "Read the guide, talk with the teacher, then record it." and ONE button, Take debrief,
+ * that opens the debrief notes (the Debrief page). bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "the debrief
+ * record button is appearing, even though when you click the record button it actually takes you to the debrief notes")
+ * — no Start recording / Upload recording here: both opened the notes anyway; recording starts there, from the notes
+ * page's floating Record debrief (DebriefDock).
+ */
 export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
-  const upload = `${to}${to.includes("?") ? "&" : "?"}upload=1`;
   return (
     <NextCard step={W.steps[2].current}>
       <div data-testid="stage-debrief" className="flex flex-col gap-3">
@@ -75,22 +81,47 @@ export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
           {due}
           <p className="m-0 text-[15px] text-[#4b5563]">{W.talkThenRecord}</p>
         </div>
-        <div className="flex flex-col gap-2.5">
-          <Link to={to} className={cn(BIG, "bg-[#33374a] text-white", FOCUS)}>
-            <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
-            <StartWord />
-          </Link>
-          <Link to={upload} className={cn(BIG, "border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
-            <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
-          </Link>
-        </div>
+        <Link to={to} className={cn(BIG, "w-full bg-[#33374a] text-white", FOCUS)}>
+          {W.takeDebrief}<ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+        </Link>
       </div>
     </NextCard>
   );
 }
 
-// The Observe words for the two buttons (one vocabulary: observe/copy.ts).
-function StartWord() { return <>{useCopy(OBSERVE).startRecording}</>; }
+/**
+ * bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "Maybe the record button should be a floating button at the bottom
+ * of the page all the time, so they can read the notes and then they know that here is where they will start recording")
+ * — the debrief notes page's Record debrief (and Upload recording), for the page frame's dock: pinned to the bottom of the
+ * screen while she reads, above the menu and the phone's safe area (TeacherPage's sticky dock: in flow, so the last note
+ * scrolls clear of it). Record is the dark button with the red recording dot; Upload sits beside it.
+ */
+/**
+ * bd-ih6cej — `tip`: one line above the buttons (the weak-internet advice, or how to record before uploading). No
+ * `onRecord` (upload-only): Upload recording alone, full width.
+ */
+export function DebriefDock({ onRecord, onUpload, tip }: { onRecord?: () => void; onUpload: () => void; tip?: string }) {
+  const W = useCopy(FLOW_V7) as FlowV7Copy;
+  return (
+    <div data-testid="debrief-dock" className="flex w-full flex-col gap-2">
+      {tip && <p data-testid="record-tip" className="m-0 text-center text-[14px] leading-snug text-[#4b5563]">{tip}</p>}
+      <div className="flex w-full gap-2.5">
+        {onRecord && (
+          <button type="button" onClick={onRecord} className={cn(BIG, "flex-[3] bg-[#33374a] text-white shadow-[0_4px_12px_rgba(16,24,40,0.18)]", FOCUS)}>
+            <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
+            {W.recordDebrief}
+          </button>
+        )}
+        <button type="button" onClick={onUpload}
+          className={cn(BIG, onRecord ? "flex-[2] border border-[#e5e7eb] bg-white text-[#33374a]" : "flex-1 bg-[#33374a] text-white", FOCUS)}>
+          <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// The Observe word for Upload recording (one vocabulary: observe/copy.ts).
 function UploadWord() { return <>{useCopy(OBSERVE).uploadRecording}</>; }
 
 export function FeedbackCard({ id, to }: { id: string; to: string }) {
@@ -252,6 +283,25 @@ export function StoppedStage({ text, line, children }: { text: string; line?: st
 }
 
 const ERROR_BUTTON = "flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold leading-tight rtl:leading-[1.8]";
+
+/** bd-f5a245 — a fixing button inside an ErrorCard that opens a page: ErrorAction's dark button, as a link. */
+export function ErrorLink({ to, children }: { to: string; children: ReactNode }) {
+  return <Link to={to} className={cn(ERROR_BUTTON, "bg-[#33374a] text-white", FOCUS)}>{children}</Link>;
+}
+
+/**
+ * bd-f5a245 (queue #245) — the analysis stopped (it failed, or the system gave up on it): "Analysis stopped", why in one
+ * plain line, and ONE button, Upload recording (`to`: the coach's Schedule an observation with that teacher picked; the
+ * principal's, that teacher's page). On the observation page (`stage-stopped`) and the visit page.
+ */
+export function AnalysisStoppedCard({ testId = "stage-stopped", to }: { testId?: string; to: string | null }) {
+  const C = useCopy(REPORTS);
+  return (
+    <ErrorCard testId={testId} title={C.chip.stopped} line={C.analysisStoppedLine}>
+      {to && <ErrorLink to={to}><Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{C.uploadRecording}</ErrorLink>}
+    </ErrorCard>
+  );
+}
 
 /** A fixing button inside an ErrorCard: the app's dark button, or (`quiet`) the white one under it. */
 export function ErrorAction({ onClick, quiet = false, children }: { onClick: () => void; quiet?: boolean; children: ReactNode }) {

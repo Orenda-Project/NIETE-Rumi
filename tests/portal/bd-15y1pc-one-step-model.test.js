@@ -31,6 +31,8 @@ const COARSE = {
   waiting_teacher: 'sent',
   sent: 'sent',
   done: 'sent',
+  // bd-f5a245 — a failed, abandoned or cancelled observation: both say stopped (coach v2 said analysing)
+  stopped: 'stopped',
 };
 
 // [name, status, debrief_status, teacher_delivery]
@@ -49,6 +51,9 @@ const ROWS = [
   ['operator review', 'observer_review_complete', 'done', { status: 'operator_review' }],
   ['report sent', 'observer_review_complete', 'done', { status: 'sent' }],
   ['completed', 'completed', 'done', { status: 'sent' }],
+  ['analysis failed', 'failed', 'pending', null],
+  ['abandoned', 'abandoned', 'pending', null],
+  ['cancelled', 'cancelled', 'pending', null],
 ];
 
 function byIdQuery(row) {

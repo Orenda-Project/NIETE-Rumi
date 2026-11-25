@@ -475,6 +475,22 @@ const JOB_EFFORT = Object.freeze({
 });
 
 /**
+ * bd-lk7e3f.26: the output limit a job's moved call gets on a Claude model, where the switch's usual allowance is too
+ * small (llm-client adaptForTarget: twice the call site's limit, but at most ALLOWANCE_CAP, 4,096, more). It only ever
+ * raises the limit, only for a Claude model answering a moved call, and never above the switch's MAX_OUTPUT_TOKENS;
+ * the job's own model, the hand-back to it, and the call's thinking and effort are untouched. An entry changes nothing
+ * until a row moves its job to a Claude model.
+ *
+ * coaching.enhance: its reply rewrites the whole analysis (median 11,355 output tokens on Haiku 5.5) after its
+ * thinking, and at 16,000 + 4,096 = 20,096 it was cut off and handed back on 21 of its first 707 calls on Haiku 5.5
+ * (22-25 Nov). Haiku 5.5 writes up to 128,000; at about 220 tokens a second, 32,000 finishes inside the direct lane's
+ * 180 s request timeout, and the lane's explicit timeout is what lets the SDK send a non-streaming request this long.
+ */
+const JOB_OUTPUT_LIMIT = Object.freeze({
+  'coaching.enhance': 32000,
+});
+
+/**
  * The label a reply to this job starts with, whether its marker follows (for a label that can carry
  * one), and the rest of the reply; or null. Case, leading spaces, quotes and markdown emphasis are
  * ignored; the label must end where a word ends, so "generally" is not "general".
@@ -613,6 +629,6 @@ function modelFor(job, ctx = {}) {
 
 module.exports = {
   modelFor,
-  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS, JOB_EFFORT,
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS, JOB_EFFORT, JOB_OUTPUT_LIMIT,
   fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel, leadingLabel, labelDecisionComplete,
 };

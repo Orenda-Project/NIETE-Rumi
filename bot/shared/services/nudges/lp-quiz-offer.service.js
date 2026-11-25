@@ -59,6 +59,7 @@ const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
 const QuizMenuFlags = require('../quiz/quiz-menu-flags');
 const FeatureIntro = require('../feature-intro.service');
+const SendRetry = require('./send-retry');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -851,7 +852,9 @@ async function send(row, { now } = {}) {
   // teacher get the offer?" can be matched to a delivery webhook. Reported by
   // the send; the boolean it returns stays the delivery verdict.
   const messageIds = [];
-  const sendOpts = { onMessageId: (id) => messageIds.push(id) };
+  // The last send error, so a send that never reached Meta can be tried again (bd-6jaq0i, send-retry.js).
+  let sendError = null;
+  const sendOpts = { onMessageId: (id) => messageIds.push(id), onError: (e) => { sendError = e; } };
   let ok;
   // The intro film, in the teacher's language, while their count is under
   // LP_QUIZ_OFFER_INTRO_VIDEO_SHOWS. No film configured: nothing is read.
@@ -929,6 +932,13 @@ async function send(row, { now } = {}) {
   const offerFunnel = {
     nudge_id: row.id, teacher_id: row.user_id, source: QUIZ_SOURCE, channel: 'lp_offer', n: classes.length,
   };
+  // Never reached Meta (24 Nov 2026: 102 offers lost to ENETUNREACH): ask the sweeper for another try. Not
+  // counted as an offer yet, so the funnel counts it once, when it finally goes or finally fails.
+  const retry = !ok && SendRetry.nextTry(row, sendError, at);
+  if (retry) {
+    logEvent('lp_quiz.offer_retry', { nudgeId: row.id, tries: retry.tries, code: retry.code });
+    throw SendRetry.retryError(`lp quiz offer: WhatsApp not reached (${retry.code}); retry ${retry.tries}`, retry);
+  }
   if (!ok) {
     logToFile('❌ lp quiz offer: WhatsApp refused the offer', { nudgeId: row.id, shape }, 'error');
     Funnel.emit('offer_made', { ...offerFunnel, delivered: false });
@@ -1003,6 +1013,7 @@ async function insertQuiz(row, cls, { askLanguage = false } = {}) {
         source: 'lp_offer',
         nudge_id: row.id,
         lessons,
+        lesson_links: require('../quiz/quiz-lesson-link').fromPlanLessons(lessons),
         class: { grade: cls.grade, subject: cls.subject },
         lesson_date: row.nudge_date,
         claimed_at: new Date().toISOString(),

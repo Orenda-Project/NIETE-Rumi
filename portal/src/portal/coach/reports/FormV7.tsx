@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes, type TouchEvent as ReactTouchEvent } from "react";
-import { X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { cn } from "@/lib/utils";
 import type { DraftIndicator, DraftOption, DraftSection, ObservationDraft } from "../../services/api";
@@ -320,7 +320,38 @@ export function DcQuoteRow({ time, quote, first, chip }: { time: string | null; 
   return (
     <div data-testid="dc-row" className={cn("flex items-start gap-2 py-1", !first && ROW_DIVIDER)}>
       {chip ?? (time ? <span data-testid="ff-time" dir="ltr" className={cn(TIME_CHIP, "mt-1")}>{time}</span> : null)}
-      <span className="min-w-0 flex-1 py-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]" dir="auto" {...urduOf(quote)}>{`“${quote}”`}</span>
+      {/* queue #251: beside a 56px playable chip, the quote's first line sits level with the chip */}
+      <span className={cn("min-w-0 flex-1 text-[15px] leading-relaxed text-[#1d2025] [unicode-bidi:plaintext]", chip ? "py-3.5" : "py-1")} dir="auto" {...urduOf(quote)}>{`“${quote}”`}</span>
+    </div>
+  );
+}
+
+/**
+ * Queue #251 (the operator 24 Nov ~10:25: "If we are looking at the digital coach's evidence, then we only need to see
+ * that field. And then if we want to edit it ... you can have the digital coach's evidence and then a free field for you
+ * to type in.") — under the Digital Coach's evidence, grades 1-5 and 6-12 alike: "Edit evidence" until she opens it; then
+ * "Your evidence", an EMPTY box sized to its text (a minimum's counter and reason as `hint` / `problem`), and "Keep the
+ * Digital Coach’s", which closes it and drops what she typed. `value` is her own words only ('' while the Digital Coach's
+ * is kept): what she types is the evidence saved; left empty, the Digital Coach's is. Read only: her words, if any.
+ */
+export function OwnEvidence({ id, open, value, onOpen, onChange, onKeep, readOnly, problem, hint, onBlur }: {
+  id: string; open: boolean; value: string; onOpen: () => void; onChange: (v: string) => void; onKeep: () => void; readOnly: boolean;
+  problem?: string | null; hint?: ReactNode; onBlur?: () => void;
+}) {
+  const F = useCopy(FORM_V7) as FormV7Copy;
+  const BUTTON = cn("flex min-h-[56px] items-center gap-2 self-start rounded-xl border border-[#d1d5db] bg-white px-4 text-[15px] font-semibold text-[#33374a]", FOCUS);
+  if (readOnly) return value.trim() ? <TextBox id={id} label={F.yourEvidence} value={value} onChange={() => undefined} readOnly /> : null;
+  if (!open) {
+    return (
+      <button type="button" data-testid="edit-evidence" onClick={onOpen} className={BUTTON}>
+        <Pencil className="h-4 w-4" aria-hidden="true" />{F.editEvidence}
+      </button>
+    );
+  }
+  return (
+    <div data-testid="own-evidence" className="flex flex-col gap-2">
+      <TextBox id={id} label={F.yourEvidence} value={value} onChange={onChange} readOnly={false} problem={problem} hint={hint} onBlur={onBlur} />
+      <button type="button" onClick={onKeep} className={BUTTON}>{F.keepDc}</button>
     </div>
   );
 }

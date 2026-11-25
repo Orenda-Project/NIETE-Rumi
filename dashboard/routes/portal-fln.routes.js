@@ -175,8 +175,9 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
     // bd-4joiqz — a leader reading it is not a teacher's open: a telemetry event, no open row (lp-reader.service).
     // The role is the one requireFln just re-read from users (req.fln.role): no second read.
     const userId = req.session.portalUserId;
+    const key = typeof corpus.lessonKey === 'function' ? corpus.lessonKey(id) : null;
     LpReader.readerOf(userId, { role: req.fln ? req.fln.role : null }).then((reader) => LpReader.recordOpen(reader, query, {
-      userId, kind: 'fln', ref: id, lang: plan.lang, source: 'viewer',
+      userId, kind: 'fln', ref: id, lang: plan.lang, source: 'viewer', lessonKey: key ? key.key : null,
     }, { survey: false, activity }));
     // The body is the plan + where it sits; NO `share` key — the client reads that from /me. Media on the public
     // mirror is served presigned on the portal's own bucket (a new tree; the corpus plan is never touched).

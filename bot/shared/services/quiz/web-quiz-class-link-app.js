@@ -14,8 +14,9 @@
  *                             today): {lesson, played} — `played` counts children (each once) with a finished sitting;
  *                             never a name. `reportHref`: the teacher report's "Evening rounds" section, once a child
  *                             has played.
- *   tap({teacherId, classId, how})  Send ('forward') or Copy ('copy') from the card: forwardHref logs the forward
- *                             lane's quiz_forward_tap{surface 'class_link'} exactly as the report card does, and the
+ *   tap({teacherId, classId, how, ua})  Send ('forward') or Copy ('copy') from the card: forwardHref logs the forward
+ *                             lane's quiz_forward_tap{surface 'class_link'} under that bare name, as every other
+ *                             surface logs it (quiz-forward.js), and the
  *                             class is remembered as sent for the rest of the term. null (404) when off, outside the
  *                             canary, or not this teacher's class; nothing is logged or remembered then.
  *
@@ -127,13 +128,13 @@ async function forApp(teacherId, { now = new Date() } = {}) {
   return { classes: cards, reportHref };
 }
 
-async function tap({ teacherId, classId, how = 'forward' } = {}) {
+async function tap({ teacherId, classId, how = 'forward', ua = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const { data: cls } = await supabase.from('classes').select('id, school_id').eq('id', classId).eq('is_active', true).maybeSingle();
   if (!cls || !(await inCanary(cls))) return null;
   const copy = how === 'copy';
   // The Copy's own answer is the report's class tab address; the app copied the link itself, so only the log counts.
-  const href = await CL.forwardHref({ teacherId, classId, how: copy ? 'copy' : 'forward', reportBase: copy ? '/r' : null });
+  const href = await CL.forwardHref({ teacherId, classId, how: copy ? 'copy' : 'forward', reportBase: copy ? '/r' : null, ua });
   if (!href) return null;
   // forwardHref remembers the class as sent this term (the same for the report's class tab), which folds this card.
   return copy ? { ok: true } : { ok: true, href };

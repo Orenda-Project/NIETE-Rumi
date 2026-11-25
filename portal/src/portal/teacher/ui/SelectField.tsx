@@ -40,14 +40,24 @@ export interface SelectFieldProps {
   disabled?: boolean;
   copy?: Partial<Pick<TeacherUiCopy, 'select' | 'close'>>;
   className?: string;
+  /**
+   * Queue #256 — the option the Digital Coach picked (the FICO 6-12 Feedback Form's "Indicator to work on"): marked as
+   * RatingScale's radio look marks its level — its row in the Tray edged purple with `dcTag` at the end, and the field
+   * itself while that option is the one chosen. She can pick another; the mark stays on its row. Absent: as before.
+   */
+  dcValue?: string | null;
+  /** The word for the mark ("Digital Coach"), drawn and read with the field and the row. */
+  dcTag?: string;
 }
 
-export function SelectField({ label, title, value, options, onChange, icon, disabled = false, copy, className }: SelectFieldProps) {
+export function SelectField({ label, title, value, options, onChange, icon, disabled = false, copy, className, dcValue = null, dcTag }: SelectFieldProps) {
   const words = { ...useKitCopy(), ...copy };
   const bidi = useBidi();
   const [open, setOpen] = useState(false);
   const chosen = options.find((o) => o.value === value) ?? null;
   const shown = chosen ? chosen.label : words.select;
+  const isDc = (v: string) => !!dcTag && dcValue !== null && dcValue !== undefined && v === dcValue;
+  const dcChosen = !!chosen && isDc(chosen.value);
   return (
     <>
       <button
@@ -55,9 +65,10 @@ export function SelectField({ label, title, value, options, onChange, icon, disa
         disabled={disabled}
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        aria-label={`${label}, ${shown}`}
+        aria-label={dcChosen ? `${label}, ${shown}, ${dcTag}` : `${label}, ${shown}`}
         className={cn(
           'flex min-h-[68px] w-full items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-start shadow-[0_1px_3px_rgba(16,24,40,0.08)] disabled:opacity-45',
+          dcChosen && 'border-[#6e52e0] shadow-[0_0_0_3px_#e9e3ff]',
           FOCUS,
           className,
         )}
@@ -68,6 +79,7 @@ export function SelectField({ label, title, value, options, onChange, icon, disa
           <span {...bidi.ltr(shown)} className={cn('text-[17px] font-semibold leading-[1.3] [overflow-wrap:anywhere]', !chosen && 'text-[#6b7280]')}>{bidi(shown)}</span>
           {chosen?.sub ? <span {...bidi.ltr(chosen.sub)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(chosen.sub)}</span> : null}
         </span>
+        {dcChosen ? <span data-testid="dc-tag" aria-hidden="true" className="shrink-0 text-[12px] font-bold text-[#6e52e0]">{dcTag}</span> : null}
         <ChevronDown className="h-[22px] w-[22px] shrink-0 text-[#9ca3af]" strokeWidth={2.4} aria-hidden="true" />
       </button>
       <Tray open={open} title={title} onClose={() => setOpen(false)} closeLabel={words.close}>
@@ -82,6 +94,7 @@ export function SelectField({ label, title, value, options, onChange, icon, disa
               prefix={o.prefix}
               number={o.number}
               state={o.value === value ? 'selected' : 'default'}
+              dcTag={isDc(o.value) ? dcTag : undefined}
               onPress={() => { onChange(o.value); setOpen(false); }}
             />
           ))}

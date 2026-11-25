@@ -867,6 +867,11 @@ export type V6Indicator =
     rumiEvidence?: { because: string | null; items: { time: string | null; quote: string }[] };
     /** bd-o15qnr.31 — the coach's review of that evidence, as last saved; null/absent before one is saved. */
     evidenceReview?: EvidenceReview | null;
+    /**
+     * Queue #251 — the Digital Coach's own Evidence text (what the box held before the coach wrote anything), so the form
+     * can tell "kept" from her own words (`evidence` differs). Absent from an older bot.
+     */
+    rumiText?: string | null;
     /** bd-o15qnr.37 — one plain line on what the indicator looks at (#217's guide line), under its name. Absent from an older bot. */
     about?: string;
   }
@@ -926,6 +931,11 @@ export type Obs612Field = {
   /** bd-o15qnr.40.5 (FICO-S on a Digital Coach visit): the level it set ('1'..'4' | 'NA'), marked on that card. Absent: none. */
   dcLevel?: string;
   /**
+   * Queue #256 (FICO-S on a Digital Coach visit, "Indicator to work on"): the option it picked (its lowest level), which
+   * the form opens on and marks on that option. Absent: none.
+   */
+  dcChoice?: string;
+  /**
    * bd-o15qnr.37 (FICO-S indicators): one plain line on what it looks at (shown under its name), and `text` without the
    * look-for paragraph (its scoring note, N/A note, "How: …"), so the v7 form does not say it twice. Absent: `text`.
    */
@@ -936,6 +946,12 @@ export type Obs612Field = {
    * as the "Digital Coach's evidence" box (its line where it set a level, each quote with its time). Absent: no box.
    */
   dcEvidence?: { because: string; items: { time: string | null; quote: string }[] };
+  /**
+   * Queue #251 (FICO-S on a Digital Coach visit, on the Evidence field ev_<code>): the text the Digital Coach pre-filled
+   * into it. While the field still holds it, the v7 form shows only the "Digital Coach's evidence" box and "Edit evidence".
+   * Absent (nothing pre-filled, an older bot): the Evidence box as before.
+   */
+  dcText?: string | null;
   /**
    * bd-o15qnr.46 (queue #241, FICO-S checklist items): the item's category in the observer's language; the v7 form draws
    * one heading per category, then its questions numbered (`n`), each on its own line. Absent: today's chip (`short`).

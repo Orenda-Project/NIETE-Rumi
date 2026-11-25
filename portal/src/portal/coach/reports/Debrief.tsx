@@ -28,10 +28,12 @@ import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
 import { useBack } from "../../lib/useBack";
 import { useFlowV6 } from "../flow/useCoachFlowV2";
-import { DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCard } from "../flow/VisitV7";
+import { DebriefDock, DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCard } from "../flow/VisitV7";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
+import { useUploadOnly } from "../observe/uploadOnly";
+import { OBSERVE } from "../observe/copy";
 
 /**
  * bd-4404s7.5 — Debrief, step 3 of 5 (Blueprint Coach_Debrief): the guide for her talk with the teacher — the one the
@@ -51,6 +53,14 @@ import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
  * listening to your debrief" (about 3 minutes, she can leave, it shows on the visit) with her recording playing in place;
  * the page asks again by itself (useObservationView) and shows the debrief report's card once the feedback is written.
  * Off: back on the observation page, as before.
+ *
+ * bd-o15qnr.49 (queue #254; the operator 24 Nov ~11:00: "Maybe the record button should be a floating button at the bottom
+ * of the page all the time, so they can read the notes and then they know that here is where they will start recording")
+ * — on the v6/v7 switch Record debrief and Upload recording sit in the frame's dock, pinned to the bottom of the screen
+ * the whole time she reads the notes, above the menu and the safe area. The dock is sticky, so it keeps its own room at
+ * the end of the page and the last note scrolls clear of it (a notice strip brings its own spacer, NoticeHost); no
+ * dockSpace, which would leave ~170px of blank above the bar. The pair at the end of the page is gone. Same gate as the pair: the notes are there (or did not load) and the debrief is hers to
+ * record. Off: the pair at the end, as before.
  *
  * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
  * English and Urdu; its other on-screen words are still English only (see the gap list).
@@ -126,6 +136,10 @@ export default function Debrief() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // bd-oe6r47 / bd-ih6cej (queue #278) — upload-only only for a person the switch names (fail-closed): then ONE button,
+  // Upload recording. Everyone else has the in-app recorder again, with Upload recording and the weak-internet line.
+  const uploadOnly = useUploadOnly() === true;
+  const O = useCopy(OBSERVE);
   const asked = useRef(false);
   // bd-ewbzns.4.5 — the guide's ask outlives a re-render of the view; only leaving the page stops it.
   const mounted = useRef(true);
@@ -212,10 +226,20 @@ export default function Debrief() {
   const recording = stage === "recording" || stage === "sending";
   const problem = view && hers && view.problem ? C.problems[view.problem as keyof typeof C.problems] : null;
   const canRetry = view?.problem === "failed" || view?.problem === "feedback_failed";
+  // bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide.
+  const canStart = stage === "guide" && !!view && hers && (guideState === "ready" || guideState === "failed");
+  const pick = () => input.current?.click();
+  // bd-ih6cej — upload-only: no in-app recorder (Record without the guide picks a file too). Off: the in-app recorder.
+  const record = () => (uploadOnly ? pick() : setStage(canRecord ? "recording" : "micBlocked"));
+  // bd-ih6cej — one line with the buttons: the weak-internet advice, or (upload-only) how to record before uploading.
+  const tip = uploadOnly ? O.uploadOnlyLine : O.weakInternet;
+  // bd-o15qnr.49 — v7: Record debrief floats at the bottom (the frame's dock), not at the end of the notes.
+  const dock = v7 && canStart ? <DebriefDock onRecord={uploadOnly ? undefined : record} onUpload={pick} tip={tip} /> : undefined;
 
   return (
     <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
-      chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief">
+      chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief"
+      dock={dock}>
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
 
       {stage === "guide" && view && (
@@ -232,7 +256,7 @@ export default function Debrief() {
           {guideState === "failed" && v7 && (
             <ErrorCard testId="guide-failed" title={E.noGuide} line={E.noGuideLine}>
               <ErrorAction onClick={guideAgain}>{C.retry}</ErrorAction>
-              {hers && <ErrorAction quiet onClick={() => setStage(canRecord ? "recording" : "micBlocked")}>{E.recordWithoutGuide}</ErrorAction>}
+              {hers && <ErrorAction quiet onClick={record}>{E.recordWithoutGuide}</ErrorAction>}
             </ErrorCard>
           )}
           {guideState === "failed" && !v7 && (
@@ -264,10 +288,14 @@ export default function Debrief() {
             </div>
           )}
 
-          {/* bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide. */}
-          {hers && (guideState === "ready" || guideState === "failed") && (
+          {/* bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide. v7: the two
+              buttons are the dock's (bd-o15qnr.49); the file input and its error stay here. */}
+          {canStart && (
             <>
-              <RecordUploadPair onRecord={() => setStage(canRecord ? "recording" : "micBlocked")} onUpload={() => input.current?.click()} />
+              {!dock && <p data-testid="record-tip" className="m-0 text-center text-[15px] leading-snug text-[#4b5563]">{tip}</p>}
+              {!dock && (uploadOnly
+                ? <button type="button" onClick={pick} className={cn("min-h-[56px] rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>{C.uploadRecording}</button>
+                : <RecordUploadPair onRecord={record} onUpload={pick} />)}
               <input ref={input} data-testid="talk-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
                 onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
               {fileError && <Note tone="amber">{fileError}</Note>}

@@ -1295,16 +1295,20 @@ Feature: NIETE (ICT) Teacher Training
   @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1246
   Scenario: The quiz home opened for one lesson plan names that lesson under "Quiz from this lesson"
     Given app_settings "quiz_teacher_home_one_lesson" is true
-    And a lesson plan "All About Me: Key Words" was sent to me on WhatsApp
+    And a lesson plan "All About Me: Key Words" was sent to me on WhatsApp, or I read it in the app
     When I open my quiz home from a link that carries that lesson plan
     Then the page says "Quiz from this lesson" (Urdu «اس سبق کا کوئز») and, on the line under it, "All About Me: Key Words"
     And the lesson's name is shown as the catalog names it, an Urdu lesson in Urdu script on an English page too
+    And the name comes with the page, the same on a slow connection to the database as on a fast one
     And a link carrying another teacher's lesson plan, a lesson under religious review, or a name that cannot be read in
       time shows the page exactly as before, with no name line
-    # ADDED 2026-11-23 (bd-pdwwk4.3.8, QFIX A74): teacher-home.send.js lessonTitleOf → the lp_v8 provider's own
-    # get(teacher, ref) (this teacher's sent, makeable delivery; catalog topic), 400 ms then no name; the page's
-    # ONE_LESSON_TITLED_SCRIPT draws boot `ot` in a dir=auto <bdi>. Unit: bot/tests/qfix-forward/forward-lesson-link.test.js,
-    # forward-page-run.test.js ("A74").
+    # ADDED 2026-11-23 (bd-pdwwk4.3.8, QFIX A74): teacher-home.send.js lessonTitleOf → the lp_v8 provider's nameOf(teacher,
+    # ref): this teacher's sent delivery or K-5 app open, asked together in one round trip; catalog topic; 400 ms then no
+    # name; the page's ONE_LESSON_TITLED_SCRIPT draws boot `ot` in a dir=auto <bdi>. Unit:
+    # bot/tests/qfix-forward/forward-lesson-link.test.js, forward-page-run.test.js ("A74").
+    # CHANGED 2026-11-23 (QF-F5): the name was the provider's whole make check (get: 5 reads in a row for an app read),
+    # which overran 400 ms on every staging open (app and DB in different regions). It no longer asks whether a quiz can
+    # be made: "Quiz this" asks that when tapped. Every read logs teacher_home.lesson_title {named, ms, reads}.
 
   @quiz @no-mock-driver @wip @draft @P3 @T710
   Scenario: A child refused at the join's last step is counted
@@ -1488,6 +1492,15 @@ Feature: NIETE (ICT) Teacher Training
     But if leaving it off would leave the paper with no questions at all, it stays
     # bd-fjnrit: seen-only papers never passed these kinds into the prompt, so the model wrote them
     # with no diagram data and each one cost a paid picture call that could not draw anything.
+  # @no-mock-driver: needs a paper the model writes. tests/assessment/mcq-answer-check.test.js
+  # executes the check: an answer that is not one of its options is matched or the item dropped.
+  @e2e @flow @draft @no-mock-driver @P2 @T1247
+  Scenario: Each MCQ on a plain paper has one right option, and its answer is that option
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen Grade 4, Science and the pages to cover
+    When I tick "MCQs" and "Brief Answers" and make the paper
+    Then every MCQ's answer in the answer key is exactly one of its printed options
+    And the paper has no "select all that apply" question, since I did not ask for one
 
   # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
   # cassette. tests/assessment/answer-key-marks.test.js and the key goldens execute the renderer.
@@ -3104,3 +3117,23 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "quiz_anchor_items" is false, missing, or anything but JSON true
     When the day-3 follow-up quiz for my lesson is made
     Then none of its questions is a copy of the first quiz's, and nothing about the quiz is recorded as repeated
+
+  # ── every finished web quiz try is kept (quiz_attempts) ─────────────────────────────────
+  # So a score change can be told apart from a marking change: each finished try keeps its
+  # answers, score, the answer key and question set that marked it, and which quiz maker made
+  # it. Behind app_settings web_quiz_keep_attempts (only JSON true is on). Nothing a child or
+  # teacher sees changes; proven in bot/tests/quiz/web-quiz/quiz-attempt-log-finish.test.js.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1250
+  Scenario: With keeping tries on, a child's second try is kept beside the first, and the result screen is unchanged
+    Given app_settings "web_quiz_keep_attempts" is true for this environment
+    And a child has finished a web quiz once
+    When the child plays the same quiz again and finishes it
+    Then the result screen shows the same score, card and next step it shows with the switch off
+    And two tries are kept for that child and quiz, and the first try's answers and score are unchanged
+    # web-quiz.service finishSessionTimed -> quiz-attempt-log keep (never awaited; a failed write is swallowed). @wip.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1251
+  Scenario: With keeping tries off, finishing a web quiz keeps nothing extra and replies the same
+    Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
+    When a child finishes a web quiz
+    Then the result screen is exactly as before and no try is kept

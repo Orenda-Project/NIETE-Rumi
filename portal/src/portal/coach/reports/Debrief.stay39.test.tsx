@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
+// bd-oe6r47 (queue #278): these tests cover the in-app recorder, so upload-only (default ON) is switched off here.
+vi.mock("../observe/uploadOnly", () => ({ useUploadOnly: () => false, uploadOnlyOn: () => false }));
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
@@ -99,7 +101,8 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
     renderPage();
     await screen.findByTestId("talk-guide", {}, { timeout: 8000 });
     L.getObservation.mockResolvedValue(LISTENING());
-    fireEvent.click(screen.getByRole("button", { name: /Start recording/ }));
+    // bd-o15qnr.49 (#254): v7's Record is the floating Record debrief
+    fireEvent.click(await screen.findByRole("button", { name: "Record debrief" }));
     await act(async () => { fireEvent.click(await screen.findByText("finish recording")); });
     expect(await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 })).toHaveTextContent("Uploaded");
     expect(screen.queryByText("observation page")).toBeNull();
@@ -111,7 +114,7 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
     const card = await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 });
     expect(card).not.toHaveTextContent("Uploaded");
     expect(screen.getByTestId("debrief-recording")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Start recording/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start recording|Record debrief/ })).toBeNull();
     expect(L.getTalkGuide).not.toHaveBeenCalled();
   });
 

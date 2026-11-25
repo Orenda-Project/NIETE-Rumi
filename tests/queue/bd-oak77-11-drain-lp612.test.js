@@ -85,21 +85,23 @@ describe('bd-oak77.11 — lp612_author survives a deploy drain', () => {
     expect(mockRelease).not.toHaveBeenCalled();
   });
 
+  // bd-3itk00: this used an `analysis` job as the short one. An analysis is now finished on shutdown too
+  // (tests/queue/bd-3itk00-deploy-finishes-analysis.test.js); a transcription is still handed back at 30 s.
   it('still releases a non-lp612 job at the 30s deadline while the lp612 one keeps draining', async () => {
     const w = new SQSCoachingWorker('w3');
     const lp = pendingJob();
     const coach = pendingJob();
     w.activeJobs.set('rh-lp612', { promise: lp.promise, sourceQueue: 'main', jobType: 'lp612_author' });
-    w.activeJobs.set('rh-analysis', { promise: coach.promise, sourceQueue: 'main', jobType: 'analysis' });
+    w.activeJobs.set('rh-transcription', { promise: coach.promise, sourceQueue: 'main', jobType: 'transcription' });
 
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(31_000);
 
     expect(mockRelease).toHaveBeenCalledTimes(1);
-    expect(mockRelease).toHaveBeenCalledWith('rh-analysis', 'main');
+    expect(mockRelease).toHaveBeenCalledWith('rh-transcription', 'main');
 
     w.activeJobs.delete('rh-lp612');
-    w.activeJobs.delete('rh-analysis');
+    w.activeJobs.delete('rh-transcription');
     await lp.finish(); await coach.finish();
     await jest.advanceTimersByTimeAsync(1_000);
     await done;

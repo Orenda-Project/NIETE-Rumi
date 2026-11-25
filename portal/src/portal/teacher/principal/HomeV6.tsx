@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../TeacherPage";
 import { FeatureTile, HistoryRow, HomeGreeting, tileGrid } from "../ui";
+import { ObserveHelpButton } from "../help/observe/ObserveHelp";
 import { FeatureMotionProvider } from "../icons";
 import { FOCUS, LIST_CARD } from "../ui/styles";
 import { TEACHER_FRAME } from "../copy";
@@ -24,6 +25,8 @@ import { groupBooked, oldestFirst, waitedDays } from "../../coach/flow/model";
 import { trackFlow } from "../../coach/flow/track";
 import { SchoolHomeCard } from "./SchoolHomeCard";
 import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, principalBookedTo } from "./observe";
+import { COACH_TRAINING } from "../../coach/coachTraining/copy";
+import { PRINCIPAL_TRAINING_PATH } from "../../coach/coachTraining/audience";
 
 /**
  * bd-o15qnr.28 (queue #204) — the principal's Focus card (#188's board p9-home): the coach's Focus card (coach/flow/
@@ -110,11 +113,12 @@ export function PrincipalFocus() {
  * both") — the principal's Home in the coach flow's look (#188's board p9-home), behind the v6/v7 switch for a principal
  * on the principal app: the NIETE band (greeting and today's date), the Focus card, her school's card (My school · This
  * week, opening Analytics), then three tiles, the coach Home's compact three per row: Observe (N waiting), Lesson Plans,
- * Training. Attendance, Analytics and the rest stay on their pages (Analytics through My school; the bar's More).
+ * Training; then (bd-v04lsh, queue #257) Principal Training, the coach's Coach Training modules under her own name. Attendance, Analytics and the rest stay on their pages (Analytics through My school; the bar's More).
  */
 export function PrincipalHomeV6() {
   const C = useCopy(TEACHER_FRAME);
   const B = useCopy(OBSERVE);
+  const T = useCopy(COACH_TRAINING);
   const lang = useLang();
   const { user } = useAuth();
   const reports = useLoad(() => coach.getReports({ page: 1 }), []);
@@ -131,6 +135,7 @@ export function PrincipalHomeV6() {
           brand={C.brand}
           logoAlt={C.logoAlt}
           className="rounded-b-[28px] pb-6"
+          corner={<ObserveHelpButton pill onDark />}
         />
       )}
     >
@@ -142,6 +147,8 @@ export function PrincipalHomeV6() {
             chip={waiting != null ? { text: B.waitingN(waiting), tone: waiting > 0 ? "waiting" : "info" } : null} />
           <FeatureTile feature="lessons" label={C.home.tiles.lessons} to={teacherPath("lessons")} compact />
           <FeatureTile feature="training" label={C.home.tiles.training} to={teacherPath("training")} compact />
+          {/* bd-v04lsh (queue #257) — Principal Training: the coach's Coach Training modules, her own tile (coach art) */}
+          <FeatureTile feature="coachTraining" label={T.principalTitle} to={PRINCIPAL_TRAINING_PATH} compact />
         </nav>
       </FeatureMotionProvider>
     </TeacherPage>

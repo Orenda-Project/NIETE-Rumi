@@ -81,7 +81,12 @@ export type OwnPlanInfo = { changesLeft: number; band: 'k5' | 'g612' };
 export type PrepareStatus =
   | { state: 'ready'; source: LessonPlanSource; own?: OwnPlanInfo; shelf?: true }
   | { state: 'preparing' }
-  | { state: 'failed'; reason?: 'goal_unsure' };
+  | { state: 'failed'; reason?: FailReason };
+/** bd-snkn32.77 — why her own plan could not be made, when she can act on it (the page says what to change). */
+export type FailReason = 'goal_unsure' | 'needs_board' | 'slates' | 'group_work' | 'not_urdu';
+const FAIL_REASONS: Record<string, FailReason> = {
+  OWN_GOAL_UNSURE: 'goal_unsure', OWN_NEEDS_BOARD: 'needs_board', OWN_SLATES: 'slates', OWN_GROUP_WORK: 'group_work', OWN_NOT_URDU: 'not_urdu',
+};
 
 /** The language a 6–12 plan is asked for in — English, as the Curriculum page always asked. */
 const LANG_612 = 'en';
@@ -283,7 +288,11 @@ export function createLessonPlansApi() {
         return { state: 'ready', source: { lane: 'g612', renderId }, ...own, ...(data.shelf === true ? { shelf: true as const } : {}) };
       }
       // bd-snkn32.58.3 — a goal plan the check refused (facts or goal): the page offers another goal, not Try again.
-      if (data?.state === 'failed') return data.errorCode === 'OWN_GOAL_UNSURE' ? { state: 'failed', reason: 'goal_unsure' } : { state: 'failed' };
+      // bd-snkn32.77 — and a plan the checks refused names the rule, so the page can say what to change.
+      if (data?.state === 'failed') {
+        const reason = FAIL_REASONS[String(data.errorCode)];
+        return reason ? { state: 'failed', reason } : { state: 'failed' };
+      }
       return { state: 'preparing' };
     } catch (err) {
       // No such request (or not hers): nothing will ever open. Anything else, ask again.

@@ -41,7 +41,7 @@ const { stepOfRow } = require('./portal-observe-step');
 const OwnPlans = require('./observe-own-plans');
 const { isPrincipalRole } = require('../../config/role-features');
 
-const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_PHOTOS } = PortalCoaching;
+const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_OBSERVE_PHOTOS } = PortalCoaching;
 
 // observe-gate's LEADER_ROLES — who may run /observe.
 const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'principal', 'aeo'];
@@ -402,7 +402,7 @@ async function startPortalObservation({
   // Every key must be this coach's own upload, of the right kind.
   if (!isOwnPortalKey(userId, key, 'audio')) return { status: 'invalid', reason: 'not_your_upload' };
   if (lessonPlanKey && !isOwnPortalKey(userId, lessonPlanKey, 'lesson_plan')) return { status: 'invalid', reason: 'not_your_upload' };
-  if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
+  if (photos.length > MAX_OBSERVE_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
   const own = OwnPlans.ownPick(picked); // bd-snkn32.41: { ownId } — a plan she made herself
   const { pick, bad } = own ? { pick: null, bad: !!own.bad } : libraryPick(picked);
@@ -682,7 +682,8 @@ async function observationView({ userId, coachingSessionId }, deps) {
     lessonPlan: planOf(row),
     draft: { edited: !!ad.observer_edit_summary, summary: ad.observer_edit_summary || null },
     talk: {
-      guide: od.guide_snapshot || null,
+      // Queue #255: a FICO 6-12 visit's notes without the lesson plan check (notes kept from before carry one).
+      guide: require('./lp-check').notesFor(row, od.guide_snapshot) || null,
       recordedAt: od.recorded_at || null,
       audioUrl: talkAudioUrl || null,
       feedback: shapeFeedback(od.feedback),
@@ -894,6 +895,9 @@ function v6Sections(analysis, lang = 'en') {
           // coach's saved review of them; additive (null when there is none), the fields above are unchanged.
           rumiEvidence: O.rumiEvidenceOf(analysis, code),
           evidenceReview: O.savedEvidenceReview(analysis, code),
+          // Queue #251: the Digital Coach's own Evidence text (the box's text before the coach wrote anything), so the
+          // form shows its evidence once and opens "Your evidence" only for her own words; additive.
+          rumiText: O.rumiEvidenceText(analysis, code),
           // bd-o15qnr.37: one plain line on what the indicator looks at (#217's guide line), under its name; additive.
           about: Lines.lineFor('fico17_v6', code, lang),
         };
@@ -1020,7 +1024,8 @@ async function talkGuide({ userId, coachingSessionId }, deps) {
     try { return { status: 'ok', guide: await running }; } catch { /* write them here, as before */ }
   }
   const od = debriefOf(row);
-  if (od.guide_snapshot) return { status: 'ok', guide: od.guide_snapshot };
+  // Queue #255: a FICO 6-12 visit's notes without the lesson plan check (notes kept from before carry one).
+  if (od.guide_snapshot) return { status: 'ok', guide: require('./lp-check').notesFor(row, od.guide_snapshot) };
   if (row.debrief_status === 'done') return { status: 'ok', guide: null };
 
   const guide = await writeNotes(d, userId, coachingSessionId, row);

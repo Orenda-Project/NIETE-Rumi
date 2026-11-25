@@ -57,6 +57,24 @@ function rumiLevelOf(dc, code, rubric = S.RUBRIC_KEY) {
 }
 
 /**
+ * Queue #256 (the operator 24 Nov ~11:20: "indicator to work on should be pre filled by DC as well") — the Digital
+ * Coach's one indicator to work on, for the Feedback Form's "Indicator to work on" (fs_focus): the LOWEST level it set,
+ * first in sheet order on a tie. That is the rule the debrief notes and the report use for the one thing to work on when
+ * nobody chose one (observe-debrief-guide _ficoSTarget); its reply names no focus of its own. N/A, couldn't tell and the
+ * starred indicators never count. null when it set no level, and off a Digital Coach visit (pure).
+ */
+function dcFocusOf(dc, rubric = S.RUBRIC_KEY) {
+  if (!dc || !dc.levels) return null;
+  let best = null;
+  for (const code of S.CODES) {
+    const lv = rumiLevelOf(dc, code, rubric);
+    if (lv === null || lv === 'NA') continue;
+    if (!best || Number(lv) < best.level) best = { code, level: Number(lv) };
+  }
+  return best ? best.code : null;
+}
+
+/**
  * The form's draft with Rumi's pre-fill under it (pure). For every non-starred indicator Rumi set: the level and the
  * Evidence box, only where the observer has not written one. Returns { draft, dc } where dc is what the form row keeps.
  */
@@ -158,4 +176,4 @@ async function onAnalysisReady(session, { from = null, deps = {} } = {}) {
   }
 }
 
-module.exports = { REASON, isDcVisit, dcOf, rumiLevelOf, prefillDraft, changeExplained, lessonOf, onAnalysisReady };
+module.exports = { REASON, isDcVisit, dcOf, rumiLevelOf, dcFocusOf, prefillDraft, changeExplained, lessonOf, onAnalysisReady };

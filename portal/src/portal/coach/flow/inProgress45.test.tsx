@@ -14,7 +14,7 @@ import i18n from "i18next";
  *                   each opening its visit; nothing in both lists; no section when there is nothing.
  *   ~23:20 / ~23:22 (My observations' cards, "Waiting for you"):
  *     a card's line is the date, the grade and the subject ("Mon 23 Nov · Grade 7 · English"), never the rubric
- *     no four-step bar on a card: the next step only ("Next: Record the debrief"), with the step chip
+ *     no four-step bar on a card: the next step only ("Next: Take the debrief"), with the step chip
  *     the avatar's initials are letters only: "Imran Baig (Test)" is IB, never "I("
  *   ~20:20: "The X observations need you are on too many pages. They should be maximum at the home and main Observation
  *   page." — on the switch, no yellow bar on My observations (nor any other observe page).
@@ -181,7 +181,7 @@ describe("Observe: Needs you, In progress, Booked for today, History", () => {
 });
 
 describe("My observations' cards: date, grade, subject; the next step only; letters for initials", () => {
-  it("a waiting card: 'Mon 23 Nov · Grade 7 · English', no rubric, no four-step bar, 'Next: Record the debrief' with its chip", async () => {
+  it("a waiting card: 'Mon 23 Nov · Grade 7 · English', no rubric, no four-step bar, 'Next: Take the debrief' with its chip", async () => {
     renderAt("/portal/coach/reports");
     const waiting = await screen.findByTestId("reports-waiting");
     const card = within(waiting).getAllByTestId("report-card")[0];
@@ -190,7 +190,7 @@ describe("My observations' cards: date, grade, subject; the next step only; lett
     expect(card).not.toHaveTextContent("GB Test Middle");
     expect(within(card).queryByTestId("status-line")).toBeNull();
     expect(within(card).queryByTestId("report-segments")).toBeNull();
-    expect(card).toHaveTextContent("Next: Record the debrief");
+    expect(card).toHaveTextContent("Next: Take the debrief");
     expect(card).toHaveTextContent("Debrief");
     expect(within(waiting).getAllByTestId("report-card")[1]).toHaveTextContent("Next: Fill the form");
   });

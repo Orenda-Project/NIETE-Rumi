@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, ListVideo, Search } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListVideo, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tray } from '../../ui/Tray';
 import { StatusChip } from '../../ui/StatusChip';
@@ -9,8 +9,8 @@ import { useCopy, useLang } from '../../i18n';
 import { useFlowV6 } from '../../../coach/flow/useCoachFlowV2';
 import { HELP } from '../copy';
 import { markHelpSeen, type HelpVideo } from '../api';
-import { useHelp, usePrefersReducedMotion } from '../useHelp';
-import { HelpPlayer } from '../HelpButton';
+import { useHelp } from '../useHelp';
+import { HelpPlayer, HelpTrigger } from '../HelpButton';
 import { HELP_LIST_PATH } from '../names';
 import { IndicatorGuideContext, type IndicatorGuide as FormGuide } from '../../../coach/reports/indicatorGuide';
 import { BANDS, INDEX, bandOfRubric, hasIndicator, manualHref, matches, useGuide, type Band, type Guide, type GuideItem } from './guides';
@@ -25,7 +25,8 @@ import '../help.css';
  *               for her (coachFlowV2 for a coach, principalFlowV2 for a principal: the 3 accounts). It pulses only
  *               where #85's help is on and she has not opened a help video yet.
  *   The tray    the how-to film for feature "observe" when one is up for her (help switch + manifest, added without a
- *               deploy), else "Video coming soon"; then Indicator guide: Grades 1–5 and Grades 6–12, the visit's own
+ *               deploy), else nothing in its place (queue #249, the operator 24 Nov: "Remove the Video coming soon text
+ *               from the manual guide"); then Indicator guide: Grades 1–5 and Grades 6–12, the visit's own
  *               band first and marked "This visit"; then All videos where #85's help is on.
  *   The guide   opens INSIDE the tray (tall), so a coach mid-way through the Feedback Form never leaves it: the band
  *               switch, Dr Rifat Yasmeen's credit and "Open the full manual" (her live canvas at that part), a chip per
@@ -222,8 +223,8 @@ export function ObserveHelpTray({ open, at, onView, onClose, band, video, showLi
     <Tray open={open} title={view === 'menu' ? H.observeHowTo : H.guide} onClose={onClose} testId="observe-help-tray" tall={view !== 'menu'}>
       {view === 'menu' ? (
         <div className="flex flex-col gap-3 pb-2">
-          {video ? <HelpPlayer video={video} /> : <p data-testid="help-coming-soon" className="m-0 text-[17px] font-semibold text-[#4b5563]">{H.comingSoon}</p>}
-          <p className="m-0 mt-2 text-[13px] font-bold uppercase tracking-[0.04em] text-[#6b7280] rtl:normal-case rtl:tracking-normal">{H.guide}</p>
+          {video ? <HelpPlayer video={video} /> : null}
+          <p className={cn('m-0 text-[13px] font-bold uppercase tracking-[0.04em] text-[#6b7280] rtl:normal-case rtl:tracking-normal', video && 'mt-2')}>{H.guide}</p>
           {order.map((b) => (
             <button key={b} type="button" data-testid="observe-guide-row" data-band={b} onClick={() => onView(b)}
               className={cn('flex min-h-[64px] w-full items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2 text-start', FOCUS)}>
@@ -295,31 +296,22 @@ export function ObserveHelp({ band, children }: { band?: Band; children: ReactNo
   );
 }
 
-function HelpCircle() {
-  const H = useCopy(HELP);
+function HelpCircle({ pill = false, onDark = false }: { pill?: boolean; onDark?: boolean }) {
   const ctl = useContext(HelpCtl);
-  const reduced = usePrefersReducedMotion();
   if (!ctl) return null;
-  const { fresh } = ctl;
-  return (
-    <button type="button" aria-label={H.help} data-testid="observe-help-button" onClick={() => ctl.openAt('menu')}
-      className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full', FOCUS)}>
-      {fresh && !reduced ? <span aria-hidden="true" className="niete-help-ring pointer-events-none absolute inset-2 rounded-full border-2 border-[#47ba7d]" /> : null}
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
-        <CircleHelp className="h-[22px] w-[22px]" aria-hidden="true" />
-        {fresh && reduced ? <span aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#47ba7d]" /> : null}
-      </span>
-    </button>
-  );
+  return <HelpTrigger testId="observe-help-button" pill={pill} onDark={onDark} fresh={ctl.fresh} onClick={() => ctl.openAt('menu')} />;
 }
 
 /**
  * The "?" in a screen's header. Inside an ObserveHelp (the two Observe frames) it opens that one's tray; on its own (a
  * principal's Observe home, My observations, Pick the teacher) it brings its own, with `band` for the tray's order.
  * Drawn only with the v6 switch on for her (coachFlowV2 / principalFlowV2: the 3 accounts).
+ *
+ * bd-sil83f (queue #269) — `pill`: "How to use ?" instead of the bare "?" (HelpTrigger), on a coach's or principal's Home
+ * band (`onDark`) and on a page header where it fits at 360 px.
  */
-export function ObserveHelpButton({ band }: { band?: Band }) {
+export function ObserveHelpButton({ band, pill = false, onDark = false }: { band?: Band; pill?: boolean; onDark?: boolean }) {
   const ctl = useContext(HelpCtl);
-  if (ctl === undefined) return <ObserveHelp band={band}><HelpCircle /></ObserveHelp>;
-  return <HelpCircle />;
+  if (ctl === undefined) return <ObserveHelp band={band}><HelpCircle pill={pill} onDark={onDark} /></ObserveHelp>;
+  return <HelpCircle pill={pill} onDark={onDark} />;
 }

@@ -4602,14 +4602,38 @@ const UX_STRINGS = {
     ur: 'رپورٹ ابھی نہیں بھیجی گئی',
   },
   // the section's foot: the class tab's evening rounds (only while a class has a live round)
+  // the line opens the class tab's "Evening rounds" section, so it carries that section's own title
+  // (web-quiz-evening-round.js REPORT_WORDS): one noun on both screens
   qfix_report_home_rounds: {
     en: 'Evening rounds',
-    ur: 'شام کے کوئز',
+    ur: 'شام کے راؤنڈ',
   },
   // the live report's quiz tab, under the title ({late} ≥ 1)
   qfix_report_page_line: {
     en: '{n} played · {late} after the report was sent',
     ur: '{n} نے کھیلا · {late} رپورٹ بھیجنے کے بعد',
+  },
+  // ─── quiz_report_misconceptions (queue #299, bd-vo9fkc): the live report's "what your class got wrong" block ───
+  // report-misconceptions.js + templates/teacher-report-confusions.parts.js; only questions whose key a person confirmed
+  quiz_report_confusions_title: {
+    en: 'What your class got wrong',
+    ur: 'آپ کی کلاس نے کہاں غلطی کی',
+  },
+  quiz_report_confusions_sub: {
+    en: 'Questions where most children who got it wrong chose the same answer. We have checked these answers.',
+    ur: 'وہ سوال جن میں غلط جواب دینے والے زیادہ تر بچوں نے ایک ہی جواب چنا۔ ان کے جواب ہم نے جانچ لیے ہیں۔',
+  },
+  quiz_report_confusions_picked: {
+    en: '{picked} of {answered} children chose',
+    ur: '{answered} میں سے {picked} بچوں نے چنا',
+  },
+  quiz_report_confusions_right: {
+    en: 'Right answer',
+    ur: 'درست جواب',
+  },
+  quiz_report_confusions_likely: {
+    en: 'Likely confusion',
+    ur: 'ممکنہ الجھن',
   },
   // the tag on each child's score row who finished after the report
   qfix_report_page_tag: {
@@ -4855,9 +4879,16 @@ const CLASS_FLOW_STRINGS = {
     en: 'Add students to {class}',
     ur: '{class} میں طلبہ شامل کریں',
   },
+  // bd-r2uzg1.18.11 — the grey line under the /class Flow's Add students box. A Flow
+  // TextArea has no placeholder, so this helper-text is where the worked example goes
+  // (served as `add_hint`; no Flow republish). Cap 80 code points, kept under 75.
+  // The example comes LAST, after a colon, with no full stop after it, so what she
+  // copies is exactly a line the parser reads as child + father; Urdu names in Urdu
+  // script with ولد, as a register writes them. tests/classes/add-students-example
+  // feeds each example through the real parser.
   classAddStudentsHint: {
-    en: 'One name per line. Father\'s name after a comma or "s/o" if you have it. Numbering is fine.',
-    ur: 'ہر سطر پر ایک نام۔ والد کا نام کوما یا "s/o" کے بعد لکھیں۔ نمبر لگانا ٹھیک ہے۔',
+    en: 'One name per line. With the father\'s name, write: Ali Raza s/o Imran Raza',
+    ur: 'ہر سطر پر ایک نام۔ والد کے نام کے ساتھ یوں لکھیں: علی رضا ولد عمران رضا',
   },
   classStudentsField: {
     en: 'Student names',

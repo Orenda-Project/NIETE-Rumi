@@ -68,7 +68,7 @@ export const OBSERVE_COPY = {
   lastObservation: 'Last observation',
   hitlBy: (who = '') => `Observation · ${who}`.trim(),
   you: 'You',
-  lastStep: { sent: 'Sent', report: 'Send report', draft: 'Feedback Form', talk: 'Debrief', analysing: 'Analysing' } as Record<string, string>,
+  lastStep: { sent: 'Sent', report: 'Send report', draft: 'Feedback Form', talk: 'Debrief', analysing: 'Analysing', stopped: 'Analysis stopped' } as Record<string, string>,
   sendingNow: 'Sending',
 
   /* record */
@@ -189,6 +189,14 @@ export const OBSERVE_COPY = {
   troubleAsk: 'Having trouble?',
   continueOnWhatsApp: 'Continue on WhatsApp',
   handoffLine: (code = '') => (code ? `Continue my visit on WhatsApp (code ${code})` : 'Continue my visit on WhatsApp'),
+  /* bd-oe6r47 / bd-ih6cej (queue #278) — the recording steps' advice (the operator 25 Nov ~17:20: "advise whoever is using
+   * to use their own recorders if their internet is not very good"), the upload-only line (a person the switch names),
+   * and a recording kept on the phone for this teacher. "Upload recording" is the locked word. */
+  weakInternet: "Weak internet? Record in your phone's Recorder app, then upload it here.",
+  uploadOnlyLine: "Record in your phone's Recorder app, then upload it here.",
+  savedOnPhone: (name = '') => `${name}’s recording is saved on this phone.`,
+  sendKept: 'Send saved recording',
+  openingFile: 'Opening the recording…',
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -240,7 +248,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   lastObservation: 'آخری مشاہدہ',
   hitlBy: (who = '') => `مشاہدہ · ${who}`.trim(),
   you: 'آپ',
-  lastStep: { sent: 'بھیجا گیا', report: 'رپورٹ بھیجیں', draft: 'فیڈبیک فارم', talk: 'ڈی بریف', analysing: 'تجزیہ جاری' },
+  lastStep: { sent: 'بھیجا گیا', report: 'رپورٹ بھیجیں', draft: 'فیڈبیک فارم', talk: 'ڈی بریف', analysing: 'تجزیہ جاری', stopped: 'تجزیہ رک گیا' },
   sendingNow: 'بھیجا جا رہا ہے',
 
   recordTitle: 'مشاہدہ ریکارڈ کریں',
@@ -348,6 +356,12 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   continueOnWhatsApp: 'واٹس\u00A0ایپ پر کریں',
   // «واٹس ایپ» is one unit (U+00A0), as in the bot's copy; the bot reads the line with either space.
   handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
+  // bd-oe6r47 / bd-ih6cej — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «اپ لوڈ» as in «ریکارڈنگ اپ لوڈ کریں».
+  weakInternet: 'انٹرنیٹ کمزور ہے؟ فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  uploadOnlyLine: 'فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  savedOnPhone: (name = '') => `${name} کی ریکارڈنگ اس فون میں محفوظ ہے۔`,
+  sendKept: 'محفوظ ریکارڈنگ بھیجیں',
+  openingFile: 'ریکارڈنگ کھل رہی ہے…',
 };
 
 /** The Observe screens' words in both languages. */
@@ -359,6 +373,10 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
  * the strip's question ("Having trouble?", the operator's words in the option B mockups) and the line typed into
  * WhatsApp, which the bot reads.
  */
-export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine'] as const;
+export const SENTENCES = [
+  'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine',
+  // bd-oe6r47 / bd-ih6cej — the recording steps' one line (weak internet / upload-only) and the kept-copy sentence.
+  'weakInternet', 'uploadOnlyLine', 'savedOnPhone',
+] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;

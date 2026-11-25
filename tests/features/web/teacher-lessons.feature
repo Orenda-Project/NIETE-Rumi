@@ -616,3 +616,14 @@ Feature: Teacher lesson plans
     Then no "note was not used" message shows
     # bd-snkn32.70: a change gated with {lang} only; make-time notes were unscreened; "can't" read as a rote ask.
     # Unit: tests/lp612/bd-snkn32-70-change-checks.test.js.
+
+  # bd-snkn32.77 (queue #296): on live, 9-24 Nov, 112 grades 1-5 Make my own tries were refused by word checks, most
+  # misreading lines where each child works alone. A plan still refused after its repair round now fails with a code
+  # naming the rule, and the waiting page says what to change. Component proof: PreparingPage.refusal.test.tsx;
+  # worker: tests/lp612/bd-snkn32-77-wrongful-refusals.test.js. Hand-written (@draft): carry over on regeneration.
+  @OWN14 @draft @config-gated @negative
+  Scenario: A grades 1-5 own plan still refused tells her what to change
+    Given portal_lp_make_own is on and her grades 1-5 own plan kept using a board she did not tick
+    When the Preparing page learns it failed with OWN_NEEDS_BOARD
+    Then she sees "The lesson plan kept using a board. If you have one, tick Board in your answers. Or select another teaching way."
+    And the same page in Urdu shows the Urdu line, and a failure with any other code shows the old message

@@ -81,6 +81,9 @@ const { isMultiKey } = require('../../bot/shared/services/training/paper-marking
 const { isGbTeacher } = require('../../bot/shared/services/lp-own-gb'); // bd-2zopnc
 const { readingsForCourse } = require('../../bot/shared/services/training/isaps-readings.rules');
 const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isaps-score-sheet.rules');
+// bd-r2uzg1.18.1 — the band gate on band-only providers (I-SAPS needs HIGH), the bot's own code, run in-process
+// with this file's supabase client. It requires only pure modules (tests/portal/portal-reaches-bot-modules).
+const { gateTeacherScopes } = require('../../bot/shared/services/training/vendor-band-gate.service');
 // bd-arghnv.3 — a question with a blank stem is never served or counted as a quiz. The bot's own rule
 // (zero requires, like paper-marking.service.js); the portal hands it its logger.
 const { servableQuestions } = require('../../bot/shared/services/training/question-stem.rules');
@@ -104,6 +107,7 @@ const {
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
+  isObserveUploadOnlyFor,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -2476,8 +2480,15 @@ async function requireSchoolCard(req, res, next) {
   return next();
 }
 // bd-rlxkkt.9: Coach Training, which modules she marked done (users.preferences.coach_training_done).
+// bd-v04lsh (queue #257): Principal Training is the same modules for a principal, by her role; a coach as before.
+const { makeRequireTrainingReader } = require('./coach-training-progress.routes');
+const requireTrainingReader = makeRequireTrainingReader({
+  isPrincipalRole,
+  coachAppOn: (userId) => isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
+});
+const trainingReaders = [requirePortalAuth, requireLeaderRole, requireTrainingReader];
 router.use(require('./coach-training-progress.routes').createCoachTrainingProgressRouter({
-  guards: coachV2,
+  guards: trainingReaders,
   supabase,
 }));
 router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
@@ -2947,7 +2958,9 @@ router.post('/coach/school/:emis/teachers/remove', ...coachV2, async (req, res) 
 router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
-    const out = await CoachV2.getCoachVisit(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    // bd-f5a245 — switch on: the visit carries its observation's step (a stopped analysis is not "Done").
+    const v7 = await staleRulesOn(req);
+    const out = await CoachV2.getCoachVisit(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req), v7 });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
     return res.json({ success: true, ...out });
   } catch (error) { return coachFail(res, 'visit', error); }
@@ -3839,11 +3852,13 @@ async function _filterLevelsByScopes(userId, levels) {
   const programIds = [...new Set((assignments || []).map(a => a.program_id))];
   if (programIds.length === 0) return [];
 
-  const { data: scopes } = await supabase
+  const { data: allScopes } = await supabase
     .from('training_program_scopes')
-    .select('vendor_id, level_ids')
+    .select('program_id, vendor_id, level_ids')
     .in('program_id', programIds);
-  if (!scopes || scopes.length === 0) return [];
+  if (!allScopes || allScopes.length === 0) return [];
+  // bd-r2uzg1.18.1 — the same band gate the bot's catalogue applies (I-SAPS only with HIGH or I-SAPS work).
+  const scopes = await gateTeacherScopes(supabase, userId, allScopes);
 
   const allowedByVendor = _levelScopeByVendor(scopes);
   return levels.filter(l => _levelInScope(allowedByVendor, l));
@@ -4064,11 +4079,14 @@ router.get('/training/vendors', requirePortalAuth, async (req, res) => {
     // 2. Program scopes → vendor_ids (dedup — a single program can list a
     //    vendor multiple times via multiple scope rows), and per vendor the
     //    levels those scopes show (the same union GET /training/levels uses)
-    const { data: scopes, error: sErr } = await supabase
+    const { data: allScopes, error: sErr } = await supabase
       .from('training_program_scopes')
-      .select('vendor_id, level_ids')
+      .select('program_id, vendor_id, level_ids')
       .in('program_id', programIds);
     if (sErr) throw sErr;
+    // bd-r2uzg1.18.1 — minus a band-only provider her band does not cover (I-SAPS needs HIGH), unless she has
+    // work there: the bot's catalogue applies the same rule, so the cards and the levels agree.
+    const scopes = await gateTeacherScopes(supabase, userId, allScopes || []);
 
     const levelScope = _levelScopeByVendor(scopes);
     const vendorIds = Array.from(new Set((scopes || []).map(s => s.vendor_id).filter(Boolean)));
@@ -6490,6 +6508,40 @@ async function _attemptAnswers(attemptId) {
 const _resultsOf = (rows) => rows.map((r) => ({ question_id: r.question_id, question_index: r.question_index, is_correct: Boolean(r.is_correct) }));
 
 /**
+ * bd-r2uzg1.18.13 — the question she is on: the first one with no saved answer. The saved answers
+ * are the record; current_question_index is only where WhatsApp resumes, and it can lag them —
+ * checking an answer is two writes (the answer, then the cursor), and a database timeout between
+ * them saved the answer and left the cursor behind. The order rule used to read the cursor while
+ * start sent her screen to the next unanswered question, so every Check after that was refused
+ * ("Answer the questions in order") and she could never move on.
+ */
+function _nextUnanswered(rows, total) {
+  const done = new Set(rows.map((r) => Number(r.question_index)));
+  let i = 0;
+  while (i < total && done.has(i)) i += 1;
+  return i;
+}
+
+/**
+ * Move the cursor FORWARD to `to` (never back: a slower parallel write cannot rewind it). Best
+ * effort: the answer that matters is already saved, and the order rule reads the answers, so a
+ * failure here is logged and the next answer or reopen moves it on.
+ */
+async function _catchUpCursor(attemptId, to, log) {
+  try {
+    const { error } = await supabase
+      .from('training_assessment_attempts')
+      .update({ current_question_index: to, last_activity_at: new Date().toISOString() })
+      .eq('id', attemptId)
+      .eq('status', 'in_progress')
+      .lt('current_question_index', to);
+    if (error) log(error);
+  } catch (error) {
+    log(error);
+  }
+}
+
+/**
  * A module-quiz step that failed: on Axiom (the portal's telemetry sink) as well as the Railway
  * console. The console line used to be all there was, so a start that answered 500 left nothing in
  * the logs anyone queries. Carries the pg code and the request's correlation id, which the 5xx body
@@ -6678,9 +6730,16 @@ router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async
     }
 
     const done = await _attemptAnswers(attempt.id);
+    // bd-r2uzg1.18.13 — the screen opens on the first unanswered question, the one answer will
+    // accept; a cursor left behind by a timed-out write is moved up to it here, so WhatsApp resumes
+    // there too.
+    const nextIndex = _nextUnanswered(done, attempt.total_questions);
+    if (open && Number(open.current_question_index) < nextIndex) {
+      await _catchUpCursor(attempt.id, nextIndex, (error) => _quizAttemptFailed('start_cursor', { correlationId, userId, moduleId, attemptId: attempt.id, error }));
+    }
     return res.json({
       success: true,
-      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: done.length },
+      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: nextIndex },
       // Options in the served order, each carrying its canonical 1-based value —
       // the value the bot marks against. The key itself is never sent.
       questions: paper.map(({ q, display_order }) => {
@@ -6727,7 +6786,8 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
 
     // A checked answer is final. Reported with what she chose and its verdict,
     // so a reloaded page shows the same locked state.
-    const stored = (await _attemptAnswers(attempt.id)).find((r) => r.question_index === index);
+    const saved = await _attemptAnswers(attempt.id);
+    const stored = saved.find((r) => r.question_index === index);
     if (stored) {
       return res.status(409).json({
         success: false, error: 'Already answered', already_answered: true,
@@ -6735,8 +6795,11 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       });
     }
     if (attempt.status !== 'in_progress') return res.status(409).json({ success: false, error: 'This quiz is already finished' });
-    if (index !== attempt.current_question_index) {
-      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: attempt.current_question_index });
+    // In order = the first question with no saved answer, not the cursor: the cursor can lag the
+    // answers after a timed-out write, and comparing with it refused her for ever (bd-r2uzg1.18.13).
+    const expected = _nextUnanswered(saved, attempt.total_questions);
+    if (index !== expected) {
+      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: expected });
     }
 
     const { q } = paper[index];
@@ -6773,16 +6836,14 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       }
       throw ansErr;
     }
-    const { error: moveErr } = await supabase
-      .from('training_assessment_attempts')
-      .update({ current_question_index: index + 1, last_activity_at: now })
-      .eq('id', attempt.id)
-      .eq('status', 'in_progress');
-    if (moveErr) throw moveErr;
+    // The answer is saved: from here she gets her verdict even if the cursor cannot move this time
+    // (the next answer or reopen moves it on). Throwing here used to answer 500 for a saved answer.
+    const after = _nextUnanswered([...saved, { question_index: index }], attempt.total_questions);
+    await _catchUpCursor(attempt.id, after, (error) => _quizAttemptFailed('answer_cursor', { correlationId, userId, moduleId, attemptId, error }));
 
     // The last answer saves the result there and then.
     let result = null;
-    if (index + 1 >= attempt.total_questions) {
+    if (after >= attempt.total_questions) {
       try {
         const fresh = await _ownModuleAttempt(userId, moduleId, attempt.id);
         const out = await _finishModuleQuizAttempt(userId, moduleId, fresh, paper);
@@ -6797,7 +6858,7 @@ router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePorta
       success: true,
       question_id: q.id,
       is_correct: Boolean(g.is_correct),
-      answered: index + 1,
+      answered: saved.length + 1,
       total_questions: attempt.total_questions,
       result,
     });
@@ -9560,6 +9621,7 @@ router.get('/config', async (req, res) => {
       lpWhatsappPdfOff,
       lpViewerSlimRaw,
       lpOwnUnitRaw,
+      observeUploadOnly,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9627,6 +9689,8 @@ router.get('/config', async (req, res) => {
       LpAppSwitches.isLpViewerSlimOn(supabase, userId),
       // bd-snkn32.59 (queue #165) — Make my own → A whole unit: a list or "teachers" (bd-snkn32.59.8), rides with Make my own on.
       require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
+      // bd-oe6r47 / bd-ih6cej (queue #278) — upload-only recording on the observe and debrief steps; fail-closed (never throws).
+      isObserveUploadOnlyFor(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9684,6 +9748,8 @@ router.get('/config', async (req, res) => {
         // WhatsApp; POST /share/whatsapp checks again.
         lpWhatsappSend: lpWhatsappPdfOff !== true,
         lpViewerSlim: teacherV2 && lpViewerSlimRaw,
+        // bd-oe6r47 — the observe and debrief recording steps offer the phone's recorder + Upload, no web recorder.
+        observeUploadOnly,
       },
     });
   } catch (error) {
@@ -9728,6 +9794,8 @@ router.get('/config', async (req, res) => {
         // Not a switch that turns something on: true is today (the server still refuses a send that is off).
         lpWhatsappSend: true,
         lpViewerSlim: false,
+        // bd-ih6cej — fail-closed: a broken read is the in-app recorder (Upload recording beside it).
+        observeUploadOnly: false,
       },
       roleSwitchRoles: [],
     });

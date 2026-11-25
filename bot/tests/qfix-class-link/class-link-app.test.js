@@ -107,7 +107,7 @@ function serve() {
   const server = http.createServer(app);
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r({ server, base: `http://127.0.0.1:${server.address().port}` })));
 }
-const post = (base, p, body) => fetch(`${base}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const post = (base, p, body, headers = {}) => fetch(`${base}${p}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
 describe('off', () => {
   test('the class link off: no card (null), the route 404 not_found, nothing minted', async () => {
@@ -204,18 +204,31 @@ describe('Send / Copy (the tap)', () => {
       expect(r.status).toBe(200);
       expect(await r.json()).toEqual({ ok: true, href: before.classes[0].sendHref });
     } finally { s.server.close(); }
-    const ev = logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap');
+    const ev = logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap');
     expect(ev).toHaveLength(1);
     expect(ev[0][1]).toMatchObject({ surface: 'class_link', method: 'wa_me', origin: 'class_link', share_code_id: null });
     const after = await App().forApp(A, { now: NOW });
     expect(after.classes.map((c) => [c.classId, c.sent])).toEqual([[C1, true], [C2, false]]);
   });
 
+  test('a QA walk (the portal relays the phone\'s user agent, " QFIXQA"): the tap says qa:true', async () => {
+    await App().forApp(A, { now: NOW });
+    jest.clearAllMocks();
+    const s = await serve();
+    try {
+      const r = await post(s.base, '/cl/app/tap', { teacher: A, class_id: C1, how: 'forward' }, { 'user-agent': 'Mozilla/5.0 Chrome/124 QFIXQA' });
+      expect(r.status).toBe(200);
+    } finally { s.server.close(); }
+    const ev = logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap');
+    expect(ev).toHaveLength(1);
+    expect(ev[0][1]).toMatchObject({ surface: 'class_link', qa: true });
+  });
+
   test('copy: logs method copy and folds the class too', async () => {
     await App().forApp(A, { now: NOW });
     jest.clearAllMocks();
     expect(await App().tap({ teacherId: A, classId: C2, how: 'copy' })).toEqual({ ok: true });
-    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap')[0][1]).toMatchObject({ surface: 'class_link', method: 'copy' });
+    expect(logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap')[0][1]).toMatchObject({ surface: 'class_link', method: 'copy' });
     const after = await App().forApp(A, { now: NOW });
     expect(after.classes.find((c) => c.classId === C2).sent).toBe(true);
   });

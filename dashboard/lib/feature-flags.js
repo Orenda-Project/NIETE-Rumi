@@ -314,6 +314,37 @@ const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
 const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
 
 /**
+ * bd-oe6r47 (queue #278) — UPLOAD-ONLY RECORDING on the coach portal (coach app and principal app): the observe
+ * recording step and the debrief recording step hide the in-app web recorder; the main button opens the phone's own
+ * recorder where the browser allows (<input type=file accept=audio/* capture>) and "Upload recording" picks a file,
+ * both into the same upload path. The operator, 25 Nov: "until we are completely sure ... the recordings don't go away
+ * if you have bad internet ... we only give the upload recording button".
+ *
+ * bd-ih6cej — FAIL-CLOSED since 25 Nov ~17:20 (the operator: "Actually on second thought, give both the options again. But
+ * advise whoever is using to use their own recorders if their internet is not very good."): OFF for all, so the in-app
+ * recorder is back, with Upload recording and a weak-internet line beside it. Same shapes as the keys above:
+ *
+ *   true (or "true")       → upload-only for everyone
+ *   ["<users.id>", …]      → upload-only for those users (a per-person override)
+ *   no row, anything else, a failed read → OFF (the in-app recorder)
+ *
+ * /config sends it as features.observeUploadOnly. It only changes what the portal draws: the upload routes take a
+ * file however it was recorded, so there is no server gate to keep in step. Teachers' own recording is not touched.
+ */
+const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
+
+/**
+ * bd-oe6r47 / bd-ih6cej — is upload-only recording on for this user? isFlagEnabledForUser's rule (fail-closed). Never throws.
+ *
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @returns {Promise<boolean>}
+ */
+async function isObserveUploadOnlyFor(supabase, userId) {
+  return isFlagEnabledForUser(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY, userId);
+}
+
+/**
  * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
  * the card on her Home that announces it, and, in the bot, the link that replaces today's WhatsApp report picture. Same
  * shape and rule as the keys above: a list of users.id = those coaches, true = every coach, absent = off. Its routes also
@@ -624,6 +655,8 @@ module.exports = {
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
+  PORTAL_OBSERVE_UPLOAD_ONLY_KEY,
+  isObserveUploadOnlyFor,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,

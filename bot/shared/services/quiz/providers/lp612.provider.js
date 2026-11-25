@@ -214,6 +214,7 @@ async function insertQuiz(teacherId, item, { askLanguage, quizLanguage, via }) {
         ...(quizLanguage ? { language_choice: quizLanguage } : {}),
         source: Funnel.metaSourceOf(via),
         lessons: [item.lesson],
+        lesson_links: require('../quiz-lesson-link').fromPlanLessons([item.lesson]),
         class: { grade: item.grade, subject: item.subject },
         lesson_date: lessonDate(item.deliveredAt),
         claimed_at: new Date().toISOString(),

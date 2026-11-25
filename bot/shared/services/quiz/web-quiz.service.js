@@ -33,6 +33,7 @@ const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const WordHelp = require('./quiz-word-help');
 const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
@@ -363,6 +364,21 @@ function questionPayload(row, i, code, audio, zoom) {
   return out;
 }
 
+/**
+ * bd-0q8b4x — short Urdu meanings under hard English words (media.word_help), as `words`
+ * on each question, only while app_settings quiz_word_help is on (and, with
+ * quiz_word_help_lot, only for the class links the lot puts in the help half). Off: nothing added.
+ */
+async function withWordHelp(rows, payloads, shareCodeId) {
+  if (!rows.some((r) => r && r.media && Array.isArray(r.media.word_help))) return payloads;
+  const f = await require('./quiz-word-help-flag').readFlag();
+  payloads.forEach((p, i) => {
+    const words = WordHelp.servedWords(rows[i], { ...f, shareCodeId });
+    if (words) p.words = words;
+  });
+  return payloads;
+}
+
 const Round = () => require('./web-quiz-evening-round');
 
 /**
@@ -493,7 +509,7 @@ function swapCounts(all, sitting, set) {
   return { ...(nSwapped ? { n_swapped: nSwapped } : {}), ...(nShort ? { n_short: nShort } : {}) };
 }
 const orderFields = (ord) => (ord ? { order: ord.order } : {});
-const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned } : {});
+const orderEvent = (ord) => (ord && ord.seed != null ? { order_seed: ord.seed, pinned_n: ord.pinned, order_algo: OrderSeed.ALGO } : {});
 // session_started.order_arm (all | pct | off): the link's arm while either order switch is set, so the canary's on-arm
 // share is read from the events; neither set: no field (today's event). The hub's cached switch read; a failure: none.
 async function orderArm(shareCodeId) {
@@ -815,7 +831,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
       ...(lateMs ? { late_ms: lateMs } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
+      questions: await withWordHelp(questions, questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])), ctx.shareCodeId),
     },
     cls: {
       // A friend's challenge names only the challenger: never the challenger's teacher or class.
@@ -1986,7 +2002,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
   } : null;
 
-  if (s.status !== 'completed') {
+  const firstFinish = s.status !== 'completed';
+  if (firstFinish) {
     const { error } = await supabase.from('quiz_sessions').update({
       status: 'completed', total_questions_answered: total, correct_answers: correct,
       mastery_percentage: pct, mastery_level: level, completed_at: new Date().toISOString(),
@@ -2041,6 +2058,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
   // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
   const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
+  // Keep this attempt (table quiz_attempts, switch web_quiz_keep_attempts): after the card's reads so it never moves them,
+  // never awaited, reply unchanged. Only the finish that completed the session.
+  if (firstFinish) require('./quiz-attempt-log').keep({ session: s, served, byQ, keyFor: WebItems.keyFor, channel: 'web' });
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -2648,6 +2668,7 @@ module.exports = {
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
+  withWordHelp,
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
   shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,

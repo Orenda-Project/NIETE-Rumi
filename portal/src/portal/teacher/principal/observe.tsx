@@ -90,6 +90,8 @@ export const PRINCIPAL_OBSERVE_ROUTES: ObserveRoutes = {
   sending: (ext) => `${principalCheckPath(ext)}/sending`,
   observation: principalObservationPath,
   reports: OBS_HOME,
+  // bd-f5a245 — a stopped analysis: that teacher's page, with its Start recording / Upload recording.
+  again: (teacher) => principalVisitPath(teacher),
 };
 
 /**

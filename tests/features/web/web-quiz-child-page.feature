@@ -546,6 +546,8 @@ Feature: Web child quiz page on the portal
     Given a child on a slow connection opens a question whose clip takes more than 2 seconds to start
     Then the words are shown big while the clip keeps loading, and the phone's own voice does not speak
     And a clip that has not started after 8 seconds is let go quietly and logged as stalled
+    And with the slow-clip switch on, only a phone that has a voice for the quiz language hands the line to that voice at 5 seconds
+    And on a phone with no voice for the quiz language (Urdu on Android) a clip that starts at 6 seconds is still heard
     And a clip the browser refuses to start before a tap makes the speaker button pulse, and a tap plays it
 
   @WQ073 @T283
