@@ -1329,6 +1329,23 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
 .foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .fr{ text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
+/* LIGHT PRINT (bd-zrdvmi.54 / bd-40mww6, queue #221) — the same block as the bot's vendored copy
+   (NIETE bd-ain69z, SYNC §3.44, live 23 Nov). Plans printed almost black on a school printer (sheet
+   Lesson Plan row 962; Amena, 22 Nov: "lighter", English + Urdu). Every large solid fill (title,
+   section bars, "open with this question", check, coach, board label) ends white with a coloured edge
+   and dark ink. Words and layout unchanged: the edge is an inset box-shadow, never a border, so no
+   box grows by a pixel and no plan moves onto another page. */
+.hero, .hook, .ck, .srq, .coach{ background:#fff !important; color:var(--ink) !important;
+  box-shadow:inset 0 0 0 2px var(--navy) !important; }
+.hero *, .hook *, .ck *, .srq *, .coach *{ color:var(--ink) !important; }
+.hook .lbl, .hook [class*="lbl"], .hero [class*="kick"]{ color:#8A5F04 !important; }
+.s-o, .s-w, .s-i, .s-d, .s-a, .s-c, .s-h{ background:#fff !important; color:var(--ink) !important;
+  --edge:var(--navy); box-shadow:inset 0 0 0 2px var(--edge), inset -8px 0 0 0 var(--edge) !important; }
+.s-o{ --edge:var(--s-note-ink); } .s-w{ --edge:var(--band-w); } .s-i{ --edge:var(--band-i); }
+.s-d{ --edge:var(--navy); } .s-a{ --edge:var(--leaf); } .s-c{ --edge:var(--band-c); } .s-h{ --edge:var(--mut); }
+.s-o *, .s-w *, .s-i *, .s-d *, .s-a *, .s-c *, .s-h *{ color:var(--ink) !important; }
+.bar .badge{ background:#fff !important; box-shadow:inset 0 0 0 1.5px var(--ink); }
+.board .lbl{ background:#fff !important; color:var(--navy) !important; box-shadow:inset 0 -2px 0 var(--navy); }
 
 /* ── mixed-script prose under RTL (the 2026-09 audit, class D3) ──────────────
    Each prose run follows ITS OWN first strong character
@@ -1466,7 +1483,7 @@ body, .hook .q, .hook .lf, .slo p, .tn, .ck .q, .srq .q, .exq h4, .exq .cfu,
             <span class="q">لفظ 'سیر سپاٹا' کا مطلب لکھیں اور اس سے جملہ بنائیں۔</span>
             
             </div>
-            <div class="arow"><span class="al">جواب</span><span class="a">مطلب: گھومنا پھرنا۔ جملہ: ہم نے چھٹیوں میں کوئٹہ کی سیر سپاٹا کی۔</span></div></div></div></div>
+            <div class="arow"><span class="al">جواب</span><span class="a">مطلب: گھومنا پھرنا۔ جملہ: چھٹیوں میں ہم نے کوئٹہ میں خوب سیر سپاٹا کیا۔</span></div></div></div></div>
 <div data-atom class="blk pr pc pc-m sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">۲.</span>
             <span class="q">لفظ 'کشتی رانی' کا مطلب لکھیں اور اس سے جملہ بنائیں۔</span>
             
@@ -1488,7 +1505,7 @@ body, .hook .q, .hook .lf, .slo p, .tn, .ck .q, .srq .q, .exq h4, .exq .cfu,
     <span class="mins">۳ منٹ</span></div>
 <div data-atom class="blk sp-2"><span class="dct">اختتامی جانچ</span><div class="lbl g">یاد رکھیں</div>
       <ul class="kp"><li>لفظ پڑھیں، مطلب سمجھیں، پھر اپنا جملہ بنائیں۔</li></ul></div>
-<div data-atom class="blk exit sp-2"><div class="lbl">اختتامی پرچی</div><div class="it"><span>۱.</span><span>کامیابی کا اصول پڑھیں: میں مشکل لفظ کا مطلب بتا کر ٹھیک جملہ بنا سکتی/سکتا ہوں۔ انگوٹھے سے اندازہ لگائیں: اوپر = پکا، برابر = شاید، نیچے = مشکل۔<br>لفظ 'سبزی مائل' کا مطلب لکھیں اور اس سے اپنا جملہ بنائیں۔ (یہ لفظ آج پہلے استعمال نہیں ہوا۔)<br>لکھنے کے بعد خود جانچیں اور انگوٹھے سے بتائیں: اندازہ ٹھیک نکلا؟ <span class="a">&larr; درست: مطلب 'سبز رنگ کی طرح' اور جملے میں لفظ مطلب کے مطابق، مثلاً 'ببلو کی قمیض سبزی مائل نیلی تھی۔' دونوں درست ہوں تو پاس۔</span></span></div></div>
+<div data-atom class="blk exit sp-2"><div class="lbl">اختتامی پرچی</div><div class="it"><span>۱.</span><span>کامیابی کا اصول پڑھیں: میں مشکل لفظ کا مطلب بتا کر ٹھیک جملہ بنا سکتی/سکتا ہوں۔ انگوٹھے سے اندازہ لگائیں: اوپر = پکا، برابر = شاید، نیچے = مشکل۔<br>لفظ 'سبزی مائل' کا مطلب لکھیں اور اس سے اپنا جملہ بنائیں۔<br>لکھنے کے بعد خود جانچیں اور انگوٹھے سے بتائیں: اندازہ ٹھیک نکلا؟ <span class="a">&larr; درست: مطلب 'سبز رنگ کی طرح' اور جملے میں لفظ مطلب کے مطابق، مثلاً 'ببلو کی قمیض سبزی مائل نیلی تھی۔' دونوں درست ہوں تو پاس۔</span></span></div></div>
 <div data-atom id="v9-hw" class="bar s-h sp-4" data-sec="homework">
     <span class="badge">۵</span><span class="nm">گھر کا کام</span>
     </div>
