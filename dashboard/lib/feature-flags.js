@@ -312,6 +312,51 @@ const PORTAL_COACH_FULL_APP_KEY = 'portal_coach_full_app';
 const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
 
 /**
+ * bd-oe6r47 (queue #278) — UPLOAD-ONLY RECORDING on the coach portal (coach app and principal app): the observe
+ * recording step and the debrief recording step hide the in-app web recorder; the main button opens the phone's own
+ * recorder where the browser allows (<input type=file accept=audio/* capture>) and "Upload recording" picks a file,
+ * both into the same upload path. The operator, 25 Nov: "until we are completely sure ... the recordings don't go away
+ * if you have bad internet ... we only give the upload recording button".
+ *
+ * DEFAULT ON — the opposite of the keys above, on the operator's word ("default ON for every account"), because the
+ * safe side here is upload-only: the audio stays in the phone's recorder app whatever the internet does, while the
+ * web recorder is the path that lost recordings. So:
+ *
+ *   no row, true, "true", "on", a malformed value, a failed read  → ON (upload-only) for everyone
+ *   false, "false", "off"                                          → OFF: the web recorder back, for everyone
+ *   ["<users.id>", …]                                              → ON only for those users (a narrowing)
+ *
+ * /config sends it as features.observeUploadOnly. It only changes what the portal draws: the upload routes take a
+ * file however it was recorded, so there is no server gate to keep in step. Teachers' own recording is not touched.
+ */
+const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
+
+/**
+ * bd-oe6r47 — is upload-only recording on for this user? See PORTAL_OBSERVE_UPLOAD_ONLY_KEY: ON unless the row says
+ * off (or a list leaves her out). Never throws.
+ *
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @returns {Promise<boolean>}
+ */
+async function isObserveUploadOnlyFor(supabase, userId) {
+  try {
+    const { data, error } = await readFlagRow(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY);
+    if (error || !data) return true;
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { /* the raw string */ }
+    }
+    if (value === false) return false;
+    if (typeof value === 'string') return !['false', 'off'].includes(value.trim().toLowerCase());
+    if (Array.isArray(value)) return !!userId && value.some((id) => typeof id === 'string' && id === userId);
+    return true;
+  } catch (_) {
+    return true;
+  }
+}
+
+/**
  * Coach reports in the app — the coach's debrief report as a page in the coach app (dashboard/services/coach-report.service.js),
  * the card on her Home that announces it, and, in the bot, the link that replaces today's WhatsApp report picture. Same
  * shape and rule as the keys above: a list of users.id = those coaches, true = every coach, absent = off. Its routes also
@@ -579,6 +624,8 @@ module.exports = {
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
+  PORTAL_OBSERVE_UPLOAD_ONLY_KEY,
+  isObserveUploadOnlyFor,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,

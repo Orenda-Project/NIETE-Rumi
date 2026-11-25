@@ -104,6 +104,7 @@ const {
   PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
+  isObserveUploadOnlyFor,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -9606,6 +9607,7 @@ router.get('/config', async (req, res) => {
       lpViewerSlimRaw,
       lpOwnGoalStartRaw,
       lpOwnUnitRaw,
+      observeUploadOnly,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9668,6 +9670,8 @@ router.get('/config', async (req, res) => {
       require('../../bot/shared/services/lp612-own-goal.store').goalStartOn(supabase, userId),
       // bd-snkn32.59 (queue #165) — Make my own → A whole unit: a list or "teachers" (bd-snkn32.59.8), rides with Make my own on.
       require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
+      // bd-oe6r47 (queue #278) — upload-only recording on the observe and debrief steps; DEFAULT ON (never throws).
+      isObserveUploadOnlyFor(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9722,6 +9726,8 @@ router.get('/config', async (req, res) => {
         lpWhatsappSend: lpWhatsappPdfOff !== true,
         lpViewerSlim: teacherV2 && lpViewerSlimRaw,
         lpOwnGoalStart: teacherV2 && lpMakeOwnRaw && lpOwnNotGb && lpOwnGoalStartRaw,
+        // bd-oe6r47 — the observe and debrief recording steps offer the phone's recorder + Upload, no web recorder.
+        observeUploadOnly,
       },
     });
   } catch (error) {
@@ -9763,6 +9769,8 @@ router.get('/config', async (req, res) => {
         lpWhatsappSend: true,
         lpViewerSlim: false,
         lpOwnGoalStart: false,
+        // bd-oe6r47 — DEFAULT ON: upload-only is the safe side, so a broken read keeps it.
+        observeUploadOnly: true,
       },
       roleSwitchRoles: [],
     });
