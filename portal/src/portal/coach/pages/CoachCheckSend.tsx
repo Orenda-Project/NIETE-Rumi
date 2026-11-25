@@ -22,6 +22,7 @@ import { checkPlanFile, formatSize, OBSERVE_MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PL
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
+import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { withDuration } from "../../lib/webmDuration";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
@@ -358,6 +359,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {/* bd-o15qnr.40.2 (queue #229): with the switch on, #204's full player (bar, back / forward 10 s, speed), as on the
           visit and the debrief; off, the card as on production. */}
       <AudioCard title={audio.label} sub={audio.sub} src={src} controls={v7} testId="check-recording"
+        save={{ kind: "obs", recordingId: audio.recordingId ?? null, filename: recordingFilename({ kind: "obs", ext: extOf(audio.filename, audio.blob?.type) }) }}
         action={(
           <button type="button" onClick={redo}
             className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">

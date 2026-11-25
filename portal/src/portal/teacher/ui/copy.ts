@@ -68,6 +68,12 @@ export interface TeacherUiCopy {
   back10: string;
   forward10: string;
   position: string;
+  /** bd-ma9jiy (queue #262) — the full player's Save to phone (a download), and what came of a press. */
+  saveToPhone: string;
+  saving: string;
+  savedToPhone: string;
+  saveLinkCopied: string;
+  saveFailed: string;
   /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
   am: string;
   pm: string;
@@ -249,6 +255,11 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   back10: 'Back 10 s',
   forward10: 'Forward 10 s',
   position: 'Position',
+  saveToPhone: 'Save to phone',
+  saving: 'Saving…',
+  savedToPhone: 'Opened in browser',
+  saveLinkCopied: 'Link copied',
+  saveFailed: 'Not saved',
   am: 'AM',
   pm: 'PM',
   chosenSoFar: 'Chosen so far',
@@ -395,6 +406,11 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   back10: '10 سیکنڈ پیچھے',
   forward10: '10 سیکنڈ آگے',
   position: 'مقام',
+  saveToPhone: 'فون میں محفوظ کریں',
+  saving: 'محفوظ ہو رہی ہے…',
+  savedToPhone: 'براؤزر میں کھل گئی',
+  saveLinkCopied: 'لنک کاپی ہو گیا',
+  saveFailed: 'محفوظ نہیں ہوئی',
   /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
   pm: 'بعد دوپہر',

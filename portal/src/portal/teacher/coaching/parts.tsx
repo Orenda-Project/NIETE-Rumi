@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
 import { reportSendFailure } from '../../lib/dcUploadReport';
 import { holdPhoto, isRefused, type PhotoRefused } from '../../lib/pickedRead';
-import { AttentionBanner, ListRow } from '../ui';
+import { AttentionBanner, AudioCard, ListRow } from '../ui';
+import { extOf, recordingFilename } from '../../lib/saveRecording';
 import { CARD, FOCUS, GRID } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
@@ -260,8 +261,11 @@ const minutesOf = (ms: number | null) => (ms != null ? Math.max(1, Math.round(ms
  * deleted from the phone and she records again) or Change file (one she uploaded: the picker opens). It plays from a url
  * made once per recording and released with it.
  */
-export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void }) {
+export function RecordingCard({ audio, onRedo, onChangeFile, full = false }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void; full?: boolean }) {
   const C = useCopy(COACHING);
+  // bd-ma9jiy (queue #262) — with portal_recording_resume on for her: the portal's ONE recording player (AudioCard's full
+  // player: bar, back / forward 10 s, 1×–4×, Save to phone as NIETE_OBS_…), as the coach's observation and debrief have.
+  if (full) return <FullRecordingCard audio={audio} onRedo={onRedo} onChangeFile={onChangeFile} />;
   const player = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -374,5 +378,47 @@ export function FlowStep({ n, state, children, chips }: {
         )) : null}
       </span>
     </h2>
+  );
+}
+
+/** bd-ma9jiy — RecordingCard as the kit's full player, with Redo / Change beside the play button and Save to phone under. */
+function FullRecordingCard({ audio, onRedo, onChangeFile }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void }) {
+  const C = useCopy(COACHING);
+  const [url, setUrl] = useState<string | null>(null);
+  const saved = isSavedAudio(audio);
+  useEffect(() => {
+    if (isSavedAudio(audio)) { setUrl(audio.listenUrl); return undefined; }
+    let made: string | null = null;
+    try { made = URL.createObjectURL(audio.blob); } catch { made = null; }
+    setUrl(made);
+    return () => { if (made) URL.revokeObjectURL(made); };
+  }, [audio]);
+  const minutes = minutesOf(audio.durationMs);
+  const recordedHere = saved || !!audio.recordingId;
+  const name = recordingFilename({
+    kind: 'obs',
+    at: !saved && audio.startedAt ? audio.startedAt : undefined,
+    ext: extOf(saved ? audio.listenUrl : audio.filename, saved ? null : audio.blob.type),
+  });
+  return (
+    <section aria-label={C.yourRecording} data-testid="dc-recording">
+      <AudioCard
+        title={saved ? C.fromWhatsApp : audio.source === 'file' ? audio.filename : C.yourRecording}
+        sub={minutes != null ? C.minutes(minutes) : undefined}
+        src={url ?? undefined}
+        controls
+        save={{ kind: 'dc', filename: name, recordingId: !saved ? audio.recordingId ?? null : null }}
+        action={(
+          <button
+            type="button"
+            onClick={() => { (recordedHere ? onRedo : onChangeFile)(); }}
+            className={cn('flex min-h-14 items-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-[14px] font-semibold text-[#33374a]', FOCUS)}
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            {saved ? C.change : recordedHere ? C.redo : C.changeFile}
+          </button>
+        )}
+      />
+    </section>
   );
 }

@@ -12,6 +12,7 @@ import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { PageChip } from "../../teacher/TeacherPage";
 import { AudioCard, ListRow, ProgressSteps, ScoreRing, TimeStamp, type ProgressStep } from "../../teacher/ui";
+import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { useBidi } from "../../teacher/ui/bidi";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
@@ -167,6 +168,9 @@ const CoachObservation = () => {
   // bd-o15qnr.39 — her debrief is in and being listened to; its recording plays in place when the portal kept it.
   const listening = viewStep === "listening";
   const talkAudio = view?.talk.audioUrl || null;
+  // bd-ma9jiy (queue #262) — Save to phone on the full player: NIETE_OBS_25Nov_1040.webm / NIETE_DBRF_25Nov_1130.webm.
+  const classSave = data?.audioUrl ? { kind: "obs" as const, filename: recordingFilename({ kind: "obs", at: data.date, ext: extOf(data.audioUrl) }) } : undefined;
+  const talkSave = talkAudio ? { kind: "dbrf" as const, filename: recordingFilename({ kind: "dbrf", at: view?.talk.recordedAt || data?.date, ext: extOf(talkAudio) }) } : undefined;
   const dock = dockStep && !v7 ? (
     <Link to={routes.observation(id, dockStep)} data-testid="obs-dock"
       className={cn("flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
@@ -195,8 +199,8 @@ const CoachObservation = () => {
   const classRecording = !data ? null : data.audioUrl ? (
     <div data-item="class-recording">
       {preFormScore
-        ? <AudioCard title={C.dcScore} sub={scoreSub} src={data.audioUrl} lead={<ScoreRing value={score} label={C.dcScore} />} controls compact testId="class-recording" />
-        : <AudioCard title={W.classRecording} src={data.audioUrl} controls compact testId="class-recording" />}
+        ? <AudioCard title={C.dcScore} sub={scoreSub} src={data.audioUrl} lead={<ScoreRing value={score} label={C.dcScore} />} controls compact testId="class-recording" save={classSave} />
+        : <AudioCard title={W.classRecording} src={data.audioUrl} controls compact testId="class-recording" save={classSave} />}
     </div>
   ) : preFormScore ? (
     <section data-item="score" data-testid="score-card" className={cn(LIST_CARD, "flex min-h-[72px] items-center gap-3 p-3")}>
@@ -276,7 +280,7 @@ const CoachObservation = () => {
             )}
             {mine && talkAudio && (
               <div data-item="debrief-recording">
-                <AudioCard title={W.debriefRecording} src={talkAudio} controls compact testId="debrief-recording" />
+                <AudioCard title={W.debriefRecording} src={talkAudio} controls compact testId="debrief-recording" save={talkSave} />
               </div>
             )}
             {formFilled && (

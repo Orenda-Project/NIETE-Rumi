@@ -110,7 +110,7 @@ export default function BlockRecorder({ card, sessionId, copy, onSent, deps: giv
       dispatch({ type: "MIC_DENIED" });
       return;
     }
-    const rec = new LessonRecorder({ stream, type, store: Recordings, MediaRecorder: d.MediaRecorder });
+    const rec = new LessonRecorder({ stream, type, store: Recordings, MediaRecorder: d.MediaRecorder, sliceMs: 5_000 }); // bd-ma9jiy: the child test keeps its 5 s pieces (unchanged tonight)
     recorderRef.current = rec;
     await rec.start();
     dispatch({ type: "START", now: Date.now() });
