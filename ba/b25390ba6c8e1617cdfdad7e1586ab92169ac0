@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T18:14:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"bab25390ba6c","branch":"bd-zrdvmi.71-sandbox","user":""}
+{"ts":"2026-11-25T18:14:53Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"bab25390ba6c","branch":"bd-zrdvmi.71-sandbox","user":""}
