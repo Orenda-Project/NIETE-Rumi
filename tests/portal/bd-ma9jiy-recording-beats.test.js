@@ -69,7 +69,10 @@ describe('POST /funnel/recording — the recorder heartbeat', () => {
     });
     expect(res.status).toBe(204);
     const ev = emitted.filter((x) => x.e === 'recording.event');
-    expect(ev.map((x) => x.d.event)).toEqual(['cut', 'resume']);
+    // telemetry.logEvent spreads the row's fields over { event }: a field named `event` would rename the row (seen on
+    // sandbox 25 Nov: rows came in as "start", "cut"). The event's own name is `recEvent`.
+    expect(ev.every((x) => !('event' in x.d))).toBe(true);
+    expect(ev.map((x) => x.d.recEvent)).toEqual(['cut', 'resume']);
     expect(ev[0].d).toEqual(expect.objectContaining({ userId: USER, recordingId: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', gapS: 312, lastVis: 0, lastBattery: 12 }));
   });
 

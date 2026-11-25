@@ -564,9 +564,10 @@ function createAppFunnelRouter({ limiter } = {}) {
       }
       for (const ev of events) {
         if (!ev || typeof ev !== 'object' || typeof ev.k !== 'string' || !REC_EVENTS.includes(ev.k)) continue;
-        const props = { _time: new Date(base0 + (Number.isFinite(Number(ev.dt)) ? Number(ev.dt) : 0)).toISOString(), ...shared, event: ev.k };
+        // `recEvent`, never `event`: telemetry.logEvent spreads these over the row's own { event: 'recording.event' }.
+        const props = { _time: new Date(base0 + (Number.isFinite(Number(ev.dt)) ? Number(ev.dt) : 0)).toISOString(), ...shared, recEvent: ev.k };
         for (const [k, v] of Object.entries(ev)) {
-          if (k === 'k' || k === 'dt' || !/^[A-Za-z][A-Za-z0-9]{0,23}$/.test(k)) continue;
+          if (k === 'k' || k === 'dt' || k === 'event' || k === 'recEvent' || !/^[A-Za-z][A-Za-z0-9]{0,23}$/.test(k)) continue;
           if (typeof v === 'number' && Number.isFinite(v)) props[k] = v;
           else if (typeof v === 'boolean' || v === null) props[k] = v;
           else if (typeof v === 'string') props[k] = v.replace(/[^A-Za-z0-9_/.;=:-]/g, '').slice(0, 60);
