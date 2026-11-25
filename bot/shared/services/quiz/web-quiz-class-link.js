@@ -226,7 +226,9 @@ function serveArgs(w, opts = {}) {
 // ── events (lazily through the event key module) ────────────────────────────────────────────────
 
 let warnedNoKid = false;
-function emit(name, fields, { classId = null, studentId } = {}) {
+// `bare`: the event is another lane's, logged under its own name (quiz_forward_tap, as quiz-forward.js logs it), not
+// under this module's web_quiz. prefix.
+function emit(name, fields, { classId = null, studentId, bare = false } = {}) {
   let Kid;
   try {
     Kid = require('./web-quiz-kid');
@@ -238,7 +240,7 @@ function emit(name, fields, { classId = null, studentId } = {}) {
     const data = { w: 's', ...fields };
     if (classId) data.cls = Kid.cls(classId);
     if (studentId !== undefined) data.kid = studentId ? Kid.kid(studentId) : null;
-    logEvent(`web_quiz.${name}`, Kid.envelope(data));
+    logEvent(bare ? name : `web_quiz.${name}`, Kid.envelope(data));
   } catch (err) {
     logToFile('⚠️ web quiz class link: event not written', { name, error: err.message });
   }
@@ -633,7 +635,9 @@ async function wasSent(classId, termCode) {
   try { return Boolean(await r.get(sentKey(classId, termCode))); } catch (_) { return false; }
 }
 
-async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
+// `ua`: the phone's user agent (the dashboard / portal relay it). A QA walk's carries " QFIXQA": its tap says qa:true,
+// as quiz-forward.js marks every other surface's, so a read drops walks; any other user agent: no qa key.
+async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null, ua = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
   const copy = how === 'copy';
   if (copy && (typeof reportBase !== 'string' || !reportBase.startsWith('/'))) return null;
@@ -642,7 +646,8 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   if (!url) return null;
   emit('quiz_forward_tap', {
     share_code_id: null, surface: 'class_link', method: copy ? 'copy' : 'wa_me', origin: 'class_link', stale: false,
-  }, { classId });
+    ...(/ QFIXQA/.test(String(ua || '')) ? { qa: true } : {}),
+  }, { classId, bare: true });
   await markSent(classId);
   if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
   return `https://wa.me/?text=${encodeURIComponent(`${url}?f=1`)}`;

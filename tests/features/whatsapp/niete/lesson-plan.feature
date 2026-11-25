@@ -850,9 +850,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ADDED 2026-11-24 (bd-97daxo.34.6). @no-mock-driver: the mock lane cannot seed niete_lp612_deliveries rows.
   # Executed through the real cohort and tap in tests/quiz/lp-quiz-offer-612.test.js.
   @e2e @quiz @wip @draft @config-gated @no-mock-driver @P1 @L62
-  Scenario: A GB grade 1-5 teacher who took a lesson today is offered the afternoon quiz on it
-    # UPDATED 2026-11-24 (bd-97daxo.34.9, q250): GB grade 1-5 only; ICT 6-12 is @L65.
-    Given the NIETE bot chat is open on a teacher who took one GB grade 1-5 lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
+  Scenario: A Grades 6-12 or GB teacher who took a lesson today is offered the afternoon quiz on it
+    # RE-CONFIRMED 2026-11-24 (bd-97daxo.34.18, q250): ICT 6-12 and GB both, as on main (Amena 24 Nov).
+    Given the NIETE bot chat is open on a teacher who took one Grades 6-12 or GB lesson plan today before 14:00 PKT, on WhatsApp or in the teacher app
     And the teacher has not made a quiz from that lesson
     When the send hour passes and the teacher-nudge sweep runs
     Then the bot offers a short quiz on that lesson's topic, with the buttons "Make the quiz" and "No thanks"
@@ -864,10 +864,11 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # class, never an assessment, a held lesson or one an lp612 quiz already covers; acceptLp612 starts the quiz
     # through lp612.provider with via lp_offer. Off with QUIZ_LP612_SOURCE. No new message, string or button.
 
-  # ADDED 2026-11-24 (bd-97daxo.34.9, q250: Amena "GB only for now"). @no-mock-driver as @L62.
-  # Executed in tests/quiz/lp-quiz-offer-612.test.js ("LP_QUIZ_OFFER_ICT612 not on").
-  @e2e @quiz @wip @draft @config-gated @no-mock-driver @negative @P1 @L65
+  # ADDED 2026-11-24 (bd-97daxo.34.9, q250: Amena "GB only for now").
+  # The LP_QUIZ_OFFER_ICT612 switch was reverted on sandbox/staging and never reached main. @L62 is live.
+  @obsolete @no-mock-driver @negative @L65
   Scenario: An ICT Grades 6-12 teacher is not offered the afternoon quiz while ICT 6-12 is switched off
+    # OBSOLETE 2026-11-24 (bd-97daxo.34.18): Amena keeps ICT 6-12 and GB both in the 15:00 offer; replaced by @L62. Kept (not deleted) for the audit trail.
     Given LP_QUIZ_OFFER_ICT612 is not on
     And the NIETE bot chat is open on a teacher who took one ICT Grades 6-12 lesson plan today before 14:00 PKT
     When the send hour passes and the teacher-nudge sweep runs
@@ -1446,6 +1447,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I send "/lp"
     Then I get one message with an "open in the app" button carrying my own sign-in link
     And no lesson-plan menu opens and no PDF arrives
+
+  # ADDED 2026-11-24 (bd-zrdvmi.60, ICT sheet Lesson Plan row 983): a grades 1-5 plan tapped in the Flow while PDFs are
+  # off sends a link that opens THAT plan (/portal/teacher/lessons/open?plan=k5:<lesson_id>), not Lesson Plans home.
+  # Unit: tests/app-redirect/app-link-lp-open.test.js, tests/lp-whatsapp-off/v8-delivery-pdf-off.test.js.
+  @e2e @config-gated @no-mock-driver @P1 @L13b
+  Scenario: With lesson-plan PDFs off, tapping one grades 1-5 plan in the Flow sends a link that opens that plan
+    Given the NIETE bot chat is open
+    And lesson-plan PDFs on WhatsApp are switched off for the ICT programme
+    When I tap one grades 1-5 lesson plan in the WhatsApp Flow
+    Then I get one message with an "open in the app" button
+    And tapping it opens that same lesson plan in the app, not the Lesson Plans home
+    # @no-mock-driver: the tap arrives through the Flow's data exchange, which the mock lane does not drive.
 
   @e2e @config-gated @negative @P1 @L14
   Scenario: With lesson-plan PDFs off only for the GB programme, an ICT teacher's lesson-plan menu is unchanged

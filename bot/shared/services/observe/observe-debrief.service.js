@@ -681,7 +681,8 @@ async function startDebrief(sessionId, from, user) {
   if (existing && existing.state === 'awaiting_debrief_audio' && existing.sessionId === sessionId) {
     await _sendGuideWithInstruction(
       from, existing.guide_snapshot ? renderGuideMessage(existing.guide_snapshot, S) : null, S,
-      existing.guide_snapshot ? require('./lp-check').renderLpCheckMessage(existing.guide_snapshot.lp_check, S) : '');
+      // A FICO 6-12 visit's notes kept from before queue #255 are re-sent without the lesson plan check (notesFor).
+      existing.guide_snapshot ? require('./lp-check').renderLpCheckMessage(require('./lp-check').notesFor(session, existing.guide_snapshot).lp_check, S) : '');
     logToFile('🔭 observe debrief: already armed for this session — re-sent guide + nudge', { sessionId });
     return;
   }
@@ -1262,9 +1263,10 @@ async function processDebriefRecording(sessionId, payload = {}) {
       // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
       feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
       // The lesson plan check's five parts (notes written with the check only): their own call, after the 8 behaviours,
-      // kept beside them and never scored. Null (no check in the notes, or the judge failed) leaves the feedback as it was.
+      // kept beside them and never scored. Null (no check in the notes, a FICO 6-12 visit, or the judge failed) leaves the
+      // feedback as it was.
       const lpDiscussion = await require('./lp-check').judgeDiscussion({
-        transcript, lpCheck: (observerDebrief.guide_snapshot || {}).lp_check, lang: _fbLang, sessionId,
+        transcript, lpCheck: (observerDebrief.guide_snapshot || {}).lp_check, lang: _fbLang, sessionId, session,
       });
       if (lpDiscussion) feedback = { ...feedback, lp_discussion: lpDiscussion };
     } catch (llmErr) {

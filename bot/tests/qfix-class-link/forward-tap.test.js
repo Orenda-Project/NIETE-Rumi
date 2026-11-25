@@ -1,9 +1,11 @@
 'use strict';
 /**
  * The teacher card's Forward / Copy of the standing class link (web-quiz-class-link.js forwardHref) logs the forward
- * lane's event, web_quiz.quiz_forward_tap { share_code_id: null, surface: 'class_link', method: 'wa_me' | 'copy',
- * origin: 'class_link', stale: false, cls }, and no longer the retired class_link_forwarded. The forwarded URL carries
- * ?f=1, so the landing counts the open as via 'forward'. Faked: Supabase (in memory), Redis, the loggers, the event key.
+ * lane's event under its own bare name, quiz_forward_tap { share_code_id: null, surface: 'class_link', method: 'wa_me' |
+ * 'copy', origin: 'class_link', stale: false, cls }, as every other surface logs it (quiz-forward.js): never the
+ * web_quiz.-prefixed name the card's other events carry, and no longer the retired class_link_forwarded. The
+ * forwarded URL carries ?f=1, so the landing counts the open as via 'forward'. Faked: Supabase (in memory), Redis,
+ * the loggers, the event key.
  */
 jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -40,7 +42,8 @@ beforeEach(() => {
 });
 afterEach(() => { delete process.env.WEB_QUIZ_BASE_URL; });
 
-const taps = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap').map(([, f]) => f);
+const taps = () => logEvent.mock.calls.filter(([n]) => n === 'quiz_forward_tap').map(([, f]) => f);
+const prefixed = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.quiz_forward_tap');
 const retired = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.class_link_forwarded');
 
 test('Forward: wa.me with the link + ?f=1; quiz_forward_tap{surface class_link, method wa_me}; no class_link_forwarded', async () => {
@@ -48,6 +51,7 @@ test('Forward: wa.me with the link + ?f=1; quiz_forward_tap{surface class_link, 
   const code = db.class_links[0].code;
   expect(decodeURIComponent(out.replace(/^https:\/\/wa\.me\/\?text=/, ''))).toBe(`https://quiz.example.org/j/${code}?f=1`);
   expect(taps()).toEqual([{ ev_v: 2, w: 's', cls: 'clshash00000', share_code_id: null, surface: 'class_link', method: 'wa_me', origin: 'class_link', stale: false }]);
+  expect(prefixed()).toHaveLength(0);
   expect(retired()).toHaveLength(0);
 });
 
@@ -55,5 +59,15 @@ test('Copy: quiz_forward_tap{method copy}; no class_link_forwarded', async () =>
   const out = await CL.forwardHref({ teacherId: T1, classId: C1, how: 'copy', reportBase: '/r/tok.sig' });
   expect(out).toBe(`/r/tok.sig?tab=class&cl_open=${C1}#class-link`);
   expect(taps()).toEqual([{ ev_v: 2, w: 's', cls: 'clshash00000', share_code_id: null, surface: 'class_link', method: 'copy', origin: 'class_link', stale: false }]);
+  expect(prefixed()).toHaveLength(0);
   expect(retired()).toHaveLength(0);
+});
+
+test('a QA walk (user agent carries " QFIXQA"): the tap says qa:true; any other user agent: no qa key', async () => {
+  await CL.forwardHref({ teacherId: T1, classId: C1, ua: 'Mozilla/5.0 (Linux; Android 14) Chrome/124 QFIXQA' });
+  await CL.forwardHref({ teacherId: T1, classId: C1, how: 'copy', reportBase: '/r/tok.sig', ua: 'Mozilla/5.0 (Linux; Android 14) Chrome/124' });
+  const t = taps();
+  expect(t).toHaveLength(2);
+  expect(t[0]).toMatchObject({ surface: 'class_link', method: 'wa_me', qa: true });
+  expect(t[1]).not.toHaveProperty('qa');
 });

@@ -32,6 +32,10 @@ const AppOpens = require('../quiz/lp-app-opens.store');
 
 /** Tier 3's read cap per surface (downloads; app opens). */
 const RECENT_PLANS_MAX = 50;
+// bd-3itk00: where a row can be when a run of the same message finds its saved analysis and the hand-off may not have
+// happened yet ('analysis_complete': cut off after the save; 'analyzing'/'failed': a later run that died or failed
+// after it). Any other status means the hand-off already ran, or the session is over.
+const RESUMABLE_AFTER_SAVE = new Set(['analysis_complete', 'analyzing', 'failed']);
 
 /**
  * Look up the teacher's preferred language for a coaching session.
@@ -117,9 +121,12 @@ class AnalysisProcessorService {
    * Process analysis job (called by background worker)
    * @param {string} coachingSessionId - Coaching session UUID
    * @param {object} payload - Job payload
+   * @param {{messageId?: string, receiveCount?: number}} [job] - the queue delivery running this (bd-3itk00):
+   *   its message id stamps the saved analysis so a later run of the SAME message carries on from it, and its
+   *   receive count says whether a run cut off mid-call may be handed back instead of failing
    * @returns {Promise<void>}
    */
-  static async processAnalysis(coachingSessionId, payload) {
+  static async processAnalysis(coachingSessionId, payload, job = {}) {
     try {
       logToFile('🔄 Starting pedagogical analysis', { coachingSessionId });
 
@@ -155,6 +162,11 @@ class AnalysisProcessorService {
       // check the transcription worker runs (bd-erpvf), asked again here. Fails OPEN like it.
       // bd-r2uzg1.18.15: a teacher's own recording too — a copy re-sent while the first was in flight.
       if (await this._refuseIfAlreadyAnalysed(session, from)) return { skipped: 'duplicate' };
+
+      // bd-3itk00: this message already produced a saved analysis (a deploy, or a dropped connection, cut the run
+      // off after the save). Carry on from it: no second model call, and the row is never put back to 'analyzing'.
+      const resumed = await this._resumeFromSavedAnalysis(coachingSessionId, session, payload, from, job);
+      if (resumed) return resumed;
 
       // Update status
       await CoachingSessionService.updateStatus(coachingSessionId, 'analyzing', {
@@ -655,6 +667,9 @@ class AnalysisProcessorService {
             // narrative + moderators. Only when the feature is on and a move-list resolved (D20).
             // bd-5knlj: non-ok statuses persist too — lp_absent vs
             // fidelity_unavailable vs never-ran were indistinguishable before.
+            // bd-3itk00: which queue message produced this analysis. This write is the checkpoint: a later run of
+            // the same message finds it here and carries on from it (_resumeFromSavedAnalysis).
+            ...(job && job.messageId ? { analysis_job: { message_id: String(job.messageId) } } : {}),
             ...require('./fidelity/fidelity-orchestrator').fidelityPatch(lpFidelity),
             ...ficoV6Shadow.patch(v6Shadow),
           },
@@ -680,51 +695,94 @@ class AnalysisProcessorService {
       // FICO6 fix-shadow: a v6 read slower than the grace was stored as 'timeout'; when it lands it takes that place.
       ficoV6Shadow.storeLate(v6ShadowTask, v6Shadow, coachingSessionId).catch(() => null);
 
-      // bd-pw1ccr.11: her own recording of a topic's end books the topic-end nudge (the module skips observations).
-      try {
-        await require('../nudges/topic-end-recording').onRecording({ session });
-      } catch (nudgeErr) {
-        logToFile('topic nudge (recording) failed (non-blocking)', { coachingSessionId, error: nudgeErr.message }, 'warn');
-      }
-
-      // Ported from the main bot — leader
-      // observations NEVER auto-flow to the reflective conversation or the teacher
-      // report. Instead: freeze v1 (autofill_analysis_data) and send the observer
-      // the editable pre-filled FICO Flow. The report renders later, from the
-      // observer-edited v2, at send-to-teacher time. Row-derived, not payload-derived.
-      if (session.observation_type === 'leader_observation') {
-        const ObserveDraft = require('../observe/observe-draft.service');
-        await ObserveDraft.onAnalysisReady(coachingSessionId, from);
-        await this._recomputeIfPlanLanded(coachingSessionId, session);
-        logToFile('✅ Analysis processing complete (observe path — draft flow sent)', { coachingSessionId });
-        return;
-      }
-
-      // bd-1sddt: report-only recovery. When the analysis job is enqueued with
-      // skipReflection (recovering a session stranded at the photo/LP gate — bd-flx1r),
-      // generate the report DIRECTLY and do NOT start the reflective conversation. The
-      // FICO report is derived from the classroom audio (+ the corpus extracted here), so
-      // it is complete on the scoring side; the reflection is skipped by design. This is
-      // NEVER set in the normal live flow — new observations leave skipReflection unset and
-      // still get the reflective question below.
-      if (payload.skipReflection) {
-        const CoachingJobQueueService = require('./coaching-job-queue.service');
-        await CoachingJobQueueService.queueReport(coachingSessionId, {
-          from, partial: true, suppressPartialBanner: true,
-          // Meta bill cut NC5 (N2-C05): the recovery notice also covers Step 4/5.
-          ...(payload.progressNoticeSent ? { progressNoticeSent: true } : {}),
-        });
-        logToFile('✅ Analysis complete — report queued, reflection skipped (bd-1sddt recovery)', { coachingSessionId });
-        return;
-      }
-
-      await this._handOffToReflection(session, coachingSessionId, from);
-
-      logToFile('✅ Analysis processing complete', { coachingSessionId });
+      await this._afterAnalysisSaved(coachingSessionId, session, payload, from);
     } catch (error) {
-      await this.handleAnalysisError(coachingSessionId, error, payload.from);
+      await this.handleAnalysisError(coachingSessionId, error, payload.from, job);
       throw error;
     }
+  }
+
+  /**
+   * Everything after the analysis is saved: the topic nudge, then the hand-off (the observer's pre-filled form, the
+   * report-only recovery, or the reflective debrief). One copy, shared by a fresh run and a resumed one (bd-3itk00).
+   */
+  static async _afterAnalysisSaved(coachingSessionId, session, payload, from) {
+    // bd-pw1ccr.11: her own recording of a topic's end books the topic-end nudge (the module skips observations).
+    try {
+      await require('../nudges/topic-end-recording').onRecording({ session });
+    } catch (nudgeErr) {
+      logToFile('topic nudge (recording) failed (non-blocking)', { coachingSessionId, error: nudgeErr.message }, 'warn');
+    }
+
+    // Ported from the main bot — leader
+    // observations NEVER auto-flow to the reflective conversation or the teacher
+    // report. Instead: freeze v1 (autofill_analysis_data) and send the observer
+    // the editable pre-filled FICO Flow. The report renders later, from the
+    // observer-edited v2, at send-to-teacher time. Row-derived, not payload-derived.
+    if (session.observation_type === 'leader_observation') {
+      const ObserveDraft = require('../observe/observe-draft.service');
+      await ObserveDraft.onAnalysisReady(coachingSessionId, from);
+      await this._recomputeIfPlanLanded(coachingSessionId, session);
+      logToFile('✅ Analysis processing complete (observe path — draft flow sent)', { coachingSessionId });
+      return;
+    }
+
+    // bd-1sddt: report-only recovery. When the analysis job is enqueued with
+    // skipReflection (recovering a session stranded at the photo/LP gate — bd-flx1r),
+    // generate the report DIRECTLY and do NOT start the reflective conversation. The
+    // FICO report is derived from the classroom audio (+ the corpus extracted here), so
+    // it is complete on the scoring side; the reflection is skipped by design. This is
+    // NEVER set in the normal live flow — new observations leave skipReflection unset and
+    // still get the reflective question below.
+    if (payload.skipReflection) {
+      const CoachingJobQueueService = require('./coaching-job-queue.service');
+      await CoachingJobQueueService.queueReport(coachingSessionId, {
+        from, partial: true, suppressPartialBanner: true,
+        // Meta bill cut NC5 (N2-C05): the recovery notice also covers Step 4/5.
+        ...(payload.progressNoticeSent ? { progressNoticeSent: true } : {}),
+      });
+      logToFile('✅ Analysis complete — report queued, reflection skipped (bd-1sddt recovery)', { coachingSessionId });
+      return;
+    }
+
+    await this._handOffToReflection(session, coachingSessionId, from);
+
+    logToFile('✅ Analysis processing complete', { coachingSessionId });
+  }
+
+  /**
+   * bd-3itk00 — NIETE production, 24 Nov 2026: a worker deploy handed two in-flight analyses back to SQS, one 0.1 s
+   * after its model reply, one ~2 s into the hand-off after its analysis was saved. The next replica ran each from
+   * zero: a second model call, ~2 more minutes, and on one of them a dropped connection that told the teacher her
+   * analysis had failed (SQS ran it again 15 minutes later and she got her report).
+   *
+   * The saved analysis carries the id of the message that produced it (analysis_data.analysis_job). A later run of
+   * the SAME message (a hand-back, a redelivery) finds it here:
+   *   - the row still says 'analysis_complete' (or 'analyzing'/'failed', a run cut off after the save): carry on
+   *     from the hand-off, with the row put back to 'analysis_complete'. No model call.
+   *   - the row has moved on (the hand-off happened; or the session is over): nothing to do.
+   * A different message, no message id (a direct call), or no saved analysis (the manual retry clears it) → null,
+   * and the analysis runs as it always has.
+   *
+   * @returns {Promise<object|null>} what was done, or null to analyse normally
+   */
+  static async _resumeFromSavedAnalysis(coachingSessionId, session, payload, from, job = {}) {
+    const messageId = job && job.messageId;
+    const stamp = session && session.analysis_data && session.analysis_data.analysis_job;
+    if (!messageId || !stamp || String(stamp.message_id) !== String(messageId) || !session.analysis_completed_at) {
+      return null;
+    }
+    const where = { coachingSessionId, messageId, status: session.status, receiveCount: (job && job.receiveCount) || null };
+    if (!RESUMABLE_AFTER_SAVE.has(session.status)) {
+      logToFile('♻️ analysis already saved and handed on by an earlier run of this message — nothing to do', where);
+      return { skipped: 'already_analysed' };
+    }
+    logToFile('♻️ analysis already saved by an earlier run of this message — carrying on from it, no second model call', where);
+    if (session.status !== 'analysis_complete') {
+      await CoachingSessionService.updateStatus(coachingSessionId, 'analysis_complete');
+    }
+    await this._afterAnalysisSaved(coachingSessionId, session, payload, from);
+    return { resumed: true };
   }
 
   /**
@@ -927,8 +985,21 @@ class AnalysisProcessorService {
    * @param {string} phoneNumber - User's phone number (optional)
    * @returns {Promise<void>}
    */
-  static async handleAnalysisError(coachingSessionId, error, phoneNumber) {
+  static async handleAnalysisError(coachingSessionId, error, phoneNumber, job = {}) {
     try {
+      // bd-3itk00: a run cut off from outside — a dropped connection while the queue still has attempts left, or
+      // anything cut off while this worker shuts down — is not a failed analysis. The row is left as it is, nothing
+      // is sent, and the worker hands the message straight back (error.retryable). The last attempt fails as before.
+      const retryReason = require('../../utils/job-interruption').retryReason(error, job || {});
+      if (retryReason && error && typeof error === 'object') {
+        error.retryable = true;
+        error.retryReason = retryReason;
+        logToFile('⏸️ analysis cut off — handed back for another attempt; not marked failed, nothing sent', {
+          coachingSessionId, reason: retryReason, receiveCount: (job && job.receiveCount) || null, error: error.message,
+        }, 'warn');
+        return;
+      }
+
       logToFile('❌ Error in processAnalysis', {
         error: error.message,
         stack: error.stack,

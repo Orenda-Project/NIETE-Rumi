@@ -33,7 +33,7 @@
 const { observeStrings } = require('../../bot/shared/services/observe/observe-strings');
 const Rubric = require('../../bot/shared/services/observe/observe-coach-rubric');
 const { isHarmfulDebrief } = require('../../bot/shared/services/observe/observe-coach-feedback');
-const { PARTS: LP_PARTS } = require('../../bot/shared/services/observe/lp-check');
+const { PARTS: LP_PARTS, isFicoSVisit } = require('../../bot/shared/services/observe/lp-check');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,6 +58,7 @@ const SQL = {
            c.analysis_data->'observer_debrief'->'feedback' AS feedback,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
            c.analysis_data->'observer_debrief'->'guide_snapshot'->'lp_check' AS lp_check,
+           c.framework, c.analysis_data->>'framework' AS analysis_framework,
            c.analysis_data->>'topic' AS topic,
            c.analysis_data->>'subject' AS subject,
            c.analysis_data->>'grade' AS grade,${TEACHER_SQL}
@@ -145,6 +146,11 @@ function lessonPlanOf(lp, check) {
   };
 }
 
+/** The visit's rubric stamp as the report reads it (two narrow slices), in the shape lp-check's isFicoSVisit takes. */
+function stampOf(row) {
+  return { framework: row.framework, analysis_data: { framework: row.analysis_framework } };
+}
+
 /**
  * The report as the page shows it. Pure.
  * @param {object} row a SQL.REPORT row
@@ -198,7 +204,9 @@ function shapeCoachReport(row) {
       why: text(fb.focus_why),
       tryLine: tryLineFor(focusKey),
     } : null,
-    lessonPlan: lessonPlanOf(fb.lp_discussion, row.lp_check),
+    // Queue #255 (the operator 24 Nov: "lesson plan moves/fideltiy step to be removed from the fico 6-12"): a FICO 6-12
+    // visit has no block, even one judged before; the marks above are the same either way.
+    lessonPlan: isFicoSVisit(stampOf(row)) ? null : lessonPlanOf(fb.lp_discussion, row.lp_check),
   };
 }
 

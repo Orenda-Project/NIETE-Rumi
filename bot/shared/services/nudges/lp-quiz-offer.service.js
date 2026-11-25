@@ -1085,6 +1085,7 @@ async function insertQuiz(row, cls, { askLanguage = false } = {}) {
         source: 'lp_offer',
         nudge_id: row.id,
         lessons,
+        lesson_links: require('../quiz/quiz-lesson-link').fromPlanLessons(lessons),
         class: { grade: cls.grade, subject: cls.subject },
         lesson_date: row.nudge_date,
         claimed_at: new Date().toISOString(),

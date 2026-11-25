@@ -5,8 +5,9 @@ import TeacherPage from "../../teacher/TeacherPage";
 import { useCopy, useLang } from "../../teacher/i18n";
 import { ChoicePair, DockButton, StatusChip } from "../../teacher/ui";
 import { COACH_TRAINING } from "./copy";
-import { COACH_TRAINING_PATH, moduleByNumber, moduleUrl, videoUrl } from "./modules";
+import { moduleByNumber, moduleUrl, videoUrl } from "./modules";
 import { useCoachTrainingProgress } from "./progress";
+import { trainingListPath, type TrainingAudience } from "./audience";
 
 const ART = "h-9 w-9";
 
@@ -24,12 +25,26 @@ const ART = "h-9 w-9";
  * Coming soon and opens nothing; PDF and Mark done work as on every module.
  */
 export default function CoachTrainingModulePage() {
+  return (
+    <CoachGate>
+      <TrainingModule audience="coach" />
+    </CoachGate>
+  );
+}
+
+/**
+ * bd-v04lsh (queue #257) — one module's screen, for a coach or a principal (Principal Training,
+ * teacher/principal/training.tsx): the same PDF, Video and Mark done; the crumb is her programme's name, Back its list.
+ * The caller gates it.
+ */
+export function TrainingModule({ audience }: { audience: TrainingAudience }) {
   const C = useCopy(COACH_TRAINING);
   const lang = useLang();
   const { n } = useParams();
   const { done, saving, notSaved, mark } = useCoachTrainingProgress();
   const m = moduleByNumber(Number(n));
-  if (!m) return <Navigate to={COACH_TRAINING_PATH} replace />;
+  const list = trainingListPath(audience);
+  if (!m) return <Navigate to={list} replace />;
   const open = (url: string) => { window.open(url, "_blank", "noopener,noreferrer"); };
   const isDone = !!(done && done[m.key]);
   const video = videoUrl(m);
@@ -49,29 +64,27 @@ export default function CoachTrainingModulePage() {
   );
 
   return (
-    <CoachGate>
-      <TeacherPage
-        title={lang === "ur" ? m.title.ur : m.title.en}
-        crumb={C.title}
-        backTo={COACH_TRAINING_PATH}
-        feature="coachTraining"
-        chips={chips}
-        dock={dock}
-        testId="coach-training-module"
-      >
-        <p className="mb-3 text-[15px] text-[#4b5563]">{`${C.coachModule} ${m.n}`}</p>
-        <ChoicePair
-          items={[
-            { key: "pdf", label: C.pdf, art: <FileText className={ART} strokeWidth={2} />, onPress: () => open(moduleUrl(m)), testId: "coach-format-pdf" },
-            video
-              ? { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, onPress: () => open(video), testId: "coach-format-video" }
-              : { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, off: true, note: C.videoSoon, testId: "coach-format-video" },
-          ]}
-        />
-        <p className="mt-3 flex items-center gap-1.5 text-[13px] text-[#6b7280]">
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />{C.opensInBrowser}
-        </p>
-      </TeacherPage>
-    </CoachGate>
+    <TeacherPage
+      title={lang === "ur" ? m.title.ur : m.title.en}
+      crumb={audience === "principal" ? C.principalTitle : C.title}
+      backTo={list}
+      feature="coachTraining"
+      chips={chips}
+      dock={dock}
+      testId="coach-training-module"
+    >
+      <p className="mb-3 text-[15px] text-[#4b5563]">{`${C.coachModule} ${m.n}`}</p>
+      <ChoicePair
+        items={[
+          { key: "pdf", label: C.pdf, art: <FileText className={ART} strokeWidth={2} />, onPress: () => open(moduleUrl(m)), testId: "coach-format-pdf" },
+          video
+            ? { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, onPress: () => open(video), testId: "coach-format-video" }
+            : { key: "video", label: C.video, art: <PlayCircle className={ART} strokeWidth={2} />, off: true, note: C.videoSoon, testId: "coach-format-video" },
+        ]}
+      />
+      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-[#6b7280]">
+        <ExternalLink className="h-4 w-4" aria-hidden="true" />{C.opensInBrowser}
+      </p>
+    </TeacherPage>
   );
 }

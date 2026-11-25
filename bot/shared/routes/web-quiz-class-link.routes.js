@@ -50,7 +50,7 @@ router.post('/app', serve(async (req) => orNotFound(await App().forApp(idOr400((
 router.post('/app/tap', serve(async (req) => {
   const b = req.body || {};
   if (b.how !== 'forward' && b.how !== 'copy') throw new CL.ClassLinkError(400, { error: 'bad_request' });
-  return orNotFound(await App().tap({ teacherId: idOr400(b.teacher), classId: idOr400(b.class_id), how: b.how }));
+  return orNotFound(await App().tap({ teacherId: idOr400(b.teacher), classId: idOr400(b.class_id), how: b.how, ua: req.get('user-agent') }));
 }));
 // ── end the teacher app's Home card ──
 // A walk's browser carries " QFIXQA" in its user agent (the portal forwards it): its open is marked qa, so a read drops

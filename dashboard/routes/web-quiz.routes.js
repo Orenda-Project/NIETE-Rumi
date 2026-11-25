@@ -228,6 +228,12 @@ function bootJson(obj) {
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
+// Urdu word help (bd-0q8b4x): the page loads wq-words.js only when a question carries words (switch on).
+function hasWords(payload) {
+  const qs = payload && payload.quiz && payload.quiz.questions;
+  return Array.isArray(qs) && qs.some((q) => q && Array.isArray(q.words) && q.words.length);
+}
+
 function assetVersion() {
   const h = crypto.createHash('sha256');
   for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js']) {
@@ -238,7 +244,7 @@ function assetVersion() {
   // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
   // wq-tel.js (on every page at this ?v=) holds the pages' link helper WQT.withLang: a change to it busts it too; and it
   // loads wq-cue.js (the child welcome's last cue) at this ?v=.
-  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js', 'wq-cue.js']) {
+  for (const f of ['wq-book.js', 'wq-book.css', 'wq-tel.js', 'wq-cue.js', 'wq-words.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The child home (wq-home.*, the home tags), its door screens (wq-doors.*, loaded by wq-home.js) and the child welcome
@@ -604,7 +610,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
     tail: `<script id="boot" type="application/json">${bootJson(boot)}</script>
 ${juiceTags(payload)}${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
-${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
+${hasWords(payload) ? `<script src="/wq/wq-words.js?v=${assetV}" defer></script>\n` : ''}${payload && payload.story ? `<script src="/wq/wq-story-link.js?v=${challengeVersion('wq-story-link.js')}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`,
   };

@@ -115,14 +115,17 @@ describe("the principal's Home in the v6 look (p9-home)", () => {
     expect(within(focus).getByRole("link", { name: /2 more waiting/ }).getAttribute("href")).toBe(PRINCIPAL_MY_OBSERVATIONS);
   });
 
-  it("then My school, then three tiles: Observe (N waiting), Lesson Plans, Training", async () => {
+  // bd-v04lsh (queue #257, the operator 24 Nov: "Coach Trainings needs to go live for Principal as well. Showing as
+  // Principal Training") — a fourth tile, Principal Training, after the three she already had (none of them moves).
+  it("then My school, then four tiles: Observe (N waiting), Lesson Plans, Training, Principal Training", async () => {
     serve();
     at("/portal/teacher", <Home />);
     await screen.findByTestId("principal-home-v6");
     expect(await screen.findByTestId("my-school-card")).toBeTruthy();
     const nav = screen.getByTestId("feature-tiles");
     await waitFor(() => expect(Array.from(nav.querySelectorAll("a")).map((a) => a.textContent?.replace(/\d+ waiting/, "").trim()))
-      .toEqual(["Observe", "Lesson Plans", "Training"]));
+      .toEqual(["Observe", "Lesson Plans", "Training", "Principal Training"]));
+    expect(within(nav).getByText("Principal Training").closest("a")?.getAttribute("href")).toBe("/portal/teacher/principal-training");
     const observe = within(nav).getByText("Observe").closest("a");
     expect(observe?.getAttribute("href")).toBe(teacherPath("observations"));
     await waitFor(() => expect(within(observe as HTMLElement).getByText("3 waiting")).toBeTruthy());
@@ -160,6 +163,9 @@ describe("the principal's Home in the v6 look (p9-home)", () => {
     at("/portal/teacher", <Home />);
     const focus = await screen.findByTestId("focus-waiting");
     expect(within(focus).getByText("آپ کے منتظر")).toBeTruthy();
+    // bd-v04lsh — the Principal Training tile in Urdu: «ہیڈ ٹیچر ٹریننگ» (the app's word for principal, as «کوچ ٹریننگ»)
+    const tile = within(screen.getByTestId("feature-tiles")).getByText("ہیڈ ٹیچر ٹریننگ").closest("a");
+    expect(tile?.getAttribute("href")).toBe("/portal/teacher/principal-training");
   });
 });
 

@@ -149,12 +149,15 @@ describe('who may call it', () => {
     }
   });
 
-  it('portal.routes mounts it behind the coach app chain (signed in, leader role, coach app on)', () => {
+  // bd-v04lsh (queue #257): the chain is signed in, leader role, then a coach on the coach app OR a principal by role
+  // (Principal Training); tests/portal/bd-v04lsh-principal-training-progress.test.js pins the guard itself.
+  it('portal.routes mounts it behind the training readers chain (signed in, leader role, coach app on or a principal)', () => {
     const src = fs.readFileSync(path.join(__dirname, '../../dashboard/routes/portal.routes.js'), 'utf8');
     const at = src.indexOf("require('./coach-training-progress.routes').createCoachTrainingProgressRouter(");
-    expect(at).toBeGreaterThan(src.indexOf('const coachV2 = ['));
+    expect(at).toBeGreaterThan(src.indexOf('const trainingReaders = ['));
+    expect(src.indexOf('const trainingReaders = [')).toBeGreaterThan(-1);
     const block = src.slice(at, src.indexOf('}));', at));
-    expect(block).toMatch(/guards:\s*coachV2/);
+    expect(block).toMatch(/guards:\s*trainingReaders/);
     expect(block).toMatch(/supabase/);
   });
 });

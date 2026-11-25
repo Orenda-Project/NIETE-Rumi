@@ -5,7 +5,10 @@
  *    it (granted, subscribed, a second escape, copy) carry nothing new;
  *  - the page going away (visibilitychange → hidden, or pagehide) while the ask is up and unanswered posts ONE
  *    `gone` step with `dwell_ms` (once per sitting: a second hide, or a hide after any answer, posts nothing);
- *  - no ask drawn (a class phone, outside the canary, iPhone, a browser with no push) → no `gone`, ever.
+ *  - no ask drawn (a class phone, outside the canary, iPhone, a browser with no push) → no `gone`, ever;
+ *  - after Yes, `denied` says which answer it was: perm 'denied' (Block) or 'default' (the prompt was closed), and the
+ *    page going away while Chrome's prompt is still unanswered posts ONE `gone` with after 'yes' (no dwell_ms: the
+ *    ask's dwell went on the yes step). perm 'pending' below = a prompt that never answers.
  * Fake DOM with a hand-driven clock and page lifecycle; invented values.
  */
 const fs = require('fs');
@@ -49,7 +52,7 @@ function page({ ua = UA_CHROME, key = { key: 'BPUBKEYAAAA' }, perm = 'granted', 
       return { status: 200, json: async () => key };
     },
   };
-  if (!iphone) { ctx.PushManager = function PushManager() {}; ctx.Notification = { permission: 'default', requestPermission: async () => perm }; }
+  if (!iphone) { ctx.PushManager = function PushManager() {}; ctx.Notification = { permission: 'default', requestPermission: () => (perm === 'pending' ? new Promise(() => {}) : Promise.resolve(perm)) }; }
   if (wqt) ctx.WQT = wqt;
   ctx.window = ctx; ctx.self = ctx;
   vm.runInNewContext(REMIND_SRC, ctx);
@@ -186,5 +189,53 @@ describe('gone: the page went away with the ask up and unanswered', () => {
     await p.pagehide();
     expect(only(p, 'gone')).toEqual([]);
     expect(p.steps().some((b) => 'dwell_ms' in b)).toBe(false);
+  });
+});
+
+describe('after Yes: which "no" it was, and a page that went with the prompt still up', () => {
+  test.each([['denied', 'denied'], ['default', 'default']])('the browser answers %s: denied carries perm %s', async (perm, want) => {
+    const p = await mounted({ perm });
+    await p.tap('yes');
+    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang: 'en', src: 'result', ps: PS, perm: want }]);
+  });
+  test('granted: no perm anywhere, and no gone after it', async () => {
+    const p = await mounted();
+    await p.tap('yes');
+    await p.hide();
+    await p.pagehide();
+    expect(p.steps().some((b) => 'perm' in b || 'after' in b)).toBe(false);
+    expect(only(p, 'gone')).toEqual([]);
+  });
+  test('denied, then the page goes: no gone', async () => {
+    const p = await mounted({ perm: 'denied' });
+    await p.tap('yes');
+    await p.hide();
+    expect(only(p, 'gone')).toEqual([]);
+  });
+  test('Yes, the prompt never answers, the page is hidden: one gone with after yes, keepalive, no dwell_ms', async () => {
+    const p = await mounted({ perm: 'pending' });
+    p.wait(3000);
+    await p.tap('yes');
+    p.wait(9000);
+    await p.hide();
+    await p.pagehide();
+    expect(p.steps()).toEqual([
+      { step: 'shown', lang: 'en', src: 'result', ps: PS },
+      { step: 'yes', lang: 'en', src: 'result', ps: PS, dwell_ms: 3000 },
+      { step: 'gone', lang: 'en', src: 'result', ps: PS, after: 'yes' },
+    ]);
+    expect(p.posts.find((x) => x.body.step === 'gone').keepalive).toBe(true);
+  });
+  test('pagehide alone with the prompt up: one gone with after yes', async () => {
+    const p = await mounted({ perm: 'pending' });
+    await p.tap('yes');
+    await p.pagehide();
+    expect(only(p, 'gone')).toEqual([{ step: 'gone', lang: 'en', src: 'result', ps: PS, after: 'yes' }]);
+  });
+  test('the /remind landing: after-yes gone says src landing', async () => {
+    const p = await mounted({ wqt: null, perm: 'pending' }, { code: 'AB12CD', lang: 'ur' }, 'landing');
+    await p.tap('yes');
+    await p.hide();
+    expect(only(p, 'gone')).toEqual([{ step: 'gone', lang: 'ur', src: 'landing', after: 'yes' }]);
   });
 });

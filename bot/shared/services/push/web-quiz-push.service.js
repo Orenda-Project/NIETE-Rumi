@@ -21,7 +21,8 @@
  * WQ_PUSH_HASH_SALT (HMAC-SHA256 of the endpoint, the lookup key).
  *
  *   switches(now)                          → {remind, test, portal, names}
- *   keyFor({code})                         → {key, ask}: ask false outside the canary (the page draws nothing)
+ *   keyFor({code, device})                 → {key, ask, ask_v?}: ask false outside the canary (the page draws nothing);
+ *                                            ask_v ('a' | 'b', web_quiz_push_ask_v2 on and ask true): the phone's arm
  *   subscribe(input, {now})                → {ok:1} | {status:409, err:'class_phone'} | {status:400, err:'bad_sub'}
  *   unsubscribe({endpoint, by}) / markOpened({endpoint}, {now})   → {ok:1}
  *   payloadFor(row, {test, rounds, names, hub, door}) → {t, b, url, tag, lang, test}: class-named when the phone's
@@ -48,7 +49,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const HubDevice = require('../quiz/web-quiz-hub-device');
 
 const TABLE = 'web_quiz_push_subscriptions';
-const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children' });
+const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children', askV2: 'web_quiz_push_ask_v2' });
 const CANARY_KEY = 'web_quiz_push_canary';
 const ENV = Object.freeze(['WQ_PUSH_VAPID_PUBLIC', 'WQ_PUSH_VAPID_PRIVATE', 'WQ_PUSH_VAPID_SUBJECT', 'WQ_PUSH_ENC_KEY', 'WQ_PUSH_HASH_SALT']);
 const OFF = Object.freeze({ remind: false, test: false, portal: false, names: false });
@@ -124,6 +125,8 @@ async function switches(now = Date.now()) {
     const on = (k) => ((data || []).find((r) => r && r.key === k) || {}).value === true;
     const remind = on(KEYS.remind) && envReady();
     s = { remind, test: remind && on(KEYS.test), portal: remind && on(KEYS.portal), names: remind && on(KEYS.names) };
+    // the ask's second wording: present only while on, so every answer with it off is exactly as before
+    if (remind && on(KEYS.askV2)) s.askV2 = true;
     lastGood = s;
   } catch (err) {
     s = lastGood || { ...OFF, unread: true };
@@ -251,9 +254,20 @@ async function doorFor(row, now = Date.now(), memo = null) {
   return door;
 }
 
-/** The page's key answer: the VAPID key, and whether this quiz may offer the ask (the canary). */
-async function keyFor({ code } = {}, { now = Date.now() } = {}) {
-  return { key: vapidPublic(), ask: await canaryAllows(code, now) };
+// The ask's arm (web_quiz_push_ask_v2): 'b' when the phone's device hash (sha256('wqd|' + ref), 16 hex: the `dh` the
+// portal logs, web-quiz-telemetry deviceHash) ends in an odd hex digit, else 'a'; no or a malformed ref → 'a'.
+function armOf(device) {
+  if (!DEVICE_RX.test(String(device || ''))) return 'a';
+  const dh = crypto.createHash('sha256').update(`wqd|${device}`).digest('hex').slice(0, 16);
+  return parseInt(dh.slice(-1), 16) % 2 === 1 ? 'b' : 'a';
+}
+
+/** The page's key answer: the VAPID key, whether this quiz may offer the ask (the canary), and the ask's arm. */
+async function keyFor({ code, device } = {}, { now = Date.now() } = {}) {
+  const ask = await canaryAllows(code, now);
+  const out = { key: vapidPublic(), ask };
+  if (ask && (await switches(now)).askV2) out.ask_v = armOf(device);
+  return out;
 }
 
 // ─── crypto ─────────────────────────────────────────────────────────────────
@@ -709,6 +723,11 @@ const SRCS = new Set(['result', 'class_link', 'landing']);
 const DWELL_STEPS = new Set(['yes', 'later', 'escape', 'gone']);
 const DWELL_MAX_MS = 864e5;
 const dwellOf = (step, ms) => (DWELL_STEPS.has(step) && Number.isInteger(ms) && ms >= 0 && ms <= DWELL_MAX_MS ? { dwell_ms: ms } : {});
+// perm on denied: 'denied' (Block) or 'default' (the prompt was closed); after on gone: 'yes' (left with the prompt up)
+const permOf = (step, perm) => (step === 'denied' && (perm === 'denied' || perm === 'default') ? { perm } : {});
+const afterOf = (step, after) => (step === 'gone' && after === 'yes' ? { after } : {});
+// ask_v: the arm the page was given (web_quiz_push_ask_v2), on any step
+const armIn = (v) => (v === 'a' || v === 'b' ? { ask_v: v } : {});
 /** A page step event, allow-listed enums only; `ua` is the phone's user agent (the walk mark). */
 function stepEvent(body = {}, { ua } = {}) {
   if (!STEPS.has(body.step)) return { status: 400, err: 'bad_step' };
@@ -720,6 +739,9 @@ function stepEvent(body = {}, { ua } = {}) {
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
     ...dwellOf(body.step, body.dwell_ms),
+    ...permOf(body.step, body.perm),
+    ...afterOf(body.step, body.after),
+    ...armIn(body.ask_v),
     ...psOf(body.ps),
     ...qaOf(ua),
   });

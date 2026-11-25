@@ -84,9 +84,10 @@ class CoachingOrchestrator {
   /**
    * Process analysis job
    * ✅ Delegated to AnalysisProcessorService
+   * @param {{messageId?: string, receiveCount?: number}} [job] the queue delivery (bd-3itk00)
    */
-  static async processAnalysis(coachingSessionId, payload) {
-    return await AnalysisProcessorService.processAnalysis(coachingSessionId, payload);
+  static async processAnalysis(coachingSessionId, payload, job) {
+    return await AnalysisProcessorService.processAnalysis(coachingSessionId, payload, job);
   }
 
   /**

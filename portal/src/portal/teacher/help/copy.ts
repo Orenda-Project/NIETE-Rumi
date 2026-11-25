@@ -15,6 +15,8 @@ export const HELP_COPY = {
   help: 'Help',
   /** The operator, 12 Nov 2026 (bd-ik5e8j.6): "How to Use might be a better name". */
   howTo: 'How to Use',
+  /** bd-sil83f (queue #269) — the "?" as words, then its glyph: "How to use ?" (the operator 24 Nov ~19:20). */
+  pill: 'How to use',
   watch: 'Watch video',
   smaller: 'Play a smaller copy',
   comingSoon: 'Video coming soon',
@@ -43,7 +45,7 @@ export const HELP_COPY = {
   watchOut: 'Watch out',
   whoDc: 'Digital Coach suggests · you check',
   whoRoom: 'Set from the room',
-  /** Queue #259: Rifat's FICO M/H "who sets it" (her 24 Nov edit), her words: 21 indicators, then E2 and E3. */
+  /** Queue #259: her FICO M/H "who sets it" (24 Nov), her words: 22 pre-filled (E2 as the bot, #267), then E3. */
   whoPre: 'Pre-filled in the app · you review',
   whoSelf: 'You fill this yourself',
   noNa: 'No N/A here: level 1 covers it',
@@ -58,6 +60,8 @@ export const HELP_COPY = {
 export const HELP_COPY_UR: typeof HELP_COPY = {
   help: 'مدد',
   howTo: 'استعمال کا طریقہ',
+  // #269: the More row's and the tray's own word, so the "?" and what it opens say one thing.
+  pill: 'استعمال کا طریقہ',
   watch: 'ویڈیو دیکھیں',
   smaller: 'ہلکی ویڈیو چلائیں',
   comingSoon: 'ویڈیو جلد آئے گی',

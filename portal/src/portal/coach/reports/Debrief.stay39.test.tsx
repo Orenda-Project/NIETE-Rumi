@@ -99,7 +99,8 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
     renderPage();
     await screen.findByTestId("talk-guide", {}, { timeout: 8000 });
     L.getObservation.mockResolvedValue(LISTENING());
-    fireEvent.click(screen.getByRole("button", { name: /Start recording/ }));
+    // bd-o15qnr.49 (#254): v7's Record is the floating Record debrief
+    fireEvent.click(await screen.findByRole("button", { name: "Record debrief" }));
     await act(async () => { fireEvent.click(await screen.findByText("finish recording")); });
     expect(await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 })).toHaveTextContent("Uploaded");
     expect(screen.queryByText("observation page")).toBeNull();
@@ -111,7 +112,7 @@ describe("Debrief after the recording is in (bd-o15qnr.39, v7)", () => {
     const card = await screen.findByTestId("stage-debrief-listening", {}, { timeout: 8000 });
     expect(card).not.toHaveTextContent("Uploaded");
     expect(screen.getByTestId("debrief-recording")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Start recording/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start recording|Record debrief/ })).toBeNull();
     expect(L.getTalkGuide).not.toHaveBeenCalled();
   });
 

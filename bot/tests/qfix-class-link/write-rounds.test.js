@@ -137,6 +137,8 @@ test('one round for the linked class whose teacher took a lesson for today: the 
     teachers_with_lp: 2, subjects_with_lp: 2, chosen: 'earliest',
   });
   expect(q.meta.lessons.map((l) => l.lesson_id)).toEqual(['grade_3_math_ch7_seg1']);
+  // bd-ptl6x9.13.1: the plan on the round's quiz.
+  expect(q.meta.lesson_links).toEqual([expect.objectContaining({ lesson_id: 'grade_3_math_ch7_seg1', book: 'grade_3_maths', chapter: 7, via: 'plan' })]);
   expect(enqueue).toHaveBeenCalledWith(q.id);
   expect(logEvent).toHaveBeenCalledWith('web_quiz.round_tick', expect.objectContaining({ queued: 1 }));
   expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();

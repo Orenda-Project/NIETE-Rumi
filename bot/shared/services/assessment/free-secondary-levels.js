@@ -9,13 +9,17 @@
  *   paperSplit(exam)     after writing: the split read from the tags (part_levels per part, else blooms)
  *   levelIssues(exam)    a split more than 10 points off, or no Create on a paper with written items, sends
  *                        the items to move to the rewrite, each told the level to write it (or a part) at
+ *
+ * bd-5jmnfj.38.43 (q304): each takes an optional `levels` ({R,U,A,AE?,C?} in percent), FDE's split for the
+ * grade and subject (free-secondary-target.js); it defaults to PANEL, the 30/30/20/10/10 above. A split that
+ * names no AE or C folds those tags into the next level it names, and never asks for a Create part.
  */
 
 const { items } = require('./free-secondary-checks');
 
 const LEVELS = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
 const BUCKETS = ['R', 'U', 'A', 'AE', 'C'];
-const SHARE = { R: 0.3, U: 0.3, A: 0.2, AE: 0.1, C: 0.1 };
+const PANEL = Object.freeze({ R: 30, U: 30, A: 20, AE: 10, C: 10 });
 const NAME = { R: 'Remember', U: 'Understand', A: 'Apply', AE: 'Analyze', C: 'Create' };
 const PLAN_TOL = 0.05;
 const REWRITE_TOL = 0.1;
@@ -23,7 +27,7 @@ const LABEL = { mcq: 'MCQ', srq: 'Short answer', erq: 'Extended answer', grammar
 const PART_LINE = /^\s*\(?([a-f]|i{1,3}|iv|الف|ب|ج|د)\)\s*(.*)$/;
 const PART_MARKS = /\((\d+)\s*(?:marks?|نمبر)\)/i;
 
-function bucketOf(level) {
+function rawBucket(level) {
   const l = String(level || '').trim().toLowerCase();
   if (l === 'remember') return 'R';
   if (l === 'understand') return 'U';
@@ -33,14 +37,27 @@ function bucketOf(level) {
   return null;
 }
 
+/** The split's bucket for a tag: C folds into AE, AE into A, where the split names no such level. */
+function bucketOf(level, levels = PANEL) {
+  let b = rawBucket(level);
+  if (b === 'C' && !(levels.C > 0)) b = 'AE';
+  if (b === 'AE' && !(levels.AE > 0)) b = 'A';
+  return b;
+}
+
+const bucketsOf = (levels) => BUCKETS.filter((b) => levels[b] > 0);
+const splitName = (levels) => bucketsOf(levels).map((b) => levels[b]).join('/');
+
 const isObjective = (t) => t.category === 'objective' || t.id === 'mcq';
 
 /** Integer marks per bucket, by largest remainder; ties go R, U, A, AE, C. */
-function targets(total) {
-  const raw = BUCKETS.map((b) => total * SHARE[b]);
-  const out = Object.fromEntries(BUCKETS.map((b, i) => [b, Math.floor(raw[i])]));
-  let left = total - BUCKETS.reduce((s, b) => s + out[b], 0);
-  const order = BUCKETS.map((b, i) => [b, raw[i] - Math.floor(raw[i]), i]).sort((x, y) => y[1] - x[1] || x[2] - y[2]);
+function targets(total, levels = PANEL) {
+  const bs = bucketsOf(levels);
+  const sum = bs.reduce((s, b) => s + levels[b], 0);
+  const raw = bs.map((b) => (total * levels[b]) / sum);
+  const out = Object.fromEntries(bs.map((b, i) => [b, Math.floor(raw[i])]));
+  let left = total - bs.reduce((s, b) => s + out[b], 0);
+  const order = bs.map((b, i) => [b, raw[i] - Math.floor(raw[i]), i]).sort((x, y) => y[1] - x[1] || x[2] - y[2]);
   for (let i = 0; left > 0; i = (i + 1) % order.length, left -= 1) out[order[i][0]] += 1;
   return out;
 }
@@ -70,9 +87,9 @@ function fill(cands, target) {
 }
 
 /** A level for every planned unit. Highest buckets first, from the end of each section. */
-function plan(types, light) {
+function plan(types, light, levels = PANEL) {
   const units = unitsOf(types, light);
-  const goal = targets(units.reduce((s, u) => s + u.marks, 0));
+  const goal = targets(units.reduce((s, u) => s + u.marks, 0), levels);
   const free = (u) => !u.level;
   const written = units.filter((u) => !u.mcq && u.part === undefined).reverse();
   const mcqs = units.filter((u) => u.mcq).reverse();
@@ -81,7 +98,7 @@ function plan(types, light) {
     // A Create part is a small "design / suggest a way": a short answer takes it before a grammar item.
     const ws = b === 'C' ? [...written.filter((u) => u.type !== 'grammar'), ...written.filter((u) => u.type === 'grammar')] : written;
     const cands = [...erqPart(k), ...ws, ...(mcqOk ? mcqs : [])].filter(free);
-    fill(cands, goal[b]).forEach((u) => { u.level = NAME[b]; delete u.picked; });
+    fill(cands, goal[b] || 0).forEach((u) => { u.level = NAME[b]; delete u.picked; });
   });
   const restM = units.filter((u) => u.mcq && free(u));
   const restW = units.filter((u) => !u.mcq && free(u));
@@ -95,10 +112,10 @@ function plan(types, light) {
   return units.map(({ picked, ...u }) => u);
 }
 
-function splitOf(units) {
+function splitOf(units, levels = PANEL) {
   const total = units.reduce((s, u) => s + u.marks, 0) || 1;
-  const out = Object.fromEntries(BUCKETS.map((b) => [b, 0]));
-  units.forEach((u) => { const b = bucketOf(u.level); if (b) out[b] += u.marks / total; });
+  const out = Object.fromEntries(bucketsOf(levels).map((b) => [b, 0]));
+  units.forEach((u) => { const b = bucketOf(u.level, levels); if (b) out[b] += u.marks / total; });
   return out;
 }
 
@@ -142,30 +159,31 @@ function paperUnits(examJson) {
   return out;
 }
 
-const paperSplit = (examJson) => splitOf(paperUnits(examJson));
+const paperSplit = (examJson, levels = PANEL) => splitOf(paperUnits(examJson), levels);
 
 /** Moves that bring a written paper's tags back to the split; none when it is close and has a Create. */
-function levelIssues(examJson) {
+function levelIssues(examJson, levels = PANEL) {
   const units = paperUnits(examJson);
   const total = units.reduce((s, u) => s + u.marks, 0);
   if (!total) return [];
-  const goal = targets(total);
-  const cur = Object.fromEntries(BUCKETS.map((b) => [b, 0]));
-  units.forEach((u) => { u.bucket = bucketOf(u.level); if (u.bucket) cur[u.bucket] += u.marks; });
+  const goal = targets(total, levels);
+  const bs = bucketsOf(levels);
+  const cur = Object.fromEntries(bs.map((b) => [b, 0]));
+  units.forEach((u) => { u.bucket = bucketOf(u.level, levels); if (u.bucket) cur[u.bucket] += u.marks; });
   if (!units.some((u) => u.bucket)) return [];
-  const hasWritten = units.some((u) => !u.mcq);
-  const off = (tol) => BUCKETS.some((b) => Math.abs(cur[b] - goal[b]) / total > tol);
-  if (!off(REWRITE_TOL) && !(hasWritten && cur.C === 0)) return [];
+  const needsCreate = units.some((u) => !u.mcq) && levels.C > 0; // no Create asked where the split names none
+  const off = (tol) => bs.some((b) => Math.abs(cur[b] - goal[b]) / total > tol);
+  if (!off(REWRITE_TOL) && !(needsCreate && cur.C === 0)) return [];
   const surplus = (u) => (u.bucket ? cur[u.bucket] - goal[u.bucket] : u.marks);
   const move = (u, b) => { if (u.bucket) cur[u.bucket] -= u.marks; cur[b] += u.marks; u.to = b; };
-  const error = () => BUCKETS.reduce((s, b) => s + Math.abs(cur[b] - goal[b]), 0);
-  if (hasWritten && cur.C === 0) {
+  const error = () => bs.reduce((s, b) => s + Math.abs(cur[b] - goal[b]), 0);
+  if (needsCreate && cur.C === 0) {
     const pick = units.filter((u) => !u.mcq).sort((x, y) => Number(!!y.last) - Number(!!x.last)
       || surplus(y) - surplus(x) || x.marks - y.marks)[0];
     move(pick, 'C');
   }
   for (let guard = 0; off(PLAN_TOL) && guard < units.length; guard += 1) {
-    const deficits = BUCKETS.filter((b) => cur[b] < goal[b]).sort((x, y) => (goal[y] - cur[y]) - (goal[x] - cur[x]));
+    const deficits = bs.filter((b) => cur[b] < goal[b]).sort((x, y) => (goal[y] - cur[y]) - (goal[x] - cur[x]));
     let moved = false;
     for (const d of deficits) {
       const need = goal[d] - cur[d];
@@ -189,7 +207,7 @@ function levelIssues(examJson) {
   });
   return [...byN.entries()].map(([n, us]) => ({ n, check: 'level-split', text: `${us.map((u) => (u.part === undefined
     ? `write it at ${NAME[u.to]}; it is tagged ${u.level || 'with no level'}`
-    : `write part (${u.label}) at ${NAME[u.to]}; it is tagged ${u.level || 'with no level'}`)).join('; ')}. The paper's thinking levels are off the 30/30/20/10/10 split of marks: rewrite the item so it really asks for that level and tag it so; a book activity or worked example reproduced counts as Remember.` }));
+    : `write part (${u.label}) at ${NAME[u.to]}; it is tagged ${u.level || 'with no level'}`)).join('; ')}. The paper's thinking levels are off the ${splitName(levels)} split of marks: rewrite the item so it really asks for that level and tag it so; a book activity or worked example reproduced counts as Remember.` }));
 }
 
-module.exports = { LEVELS, plan, planText, splitOf, paperSplit, levelIssues, itemsOf: items, targets };
+module.exports = { LEVELS, PANEL, bucketOf, plan, planText, splitOf, paperSplit, levelIssues, itemsOf: items, targets };

@@ -279,6 +279,7 @@ async function writeOne({ cls, link, choice, enrolled, teacherIds, day, now, enq
       round_day: day,
       class_link_code: link.code,
       lessons,
+      lesson_links: require('./quiz-lesson-link').fromPlanLessons(lessons),
       class: { grade: choice.grade, subject: choice.subject },
       lesson_date: day,
       teachers_with_lp: choice.teachers_with_lp,

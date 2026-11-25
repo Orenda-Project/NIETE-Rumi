@@ -105,8 +105,9 @@ test('the table covers exactly the seven linkable features', () => {
   // assessment_topic_nudge is the topic-end nudge's link (bd-pw1ccr.4.2, its own suite).
   // lp_make_own is the lesson-plan Flow's Make my own row (bd-iceyyu, its own suite).
   // principal_observe is a principal's observe on the principal app (bd-eqkr0n, principal-app-observe.test.js).
+  // lp_open is the one plan she tapped, PDF off; it uses lesson_plan's words (bd-zrdvmi.60, app-link-lp-open.test.js).
   const NOT_COMMANDS = ['assessment_topics', 'ai_coaching_recording', 'assessment_report', 'assessment_topic_nudge', 'lp_make_own',
-    'principal_observe'];
+    'principal_observe', 'lp_open'];
   expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => !NOT_COMMANDS.includes(f)).sort());
 });
 

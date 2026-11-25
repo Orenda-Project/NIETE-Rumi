@@ -2458,8 +2458,15 @@ async function requireSchoolCard(req, res, next) {
   return next();
 }
 // bd-rlxkkt.9: Coach Training, which modules she marked done (users.preferences.coach_training_done).
+// bd-v04lsh (queue #257): Principal Training is the same modules for a principal, by her role; a coach as before.
+const { makeRequireTrainingReader } = require('./coach-training-progress.routes');
+const requireTrainingReader = makeRequireTrainingReader({
+  isPrincipalRole,
+  coachAppOn: (userId) => isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
+});
+const trainingReaders = [requirePortalAuth, requireLeaderRole, requireTrainingReader];
 router.use(require('./coach-training-progress.routes').createCoachTrainingProgressRouter({
-  guards: coachV2,
+  guards: trainingReaders,
   supabase,
 }));
 router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({

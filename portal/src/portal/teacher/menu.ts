@@ -47,9 +47,12 @@ export const PRINCIPAL_NAV_FEATURE: Record<PrincipalNavKey, TeacherFeature> = {
 };
 
 const PRINCIPAL_SCREENS = "/portal/teacher/principal";
+/** bd-v04lsh — Principal Training (coach/coachTraining/audience.ts PRINCIPAL_TRAINING_PATH): opened from a Home tile. */
+const PRINCIPAL_TRAINING = "/portal/teacher/principal-training";
 
 export function currentPrincipalMenuItem(pathname: string): PrincipalNavKey | null {
   const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === PRINCIPAL_TRAINING || path.startsWith(`${PRINCIPAL_TRAINING}/`)) return "home";
   if (path === PRINCIPAL_SCREENS || path.startsWith(`${PRINCIPAL_SCREENS}/`)) return "observe";
   const f = featureOf(path);
   if (f === "observations" || f === "coaching") return "observe";

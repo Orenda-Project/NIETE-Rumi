@@ -82,14 +82,27 @@ const INSERT_OPEN_SQL = `
         AND opened_at > now() - make_interval(mins => $6::int))
   RETURNING id, plan_kind, lang`;
 
-function cleanOpen({ userId, kind, ref, lang = null, source } = {}) {
+/**
+ * bd-chz35n.26 — an FLN open also stores the plan's lesson + skill key (fln-lesson-key.js), so a Grades 1-2 plan
+ * joins its quiz and a child's tested skill. Only an 'fln' open with a key takes this statement; every other open
+ * keeps INSERT_OPEN_SQL exactly. Before V1.10.11 reaches a database the column is missing (42703): the open is then
+ * stored without the key, never lost.
+ */
+const INSERT_OPEN_KEYED_SQL = INSERT_OPEN_SQL
+  .replace('INSERT INTO niete_lp_opens (user_id, plan_kind, plan_ref, lang, source)',
+    'INSERT INTO niete_lp_opens (user_id, plan_kind, plan_ref, lang, source, lesson_key)')
+  .replace('SELECT $1::uuid, p.kind, $3, p.lang, $5\n', 'SELECT $1::uuid, p.kind, $3, p.lang, $5, $7::text\n');
+const LESSON_KEY_RX = /^fln1:[a-z0-9:_-]{1,120}$/;
+
+function cleanOpen({ userId, kind, ref, lang = null, source, lessonKey = null } = {}) {
   const r = typeof ref === 'string' ? ref.trim() : '';
   if (typeof userId !== 'string' || !UUID.test(userId)) return null;
   if (!KINDS.includes(kind) || !SOURCES.includes(source)) return null;
   if (!r || r.length > 200) return null;
   // A K-5 plan has no document language; a 6-12 one without a known language is still an open.
   const l = (kind === 'g612' || kind === 'fln') && LANGS.includes(lang) ? lang : null;
-  return { userId, kind, ref: r, lang: l, source };
+  const key = kind === 'fln' && typeof lessonKey === 'string' && LESSON_KEY_RX.test(lessonKey) ? lessonKey : null;
+  return key ? { userId, kind, ref: r, lang: l, source, lessonKey: key } : { userId, kind, ref: r, lang: l, source };
 }
 
 /**
@@ -102,7 +115,18 @@ function cleanOpen({ userId, kind, ref, lang = null, source } = {}) {
 async function recordOpen(query, open) {
   const o = cleanOpen(open);
   if (!o) return { recorded: false, reason: 'invalid' };
-  const { rows } = await query(INSERT_OPEN_SQL, [o.userId, o.kind, o.ref, o.lang, o.source, DEDUPE_MINUTES]);
+  const params = [o.userId, o.kind, o.ref, o.lang, o.source, DEDUPE_MINUTES];
+  let rows;
+  if (o.lessonKey) {
+    try {
+      ({ rows } = await query(INSERT_OPEN_KEYED_SQL, [...params, o.lessonKey]));
+    } catch (error) {
+      if (!error || error.code !== '42703') throw error;
+      ({ rows } = await query(INSERT_OPEN_SQL, params));
+    }
+  } else {
+    ({ rows } = await query(INSERT_OPEN_SQL, params));
+  }
   const row = (rows || [])[0];
   // `id` and the cleaned `open` ride along for the one caller that continues from a stored open: the
   // lesson-plan survey is requested from the row's id (lp-open-survey.client, bd-qvevax.2).

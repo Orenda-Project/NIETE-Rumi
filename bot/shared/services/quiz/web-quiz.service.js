@@ -33,6 +33,7 @@ const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
+const WordHelp = require('./quiz-word-help');
 const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
@@ -361,6 +362,21 @@ function questionPayload(row, i, code, audio, zoom) {
   Figure.drawOptionPics(out.options, mediaLang(q.media));
   if (Array.isArray(out.left)) out.left = Figure.drawOptionPics(out.left.map((l) => ({ ...l })), mediaLang(q.media));
   return out;
+}
+
+/**
+ * bd-0q8b4x — short Urdu meanings under hard English words (media.word_help), as `words`
+ * on each question, only while app_settings quiz_word_help is on (and, with
+ * quiz_word_help_lot, only for the class links the lot puts in the help half). Off: nothing added.
+ */
+async function withWordHelp(rows, payloads, shareCodeId) {
+  if (!rows.some((r) => r && r.media && Array.isArray(r.media.word_help))) return payloads;
+  const f = await require('./quiz-word-help-flag').readFlag();
+  payloads.forEach((p, i) => {
+    const words = WordHelp.servedWords(rows[i], { ...f, shareCodeId });
+    if (words) p.words = words;
+  });
+  return payloads;
 }
 
 const Round = () => require('./web-quiz-evening-round');
@@ -815,7 +831,7 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
       ...(lateMs ? { late_ms: lateMs } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
-      questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
+      questions: await withWordHelp(questions, questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])), ctx.shareCodeId),
     },
     cls: {
       // A friend's challenge names only the challenger: never the challenger's teacher or class.
@@ -2022,7 +2038,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     fold: Fast.early(require('./web-quiz-hub-door').foldField(s)),
   } : null;
 
-  if (s.status !== 'completed') {
+  const firstFinish = s.status !== 'completed';
+  if (firstFinish) {
     const { error } = await supabase.from('quiz_sessions').update({
       status: 'completed', total_questions_answered: total, correct_answers: correct,
       mastery_percentage: pct, mastery_level: level, completed_at: new Date().toISOString(),
@@ -2077,6 +2094,9 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   const jugnu = await got('jugnu', () => require('./web-quiz-card').field(s));
   // The child home on (web_quiz_home_v3): the card folds to the card and one next thing; {} with it off.
   const fold = await got('fold', () => require('./web-quiz-hub-door').foldField(s));
+  // Keep this attempt (table quiz_attempts, switch web_quiz_keep_attempts): after the card's reads so it never moves them,
+  // never awaited, reply unchanged. Only the finish that completed the session.
+  if (firstFinish) require('./quiz-attempt-log').keep({ session: s, served, byQ, keyFor: WebItems.keyFor, channel: 'web' });
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -2321,6 +2341,10 @@ const EVENT_BOOLS = ['ok'];
 const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow', 'audio_probe']);
 const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/,
   fst: /^([1-5][0-9]{2}|opaque|net|timeout|err)$/, fct: /^[a-z]+\/[a-z0-9.+-]{1,40}$/ });
+// A stalled clip's element at give-up (audio_fallback) or at its late start (audio_slow): rs readyState 0-4,
+// ns networkState 0-3, buf seconds buffered (wq.js heldFacts).
+const VOICE_HELD_EVENTS = new Set(['audio_fallback', 'audio_slow']);
+const VOICE_HELD_INTS = Object.freeze({ rs: 4, ns: 3 });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
 // while the switch is on, so a cached page or a switched-off deployment logs nothing new.
 const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
@@ -2485,6 +2509,10 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (VOICE_EVENTS.has(e.n)) {
     for (const [k, rx] of Object.entries(VOICE_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
     if (Number.isFinite(e.gms)) props.gms = e.gms;
+    if (VOICE_HELD_EVENTS.has(e.n)) {
+      for (const [k, max] of Object.entries(VOICE_HELD_INTS)) if (Number.isInteger(e[k]) && e[k] >= 0 && e[k] <= max) props[k] = e[k];
+      if (typeof e.buf === 'number' && e.buf >= 0 && e.buf < 3600) props.buf = e.buf;
+    }
   }
   // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
   if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;
@@ -2684,6 +2712,7 @@ module.exports = {
   WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
+  withWordHelp,
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
   shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,
