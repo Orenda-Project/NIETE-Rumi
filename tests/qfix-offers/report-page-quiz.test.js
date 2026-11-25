@@ -27,6 +27,8 @@ const ENV = { ...process.env };
 afterAll(() => { process.env = ENV; });
 
 describe('the bot: a report-page prefill through the real /webhook', () => {
+  // The first test loads the whole bot (whatsapp-bot.js); under a parallel suite that alone can pass 30 s.
+  jest.setTimeout(180000);
   let mockDb;
   let mockWa;
   let mockTap;
@@ -100,10 +102,12 @@ describe('the bot: a report-page prefill through the real /webhook', () => {
     }));
     // The tap handler (owner check, then the quiz) is tested for real in closed-window-offer.test.js; here only the
     // route to it, with the session the code resolved to.
+    // Each test's own mock, captured here: a slow request from an earlier test can never land in this one's.
     mockTap = jest.fn().mockResolvedValue(true);
+    const mockThisTap = mockTap;
     jest.doMock('../../bot/shared/services/quiz/transcript-quiz-offer.service', () => ({
       ...jest.requireActual('../../bot/shared/services/quiz/transcript-quiz-offer.service'),
-      handleReportQuizTap: (...a) => mockTap(...a),
+      handleReportQuizTap: (...a) => mockThisTap(...a),
       languageByPhone: async () => 'en',
     }));
   }
@@ -119,7 +123,7 @@ describe('the bot: a report-page prefill through the real /webhook', () => {
       });
       expect(res.status).toBe(200);
       await later(20);
-      const deadline = Date.now() + 5000;
+      const deadline = Date.now() + 60000;
       while (drain.inFlightCount() !== 0 && Date.now() < deadline) await later(10);
     } finally {
       server.close();
