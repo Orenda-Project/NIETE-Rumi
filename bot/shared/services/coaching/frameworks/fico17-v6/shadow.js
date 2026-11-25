@@ -37,16 +37,26 @@ const RETRY_ON = /JSON pars/i; // GPT5MiniService.analyzePedagogy: 'JSON parsing
 
 const stampNow = () => ({ ...v6.stamp('dc'), at: new Date().toISOString() });
 
-/** Which DC rubric this session's teacher is on. 'v3' for anything that is not an ICT FICO self-recording. */
-async function modeFor(session, frameworkKey) {
+/**
+ * Which DC rubric this session's teacher is on. 'v3' for anything that is not an ICT FICO self-recording.
+ * Queue #282: 'v6' reaches a recording of grades 1-5 only, unless fico_dc_grades opens 6-12 for her (fico17-v6/dc-grade.js);
+ * any other recording stays 'v3' (no v6 call). 'shadow' is stored only, never sent, so it is not grade gated.
+ */
+async function modeFor(session, frameworkKey, metadata = {}) {
   if (frameworkKey !== 'fico') return 'v3';
   if (!session || session.observation_type === 'leader_observation') return 'v3';
   const sw = require('../../fico-rubric-switch');
   // Default off: no switch value anywhere means no region lookup and no model call.
   if (!(await sw.isAnySet('dc'))) return 'v3';
   const region = (session.users && session.users.region) || await sw.regionOfUser(session.user_id);
-  return sw.dcRubric({ userId: session.user_id, region });
+  const mode = await sw.dcRubric({ userId: session.user_id, region });
+  if (mode !== 'v6') return mode;
+  const grade = metadata && metadata.grade;
+  return (await require('./dc-grade').allowsV6({ grade, userId: session.user_id, region })) ? 'v6' : 'v3';
 }
+
+/** Queue #282: a teacher's own recording is scored on the 11 only, whatever the mode ('shadow' or 'v6'). */
+const selfRecordingScorer = () => require('../fico17-v6-framework').dc11Variant();
 
 /** Only what the v6 prompt reads: no photos (never sent to the shadow call), no teacher name, no prior feedback. */
 function shadowMetadata(metadata = {}) {
@@ -74,17 +84,21 @@ function brokenReason(transcript, quality) {
   return (quality.issues || []).some((i) => i.type === 'loop') ? 'loop' : 'unusable';
 }
 
-/** Spec §6.3 'broken': no call; all 11 levels 'IE', the five evidence rows 'IE' with nothing in them. */
-function brokenBlob(quality) {
-  const fw = require('../fico17-v6-framework');
+/**
+ * Spec §6.3 'broken': no call; all 11 levels 'IE', the five evidence rows 'IE' with nothing in them. With the 11-only
+ * scorer (queue #282) there is no evidence part: the 11 levels 'IE' and nothing for the six.
+ */
+function brokenBlob(quality, scorer = null) {
+  const fw = scorer || require('../fico17-v6-framework');
   const levels = Object.fromEntries(v6.DC_CODES.map((c) => [c, { result: 'IE', because: BROKEN_BECAUSE, evidence: [] }]));
-  const combined = Object.fromEntries(fw.EVIDENCE_CODES.map((c) => [c, { result: 'IE', items: [] }]));
-  const scored = fw.computeScores({ levels, combined_evidence: combined }, false);
+  const combined = fw.dc11 ? undefined : Object.fromEntries(fw.EVIDENCE_CODES.map((c) => [c, { result: 'IE', items: [] }]));
+  const scored = fw.computeScores({ levels, ...(combined ? { combined_evidence: combined } : {}) }, false);
   return {
     status: 'broken',
     ...stampNow(),
+    ...(fw.dc11 ? { prompt_version: fw.promptVersion, indicator_set: fw.indicatorSet } : {}),
     levels: scored.levels,
-    combined_evidence: scored.combined_evidence,
+    ...(scored.combined_evidence ? { combined_evidence: scored.combined_evidence } : {}),
     transcript_quality: storedQuality(quality),
     scores: { ...scored.scores, overall_max_possible: fw.maxMarks },
     dropped_evidence: 0,
@@ -106,7 +120,7 @@ async function scoreV6(transcript, metadata, quality = assessQuality(transcript,
     logToFile('[fico17-v6 shadow] transcript broken — no scoring call, every DC level IE', {
       coachingSessionId: meta.coachingSessionId, reason: brokenReason(transcript, quality), transcript_quality,
     }, 'warn');
-    return brokenBlob(quality);
+    return brokenBlob(quality, fw);
   }
   const ask = { ...meta, transcriptQuality: quality };
   let res;
@@ -132,6 +146,7 @@ async function scoreV6(transcript, metadata, quality = assessQuality(transcript,
     status: 'ok',
     ...stampNow(),
     ...(fw.starredMode ? { prompt_version: fw.promptVersion, starred: scored.starred } : {}),
+    ...(fw.dc11 ? { prompt_version: fw.promptVersion, indicator_set: fw.indicatorSet } : {}),
     levels: scored.levels,
     ...(scored.combined_evidence ? { combined_evidence: scored.combined_evidence } : {}),
     transcript_quality,
@@ -158,7 +173,7 @@ function start({ session, metadata, frameworkKey, transcript }) {
   const task = (async () => {
     let mode = 'v3';
     try {
-      mode = await modeFor(session, frameworkKey);
+      mode = await modeFor(session, frameworkKey, metadata);
     } catch (_) {
       return null;
     }
@@ -171,15 +186,9 @@ function start({ session, metadata, frameworkKey, transcript }) {
     }
     try {
       state.quality = assessQuality(transcript, metadata);
-      let framework = null;
-      try {
-        const sw = require('../../fico-rubric-switch');
-        if (session && session.user_id && typeof sw.v6Starred === 'function'
-          && (await sw.v6Starred({ userId: session.user_id, region: (session.users && session.users.region) || undefined }))) {
-          framework = require('../fico17-v6-framework').starredVariant();
-        }
-      } catch (_) { framework = null; }
-      return { ...(await scoreV6(transcript, metadata, state.quality, framework)), mode };
+      // Queue #282 (the operator, 25 Nov): the 11 only on a teacher's own recording. This replaces queue #184's starred
+      // check here: v6 stars none (19 Nov), so it only ever gave today's v6, and the 11-only scorer leaves out all six.
+      return { ...(await scoreV6(transcript, metadata, state.quality, selfRecordingScorer())), mode };
     } catch (err) {
       logToFile('[fico17-v6 shadow] failed — V3 unaffected', { coachingSessionId: session && session.id, error: err.message }, 'error');
       return { status: 'failed', ...stampNow(), ...knownOf(state), error: String(err.message || err).slice(0, 300) };
@@ -225,6 +234,13 @@ function teacherFacing(blob, v3Analysis, transcript) {
   const fw = require('../fico17-v6-framework');
   const base = {};
   for (const k of LESSON_FACTS) if (v3Analysis && v3Analysis[k] !== undefined) base[k] = v3Analysis[k];
+  // Queue #282: a blob scored on the 11 only becomes a report analysis with the 11 rows only (no row, no evidence and no
+  // student-turn count for the six), stamped indicator_set 'dc11'.
+  if (blob.indicator_set === fw.DC11_SET) {
+    const copy11 = JSON.parse(JSON.stringify({ levels: blob.levels }));
+    const a11 = fw.dc11Variant().computeScores({ ...base, ...copy11 }, false);
+    return { ...a11, framework: v6.RUBRIC_KEY, rubric: v6.RUBRIC_KEY, transcript_quality: blob.transcript_quality || null };
+  }
   // Queue #184: a blob scored in starred mode keeps nothing for the six; re-adding it up must not count D2 again.
   if (Array.isArray(blob.starred) && blob.starred.length) {
     const copyS = JSON.parse(JSON.stringify({ levels: blob.levels }));

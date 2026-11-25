@@ -153,6 +153,13 @@ function targetBlock(target) {
     return `\nTHE TARGET (fixed — do NOT choose a different area): the "${target.name}" step of her own lesson plan.${asked} Your "action" asks her to do THAT step of whatever lesson plan she teaches NEXT class — one step, not the whole plan, and not this lesson's exact wording (next class has a different plan).\n`;
   }
   if (!target || !target.indicator) return '';
+  // Queue #282: a FICO17 v6 target has no scorer-written move; the rubric's next level is what to aim the action at.
+  if (target.rubric === 'fico17_v6' && !target.try) {
+    const { v6NextLevel } = require('../target-resolver');
+    const next = v6NextLevel(target);
+    const why6 = target.rationale ? ` What was seen: ${target.rationale}` : '';
+    return `\nTHE TARGET (fixed — do NOT choose a different area): "${target.name}" (level ${target.rung} of 4).${why6}${next ? ` The next level on the rubric asks: "${next}"` : ' It is already at the top level: the action takes it further.'} Your "action" is ONE move toward that next level, in plain words, about THIS indicator only.\n`;
+  }
   const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
   const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
   return `\nTHE TARGET (fixed — do NOT choose a different area): indicator ${target.indicator} "${target.name}".${why}${move} Your "action" is about THIS indicator only — ONE move, not a list of moves.\n`;
@@ -165,7 +172,13 @@ function buildPrompt(lang, analysis, q3, target = null, loop = null) {
   // the COMMITMENT half only — never the action. Nothing below may quote or
   // imply an answer that does not exist.
   const reflected = !!(q3 && typeof q3.answer === 'string' && q3.answer.trim());
-  const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
+  let strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
+  // Queue #282: a FICO17 v6 lesson with no reflection pass has no strengths[]; its strongest level is the one the report
+  // image celebrates (target-resolver resolveStrength).
+  if (!strengths.length && target && target.rubric === 'fico17_v6') {
+    const st = require('../target-resolver').resolveStrength(analysis, target);
+    if (st) strengths = [`${st.name}${st.rationale ? ` — ${st.rationale}` : ''}`];
+  }
   const growth = (analysis.growth_opportunities || []).map((g) => ({
     area: g.area || g.title,
     observation: g.observation || '',
@@ -322,7 +335,14 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   if (!analysis) return null;
 
   const q3 = extractQ3(conversationState);
-  const target = opts.target !== undefined ? opts.target : cardTarget(analysis, loop);
+  let target = opts.target !== undefined ? opts.target : cardTarget(analysis, loop);
+  // Queue #282: while the v10 test is on, groups A and B pass target null ("the card chooses its own area"). A V3
+  // analysis then gets the rule card's per-indicator example; a FICO17 v6 one would get its generic line ("try
+  // dedicating 5 minutes …"). So a v6 card chooses its own area the v6 way (its lowest level) and is phrased below.
+  if (!target && analysis && (analysis.framework === 'fico17_v6' || (analysis.scores && analysis.scores.rubric === 'fico17_v6'))) {
+    const own = cardTarget(analysis, loop);
+    if (own && own.rubric === 'fico17_v6') target = own;
+  }
   // The reflection gates the COMMITMENT half of the card, never the ACTION half.
   // When a loop target is open the ask must carry THIS attempt's angle and the
   // prior-action do-not-reuse block, so it is phrased by the model whether or
@@ -330,13 +350,17 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   // attempt to the angle-blind rubric sentence: on staging, attempts 2 and 3
   // for one teacher shipped byte-identical asks (overlap 1.00) while the record
   // claimed the angle had advanced from `cue` to `show`.
-  if (!q3 && !(loop && target)) {
+  // Queue #282: a FICO17 v6 target has no scorer-written move, so the rule-based fallback would send the canned
+  // template ("try dedicating 5 minutes …") to every v6 teacher who did not reflect (about half). The card model
+  // phrases it instead, told the rubric's next level (targetBlock); its failure still falls back as before.
+  const v6Target = !!(target && target.rubric === 'fico17_v6' && target.indicator);
+  if (!q3 && !(loop && target) && !v6Target) {
     logToFile('Commitment card: no Q3 commitment and no loop target → rule-based fallback', { framework: analysis.framework });
     return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, loop, target));
   }
   if (!q3) {
-    logToFile('[uptake-loop] no reflection — the ask is still phrased with the angle', {
-      indicator: target.indicator, attempt: loop.state && loop.state.attempt, angle: loop.state && loop.state.angle,
+    logToFile(loop ? '[uptake-loop] no reflection — the ask is still phrased with the angle' : 'Commitment card: no reflection — v6 target phrased by the card model', {
+      indicator: target.indicator, attempt: loop && loop.state && loop.state.attempt, angle: loop && loop.state && loop.state.angle,
     });
   }
   const bar = loop && target

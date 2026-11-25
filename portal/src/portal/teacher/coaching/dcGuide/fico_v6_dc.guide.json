@@ -1,0 +1,973 @@
+{
+ "id": "fico_v6_dc",
+ "band": "1-5",
+ "audience": "teacher-self-recording",
+ "status": "draft for operator review",
+ "ur_status": "DRAFT for native review: Nastaliq, آپ with gender-neutral verbs (imperative, نے-past or a noun phrase), Western digits as the portal",
+ "label": {
+  "en": "FICO v6 · Digital Coach",
+  "ur": "FICO v6 · ڈیجیٹل کوچ"
+ },
+ "level_labels": {
+  "en": {
+   "1": "Not Observed",
+   "2": "Developing",
+   "3": "Proficient",
+   "4": "Highly Effective"
+  },
+  "ur": {
+   "1": "مشاہدے میں نہیں آیا",
+   "2": "ترقی پذیر",
+   "3": "ماہر",
+   "4": "انتہائی مؤثر"
+  }
+ },
+ "sections": [
+  {
+   "key": "C",
+   "name": {
+    "en": "What you do",
+    "ur": "کلاس میں آپ کا کردار"
+   },
+   "items": [
+    {
+     "code": "C1",
+     "name": {
+      "en": "Quality of Questions Asked by the Teacher",
+      "ur": "استاد کے سوالات کا معیار"
+     },
+     "means": {
+      "en": "The questions you ask, and whether they make children think. A closed question has a yes/no or one-word answer; an open one needs a longer answer.",
+      "ur": "آپ کے سوال، اور کیا ان سے بچے سوچتے ہیں۔ بند سوال کا جواب ہاں، نہیں یا ایک لفظ ہوتا ہے؛ کھلے سوال کا جواب لمبا ہوتا ہے۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Your questions, and what comes right after each one: a child’s answer, or your own.",
+      "ur": "آپ کے سوال، اور ہر سوال کے فوراً بعد کیا آیا: بچے کا جواب، یا آپ کا اپنا۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You ask no questions, or you ask and then give the answer yourself without waiting for the children to answer.",
+        "ur": "آپ نے کوئی سوال نہیں پوچھا، یا سوال پوچھ کر بچوں کے جواب کا انتظار کیے بغیر خود جواب دے دیا۔"
+       },
+       "example": {
+        "en": "“What do plants need to grow? Water and sunlight. Write it down.” No child had time to answer.",
+        "ur": "”پودوں کو بڑھنے کے لیے کیا چاہیے؟ پانی اور دھوپ۔ کاپی میں لکھ لیں۔“ کسی بچے کو جواب دینے کا وقت نہیں ملا۔"
+       },
+       "why": {
+        "en": "You answered your own question before a child could.",
+        "ur": "بچے سے پہلے آپ نے خود ہی جواب دے دیا۔"
+       }
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You ask only closed questions, with yes/no or one-word answers.",
+        "ur": "آپ نے صرف بند سوال پوچھے، جن کا جواب ہاں، نہیں یا ایک لفظ ہو۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "You ask at least two open questions and wait for the children to answer.",
+        "ur": "آپ نے کم از کم دو کھلے سوال پوچھے اور بچوں کے جواب کا انتظار کیا۔"
+       },
+       "example": {
+        "en": "“What will happen to a plant if we give it no water?” (you wait) Child: “Its leaves will dry and it will die.” Later, one more question like this.",
+        "ur": "”اگر ہم پودے کو پانی نہ دیں تو کیا ہو گا؟“ (انتظار) بچہ: ”اس کے پتے سوکھ جائیں گے اور یہ مر جائے گا۔“ بعد میں ایسا ہی ایک اور سوال۔"
+       },
+       "why": {
+        "en": "Two open questions, and you waited both times.",
+        "ur": "دو کھلے سوال، اور دونوں بار انتظار۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "You ask at least one “why” question, then ask the same child a next question about their answer (Why? How do you know?).",
+        "ur": "آپ نے کم از کم ایک ”کیوں“ والا سوال پوچھا، اور پھر اسی بچے کے جواب پر اگلا سوال کیا (کیوں؟ آپ کو کیسے پتا؟)۔"
+       },
+       "example": {
+        "en": "“Why does a plant need sunlight?” Hina: “To make its food.” “Hina, how do you know?” Hina: “Our plant in the dark cupboard turned yellow.”",
+        "ur": "”پودے کو دھوپ کیوں چاہیے؟“ ہنا: ”اپنی خوراک بنانے کے لیے۔“ ”ہنا، آپ کو کیسے پتا؟“ ہنا: ”ہمارا پودا اندھیری الماری میں پیلا ہو گیا تھا۔“"
+       },
+       "why": {
+        "en": "A “why” question, then a next question to the same child.",
+        "ur": "”کیوں“ والا سوال، اور پھر اسی بچے سے اگلا سوال۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "After you ask, wait. Count to five in your head, and let a child answer before you speak.",
+       "ur": "سوال پوچھ کر رکیں۔ دل میں پانچ تک گنیں، اور اپنے بولنے سے پہلے کسی بچے کو جواب دینے دیں۔"
+      },
+      {
+       "en": "Instead of “Understood?”, ask a “why” question. Then use the same child’s name and ask: “How do you know?”",
+       "ur": "”سمجھ آ گیا؟“ کی جگہ ”کیوں“ والا سوال پوچھیں۔ پھر اسی بچے کا نام لے کر پوچھیں: ”آپ کو کیسے پتا؟“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "C2",
+     "name": {
+      "en": "Helping when a child is wrong",
+      "ur": "غلط جواب پر بچے کی مدد"
+     },
+     "means": {
+      "en": "What you do when a child’s answer is wrong or incomplete. It only applies when an answer was actually wrong.",
+      "ur": "جب بچے کا جواب غلط یا ادھورا ہو تو آپ کا ردِعمل۔ یہ صرف تب لاگو ہوتا ہے جب واقعی کوئی جواب غلط ہو۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Your words right after a wrong or half answer: a reason, what was right, what to change.",
+      "ur": "غلط یا ادھورے جواب کے فوراً بعد آپ کے الفاظ: وجہ، کیا صحیح تھا، اور کیا بدلنا ہے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "A child gives a wrong answer and you let it pass, or you repeat the same explanation in the same words.",
+        "ur": "بچے نے غلط جواب دیا اور آپ نے اسے ویسے ہی چھوڑ دیا، یا وہی وضاحت انہی الفاظ میں دہرا دی۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You say the answer is wrong, or explain again, but give the reason for the correction once at most.",
+        "ur": "آپ نے کہا کہ جواب غلط ہے، یا دوبارہ سمجھایا، لیکن درستی کی وجہ زیادہ سے زیادہ ایک بار بتائی۔"
+       },
+       "example": {
+        "en": "“No, that is wrong. It is nine.”",
+        "ur": "”نہیں، یہ غلط ہے۔ جواب نو ہے۔“"
+       },
+       "why": {
+        "en": "You said it was wrong, but not why.",
+        "ur": "آپ نے غلط تو کہا، لیکن وجہ نہیں بتائی۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "At least two times, you give the reason for the correction and say what was right and what to change.",
+        "ur": "کم از کم دو بار آپ نے درستی کی وجہ بتائی، اور یہ بھی کہ کیا صحیح تھا اور کیا بدلنا ہے۔"
+       },
+       "example": {
+        "en": "“You added the 5 correctly, but you added the 4 twice. Add the 4 only once: 4 + 5 = 9.”",
+        "ur": "”آپ نے 5 ٹھیک جمع کیا، لیکن 4 دو بار جمع کر دیا۔ 4 صرف ایک بار جمع کریں: 4 + 5 = 9۔“"
+       },
+       "why": {
+        "en": "What was right, why it was wrong, and what to change.",
+        "ur": "کیا صحیح تھا، کیوں غلط تھا، اور کیا بدلنا ہے۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you ask the same child or another child to fix the answer, and try a new way (a new example, a picture, smaller steps) if they are still stuck.",
+        "ur": "لیول 3 کے ساتھ، آپ نے اسی بچے یا کسی دوسرے بچے سے جواب درست کروایا، اور جہاں بچہ پھر بھی اٹکا رہا وہاں نیا طریقہ آزمایا (نئی مثال، تصویر، چھوٹے قدم)۔"
+       },
+       "example": {
+        "en": "“Try again, Ali, and add the 4 only once.” Ali: “Ten?” “Let’s use sticks. Take 4, put 5 more next to them, and count them all.” Ali: “Nine!”",
+        "ur": "”علی، دوبارہ کوشش کریں، اور 4 صرف ایک بار جمع کریں۔“ علی: ”دس؟“ ”چلیں تیلیوں سے کرتے ہیں۔ 4 تیلیاں لیں، ان کے ساتھ 5 اور رکھیں، اور سب گنیں۔“ علی: ”نو!“"
+       },
+       "why": {
+        "en": "The child fixed the answer, and you tried a new way when the child was still stuck.",
+        "ur": "بچے نے خود جواب درست کیا، اور اٹکنے پر آپ نے نیا طریقہ آزمایا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "When an answer is wrong, say what was right and why the rest is wrong. Then hand it back: “Try again.” Still stuck? Show a new way.",
+       "ur": "جواب غلط ہو تو بتائیں کیا صحیح تھا اور باقی کیوں غلط ہے۔ پھر جواب واپس دیں: ”دوبارہ کوشش کریں۔“ بچہ پھر بھی اٹکا ہو تو نیا طریقہ دکھائیں۔"
+      }
+     ],
+     "na": {
+      "title": {
+       "en": "N/A · No child was wrong",
+       "ur": "لاگو نہیں · کوئی غلط جواب نہیں"
+      },
+      "when": {
+       "en": "No child was wrong in your recording, so there was nothing to help with. This is not a low level.",
+       "ur": "آپ کی ریکارڈنگ میں کوئی بچہ غلط نہیں تھا، اس لیے مدد کا موقع نہیں آیا۔ یہ کوئی کم لیول نہیں۔"
+      }
+     }
+    },
+    {
+     "code": "C4",
+     "name": {
+      "en": "Children's choices",
+      "ur": "بچوں کے انتخاب"
+     },
+     "means": {
+      "en": "Whether children have a say in how the lesson goes. Small choices (who goes first, which colour) are not real choices.",
+      "ur": "کیا سبق کے چلنے میں بچوں کی بھی رائے ہے۔ چھوٹے انتخاب (پہلے کون، کون سا رنگ) اصل انتخاب نہیں۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "What you say when you set a task. It cannot see the room, so it only knows about a choice said aloud.",
+      "ur": "کام دیتے وقت آپ کے الفاظ۔ یہ کلاس کو دیکھ نہیں سکتا، اس لیے اسے صرف وہی انتخاب پتا چلتا ہے جو بول کر دیا جائے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You decide everything and ask the children for no choice or idea.",
+        "ur": "سب کچھ آپ نے خود طے کیا اور بچوں سے کوئی انتخاب یا خیال نہیں مانگا۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You let the children choose only small things (who goes first, which colour), and decide everything about the learning yourself.",
+        "ur": "آپ نے بچوں کو صرف چھوٹی چیزیں چننے دیں (پہلے کون، کون سا رنگ)، اور سیکھنے کی ہر بات خود طے کی۔"
+       },
+       "example": {
+        "en": "“Draw 3 circles and 4 circles like mine. Use a pencil or a colour pencil.”",
+        "ur": "”میری طرح 3 دائرے اور 4 دائرے بنائیں۔ پنسل یا رنگین پنسل، جو چاہیں۔“"
+       },
+       "why": {
+        "en": "Only a small choice. How to show 3 + 4 is still your way.",
+        "ur": "صرف چھوٹا انتخاب۔ 3 + 4 دکھانے کا طریقہ پھر بھی آپ کا ہے۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "You give the children at least one real choice in how to do the work or explain it, and let them follow it, or you take up a child’s idea.",
+        "ur": "آپ نے بچوں کو کام کرنے یا سمجھانے کے طریقے میں کم از کم ایک اصل انتخاب دیا اور انہیں اس پر چلنے دیا، یا کسی بچے کا خیال اپنا لیا۔"
+       },
+       "example": {
+        "en": "“Show me 3 + 4 any way you like: draw it, use sticks, or jump on the number line.”",
+        "ur": "”3 + 4 جس طرح چاہیں دکھائیں: تصویر بنا کر، تیلیوں سے، یا نمبر لائن پر چھلانگ لگا کر۔“"
+       },
+       "why": {
+        "en": "A real choice in how to do the work.",
+        "ur": "کام کرنے کے طریقے میں اصل انتخاب۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you hand a part of the lesson to the children: a child or group leads an activity, picks the method, or teaches the others.",
+        "ur": "لیول 3 کے ساتھ، آپ نے سبق کا ایک حصہ بچوں کے حوالے کیا: کسی بچے یا گروپ نے سرگرمی چلائی، طریقہ چنا، یا دوسروں کو سکھایا۔"
+       },
+       "example": {
+        "en": "“Hamza used sticks. Hamza, come and teach the class your way. Everyone, ask Hamza one question.”",
+        "ur": "”حمزہ نے تیلیاں استعمال کیں۔ حمزہ، آئیں اور کلاس کو اپنا طریقہ سکھائیں۔ باقی سب حمزہ سے ایک سوال پوچھیں۔“"
+       },
+       "why": {
+        "en": "A child teaches a part of the lesson.",
+        "ur": "سبق کا ایک حصہ ایک بچے نے سکھایا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Once a lesson, offer two ways to do a task, aloud: “Draw it or use sticks, you choose.”",
+       "ur": "ہر سبق میں ایک بار کام کے دو طریقے بول کر دیں: ”تصویر بنائیں یا تیلیاں لیں، جو چاہیں۔“"
+      },
+      {
+       "en": "When a child suggests a way, take it up: “Good idea, let’s try Ayesha’s way.”",
+       "ur": "کوئی بچہ طریقہ بتائے تو اسے اپنائیں: ”اچھا خیال ہے، چلیں عائشہ کے طریقے سے کرتے ہیں۔“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "C6",
+     "name": {
+      "en": "Safe to be wrong",
+      "ur": "غلطی کرنے میں تحفظ"
+     },
+     "means": {
+      "en": "Whether children feel safe to try and be wrong: how you reply to their answers, and what you praise.",
+      "ur": "کیا بچے کوشش کرنے اور غلط ہونے سے ڈرتے نہیں: ان کے جوابوں پر آپ کا ردِعمل، اور تعریف کس بات کی ہوتی ہے۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Your words after children answer. It hears words only, so a smile or a nod does not reach it.",
+      "ur": "بچوں کے جواب کے بعد آپ کے الفاظ۔ یہ صرف الفاظ سنتا ہے، اس لیے مسکراہٹ یا سر ہلانا اس تک نہیں پہنچتا۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You give no encouragement. Your replies to children are flat, dismissive, or only about the task.",
+        "ur": "آپ نے کوئی حوصلہ افزائی نہیں کی۔ بچوں سے آپ کی باتیں روکھی، ٹالنے والی، یا صرف کام کے بارے میں تھیں۔"
+       },
+       "example": {
+        "en": "“No. Sit down. Next.”",
+        "ur": "”نہیں۔ بیٹھ جائیں۔ اگلا۔“"
+       },
+       "why": {
+        "en": "A flat reply, with no encouragement.",
+        "ur": "روکھا جواب، کوئی حوصلہ افزائی نہیں۔"
+       }
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You praise, but only for right answers or for doing as told, and only in general words (“Very good”).",
+        "ur": "آپ نے تعریف کی، لیکن صرف صحیح جواب یا کہا ماننے پر، اور صرف عام الفاظ میں (”بہت اچھا“)۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "At least two times, you praise a child’s effort, trying or thinking, not just a right answer.",
+        "ur": "کم از کم دو بار آپ نے بچے کی محنت، کوشش یا سوچ کی تعریف کی، صرف صحیح جواب کی نہیں۔"
+       },
+       "example": {
+        "en": "“Good try, Bilal, you counted very carefully. Let’s check it together.”",
+        "ur": "”بلال، اچھی کوشش، آپ نے بہت دھیان سے گنا۔ چلیں مل کر دیکھتے ہیں۔“"
+       },
+       "why": {
+        "en": "Praise for careful counting, not for the answer.",
+        "ur": "تعریف دھیان سے گننے کی ہے، جواب کی نہیں۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you treat a wrong answer or an attempt as useful, and also ask for other views.",
+        "ur": "لیول 3 کے ساتھ، آپ نے غلط جواب یا کوشش کو مفید بنایا، اور دوسروں کی رائے بھی مانگی۔"
+       },
+       "example": {
+        "en": "“Thank you, Ali. That is a useful mistake, many of us count like this. Did anyone get a different answer? How did you count?”",
+        "ur": "”شکریہ علی۔ یہ مفید غلطی ہے، ہم میں سے بہت سے ایسے ہی گنتے ہیں۔ کسی کا جواب مختلف آیا؟ آپ نے کیسے گنا؟“"
+       },
+       "why": {
+        "en": "The mistake is used for learning, and other views are invited.",
+        "ur": "غلطی سے سیکھا گیا، اور دوسروں کی رائے مانگی گئی۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Name what the child did well: “You checked your answer, well done”, not only “Very good”.",
+       "ur": "بتائیں کہ بچے نے کیا اچھا کیا: ”آپ نے اپنا جواب دوبارہ جانچا، شاباش“، صرف ”بہت اچھا“ نہیں۔"
+      },
+      {
+       "en": "After a wrong answer, try: “Thank you, that helps us. Who did it another way?”",
+       "ur": "غلط جواب کے بعد یوں کہہ کر دیکھیں: ”شکریہ، اس سے ہمیں مدد ملی۔ کس نے کسی اور طریقے سے کیا؟“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "C8",
+     "name": {
+      "en": "Books and materials",
+      "ur": "کتابیں اور سامان"
+     },
+     "means": {
+      "en": "Whether books, the board, charts or objects are used for learning, and by whom: you, the children, or a child explaining with them.",
+      "ur": "کیا کتابیں، بورڈ، چارٹ یا چیزیں سیکھنے کے لیے استعمال ہوتی ہیں، اور کس کے ہاتھ میں: آپ کے، بچوں کے، یا ان سے سمجھانے والے بچے کے۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "The materials you name aloud. It cannot see your board or your class, so it only knows a material that someone names or says what to do with.",
+      "ur": "جو سامان آپ بول کر بتائیں۔ یہ آپ کا بورڈ یا کلاس نہیں دیکھ سکتا، اس لیے اسے صرف وہی سامان پتا چلتا ہے جس کا کوئی نام لے یا بتائے کہ اس سے کیا کرنا ہے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You never mention a book, the board, a chart, or any object or picture.",
+        "ur": "آپ نے کبھی کتاب، بورڈ، چارٹ یا کسی چیز یا تصویر کا ذکر نہیں کیا۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You mention a book, the board or an object only to show or tell, and do not ask the children to use it.",
+        "ur": "آپ نے کتاب، بورڈ یا کسی چیز کا ذکر صرف دکھانے یا بتانے کے لیے کیا، بچوں سے استعمال نہیں کروایا۔"
+       },
+       "example": {
+        "en": "“Look, these are 4 sticks and these are 5 sticks. Together they make 9.” The children only watch.",
+        "ur": "”دیکھیں، یہ 4 تیلیاں ہیں اور یہ 5۔ مل کر 9 بنتی ہیں۔“ بچے صرف دیکھتے ہیں۔"
+       },
+       "why": {
+        "en": "Only you used the sticks.",
+        "ur": "تیلیاں صرف آپ نے استعمال کیں۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "You ask the children to use a book, the board or an object themselves, and say how it connects to the idea.",
+        "ur": "آپ نے بچوں سے خود کتاب، بورڈ یا کوئی چیز استعمال کروائی، اور بتایا کہ اس کا خیال سے کیا تعلق ہے۔"
+       },
+       "example": {
+        "en": "“Take 4 sticks. Put 5 more next to them. Count them all. This is what 4 + 5 means: putting two groups together.”",
+        "ur": "”4 تیلیاں لیں۔ ان کے ساتھ 5 اور رکھیں۔ سب گنیں۔ 4 + 5 کا یہی مطلب ہے: دو ڈھیروں کو ملانا۔“"
+       },
+       "why": {
+        "en": "The children use the sticks, and you say how they connect to adding.",
+        "ur": "بچوں نے خود تیلیاں استعمال کیں، اور آپ نے بتایا کہ ان کا جمع سے کیا تعلق ہے۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you ask a child to explain with the book, chart or object, and you build on what the child says.",
+        "ur": "لیول 3 کے ساتھ، آپ نے کسی بچے سے کتاب، چارٹ یا چیز کے ساتھ سمجھانے کو کہا، اور بچے کی بات کو آگے بڑھایا۔"
+       },
+       "example": {
+        "en": "“Sana, show the class with your sticks how you got 9.” Sana: “I put 4, then 5 more, then I counted all.” “Yes. And if you start counting after the 4, you don’t need to count the first 4 again.”",
+        "ur": "”ثنا، اپنی تیلیوں سے کلاس کو دکھائیں کہ 9 کیسے آیا۔“ ثنا: ”میں نے 4 رکھیں، پھر 5 اور، پھر سب گنیں۔“ ”بالکل۔ اور اگر 4 کے بعد سے گنیں تو پہلی 4 دوبارہ گننے کی ضرورت نہیں۔“"
+       },
+       "why": {
+        "en": "A child explains with the sticks, and you build on what the child says.",
+        "ur": "بچے نے تیلیوں سے سمجھایا، اور آپ نے اس کی بات کو آگے بڑھایا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Say the material and the action aloud: “Open your book at page 12”, “Come and write it on the board.”",
+       "ur": "سامان کا نام اور کام بول کر بتائیں: ”کتاب کا صفحہ 12 کھولیں“، ”آئیں اور بورڈ پر لکھیں۔“"
+      },
+      {
+       "en": "Put objects in the children’s hands, then ask one child to show the class how they used them.",
+       "ur": "چیزیں بچوں کے ہاتھ میں دیں، پھر کسی ایک بچے سے کہیں کہ کلاس کو دکھائے اس نے انہیں کیسے استعمال کیا۔"
+      }
+     ],
+     "na": null
+    }
+   ]
+  },
+  {
+   "key": "D",
+   "name": {
+    "en": "What the children do",
+    "ur": "بچے کیا کرتے ہیں"
+   },
+   "items": [
+    {
+     "code": "D1",
+     "name": {
+      "en": "Children's reasoning",
+      "ur": "بچوں کی سوچ اور دلیل"
+     },
+     "means": {
+      "en": "How deep the children’s answers are: one word, a repeat of what was said, or a reason in the child’s own words.",
+      "ur": "بچوں کے جواب کتنے گہرے ہیں: ایک لفظ، کہی ہوئی بات کو دہرانا، یا بچے کے اپنے الفاظ میں دلیل۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Answers from any child: it cannot tell children apart. One-word answers said all together stay one-word answers.",
+      "ur": "کسی بھی بچے کے جواب: یہ بچوں کو الگ الگ نہیں پہچانتا۔ سب کا مل کر دیا ہوا ایک لفظ کا جواب، ایک لفظ کا جواب ہی رہتا ہے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "Children give only one-word answers or repeat a fact.",
+        "ur": "بچوں نے صرف ایک لفظ میں جواب دیے یا کوئی حقیقت دہرائی۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "At least one answer, from any child, is longer than a phrase, but it only repeats what was already said or read, or finishes your sentence.",
+        "ur": "کسی بھی بچے کا کم از کم ایک جواب ایک فقرے سے لمبا تھا، لیکن اس میں صرف پہلے کہی یا پڑھی ہوئی بات دہرائی گئی، یا آپ کا جملہ مکمل کیا گیا۔"
+       },
+       "example": {
+        "en": "You: “A hen is a bird because it has…” Child: “…feathers.”",
+        "ur": "آپ: ”مرغی پرندہ ہے کیونکہ اس کے…“ بچہ: ”…پر ہوتے ہیں۔“"
+       },
+       "why": {
+        "en": "The child only finished your sentence.",
+        "ur": "بچے نے صرف آپ کا جملہ مکمل کیا۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "At least two answers, from any children, show reasoning in the child’s own words: they say why, compare two things, use a rule on a new case, or explain a choice. Finishing your sentence, or repeating a reason you already gave, is not their own reasoning.",
+        "ur": "بچوں کے کم از کم دو جوابوں میں، کسی بھی بچے کے ہوں، بچے کے اپنے الفاظ میں دلیل تھی: وجہ بتائی، دو چیزوں کا موازنہ کیا، اصول کو نئی صورت پر لگایا، یا انتخاب سمجھایا۔ آپ کا جملہ مکمل کرنا، یا آپ کی بتائی ہوئی وجہ دہرانا، بچے کی اپنی دلیل نہیں۔"
+       },
+       "example": {
+        "en": "“Is a bat a bird?” Child: “No, because it has no feathers, it has hair.”",
+        "ur": "”کیا چمگادڑ پرندہ ہے؟“ بچہ: ”نہیں، کیونکہ اس کے پر نہیں، بال ہیں۔“"
+       },
+       "why": {
+        "en": "A reason in the child’s own words.",
+        "ur": "بچے کے اپنے الفاظ میں وجہ۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and a child gives their own example, or links the idea to something else, that you did not say first.",
+        "ur": "لیول 3 کے ساتھ، کسی بچے نے اپنی مثال دی، یا خیال کو کسی اور چیز سے جوڑا، جس کا ذکر آپ نے پہلے نہیں کیا۔"
+       },
+       "example": {
+        "en": "Child: “Miss, a peacock is a bird too. I saw one in the park, it has big feathers.”",
+        "ur": "بچہ: ”مس، مور بھی پرندہ ہے۔ میں نے پارک میں دیکھا تھا، اس کے بڑے بڑے پر ہوتے ہیں۔“"
+       },
+       "why": {
+        "en": "The child’s own example, one you had not given.",
+        "ur": "بچے کی اپنی مثال، جس کا ذکر آپ نے نہیں کیا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "After an answer, ask “Why?” or “How do you know?”, and let the child finish in their own words.",
+       "ur": "جواب کے بعد پوچھیں: ”کیوں؟“ یا ”آپ کو کیسے پتا؟“، اور بچے کو اپنے الفاظ میں بات پوری کرنے دیں۔"
+      },
+      {
+       "en": "Ask “What makes a hen a bird?”, not “A hen is a bird because it has…”, so the child builds the answer.",
+       "ur": "”مرغی پرندہ ہے کیونکہ اس کے…“ کی جگہ پوچھیں: ”مرغی کو پرندہ کیا چیز بناتی ہے؟“، تاکہ جواب بچہ خود بنائے۔"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "D5",
+     "name": {
+      "en": "Children's own questions",
+      "ur": "بچوں کے اپنے سوال"
+     },
+     "means": {
+      "en": "Whether children ask their own questions: about the task (which page?), or about the idea itself (why? what if?).",
+      "ur": "کیا بچے اپنے سوال پوچھتے ہیں: کام کے بارے میں (کون سا صفحہ؟)، یا خود خیال کے بارے میں (کیوں؟ اگر ایسا ہو تو؟)۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Children’s questions to you. A very quiet question may not reach the recording.",
+      "ur": "بچوں کے آپ سے سوال۔ بہت آہستہ پوچھا ہوا سوال شاید ریکارڈنگ میں نہ آئے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "No child asks you a question of their own. An unsure answer (“Is it twelve?”) or a child repeating your question (“Why?”) is not a question of their own.",
+        "ur": "کسی بچے نے آپ سے اپنا سوال نہیں پوچھا۔ بے یقینی والا جواب (”کیا بارہ ہے؟“) یا آپ کا سوال دہرانا (”کیوں؟“) بچے کا اپنا سوال نہیں۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "Children ask only about the task: which page, do we write this, is it homework, may I answer, or please say it again.",
+        "ur": "بچوں نے صرف کام کے بارے میں پوچھا: کون سا صفحہ، کیا یہ لکھنا ہے، کیا یہ ہوم ورک ہے، کیا میں جواب دوں، یا دوبارہ بتائیں۔"
+       },
+       "example": {
+        "en": "“Miss, which page are these sums on?”",
+        "ur": "”مس، یہ سوال کس صفحے پر ہیں؟“"
+       },
+       "why": {
+        "en": "A question about the task, not the idea.",
+        "ur": "کام کے بارے میں سوال، خیال کے بارے میں نہیں۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "Children ask at least one question about the idea itself: how or why something works, or what would happen in a different case.",
+        "ur": "بچوں نے خود خیال کے بارے میں کم از کم ایک سوال پوچھا: کوئی چیز کیسے یا کیوں ہوتی ہے، یا کسی اور صورت میں کیا ہو گا۔"
+       },
+       "example": {
+        "en": "“Miss, why do we carry the 1 to the tens? Why don’t we just write 12 at the bottom?”",
+        "ur": "”مس، ہم 1 کو دہائی کے خانے میں کیوں لے جاتے ہیں؟ نیچے سیدھا 12 کیوں نہیں لکھ دیتے؟“"
+       },
+       "why": {
+        "en": "A question about why the idea works.",
+        "ur": "یہ سوال کہ خیال کیوں کام کرتا ہے۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and children ask at least two questions about the idea, and one of them is about something you have not talked about in this lesson.",
+        "ur": "لیول 3 کے ساتھ، بچوں نے خیال کے بارے میں کم از کم دو سوال پوچھے، اور ان میں سے ایک ایسی بات کے بارے میں تھا جس پر آپ نے اس سبق میں بات نہیں کی۔"
+       },
+       "example": {
+        "en": "Later: “Miss, if we add three numbers and get 25 in the ones, do we carry 2?” (Adding three numbers was not taught today.)",
+        "ur": "بعد میں: ”مس، اگر ہم تین عدد جمع کریں اور اکائی میں 25 آئے تو کیا 2 لے جائیں گے؟“ (تین عدد جمع کرنا آج نہیں پڑھایا گیا۔)"
+       },
+       "why": {
+        "en": "A second question about the idea, and it goes beyond today’s lesson.",
+        "ur": "خیال کے بارے میں دوسرا سوال، جو آج کے سبق سے آگے جاتا ہے۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Instead of “Any questions?”, ask “Any ‘why’ or ‘how’ question about this?”, and wait.",
+       "ur": "”کوئی سوال؟“ کی جگہ پوچھیں: ”اس کے بارے میں کوئی ’کیوں‘ یا ’کیسے‘ والا سوال؟“، اور انتظار کریں۔"
+      },
+      {
+       "en": "When a child asks about the idea, thank them, say the question again for the whole class, and answer it or let the class try.",
+       "ur": "جب کوئی بچہ خیال کے بارے میں پوچھے تو شکریہ کہیں، سوال پوری کلاس کے لیے دہرائیں، اور جواب دیں یا کلاس کو کوشش کرنے دیں۔"
+      }
+     ],
+     "na": null
+    }
+   ]
+  },
+  {
+   "key": "F",
+   "name": {
+    "en": "Subject knowledge",
+    "ur": "مضمون کا علم"
+   },
+   "items": [
+    {
+     "code": "F1",
+     "name": {
+      "en": "Accuracy of content",
+      "ur": "مواد کی درستی"
+     },
+     "means": {
+      "en": "Whether what you say about the subject is correct, and whether anything wrong is corrected, including a mistake in the textbook.",
+      "ur": "کیا مضمون کے بارے میں آپ کی کہی ہوئی بات درست ہے، اور کیا غلط بات درست کی گئی، کتاب کی غلطی بھی۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Everything you say about the subject, including what you read out from the book. A slip you correct yourself is not an error.",
+      "ur": "مضمون کے بارے میں آپ کی ہر بات، کتاب سے پڑھ کر سنائی ہوئی بات بھی۔ جو چوک آپ خود درست کر لیں، وہ غلطی نہیں۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You say something wrong and leave it, so the children are left with wrong information. A word the recording may have misheard or mistranslated is not treated as wrong.",
+        "ur": "آپ نے کوئی غلط بات کہی اور اسے ویسے ہی چھوڑ دیا، تو بچوں کے پاس غلط معلومات رہ گئیں۔ جو لفظ ریکارڈنگ میں غلط سنا یا غلط ترجمہ ہوا ہو، اسے غلط نہیں سمجھا جاتا۔"
+       },
+       "example": {
+        "en": "Reading from the book: “A spider is an insect.” Nobody corrects it. (A spider has eight legs; it is not an insect.)",
+        "ur": "کتاب سے پڑھا: ”مکڑی ایک انسیکٹ ہے۔“ کسی نے درست نہیں کیا۔ (مکڑی کی آٹھ ٹانگیں ہوتی ہیں، یہ انسیکٹ نہیں۔)"
+       },
+       "why": {
+        "en": "A wrong fact from the book was taught as it is.",
+        "ur": "کتاب کی غلط بات ویسے ہی پڑھا دی گئی۔"
+       }
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "Mostly correct, but you make a small slip (a wrong rule or a wrong word) and do not correct it.",
+        "ur": "زیادہ تر درست، لیکن آپ سے چھوٹی چوک ہوئی (غلط اصول یا غلط لفظ) اور آپ نے اسے درست نہیں کیا۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "Everything you say is correct. When you are not sure, you say so and do not guess.",
+        "ur": "آپ کی ہر بات درست تھی۔ جہاں یقین نہیں تھا، وہاں آپ نے یہ بتا دیا اور اندازہ نہیں لگایا۔"
+       },
+       "example": {
+        "en": "Child: “How many kinds of insects are there?” You: “I am not sure of the exact number. Let’s find out tomorrow.”",
+        "ur": "بچہ: ”مس، دنیا میں کتنی قسم کے انسیکٹ ہیں؟“ آپ: ”مجھے صحیح عدد کا یقین نہیں۔ ہم کل پتا کریں گے۔“"
+       },
+       "why": {
+        "en": "You said you were not sure, instead of guessing.",
+        "ur": "یقین نہیں تھا تو آپ نے یہ بتا دیا، اندازہ نہیں لگایا۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you warn the children about a common mistake before they make it.",
+        "ur": "لیول 3 کے ساتھ، آپ نے بچوں کو کسی عام غلطی سے پہلے ہی خبردار کر دیا۔"
+       },
+       "example": {
+        "en": "“Many people think a spider is an insect because it is small and crawls. Always count the legs first: six legs is an insect, eight is not.”",
+        "ur": "”بہت سے لوگ سمجھتے ہیں مکڑی انسیکٹ ہے کیونکہ یہ چھوٹی ہے اور رینگتی ہے۔ ہمیشہ پہلے ٹانگیں گنیں: چھ ٹانگیں ہوں تو انسیکٹ، آٹھ ہوں تو نہیں۔“"
+       },
+       "why": {
+        "en": "You warned about a common mistake before the children made it.",
+        "ur": "بچوں کے غلطی کرنے سے پہلے آپ نے انہیں خبردار کر دیا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Read the book’s page before class. If it has a mistake, tell the children: “The book is wrong here.”",
+       "ur": "کلاس سے پہلے کتاب کا صفحہ پڑھ لیں۔ اس میں غلطی ہو تو بچوں کو بتائیں: ”یہاں کتاب میں غلطی ہے۔“"
+      },
+      {
+       "en": "If a child asks something you don’t know, it is fine to say: “I am not sure. Let’s find out.”",
+       "ur": "اگر بچہ کچھ ایسا پوچھے جو آپ کو معلوم نہ ہو، تو یہ کہنا ٹھیک ہے: ”مجھے یقین نہیں۔ ہم پتا کریں گے۔“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "F2",
+     "name": {
+      "en": "Subject words",
+      "ur": "مضمون کے الفاظ"
+     },
+     "means": {
+      "en": "Whether you use the subject’s own words (like “numerator” or “verb”) and explain them, and whether the children are made to use them too.",
+      "ur": "مضمون کے اپنے الفاظ (جیسے ”شمار کنندہ“ یا ”فعل“) کا استعمال اور ان کی وضاحت، اور یہ کہ بچوں سے بھی یہ الفاظ استعمال کروائے جائیں۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "The subject words you say, whether you explain what they mean, and whether the children say them in their answers.",
+      "ur": "آپ کے بولے ہوئے مضمون کے الفاظ، کیا ان کا مطلب سمجھایا گیا، اور کیا بچے اپنے جوابوں میں یہ الفاظ بولتے ہیں۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You use everyday words only, and no subject words.",
+        "ur": "آپ نے صرف روزمرہ کے الفاظ استعمال کیے، مضمون کا کوئی لفظ نہیں۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You use some subject words but do not explain them, or you mix them up.",
+        "ur": "آپ نے مضمون کے کچھ الفاظ استعمال کیے لیکن سمجھائے نہیں، یا انہیں آپس میں ملا دیا۔"
+       },
+       "example": {
+        "en": "“Underline the verbs in these sentences.” You never say what a verb is.",
+        "ur": "”ان جملوں میں فعل کے نیچے لکیر لگائیں۔“ فعل کیا ہوتا ہے، یہ کہیں نہیں بتایا گیا۔"
+       },
+       "why": {
+        "en": "The word is used, but not explained.",
+        "ur": "لفظ استعمال ہوا، لیکن سمجھایا نہیں گیا۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "At least two times, you use a subject word and explain what it means.",
+        "ur": "کم از کم دو بار آپ نے مضمون کا کوئی لفظ استعمال کیا اور اس کا مطلب سمجھایا۔"
+       },
+       "example": {
+        "en": "“A verb is an action word, a word for something we do, like run, eat or write.” Later: “In ‘Ali kicks the ball’, the verb is ‘kicks’, because kicking is what Ali does.”",
+        "ur": "”فعل کام والا لفظ ہے، یعنی وہ جو ہم کرتے ہیں، جیسے دوڑنا، کھانا، لکھنا۔“ بعد میں: ”’علی نے گیند کو ٹھوکر ماری‘ میں فعل ’ٹھوکر ماری‘ ہے، کیونکہ یہ وہ کام ہے جو علی نے کیا۔“"
+       },
+       "why": {
+        "en": "The word is used and explained, two times.",
+        "ur": "لفظ دو بار استعمال ہوا اور سمجھایا گیا۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you make the children use the subject words, and correct loose words by giving the right one.",
+        "ur": "لیول 3 کے ساتھ، آپ نے بچوں سے مضمون کے الفاظ استعمال کروائے، اور ڈھیلے لفظ کی جگہ درست لفظ بتا کر اسے ٹھیک کیا۔"
+       },
+       "example": {
+        "en": "Child: “Run is a doing word.” You: “Yes. What do we call a doing word?” Child: “A verb. Run is a verb.”",
+        "ur": "بچہ: ”دوڑنا کام والا لفظ ہے۔“ آپ: ”جی۔ کام والے لفظ کو کیا کہتے ہیں؟“ بچہ: ”فعل۔ دوڑنا فعل ہے۔“"
+       },
+       "why": {
+        "en": "The child uses the right word instead of the loose one.",
+        "ur": "بچے نے ڈھیلے لفظ کی جگہ درست لفظ استعمال کیا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Pick two or three subject words for the lesson. Say each one, explain it in simple words, and use it again later.",
+       "ur": "سبق کے لیے مضمون کے دو تین الفاظ چنیں۔ ہر لفظ بولیں، آسان الفاظ میں سمجھائیں، اور بعد میں دوبارہ استعمال کریں۔"
+      },
+      {
+       "en": "When a child uses a loose word, give the right one and ask the child to say it: “Yes, and what do we call that?”",
+       "ur": "جب بچہ ڈھیلا لفظ استعمال کرے تو درست لفظ بتائیں اور بچے سے کہلوائیں: ”جی، اور اسے کیا کہتے ہیں؟“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "F3",
+     "name": {
+      "en": "Explaining why",
+      "ur": "وجہ سمجھانا"
+     },
+     "means": {
+      "en": "Whether you explain why a rule or step works, with a reason, an example or a picture, or only say how to do it. At its strongest, you turn a child’s question into a short lesson, or ask the children to give the reason.",
+      "ur": "یہ کہ آپ کسی اصول یا قدم کے کام کرنے کی وجہ سمجھائیں (وجہ، مثال یا تصویر کے ساتھ)، یا صرف یہ بتائیں کہ کیسے کرنا ہے۔ سب سے مضبوط صورت میں آپ بچے کے سوال کو ایک مختصر سبق بنا دیں، یا بچوں سے وجہ پوچھیں۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Your “because…”, examples and pictures after you give a rule or a step. It cannot see your board, so say aloud what a drawing shows.",
+      "ur": "اصول یا قدم بتانے کے بعد آپ کا ”کیونکہ…“، مثالیں اور تصویریں۔ یہ آپ کا بورڈ نہیں دیکھ سکتا، اس لیے تصویر میں کیا ہے، یہ بول کر بتائیں۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You only say how to do it, and give no reason.",
+        "ur": "آپ نے صرف یہ بتایا کہ کیسے کرنا ہے، کوئی وجہ نہیں دی۔"
+       },
+       "example": {
+        "en": "“Keep 4 in your head and count 5 more on your fingers. Just do it this way.”",
+        "ur": "”4 ذہن میں رکھیں اور انگلیوں پر 5 اور گنیں۔ بس ایسے ہی کریں۔“"
+       },
+       "why": {
+        "en": "How to do it, with no reason.",
+        "ur": "کیسے کرنا ہے، وجہ کے بغیر۔"
+       }
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You give a reason now and then, but mostly ask the children to remember the rule.",
+        "ur": "آپ نے کبھی کبھار وجہ بتائی، لیکن زیادہ تر بچوں سے اصول یاد کرنے کو کہا۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "At least two times, you explain why a rule or step works, with a reason, an example or a picture.",
+        "ur": "کم از کم دو بار آپ نے سمجھایا کہ کوئی اصول یا قدم کیوں کام کرتا ہے، وجہ، مثال یا تصویر کے ساتھ۔"
+       },
+       "example": {
+        "en": "“These 4 are already counted, so we start after them: 5, 6, 7, 8, 9.” Later, the same idea again with dots on the board, said aloud.",
+        "ur": "”یہ 4 تو گنی ہوئی ہیں، اس لیے ہم ان کے بعد سے شروع کرتے ہیں: 5، 6، 7، 8، 9۔“ بعد میں یہی بات بورڈ پر نقطوں سے، بول کر۔"
+       },
+       "why": {
+        "en": "A reason for the step, two times.",
+        "ur": "قدم کی وجہ، دو بار۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and you turn a child’s question into a short lesson that goes further, or ask the children to give the reason.",
+        "ur": "لیول 3 کے ساتھ، آپ نے کسی بچے کے سوال کو ایک مختصر سبق بنا کر بات آگے بڑھائی، یا بچوں سے وجہ بتانے کو کہا۔"
+       },
+       "example": {
+        "en": "“Who can tell us why we start counting after the 4 and not on the 4?” Hina: “Because the 4 is already there. If we count it again, we get too many.”",
+        "ur": "”کون بتائے گا کہ ہم 4 کے بعد سے کیوں گنتے ہیں، 4 سے کیوں نہیں؟“ ہنا: ”کیونکہ 4 تو پہلے سے ہیں۔ دوبارہ گنیں تو زیادہ ہو جائیں گے۔“"
+       },
+       "why": {
+        "en": "The child gives the reason.",
+        "ur": "وجہ بچے نے خود بتائی۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "After each rule, add “because…”, or show it with fingers, objects or a drawing, and say aloud what it shows.",
+       "ur": "ہر اصول کے بعد ”کیونکہ…“ کہیں، یا انگلیوں، چیزوں یا تصویر سے دکھائیں، اور بول کر بتائیں کہ اس میں کیا ہے۔"
+      },
+      {
+       "en": "Once a lesson, ask the class: “Who can tell us why this works?”",
+       "ur": "ہر سبق میں ایک بار کلاس سے پوچھیں: ”کون بتائے گا کہ یہ طریقہ کیوں کام کرتا ہے؟“"
+      }
+     ],
+     "na": null
+    },
+    {
+     "code": "F4",
+     "name": {
+      "en": "Links to real life",
+      "ur": "روزمرہ زندگی سے تعلق"
+     },
+     "means": {
+      "en": "Whether you link the lesson to real life, another subject or an earlier lesson, with an example or comparison, and explain the link. At its strongest, the children build on your link.",
+      "ur": "یہ کہ آپ سبق کو روزمرہ زندگی، کسی دوسرے مضمون یا پچھلے سبق سے، مثال یا موازنے کے ذریعے جوڑیں، اور تعلق سمجھائیں۔ سب سے مضبوط صورت میں بچے آپ کے جوڑے ہوئے تعلق کو آگے بڑھاتے ہیں۔"
+     },
+     "who": "dc",
+     "how": {
+      "en": "Your examples from daily life, other subjects or earlier lessons, and whether you say how they fit today’s idea. It also listens for children adding to your link.",
+      "ur": "روزمرہ زندگی، کسی دوسرے مضمون یا پچھلے سبق سے آپ کی مثالیں، اور کیا آپ نے بتایا کہ وہ آج کے خیال سے کیسے جڑتی ہیں۔ یہ بچوں کا آپ کے تعلق میں اضافہ بھی سنتا ہے۔"
+     },
+     "levels": [
+      {
+       "n": 1,
+       "text": {
+        "en": "You give no real-life example, comparison, or link to another subject or an earlier lesson.",
+        "ur": "آپ نے نہ روزمرہ زندگی کی کوئی مثال دی، نہ موازنہ کیا، نہ کسی دوسرے مضمون یا پچھلے سبق سے تعلق جوڑا۔"
+       },
+       "example": null,
+       "why": null
+      },
+      {
+       "n": 2,
+       "text": {
+        "en": "You mention a link and move on without explaining it.",
+        "ur": "آپ نے تعلق کا ذکر کیا اور سمجھائے بغیر اگلی بات شروع کر دی۔"
+       },
+       "example": {
+        "en": "“We use adding in the shop. OK, now do question 2.”",
+        "ur": "”دکان پر ہم جمع استعمال کرتے ہیں۔ چلیں، اب سوال 2 کریں۔“"
+       },
+       "why": {
+        "en": "A link is mentioned, but not explained.",
+        "ur": "تعلق کا ذکر ہوا، لیکن سمجھایا نہیں گیا۔"
+       }
+      },
+      {
+       "n": 3,
+       "text": {
+        "en": "You give a link and explain how it fits the idea.",
+        "ur": "آپ نے تعلق بتایا اور سمجھایا کہ وہ خیال سے کیسے جڑتا ہے۔"
+       },
+       "example": {
+        "en": "“If you buy a pencil for 4 rupees and an eraser for 5 rupees, you pay 4 + 5 = 9 rupees. That is why we learn to add.”",
+        "ur": "”4 روپے کی پنسل اور 5 روپے کا ربڑ خریدیں تو 4 + 5 = 9 روپے دینے ہوں گے۔ اسی لیے ہم جمع سیکھتے ہیں۔“"
+       },
+       "why": {
+        "en": "You showed how shopping fits adding.",
+        "ur": "آپ نے دکھایا کہ دکان کا حساب جمع سے کیسے جڑتا ہے۔"
+       }
+      },
+      {
+       "n": 4,
+       "text": {
+        "en": "Everything in level 3, and a child builds on your link: they add to it, ask about it, or explain it in their own words.",
+        "ur": "لیول 3 کے ساتھ، کسی بچے نے آپ کے تعلق کو آگے بڑھایا: اس میں اضافہ کیا، اس کے بارے میں پوچھا، یا اپنے الفاظ میں سمجھایا۔"
+       },
+       "example": {
+        "en": "Child: “Miss, my mother gave the shopkeeper 10 rupees for 9 rupees of things, so he gave her 1 rupee back!”",
+        "ur": "بچہ: ”مس، میری امی نے 9 روپے کی چیزوں کے لیے دکاندار کو 10 روپے دیے، تو اس نے 1 روپیہ واپس کیا!“"
+       },
+       "why": {
+        "en": "A child builds on your link with their own example.",
+        "ur": "بچے نے اپنی مثال سے آپ کے تعلق کو آگے بڑھایا۔"
+       }
+      }
+     ],
+     "tips": [
+      {
+       "en": "Use one example from the children’s own life, and say how it fits: “That is why…”",
+       "ur": "بچوں کی اپنی زندگی سے ایک مثال لیں، اور بتائیں کہ وہ کیسے جڑتی ہے: ”اسی لیے…“"
+      },
+      {
+       "en": "Then ask: “Where else have you seen this?”, and let a child add to it.",
+       "ur": "پھر پوچھیں: ”یہ آپ نے اور کہاں دیکھا ہے؟“، اور کسی بچے کو اس میں اضافہ کرنے دیں۔"
+      }
+     ],
+     "na": null
+    }
+   ]
+  }
+ ],
+ "provenance": "bd-ra8xu.64 (queue #282), 2026-11-25: the FICO v6 indicator guide rewritten for a teacher reading the Digital Coach report on her own recorded lesson, for the 11 indicators the Digital Coach scores. Sources (read-only): portal/src/portal/teacher/help/observe/fico_v6.manual.ts (Dr Rifat Yasmeen's observer manual, read 2026-11-24) and bot/shared/services/coaching/frameworks/fico17-v6/ fico17_v6.rubric.json, fico17_v6.ur.json, fico17_v6.na.json, in the NIETE-Rumi worktree bd-ra8xu.64 at 425e5ffd1b. Level meaning kept to the rubric's level text; names and level labels are the rubric's. Urdu is a DRAFT for native review (Western digits, as the portal). Checked and rendered by the work folder's workbench/teacher_guide_build.py. Not yet reviewed by Dr Rifat Yasmeen."
+}

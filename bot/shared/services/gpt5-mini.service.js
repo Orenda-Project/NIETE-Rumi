@@ -1238,7 +1238,7 @@ Rules:
       const prompt = `You are enhancing a classroom observation report with the teacher's reflective responses.
 
 ORIGINAL ANALYSIS (from classroom observation):
-${JSON.stringify(analysisData, null, 2)}
+${JSON.stringify(require('./coaching/frameworks/fico17-v6/model-view').modelView(analysisData), null, 2)}
 
 CLASSROOM TRANSCRIPT:
 ${transcript}
@@ -1396,7 +1396,12 @@ GUIDELINES:
       GPT5MiniService._preserveFrameworkShape(enhancedAnalysis, analysisData);
 
       // Compute marks for Debrief & Reflection section
-      if (enhancedAnalysis.debrief_reflection) {
+      // Queue #282: a FICO17 v6 analysis's scores are its own (out of 44, never V3's 103 + 15 + 5), so no V3-based
+      // debrief totals are added to them; the debrief's own marks are still kept under debrief_reflection.
+      const v6Scores = !!(enhancedAnalysis.scores && enhancedAnalysis.scores.rubric === 'fico17_v6');
+      if (enhancedAnalysis.debrief_reflection && v6Scores) {
+        enhancedAnalysis.debrief_reflection = this._computeDebriefMarks(enhancedAnalysis.debrief_reflection);
+      } else if (enhancedAnalysis.debrief_reflection) {
         enhancedAnalysis.debrief_reflection = this._computeDebriefMarks(enhancedAnalysis.debrief_reflection);
 
         // Update overall scores to include debrief marks
@@ -1784,13 +1789,17 @@ Recommendations: ${JSON.stringify(recommendations)}
    * WhatsApp shows numbers; mock runs 20261026-2335-par / 20261026-201716, bd-1r3k2h). Empty when the
    * analysis carries no overall score, so nothing is invented.
    */
-  static voiceScoreRule(observationData) {
+  static voiceScoreRule(observationData, language = 'en') {
     const sc = observationData && observationData.analysis && observationData.analysis.scores;
     const pct = sc && Number.isFinite(Number(sc.overall_percentage)) ? Math.round(Number(sc.overall_percentage)) : null;
     if (pct === null) return '';
-    const marks = sc && Number.isFinite(Number(sc.overall_marks)) && Number.isFinite(Number(sc.overall_max_marks))
-      ? ` (${Number(sc.overall_marks)} of ${Number(sc.overall_max_marks)} marks)` : '';
-    return `SCORE — right after the greeting, say the lesson's overall score as a NUMBER, exactly as the report shows it: ${pct}%${marks}. Say the number itself; never a band word (Excellent, Good, Average, Below average, Needs support) in its place.
+    const hasMarks = sc && Number.isFinite(Number(sc.overall_marks)) && Number.isFinite(Number(sc.overall_max_marks));
+    const marks = hasMarks ? ` (${Number(sc.overall_marks)} of ${Number(sc.overall_max_marks)} marks)` : '';
+    // Queue #282: in Urdu "X میں سے Y" is "Y out of X"; a script said "27 میں سے 44" (44 out of 27) for 27 of 44.
+    const urdu = language === 'ur' && hasMarks
+      ? ` In Urdu say the marks in exactly this order: "${Number(sc.overall_max_marks)} میں سے ${Number(sc.overall_marks)} نمبر" (the total first, then her marks), with the numbers as words.`
+      : '';
+    return `SCORE — right after the greeting, say the lesson's overall score as a NUMBER, exactly as the report shows it: ${pct}%${marks}.${urdu} Say the number itself; never a band word (Excellent, Good, Average, Below average, Needs support) in its place.
 
 `;
   }
@@ -1849,7 +1858,7 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-${GPT5MiniService.voiceScoreRule(observationData)}${voiceFidelityRule(observationData)}
+${GPT5MiniService.voiceScoreRule(observationData, language)}${voiceFidelityRule(observationData)}
 
 ${GPT5MiniService.voiceExamplesRule(moments)}
 TONE:
@@ -1978,6 +1987,9 @@ YOUR LAST DRAFT WAS REJECTED: it described ${named} as part of this lesson, and 
  * source of truth, so for non-OECD frameworks they ALWAYS overwrite the LLM's
  * output — presence of an LLM-emitted key is never a reason to keep it.
  */
+// Queue #282: what a model prompt may see of an analysis (no V3 or raw-read keys on a v6 one): fico17-v6/model-view.js.
+GPT5MiniService.modelView = (analysis) => require('./coaching/frameworks/fico17-v6/model-view').modelView(analysis);
+
 GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisData) {
   const originalFramework = analysisData?.framework;
   if (originalFramework && originalFramework !== 'oecd') {
