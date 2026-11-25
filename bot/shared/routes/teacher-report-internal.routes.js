@@ -5,7 +5,7 @@
  * behind requireInternalKey; WHO is asking comes only from the signed report
  * token (kind 'tr'), never from the request.
  *
- *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
+ *   GET /page/:token[?lang=&tab=class&class=<listId>&from=home|wa|list]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap (+ quiz_forward_tap wa_report), 302 -> wa.me with the reminder
  *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
@@ -33,6 +33,7 @@ const Data = require('../services/quiz/teacher-report.data');
 const Token = require('../services/quiz/teacher-report-token');
 const { renderPage, renderMessagePage, REPORT_PATH } = require('../templates/teacher-report.page');
 const Jugnu = require('./teacher-jugnu-internal.routes'); // the Jugnu tab (web_quiz_teacher_jugnu)
+const LateFlag = require('../services/quiz/report-late-flag'); // the late finishers (quiz_teacher_home_reports)
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -151,6 +152,20 @@ function notFound(req, res, v) {
 }
 
 /**
+ * The late finishers (quiz_teacher_home_reports, bd-5j1zaf): while on, teacher_report.opened gains late_n (the quiz
+ * tab only: how many finished after the 12 h report) and from (?from= exactly home | wa | list: the teacher home, the
+ * WhatsApp report, the quiz list's link; anything else absent). Off: {} — today's event.
+ */
+const FROM = new Set(['home', 'wa', 'list']);
+function lateFields(req, b) {
+  const from = typeof req.query.from === 'string' && FROM.has(req.query.from) ? req.query.from : null;
+  return {
+    ...(b.tab === 'quiz' ? { late_n: (b.report && b.report.summary && b.report.summary.late) || 0 } : {}),
+    ...(from ? { from } : {}),
+  };
+}
+
+/**
  * Events v2 (web_quiz_events_v2, fail-closed): teacher_report.opened in the v2 envelope with render_ms (the route's
  * start to just before the send) and queue_age_s (the kept queue's age in whole seconds, ≤ QUEUE_TTL_S, when the
  * join-queue service has queueAge and keeps one); the same numbers as the x-render-ms / x-queue-age headers. Off:
@@ -187,16 +202,20 @@ router.get('/page/:token', handle(async (req, res) => {
   }
   // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
   const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
+  // ── evening rounds (web_quiz_evening_round): the class tab's "Evening rounds" section; '' when off or none ──
+  const eveningCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-evening-round').reportSection(v.teacherId, { lang: b.lang }) : '';
+  const [v2, late] = await Promise.all([require('../services/quiz/web-quiz-hub-flags').eventsV2On(), LateFlag.on()]);
   const opened = {
     teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: jugnu && jugnu.view ? 'jugnu' : b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
+    ...(late ? lateFields(req, b) : {}),
   };
-  const v2 = await require('../services/quiz/web-quiz-hub-flags').eventsV2On();
   if (!v2) logEvent('teacher_report.opened', opened);
   const queueAge = v2 ? await queueAgeOf(v.teacherId) : null;
   const html = renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
     ...(jugnu ? { jugnu } : {}),
-    ...(roundCard ? { roundCard } : {}),
+    ...(roundCard || eveningCard ? { roundCard: `${roundCard}${eveningCard}` } : {}),
+    ...(late ? { late: true } : {}),
   });
   if (v2) {
     const renderMs = Math.max(0, Math.round(performance.now() - t0));
@@ -213,9 +232,9 @@ router.get('/page/:token', handle(async (req, res) => {
 router.get('/pdf/:token', handle(async (req, res) => {
   const v = authorise(req, res);
   if (!v) return;
-  const b = await build(req, v);
+  const [b, late] = await Promise.all([build(req, v), LateFlag.on()]);
   if (!b) { notFound(req, res, v); return; }
-  const html = renderPage(b.data, { lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, print: true });
+  const html = renderPage(b.data, { lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, print: true, ...(late ? { late: true } : {}) });
   // Required here, not at the top: Chromium is loaded only when a PDF is asked for.
   // eslint-disable-next-line global-require
   const { htmlToPdf } = require('../utils/html-to-pdf');
@@ -229,15 +248,15 @@ router.get('/pdf/:token', handle(async (req, res) => {
   res.status(200).type('application/pdf').send(pdf);
 }));
 
-/** quiz_forward_tap { surface: wa_report } for one of the teacher's quizzes; never throws, never delays the redirect long. */
-async function forwardTap(teacherId, quizId) {
+/** quiz_forward_tap { surface: wa_report } for one of the teacher's quizzes (qa: a QA walk's user agent); never throws, never delays the redirect long. */
+async function forwardTap(teacherId, quizId, ua) {
   try {
     const Forward = require('../services/first-touch/quiz-forward');
     const { data } = await supabase.from('quizzes').select('id, teacher_id, quiz_source, meta').eq('id', quizId).eq('teacher_id', teacherId).maybeSingle();
     const sc = data && data.meta ? uuidOr(data.meta.share_code_id) : null;
     const code = sc && typeof data.meta.share_code === 'string' ? data.meta.share_code : null;
     const codeH = code ? (require('../services/quiz/web-quiz.service').codeHash(code) || null) : null;
-    Forward.logTap({ uid: teacherId, shareCodeId: sc, codeH, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source) });
+    Forward.logTap({ uid: teacherId, shareCodeId: sc, codeH, surface: 'wa_report', method: 'wa_me', origin: Forward.originOf(data && data.quiz_source), qa: Forward.isWalk(ua) });
   } catch (_) { /* the meter never decides the reminder */ }
 }
 
@@ -254,7 +273,7 @@ router.get('/remind/:token', handle(async (req, res) => {
     teacherId: v.teacherId, quizId, notPlayed: Array.isArray(report.notPlayed) ? report.notPlayed.length : null,
   });
   // the report's one tap to the class group is the forward meter's wa_report surface (quiz-forward.js; never switched)
-  await forwardTap(v.teacherId, quizId);
+  await forwardTap(v.teacherId, quizId, req.get('user-agent'));
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));

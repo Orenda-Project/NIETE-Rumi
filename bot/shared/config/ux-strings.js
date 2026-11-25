@@ -4568,6 +4568,99 @@ const UX_STRINGS = {
     en: 'Likely confusion',
     ur: 'ممکنہ الجھن',
   },
+
+  // ── qfix report: a "most missed" question whose answer key is under review (video-quiz-report hardestQuestions,
+  // app_settings video_quiz_report_key_review) ──
+  // Printed instead of "most chose X, the right answer is Y" in the class report's PDF and its text fallback, in the
+  // quiz's language. Urdu: ہم (we) is the subject, so no verb addresses the teacher; plain words, no "quiz".
+  qfix_report_key_review: {
+    en: 'Answer key under review: we are checking which answer is right.',
+    ur: 'جواب کی جانچ جاری ہے: ہم دیکھ رہے ہیں کہ اس سوال کا کون سا جواب درست ہے۔',
+  },
+
+  // ── qfix report: children who finish after the 12 h report, on the teacher's own pages (bd-5j1zaf, app_settings
+  // quiz_teacher_home_reports). The teacher home's "Quiz reports" section (its digits are the home's own: Urdu digits
+  // on the Urdu page) and the live report page's quiz tab (Western digits, as the class report's other numbers). No
+  // verb addresses the teacher; «بچوں» and «نے کھیلا» are the generic plural, as the home's own th.played.n. ──
+  qfix_report_home_head: {
+    en: 'Quiz reports',
+    ur: 'کوئز رپورٹس',
+  },
+  // {played} children on the class list who finished, {of} the class list's size
+  qfix_report_home_of: {
+    en: '{played} of {of} played',
+    ur: '{of} میں سے {played} نے کھیلا',
+  },
+  // no class list known: everyone who finished
+  qfix_report_home_n: {
+    en: '{played} played',
+    ur: '{played} نے کھیلا',
+  },
+  // the chip on a row: children who finished after the quiz's report was sent ({late} ≥ 1)
+  qfix_report_home_late: {
+    en: '+{late} after the report',
+    ur: 'رپورٹ کے بعد +{late}',
+  },
+  // the quiz's 12 h report has not gone yet: no chip
+  qfix_report_home_pending: {
+    en: 'Report not sent yet',
+    ur: 'رپورٹ ابھی نہیں بھیجی گئی',
+  },
+  // the section's foot: the class tab's evening rounds (only while a class has a live round)
+  qfix_report_home_rounds: {
+    en: 'Evening rounds',
+    ur: 'شام کے کوئز',
+  },
+  // the live report's quiz tab, under the title ({late} ≥ 1)
+  qfix_report_page_line: {
+    en: '{n} played · {late} after the report was sent',
+    ur: '{n} نے کھیلا · {late} رپورٹ بھیجنے کے بعد',
+  },
+  // the tag on each child's score row who finished after the report
+  qfix_report_page_tag: {
+    en: 'after the report',
+    ur: 'رپورٹ کے بعد',
+  },
+  // A quiz link's head guessed before the bot answers, with nothing kept (web_quiz_head_guess_honest): the quiz's
+  // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
+  quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
+  quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
+
+  // ─── qfix_class_link (append-only): the class evening round's tile on the child's hub ───────────────────
+  // copy.v2.json qfix_class_link.round_title; a 5-minute round written from the class's lesson of the day.
+  qfix_class_link_round_title: {
+    en: "Tonight's quiz",
+    ur: 'آج شام کا کوئز',
+  },
+  // The teacher report's "Evening rounds" rows name their day: the week's days Sunday first, '|' between them
+  // (web-quiz-evening-round.js dayWords, with the month names of coaching/weekly-report/message.js).
+  qfix_class_link_weekdays: {
+    en: 'Sun|Mon|Tue|Wed|Thu|Fri|Sat',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // The same week as whole words, Sunday first, '|' between them: the child's hub names the previous school day's
+  // round by its day ("Friday's quiz"); Urdu's day names have no short form, so its list is the one above.
+  qfix_class_link_weekdays_long: {
+    en: 'Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday',
+    ur: 'اتوار|پیر|منگل|بدھ|جمعرات|جمعہ|ہفتہ',
+  },
+  // copy.v2.json qfix_class_link.past_title: the row under the hub's Next tile for the previous school day's round;
+  // {day} is a word of qfix_class_link_weekdays_long in the same language.
+  qfix_class_link_past_title: {
+    en: "{day}'s quiz",
+    ur: '{day} کا کوئز',
+  },
+  // copy.v2.json qfix_class_link.rounds_played_one / rounds_played: the teacher report's "Evening rounds" row, how many
+  // children finished the round. Urdu inflects the noun for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا»), so
+  // one child is its own line; {n} is in the language's own digits (digitsFor).
+  qfix_class_link_rounds_played_one: {
+    en: '{n} child played',
+    ur: '{n} بچے نے کھیلا',
+  },
+  qfix_class_link_rounds_played: {
+    en: '{n} children played',
+    ur: '{n} بچوں نے کھیلا',
+  },
 };
 
 /**

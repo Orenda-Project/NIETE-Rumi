@@ -186,6 +186,18 @@
       ? '<a class="wq-next" data-primary data-tap="next" data-kind="' + esc(nx.kind) + '" data-src="' + esc(nx.src) + '" href="' + esc(nx.href) + '">' + inner + '</a>'
       : '<div class="wq-next wq-nnone" data-primary data-kind="none">' + inner + '</div>';
   }
+  // The previous school day's class quiz (the server's next.past_round, web_quiz_evening_round): ONE row under the Next
+  // tile, named by its weekday. Not finished: a row that opens it (the home's own row tap); finished: greyed, not a link,
+  // with the child's stars (⭐ c/t, the hub's score line). Only a /q/ link is drawn. Absent: nothing, today's home.
+  function pastHtml(B, ctx) {
+    var p = B.next && B.next.past_round; var l = langOf(ctx);
+    var title = p && ((l === 'ur' && p.title_ur) || p.title);
+    if (!title || !/^\/q\/[A-Za-z0-9]{3,32}\?/.test(String(p.href || ''))) return '';
+    if (p.done !== true) return '<div class="wq-social" data-past="open"><a class="wq-btn wq-soft wq-soc" data-tap="row" data-kind="past_round" href="' + esc(qLang(B, ctx, p.href)) + '"><span>' + esc(title) + '</span></a></div>';
+    var s = p.stars || {}; var t = Number(s.t) || 0; var c = Math.min(Number(s.c) || 0, t);
+    var score = t > 0 ? (l === 'ur' ? urDigits(c) + '/' + urDigits(t) : c + '/' + t) : '';
+    return '<div class="wq-social" data-past="done"><button class="wq-btn wq-soft wq-soc" type="button" disabled><span>' + esc(title) + '</span>' + (score ? '<small>⭐ <bdi dir="ltr">' + esc(score) + '</bdi></small>' : '') + '</button></div>';
+  }
   function barHtml(ctx, at) {
     var t = C(ctx);
     return '<nav class="wq-doors" aria-label="' + esc([t.stories, t.games, t.videos].join(t.sep)) + '">' + DOORS.map(function (d) {
@@ -226,7 +238,7 @@
     return '<footer class="wq-grown"><button class="wq-gbtn" type="button" data-tap="grownups" aria-label="' + esc(t.grown + ' — ' + t.grownHold) + '"><i class="wq-gfill"></i>' + esc(t.grown) + '</button></footer>';
   }
   function html(B, ctx) {
-    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + instHtml(B) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
+    return '<section class="wq-screen wq-home" data-screen="home" data-m="H3">' + stripHtml(B, ctx) + headHtml(B, ctx) + rememberHtml(B, ctx) + friendsHtml(B, ctx) + nextHtml(nextOf(B, ctx), ctx) + pastHtml(B, ctx) + instHtml(B) + socialHtml(B, ctx) + grownHtml(ctx, B) + '</section>' + barHtml(ctx, null);
   }
   /* The child's first open, "Jugnu says hello" (web_quiz_child_welcome, the boot's `welcome`): wq-welcome.js, asked for
    * after the home paints and shown over it (WQW.start). Absent `welcome`: nothing is asked for, the home is today's. */

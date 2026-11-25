@@ -10,6 +10,7 @@ import { HelpCorner } from '../../help/HelpCorner';
 import { cleanSchool, fullName, todayLabel } from '../../format';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
+import { ClassLinkCard } from '../../notices/ClassLinkCard';
 import { TopicPaperCard } from '../../notices/TopicPaperCard';
 import { FULL_KINDS } from '../NextCard';
 import { SLIM_KINDS } from '../SlimCard';
@@ -206,6 +207,7 @@ export function LookHome({ tiles, data, order, onGo, role, school, extraTile }: 
           <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} extra={extraTile} />
           {/* bd-pw1ccr.26 — "Make my paper" while her topic-end nudge waits (topic_nudge_portal_card_enabled). */}
           <TopicPaperCard />
+          <ClassLinkCard />
         </>
       )}
     </TeacherPage>

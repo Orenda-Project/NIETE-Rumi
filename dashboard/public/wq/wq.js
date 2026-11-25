@@ -681,6 +681,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
+      doneTonight: 'Done for tonight!', // qfix_class_link.done_tonight (an evening round with nothing left for this child)
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
       pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right'; },
       liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
@@ -755,6 +756,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
+      doneTonight: 'آج شام کا کوئز ہو گیا!',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + urDigits(n) + ' ٹھیک کیا'; },
       liveNow: function (n) { return 'ابھی ' + urDigits(n) + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
@@ -1011,7 +1013,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function pulseFeed(list) {
     if (!list || !list.length) return;
     list.forEach(function (e) { if (e && e.at > PULSE.since) PULSE.since = e.at; });
-    if (!pulseOn()) return;
+    // web_quiz_order_seed: a question this child was not served is not theirs to number
+    list = list.filter(function (e) { return !e || !e.qid || QS.some(function (q) { return q.qid === e.qid; }); });
+    if (!list.length || !pulseOn()) return;
     PULSE.pend = { e: list[0], n: list.length, got: Date.now() };
     pulseTry();
   }
@@ -1046,7 +1050,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var t = document.createElement('div');
     t.className = 'wq-pulse';
     t.setAttribute('aria-hidden', 'true');
-    var pl = T.pulse(e.invited ? null : e.first, e.qn);
+    // web_quiz_order_seed: the classmate's question by its id, under this child's own number for it
+    var qn = e.qn;
+    if (e.qid) for (var pi = 0; pi < QS.length; pi++) if (QS[pi].qid === e.qid) { qn = pi + 1; break; }
+    var pl = T.pulse(e.invited ? null : e.first, qn);
     if (window.WQJ) t.innerHTML = esc(pl) + ' ' + IC.check; else t.textContent = pl + ' ✓';
     if (top != null) t.style.top = top + 'px';
     ROOT.appendChild(t);
@@ -1734,6 +1741,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return '<span class="wq-sent">' + esc(s).replace(/([.!?\u06D4\u061F]) (?=\S)/g, '$1</span> <span class="wq-sent">') + '</span>';
   } : null;
 
+  // The start card's count: what a sitting serves (the payload's n) where the page ships more (an evening round's pool,
+  // which the start's order cuts to the child's set); else the questions here.
+  function cardN() { return Q.n > 0 && Q.n < N ? Q.n : N; }
   function landing() {
     var here = kids();
     var classChips = {};
@@ -1753,7 +1763,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       (fold ? '' : pic) +
       // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
       (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (chLineHtml ? chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
@@ -1781,7 +1791,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar('', true) +
       '<div class="wq-card wq-stack wq-teach"><p class="wq-small">' + esc(TW.tFor) + '</p><h1>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
+      '<p class="wq-small">' + esc(T.meta(cardN())) + '</p></div>' +
       '<p class="wq-sub">' + esc(TW.tLead) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-preview">' + esc(T.previewPlay) + '</button>' +
@@ -1887,7 +1897,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var CLS_PICK = null;
   // Identity v2 (name first; dashboard/public/wq/wq-identity.js) when the server turns it on for this quiz.
   var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
-    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
+    T: T, TW: TW, CLS: CLS, Q: Q, N: cardN(), LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
     lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher, chLineHtml: chLineHtml
@@ -2121,12 +2131,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
       if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); return; }
+      // An evening round with nothing left for this child tonight: no sitting (no `st`), the words on their own screen.
+      if (r.body.round_done_for_tonight) { ev('round_done_for_tonight', { class_link_code: r.body.class_link_code, round_code: r.body.round_code }); doneTonight(r.body.class_link_code); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
       var sameChild = S.child && child.chip && S.child.chip === child.chip;
       if (!sameChild) { S.answers = {}; S.queue = []; S.seq = 0; S.wrong = []; S.result = null; S.vt = 0; S.vdone = 0; }
       S.st = b.st; S.child = child; S.counted = b.counted !== false; S.reason = b.reason || null;
+      if (b.order || S.order) { S.order = b.order || null; applyOrder(S.order); }
       ((b.resume && b.resume.answered) || []).forEach(function (q) { if (!S.answers[q]) S.answers[q] = { slot: '?', ok: null }; });
       save();
       rememberKid(child);
@@ -2135,7 +2148,46 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (B.story && window.WQSTORYLINK) window.WQSTORYLINK.open({ st: S.st, story: B.story, preview: Boolean(B.preview), lang: LANG, T: T, api: api, flushQueue: flushQueue, ev: ev, flushEv: flushEv, toast: toast, landing: landing, withLang: withLang, go: function (u) { location.assign(u); } }); else if (wantsVideo()) video(); else nextQuestion();
     }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'known') landing(); });
   }
+  // "Done for tonight!": the quiz and Jugnu saying it, with nothing to tap that starts again (no Play, no child's card:
+  // the server would answer the same, and the landing's Play went round in a loop). The bar is the landing's; Home goes
+  // back to the class link's landing (a sibling on this phone can still pick themselves), never to the round.
+  function doneTonight(code) {
+    var home = /^[A-Za-z0-9]{6,20}$/.test(String(code || ''))
+      ? '<a class="wq-btn wq-soft" id="wq-done-home" href="' + esc(withLang('/j/' + code)) + '">' + esc(T.home) + '</a>' : '';
+    render(bar() + jug('sleep', T.doneTonight, true) +
+      '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p></div>' + home, 'M3-done');
+    wireBar();
+  }
 
+  // web_quiz_order_seed: the sitting's own order from the start reply ({ q: [qid…], o: { qid: [slot…] } }), kept with the
+  // session so a reload plays on in it. None (switch off, or another child's turn): the quiz's order as served. Options move
+  // as objects (slot, picture, feedback with them) and the spoken option list moves with them, so the voice reads what is shown.
+  var ORIG = null;
+  function applyOrder(ord) {
+    if (!ORIG) {
+      ORIG = { qs: QS.slice(), o: {} };
+      ORIG.qs.forEach(function (q) { ORIG.o[q.qid] = { o: (q.options || []).slice(), r: q.read && Array.isArray(q.read.opts) ? q.read.opts.slice() : null }; });
+    }
+    var byId = {};
+    ORIG.qs.forEach(function (q) { byId[q.qid] = q; });
+    var list = ord && Array.isArray(ord.q) ? ord.q.map(function (id) { return byId[id]; }).filter(Boolean) : [];
+    if (!list.length) list = ORIG.qs;
+    QS.length = 0;
+    list.forEach(function (q) { QS.push(q); });
+    N = QS.length;
+    ORIG.qs.forEach(function (q) {
+      var o0 = ORIG.o[q.qid], want = ord && ord.o && ord.o[q.qid], at = {};
+      o0.o.forEach(function (o, k) { at[o.slot] = k; });
+      var ks = o0.o.map(function (o, k) { return k; });
+      if (Array.isArray(want) && want.length === ks.length) {
+        var w = want.map(function (sl) { return at[sl]; });
+        if (w.every(function (k, j) { return k != null && w.indexOf(k) === j; })) ks = w;
+      }
+      if (q.options) q.options = ks.map(function (k) { return o0.o[k]; });
+      if (o0.r) q.read.opts = ks.map(function (k) { return o0.r[k]; });
+    });
+  }
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
   // The lesson video plays once per attempt: skipped or watched to the end, a reload goes on to the questions.
   // A lesson's Quiz button on the Videos door (?to=q, web_quiz_video_shelf on) opens straight at the questions.
@@ -3703,6 +3755,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     else list.forEach(function (k, i) { tap('#wq-kn-' + i, function () { pick(k); }); });
     tap('#wq-kn-else', function () { sset(KN_KEY, 1); ev('identity_pick', { src: 'known_else' }); landing(); });
   }
+  // web_quiz_order_seed: a reload plays on in the sitting's own order
+  if (S.st && S.order) applyOrder(S.order);
   if (B.view === 'schools') schools(afterResult);
   // a story has no class board: its class view (/q/<code>/class) opens the story's landing below
   else if (B.view === 'class' && !B.story) board();

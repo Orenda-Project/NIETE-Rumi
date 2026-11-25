@@ -30,6 +30,7 @@ const { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, ma
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
 const { formatLessonDate , sloStatement } = require('./transcript-quiz-language');
 const SloStamp = require('./quiz-slo-stamp');
+const KeyReview = require('./report-key-review');
 const { excludeSelfTests } = require('./teacher-self-test');
 // A question the author wrote with TeX maths (`$\frac{2}{9}$`) reaches the
 // report flat ("2/9"): the chat lines, the guidance prompt and the report PDF
@@ -941,6 +942,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     hardest.forEach((h) => {
       lines.push(`• ${h.question_text}`);
       lines.push(`   ${TX.gotWrong(h.wrong, h.total)}`);
+      if (h.key_review) lines.push(`   ${resolveUx('qfix_report_key_review', { language: contentLang })}`);
     });
     lines.push('');
   }
@@ -1089,6 +1091,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     completed: done.length, average: avg, reason,
     trigger: force ? 'teacher_request' : (isFollowUp ? 'followup' : 'auto_12h'),
     format: sentAsPdf ? 'pdf' : 'text', hadGuidance: Boolean(guidance),
+    ...(hardest.some((h) => h.key_review) ? { key_review_n: hardest.filter((h) => h.key_review).length } : {}),
   });
   Funnel.emit('report_sent', {
     quiz_id: sc.quiz_id, share_code_id: shareCodeId, source: quizRow && quizRow.quiz_source,
@@ -1147,7 +1150,9 @@ async function reportNotAccepted(shareCodeId, sc, path, reason, link = null) {
  * The live-report extras for this share code's PDF, or null. Null when the
  * teacher is not on app_settings.teacher_report_teachers, when the quiz is not
  * this teacher's own (a video-bank quiz has no teacher report), or on any
- * error — never a reason for the report itself to fail.
+ * error — never a reason for the report itself to fail. With quiz_teacher_home_reports on (bd-5j1zaf), the live link
+ * says it came from this WhatsApp report (?from=wa, teacher_report.opened's from); the remind link never changes; a
+ * failed read of that switch is off.
  * @returns {Promise<{notPlayed: Array<{first,roll}>|null, of: number|null, className: string|null,
  *   links: {live: string, remind: string}|null}|null>}
  */
@@ -1155,7 +1160,10 @@ async function liveReportExtras(sc) {
   try {
     const Gate = require('./teacher-report-gate');
     if (!(await Gate.teacherReportOn(sc.teacher_user_id))) return null;
-    const r = await require('./teacher-report.data').quizReport(sc.teacher_user_id, sc.quiz_id);
+    const [r, fromWa] = await Promise.all([
+      require('./teacher-report.data').quizReport(sc.teacher_user_id, sc.quiz_id),
+      require('./report-late-flag').on().catch(() => false),
+    ]);
     if (!r) return null;
     const urls = Gate.reportUrls({ teacherId: sc.teacher_user_id, quizId: sc.quiz_id });
     const notPlayed = r.roster.state === 'known' && Array.isArray(r.notPlayed) ? r.notPlayed : null;
@@ -1165,7 +1173,7 @@ async function liveReportExtras(sc) {
     });
     return {
       notPlayed, of: r.roster.of, className: r.roster.className || null,
-      links: urls ? { live: urls.live, remind: urls.remind } : null,
+      links: urls ? { live: fromWa ? `${urls.live}?from=wa` : urls.live, remind: urls.remind } : null,
     };
   } catch (err) {
     logToFile('⚠️ video-quiz report: live-report section skipped (report still sends)', {
@@ -1845,9 +1853,28 @@ async function hardestQuestions(shareCodeId, limit = 3, sessionIds = null) {
             + 'correct_option, option_feedback, explanation')
     .in('id', ranked.map(([id]) => id));
   const byId = new Map((qs || []).map((q) => [q.id, q]));
+  // video_quiz_report_key_review: a question the key-review queue holds stays in "most missed" (the class did miss it)
+  // but asserts no answer: its key may be the thing that is wrong (report-key-review.js). Off: an empty set, no read.
+  const held = await KeyReview.heldAmong(ranked.map(([id]) => id));
 
   return ranked.map(([id, t]) => {
     const q = byId.get(id) || {};
+    if (held.has(id)) {
+      return {
+        question_text: mathForChat(q.question_text) || '(question unavailable)',
+        external_id: q.external_id || null,
+        wrong: t.wrong,
+        total: t.total,
+        top_wrong_option: null,
+        top_wrong_text: null,
+        top_wrong_count: 0,
+        correct_option: null,
+        correct_text: null,
+        misconception: null,
+        explanation: null,
+        key_review: true,
+      };
+    }
     let topWrong = null;
     let topCount = 0;
     let runnerUp = 0;
@@ -2130,6 +2157,10 @@ function buildGuidancePrompt({
       `${i + 1}. "${mathForChat(h.question_text)}"`,
       `   ${h.wrong} of ${h.total} answered this wrongly.`,
     ];
+    if (h.key_review) {
+      lines.push('   The answer key for this question is under review: it may be wrong. Do not name a right answer '
+        + 'or a mistake for it; suggest only going over the question together.');
+    }
     if (h.top_wrong_text) {
       lines.push(`   Most of them chose "${mathForChat(h.top_wrong_text)}". `
         + `The right answer was "${mathForChat(h.correct_text)}".`);

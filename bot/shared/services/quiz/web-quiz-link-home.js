@@ -13,7 +13,8 @@
  *
  * Never for: a phone that has not played this code; a phone that played it as two or more children (the
  * landing's own "Whose turn?" runs; nothing is auto-picked); a child whose run here is not finished; a teacher's
- * device (a run with a user); a friend's challenge code; a forwarded copy on another phone (no run on it).
+ * device (a run with a user); a friend's challenge code; a forwarded copy on another phone (no run on it); an evening
+ * round's code (web-quiz-evening-round isRoundShareCode: the start answers a finished child "Done for tonight!").
  * The server writes `door_shown{door:'link_home', surface:'hub', w:'s'}` when it routes the child.
  */
 const supabase = require('../../config/supabase');
@@ -55,11 +56,20 @@ async function isOn(now = Date.now()) {
   return Boolean((await Flags.flags()).hub);
 }
 
+// An evening round's code is never a way home. The quiz page's own quiz row (`quiz`, read with its meta) decides with no
+// read; without one, the round module's per-code check (cached; a failed read is "not a round", today's answer).
+function isRound(ctx, quiz = null) {
+  const Round = require('./web-quiz-evening-round');
+  if (quiz && quiz.id) return Promise.resolve(Round.isEveningRound(quiz));
+  return Round.isRoundShareCode(ctx.shareCodeId);
+}
+
 /** May the quiz payload carry `link_home`? Never on a friend's challenge or the teacher's preview. Never throws. */
-async function field(ctx, { preview = false } = {}) {
+async function field(ctx, { preview = false, quiz = null } = {}) {
   try {
     if (!ctx || ctx.invitedByStudentId || preview) return false;
-    return await isOn();
+    if (!(await isOn())) return false;
+    return !(await isRound(ctx, quiz));
   } catch (_) {
     return false;
   }
@@ -81,9 +91,11 @@ async function home(body = {}, resolveCode = null) {
     if (typeof resolveCode !== 'function') return no('no_code');
     try { ctx = await resolveCode(body.code); } catch (_) { return no('no_code'); }
     if (ctx.invitedByStudentId) return no('challenge');
-    const { data, error } = await dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
+    // the round check rides beside the phone's runs, so it adds no read in a row
+    const [{ data, error }, round] = await Promise.all([dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
       .select('id, student_id, user_id, invited_by_student_id, status, created_at')
-      .eq('share_code_id', ctx.shareCodeId).eq('device_ref', d).limit(50));
+      .eq('share_code_id', ctx.shareCodeId).eq('device_ref', d).limit(50)), isRound(ctx)]);
+    if (round) return no('round');
     if (error) return no('db');
     const rows = data || [];
     if (!rows.length) return no('not_played_here');

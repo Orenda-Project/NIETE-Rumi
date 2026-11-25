@@ -18,6 +18,7 @@
  * `deps` lets a test hand in a stand-in for one source; by default each is the real module, required at call time.
  */
 const { logToFile } = require('../../utils/logger');
+const { isOffered } = require('../../config/languages');
 
 const REPORT_BUDGET_MS = 4000;
 const SIDE_BUDGET_MS = 2500;
@@ -44,6 +45,8 @@ function defaults() {
     Stories: () => optional(STORIES_MODULE),
     Keys: () => require('./door.keys'),
     CountsFlag: () => require('./teacher-home-counts.flag'),
+    // class-link's evening-round reader, looked up by name (bd-5j1zaf's rounds line): absent → no line
+    ClassLink: () => optional('../quiz/web-quiz-class-link'),
   };
 }
 const dep = (deps, name) => (deps && deps[name] ? deps[name] : defaults()[name]());
@@ -102,9 +105,13 @@ async function lessons(uid, deps, { light = false } = {}) {
   });
 }
 
+/** The report's late finishers on a row (bd-5j1zaf), and the class list's count when the class is known: only what is there. */
+const lateOf = (q) => ({ ...(q.late ? { late: q.late } : {}), ...(q.reported ? { reported: true } : {}), ...(q.of != null && q.onList != null ? { onList: q.onList } : {}) });
+
 /**
  * The report's own played counts for the quizzes this teacher MADE and sent: Map quizId → { played, of, date, topic,
- * source } (+ `book` on a story send: its meta.story.book_id or null, brought by the same quizzes read). The class
+ * source } (+ `book` on a story send: its meta.story.book_id or null, brought by the same quizzes read; + `late`,
+ * `reported`, `onList` when the report has them: teacher-report.data). The class
  * report also lists the library quizzes the teacher sent (their sender's report); those are this page's library shares
  * (by their code), so they are left out here — one row per send, never two.
  */
@@ -116,7 +123,7 @@ async function playedOwn(uid, deps, { light = false } = {}) {
     // "which are mine" read after; the same rows as below, a story's `book` from the report's own quizzes read)
     const own = await Report.classReport(uid, { days: 60, ownOnly: true });
     ((own && own.quizzes) || []).filter((q) => !q.sent).forEach((q) => out.set(q.id, {
-      played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: q.book == null ? null : q.book } : {}),
+      played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: q.book == null ? null : q.book } : {}), ...lateOf(q),
     }));
     return out;
   }
@@ -131,21 +138,22 @@ async function playedOwn(uid, deps, { light = false } = {}) {
     (made || []).forEach((q) => mine.set(q.id, q.story_book ? String(q.story_book) : null));
   }
   rows.filter((q) => mine.has(q.id)).forEach((q) => out.set(q.id, {
-    played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: mine.get(q.id) } : {}),
+    played: q.played || 0, of: q.of == null ? null : q.of, date: q.date, topic: q.topic, source: q.source || null, ...(q.source === 'story' ? { book: mine.get(q.id) } : {}), ...lateOf(q),
   }));
   return out;
 }
 
 /**
  * The teacher's sends of LIBRARY quizzes (codes they hold on a quiz that is not theirs, i.e. the maker's sends),
- * newest first, each with the report's own count of children who finished: [{ shareCodeId, quizId, topic, at, played }].
+ * newest first, each with the report's own count of children who finished: [{ shareCodeId, quizId, topic, at, played }]
+ * (+ `late`, `reported` when the code's 12 h report has gone: teacher-report.data lateRule).
  */
 async function libraryShares(uid, deps, now = Date.now(), { light = false } = {}) {
   const supabase = dep(deps, 'supabase');
   const Report = dep(deps, 'Report');
   const since = new Date(now - SHARE_DAYS * 86400000).toISOString();
   const { data, error } = await supabase.from('quiz_share_codes')
-    .select('id, quiz_id, topic, created_at, active, expires_at')
+    .select('id, quiz_id, topic, created_at, active, expires_at, report_sent_at')
     // the teacher's own sends only: never a child's code under one of theirs (a watch child, a class child's lesson code)
     .eq('teacher_user_id', uid).is('parent_share_code_id', null).is('invited_by_student_id', null).gte('created_at', since)
     .order('created_at', { ascending: false }).limit(10);
@@ -163,8 +171,16 @@ async function libraryShares(uid, deps, now = Date.now(), { light = false } = {}
   if (!lib.length) return [];
   const counted = Report.countedSessions(await Report.sessionsFor(lib.map((c) => c.id)), uid);
   const per = new Map();
-  counted.forEach((s) => per.set(s.share_code_id, (per.get(s.share_code_id) || 0) + 1));
-  return lib.map((c) => ({ shareCodeId: c.id, quizId: c.quiz_id, topic: c.topic || null, at: c.created_at, played: per.get(c.id) || 0 }));
+  const late = new Map();
+  const isLate = typeof Report.lateRule === 'function' ? Report.lateRule(lib) : () => false;
+  counted.forEach((s) => {
+    per.set(s.share_code_id, (per.get(s.share_code_id) || 0) + 1);
+    if (isLate(s)) late.set(s.share_code_id, (late.get(s.share_code_id) || 0) + 1);
+  });
+  return lib.map((c) => ({
+    shareCodeId: c.id, quizId: c.quiz_id, topic: c.topic || null, at: c.created_at, played: per.get(c.id) || 0,
+    ...(late.get(c.id) ? { late: late.get(c.id) } : {}), ...(c.report_sent_at ? { reported: true } : {}),
+  }));
 }
 
 /**
@@ -232,6 +248,31 @@ async function reportLinks(uid, quizId, deps) {
   return u ? { live: u.live, remind: u.remind } : null;
 }
 
+/**
+ * The "Quiz reports" section's links (quiz_teacher_home_reports, bd-5j1zaf): the live report of every quiz in `ids`,
+ * opened from here (`?from=home`) in the home's own language (`lang`, when this deployment offers it; the report otherwise picks the quiz's),
+ * when the report page is on for this teacher; and the class tab's evening rounds when class-link's reader says one of
+ * the teacher's classes has a live round (no reader → no line). → { links, rounds }.
+ */
+async function reportsFor(uid, ids, deps, { lang = null } = {}) {
+  const Gate = dep(deps, 'Gate');
+  const links = new Map();
+  if (!(await Gate.teacherReportOn(uid))) return { links, rounds: null };
+  const tail = `from=home${isOffered(lang) ? `&lang=${lang}` : ''}`;
+  [...new Set((ids || []).filter(Boolean))].forEach((id) => { const u = Gate.reportUrls({ teacherId: uid, quizId: id }); if (u) links.set(id, `${u.live}?${tail}`); });
+  let rounds = null;
+  try {
+    const CL = dep(deps, 'ClassLink');
+    if (CL && typeof CL.teacherHasLiveRound === 'function' && (await CL.teacherHasLiveRound(uid)) === true) {
+      const all = Gate.reportUrls({ teacherId: uid, quizId: null });
+      rounds = all ? `${all.live}?tab=class&${tail}` : null;
+    }
+  } catch (err) {
+    logToFile('⚠️ teacher home: evening rounds check failed — no line', { error: err && err.message });
+  }
+  return { links, rounds };
+}
+
 /** The bank's video pick for a grade: the prefill's subject first, then the bank's subject order. → chip | null. */
 function videoPick(tree, grade, preferSubject) {
   const cell = tree && tree[String(grade)];
@@ -291,6 +332,6 @@ async function makerLink(uid, lang, pf, deps) {
 }
 
 module.exports = {
-  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, sendableOwn, sendableRows, reportLinks, videoPick, gradeOf, storyShelf,
+  teacherOf, firstNameOf, lessons, playedOwn, libraryShares, sendableOwn, sendableRows, reportLinks, reportsFor, videoPick, gradeOf, storyShelf,
   childrenLink, confirmRows, makerLink, within, dep, REPORT_BUDGET_MS, SIDE_BUDGET_MS, HISTORY_ROWS,
 };

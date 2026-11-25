@@ -43,6 +43,12 @@ const KEEP_ATTEMPTS_KEY = 'web_quiz_keep_attempts';
 // The child result screen's "remind me tomorrow" (bot/shared/services/push/web-quiz-push-field.js): rides this one read,
 // so a finish makes no read for it. Only the stored JSON boolean true is on.
 const PUSH_REMIND_KEY = 'web_quiz_push_remind';
+// web_quiz_order_seed (JSON true only, read with the hub's switches: flags().orderSeed): each sitting its own question and
+// option order, a re-sit a new one (web-quiz-order-seed.js); off, the start reply has no `order` and the page keeps today's
+const ORDER_SEED_KEY = 'web_quiz_order_seed';
+// web_quiz_order_seed_pct ({"pct": N}): the same, for N% of LINKS by the link's own hash (web-quiz-order-seed onFor), so the
+// re-sit gain can be measured on and off on the same days; the switch above, when on, wins.
+const ORDER_SEED_PCT_KEY = 'web_quiz_order_seed_pct';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
@@ -176,6 +182,9 @@ const PACK_KEY = 'web_quiz_pack';
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
 // The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
 const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
+// qfix_class_link: the class evening round (web-quiz-evening-round-flags.js owns its meaning; read here so the hub's
+// next slot asks for tonight's round without a read of its own when it is off).
+const EVENING_ROUND_KEY = 'web_quiz_evening_round';
 const TTL_MS = 30 * 1000;
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -191,7 +200,7 @@ function isTrue(value) {
 // A new switch adds one line here in its key's place (and its key constant above): KEYS, the cached answer and the
 // failed read's answer all follow from this list, and nowOf('<field>') reads it from the cache without a function of its own.
 // Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
-// object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
+// object are off); 'meter' = meterOf; 'pct' = pctOf; 'read' = read in the same query for a field worked out below (shareOpen).
 const SWITCHES = Object.freeze([
   ['adv',          ADV_KEY,               'json'],
   ['backNav',      BACK_NAV_KEY,          'loose'],
@@ -215,6 +224,7 @@ const SWITCHES = Object.freeze([
   ['endFit',       END_FIT_KEY,           'json'],
   ['endOnce',      END_ONCE_KEY,          'json'],
   ['endShort',     END_SHORT_KEY,         'json'],
+  ['eveningRound', EVENING_ROUND_KEY,     'loose'],
   ['eventsV2',     EVENTS_V2_KEY,         'loose'],
   ['faceLite',     FACE_LITE_KEY,         'json'],
   ['gamesTogether', GAMES_TOGETHER_KEY,   'json'],
@@ -242,6 +252,8 @@ const SWITCHES = Object.freeze([
   ['minify',       MINIFY_KEY,            'json'],
   ['offlineGuard', OFFLINE_GUARD_KEY,     'json'],
   ['oneButton',    ONE_BUTTON_KEY,        'json'],
+  ['orderSeed',    ORDER_SEED_KEY,        'json'],
+  ['orderSeedPct', ORDER_SEED_PCT_KEY,    'pct'],
   ['pack',         PACK_KEY,              'json'],
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
@@ -257,7 +269,9 @@ const SWITCHES = Object.freeze([
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
 ]);
-const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf };
+// 'pct' = the JSON object {"pct": N} as a whole number 0-100; anything else is 0
+const pctOf = (v) => (v && typeof v === 'object' && Number.isFinite(v.pct) ? Math.max(0, Math.min(100, Math.floor(v.pct))) : 0);
+const RULES = { loose: isTrue, json: (v) => v === true, meter: meterOf, pct: pctOf };
 
 const HOST_KEYS = Object.freeze(SWITCHES.map(([, key]) => key));
 // web_quiz_one_hop (web-quiz-one-hop.js) rides this one read: its cache is filled from these rows (parsed there, JSON
@@ -613,6 +627,8 @@ module.exports = {
   offlineGuardNow,
   ONE_BUTTON_KEY,
   oneButtonNow,
+  ORDER_SEED_PCT_KEY,
+  pctOf,
   PACK_KEY,
   PAGE_LANG_KEY,
   pageNav,

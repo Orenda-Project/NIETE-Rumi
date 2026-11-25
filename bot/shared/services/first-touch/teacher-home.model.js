@@ -14,6 +14,9 @@
  *  last send → "Quiz from your last lesson: <topic>" with "Quiz this", the library card second)
  * THE TIMELINE: lesson plans, coaching sessions and sent quizzes (stories too), newest first; each row ONE verb:
  *   quiz_this (a lesson or a session with no quiz yet) · again (a sent quiz) · none (a quiz being made)
+ * QUIZ REPORTS (quiz_teacher_home_reports, bd-5j1zaf; only when the router hands in `reportLinks`): every sent quiz the
+ *   home knows with a live report link, newest first: the class report's counts, the children who finished after its
+ *   12 h report (`late`) and whether it has gone (`reported`). Story sends stay off it (their page counts opens).
  */
 const SEND_WINDOW_MS = 72 * 3600 * 1000;
 const LESSON_WINDOW_MS = 7 * 86400000;
@@ -88,6 +91,21 @@ function sendsOf({ lessons, played, shares }) {
   return sends;
 }
 
+/** One "Quiz reports" row: the report's counts (the class list's count beside its size when the class is known). */
+const reportRow = (key, title, date, p, href) => ({
+  key, title: title || '', date: date || null, played: p.played || 0,
+  ...(p.of != null && p.onList != null ? { of: p.of, onList: p.onList } : {}),
+  late: p.late || 0, reported: p.reported === true, report: href,
+});
+
+/** The section's rows: the teacher's own sent quizzes (no story) and the library sends, each with its link; newest first. */
+function reportRows({ played = new Map(), shares = [], links = new Map() }) {
+  const rows = [];
+  played.forEach((p, id) => { if (p.source !== 'story' && links.has(id)) rows.push(reportRow(`q_${id}`, p.topic, p.date, p, links.get(id))); });
+  shares.forEach((s) => { if (links.has(s.quizId)) rows.push(reportRow(`sc_${s.shareCodeId}`, s.topic, s.at, s, links.get(s.quizId))); });
+  return rows.sort((a, b) => ms(b.date) - ms(a.date)).slice(0, MAX_ROWS);
+}
+
 /** The newest send of the window with few children finished, as the class card; or null. */
 function classCard({ lessons, played, shares, reports, now, can = anyCan, named = false }) {
   // a send of the teacher's own that can no longer be sent again (its code ended) is not a "Send again" card
@@ -113,7 +131,7 @@ function classCard({ lessons, played, shares, reports, now, can = anyCan, named 
 function buildHome({
   first = null, grade = 2, lessons = [], played = new Map(), shares = [], reports = new Map(), stories = null,
   video = null, maker = null, storiesBase = null, children = null, confirm = [], tryStudent = null, change = false,
-  againable = null, now = Date.now(), named = false,
+  againable = null, now = Date.now(), named = false, reportLinks = null, rounds = null,
 }) {
   const can = againable instanceof Set ? (id) => againable.has(id) : anyCan;
   const rows = [...lessons.map((r) => lessonRow(r, played, reports, can)), ...extraOwn(lessons, played).map(([id, p]) => ownRow(id, p, reports, can)), ...shares.map(shareRow)]
@@ -133,6 +151,8 @@ function buildHome({
     first, grade, primary: primary || { kind: 'none' }, timeline: rows,
     library: { grade, stories: books, all: books.length ? storiesBase : null, video: video ? { id: video.quizId, title: video.topic } : null },
     maker, children, confirm, tryStudent, change,
+    // the "Quiz reports" section: only when its switch is on (the router hands in the links); off, no key
+    ...(reportLinks instanceof Map ? { reports: { rows: reportRows({ played, shares, links: reportLinks }), rounds: rounds || null } } : {}),
     facts: {
       has_lp: lessons.some((r) => r.kind !== 'session'), has_coaching: lessons.some((r) => r.kind === 'session'),
       zero_kids_open: zeroKidsOpen, primary_kind: primaryKind(primary),
@@ -158,4 +178,4 @@ function primaryKind(p) {
   return p.kind;
 }
 
-module.exports = { buildHome, classCard, lessonRow, shareRow, ownRow, lastLesson, primaryKind, sentBooks, SEND_WINDOW_MS, LESSON_WINDOW_MS, FEW, MAX_ROWS };
+module.exports = { buildHome, classCard, lessonRow, shareRow, ownRow, reportRows, lastLesson, primaryKind, sentBooks, SEND_WINDOW_MS, LESSON_WINDOW_MS, FEW, MAX_ROWS };
