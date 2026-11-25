@@ -58,11 +58,13 @@ function page({ store = {}, ua = CHROME_UA, early = null, tour = null, now = () 
     // the page goes to the background or closes: visibilitychange to hidden, then pagehide
     hide() { doc.visibilityState = 'hidden'; (docL.visibilitychange || []).forEach((fn) => fn({})); (winL.pagehide || []).forEach((fn) => fn({})); },
     show() { doc.visibilityState = 'visible'; (docL.visibilitychange || []).forEach((fn) => fn({})); },
-    // the card's steps (the view's outcome is read with outcomes())
-    steps: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step !== 'outcome').map(([, p]) => p),
-    outcomes: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step === 'outcome').map(([, p]) => p),
+    // the card's steps (the view's outcome is read with outcomes()), without the platform marks every row carries
+    // (qfix-reminders-install-platform.service.test.js holds those)
+    steps: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step !== 'outcome').map(([, p]) => unmarked(p)),
+    outcomes: () => evs.filter(([n, p]) => n === 'install_prompt' && p.step === 'outcome').map(([, p]) => unmarked(p)),
   };
 }
+const unmarked = ({ platform, display_mode, ...rest }) => rest; // eslint-disable-line no-unused-vars
 const bip = (outcome = 'accepted') => {
   const e = { prevented: 0, prompted: 0, preventDefault() { e.prevented += 1; }, prompt() { e.prompted += 1; }, userChoice: { then(fn) { fn({ outcome }); } } };
   return e;

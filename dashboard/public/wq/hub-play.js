@@ -238,6 +238,27 @@
     return at < 0 ? 0 : (html.slice(0, at).match(/class="(?:wq-card|wq-htile|wqp-tile)\b/g) || []).length + 1;
   }
   function installed() { tap(IEV, 'install', { door: 'install', surface: 'hub' }); }
+  // Every meter row says which platform (from the user agent) and display mode it came from, so installs count by
+  // platform: android / ios / desktop / other; browser / standalone / minimal-ui / fullscreen.
+  var PLATFORM = null;
+  function platform() {
+    var ua = String((typeof navigator !== 'undefined' && navigator.userAgent) || '');
+    return /Android/.test(ua) ? 'android' : /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Windows NT|Macintosh|X11|CrOS/.test(ua) ? 'desktop' : 'other';
+  }
+  function displayMode() {
+    try {
+      if (window.navigator && window.navigator.standalone === true) return 'standalone';
+      var modes = ['standalone', 'minimal-ui', 'fullscreen'];
+      for (var i = 0; i < modes.length; i++) if (window.matchMedia && window.matchMedia('(display-mode: ' + modes[i] + ')').matches) return modes[i];
+    } catch (e) {}
+    return 'browser';
+  }
+  function marked(p) {
+    if (PLATFORM === null) PLATFORM = platform();
+    p.platform = PLATFORM;
+    p.display_mode = displayMode();
+    return p;
+  }
   var stepped = {};
   // The card's meter: each step once per page load. src = where the page runs (browser / app / iab); reason = why.
   function step(name, reason) {
@@ -245,7 +266,7 @@
     stepped[name] = true;
     var p = { step: name, src: WHERE === 'none' ? 'iab' : WHERE || 'browser' };
     if (reason) p.reason = reason;
-    try { IEV('install_prompt', p); } catch (e) {}
+    try { IEV('install_prompt', marked(p)); } catch (e) {}
   }
   // The first-run tour (wq-welcome.js, WQW) dims the home and takes every tap: the card waits until it is done or skipped.
   // The hub answer's `welcome` says a tour is coming (its script loads after the home paints); one that never draws (its
@@ -272,7 +293,7 @@
     outcomeSent = true;
     var p = { step: 'outcome', src: WHERE === 'none' ? 'iab' : WHERE || 'browser', reason: reason, when: when };
     if (reason === 'shown' && heldBy) p.held = heldBy;
-    try { IEV('install_prompt', p); } catch (e) {}
+    try { IEV('install_prompt', marked(p)); } catch (e) {}
   }
   // Hidden (a tap away, the app switcher, closing) comes before pagehide, while the page-session queue still takes
   // events; it is sent at once so the outcome is not left in it.
@@ -355,6 +376,12 @@
     if (!B || !B.play || !B.play.install) return;
     IB = B; IEV = ev; IROOT = ROOT;
     if (WHERE === null) WHERE = where();
+    // whether the page already has a service worker (the reminder's /sw.js): logged once, only when it has one
+    try {
+      if (!stepped.sw_registered && navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration('/').then(function (r) { if (r) step('sw_registered'); }, function () {});
+      }
+    } catch (e) {}
     if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); outcome(WHERE === 'app' ? 'app' : 'iab', 'render'); return; }
     checkDay();
     if (!installWired) {

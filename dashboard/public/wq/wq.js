@@ -3839,8 +3839,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   /* ---------------- boot ---------------- */
   var conn = navigator.connection || {};
   ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined,
-    // Where this link came from: a friend's challenge code, the class table a child shared, a child's shared card, else the teacher's own.
-    via: B.challenge || B.invited ? 'invite' : B.view === 'class' ? 'table' : params.a ? 'card' : 'direct' });
+    // Where this link came from: the child reminder (its url carries ?from=push; the reminder funnel's "played", reminders c1), a
+    // friend's challenge code, the class table a child shared, a child's shared card, else the teacher's own.
+    via: params.from === 'push' ? 'push' : B.challenge || B.invited ? 'invite' : B.view === 'class' ? 'table' : params.a ? 'card' : 'direct' });
   if (S.queue.length) flushQueue();
   // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
   // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
