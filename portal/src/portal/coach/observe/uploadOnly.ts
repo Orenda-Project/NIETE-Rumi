@@ -4,20 +4,17 @@ import { AuthContext } from "../../hooks/authContext";
 
 /**
  * bd-oe6r47 (queue #278) — upload-only recording: the observe recording step (CoachRecord, the coach app and the
- * principal app) and the debrief recording step (Debrief) never start the in-app web recorder. The main button asks for
- * the phone's own recorder (PhonePick: <input type=file accept="audio/*" capture>), the second is Upload recording.
- * The operator, 25 Nov: "until we are completely sure ... the recordings don't go away if you have bad internet ...
- * we only give the upload recording button".
+ * principal app) and the debrief recording step (Debrief) offer ONE button, Upload recording, and never start the in-app
+ * recorder.
  *
- * app_settings `portal_observe_upload_only`, served as `features.observeUploadOnly` in /config (dashboard/lib/
- * feature-flags.js). DEFAULT ON, unlike the fail-closed switches: upload-only is the safe side (the audio stays in the
- * phone's recorder app whatever the internet does), so an unreadable config, a missing key or any value but a literal
- * `false` is ON. Only `false` brings the web recorder back.
+ * bd-ih6cej — FAIL-CLOSED since 25 Nov ~17:20 (the operator: "give both the options again. But advise whoever is using to
+ * use their own recorders if their internet is not very good"): app_settings `portal_observe_upload_only` names nobody,
+ * so everyone has the in-app recorder again, with Upload recording and the weak-internet line beside it. Only a literal
+ * `true` in `features.observeUploadOnly` (the switch naming her) is upload-only; an unreadable config is OFF.
  */
 export function uploadOnlyOn(cfg: unknown): boolean {
   const features = (cfg as { features?: unknown } | null | undefined)?.features;
-  if (!features || typeof features !== "object") return true;
-  return (features as { observeUploadOnly?: unknown }).observeUploadOnly !== false;
+  return !!features && typeof features === "object" && (features as { observeUploadOnly?: unknown }).observeUploadOnly === true;
 }
 
 /** The signed-in user's answer: null while /config is read (the shared read, no extra request), then true or false. */
@@ -26,7 +23,7 @@ export function useUploadOnly(): boolean | null {
   const [on, setOn] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
-    readConfigShared().then(uploadOnlyOn).catch(() => true).then((value) => { if (live) setOn(value); });
+    readConfigShared().then(uploadOnlyOn).catch(() => false).then((value) => { if (live) setOn(value); });
     return () => { live = false; };
   }, [userKey]);
   return on;

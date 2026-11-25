@@ -189,10 +189,12 @@ export const OBSERVE_COPY = {
   troubleAsk: 'Having trouble?',
   continueOnWhatsApp: 'Continue on WhatsApp',
   handoffLine: (code = '') => (code ? `Continue my visit on WhatsApp (code ${code})` : 'Continue my visit on WhatsApp'),
-  /* bd-oe6r47 (queue #278) — upload-only recording (portal_observe_upload_only): the observe and debrief recording steps
-   * offer the phone's own recorder and Upload recording, never the in-app recorder. "Upload recording" is the locked word. */
-  recordOnPhone: 'Record on phone',
-  phoneHint: "Record with your phone's recorder, then upload it here.",
+  /* bd-oe6r47 / bd-ih6cej (queue #278) — the recording steps' advice (the operator 25 Nov ~17:20: "advise whoever is using
+   * to use their own recorders if their internet is not very good"), the upload-only line (a person the switch names),
+   * and a recording kept on the phone for this teacher. "Upload recording" is the locked word. */
+  weakInternet: "Weak internet? Record in your phone's Recorder app, then upload it here.",
+  uploadOnlyLine: "Record in your phone's Recorder app, then upload it here.",
+  savedOnPhone: (name = '') => `${name}’s recording is saved on this phone.`,
   sendKept: 'Send saved recording',
   openingFile: 'Opening the recording…',
 };
@@ -354,9 +356,10 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   continueOnWhatsApp: 'واٹس\u00A0ایپ پر کریں',
   // «واٹس ایپ» is one unit (U+00A0), as in the bot's copy; the bot reads the line with either space.
   handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
-  // bd-oe6r47 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «اپ لوڈ» as in the locked «ریکارڈنگ اپ لوڈ کریں».
-  recordOnPhone: 'فون پر ریکارڈ کریں',
-  phoneHint: 'فون کے ریکارڈر سے ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  // bd-oe6r47 / bd-ih6cej — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «اپ لوڈ» as in «ریکارڈنگ اپ لوڈ کریں».
+  weakInternet: 'انٹرنیٹ کمزور ہے؟ فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  uploadOnlyLine: 'فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  savedOnPhone: (name = '') => `${name} کی ریکارڈنگ اس فون میں محفوظ ہے۔`,
   sendKept: 'محفوظ ریکارڈنگ بھیجیں',
   openingFile: 'ریکارڈنگ کھل رہی ہے…',
 };
@@ -372,8 +375,8 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
  */
 export const SENTENCES = [
   'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure', 'troubleAsk', 'handoffLine',
-  // bd-oe6r47 — the one-line hint beside Record on phone / Upload recording (the operator's ask, queue #278).
-  'phoneHint',
+  // bd-oe6r47 / bd-ih6cej — the recording steps' one line (weak internet / upload-only) and the kept-copy sentence.
+  'weakInternet', 'uploadOnlyLine', 'savedOnPhone',
 ] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;

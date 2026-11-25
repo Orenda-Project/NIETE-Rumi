@@ -1,6 +1,6 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mic, Upload } from "lucide-react";
+import { Mic, Send, Upload } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { Card } from "../ui";
@@ -8,57 +8,36 @@ import { OBSERVE } from "./copy";
 import { lengthShort } from "./format";
 import ObservePage from "./ObservePage";
 import { useObserveRoutes } from "./observeRoutes";
+import { useKeptFor } from "./keptRecording";
 import { setDraft } from "../observeDraft";
 import { AUDIO_ACCEPT, checkRecording, formatSize, readAudioDuration } from "../../lib/coachingUpload";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
-import { latestUnsent } from "../../lib/recordingStore";
-import { recordingTeacher } from "../../lib/coachObserve";
 import type { CoachVisit } from "../types";
 
-/**
- * bd-oe6r47 (queue #278) — the file input that asks for the PHONE'S OWN RECORDER: `accept="audio/*"` alone (an
- * extension in the list stops Chrome treating it as a sound capture) plus `capture`. Android Chrome then opens the
- * phone's sound recorder (MediaStore RECORD_SOUND) when one is installed, and its file comes back here; where the
- * browser does not honour capture for sound (a WebView: the NIETE app, WhatsApp's browser) it opens the file picker,
- * which is Upload recording. Either way nothing records in the page, so a bad connection cannot lose the audio.
- */
-export const PhoneRecorderInput = forwardRef<HTMLInputElement, { testId: string; onFile: (f: File | undefined) => void }>(
-  function PhoneRecorderInput({ testId, onFile }, ref) {
-    return (
-      <input ref={ref} data-testid={testId} type="file" accept="audio/*" capture className="hidden"
-        onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
-    );
-  },
-);
+const PRIMARY = "flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#33374a] text-base font-semibold text-white disabled:opacity-60";
+const PLAIN = "flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025] disabled:opacity-60";
 
 /**
- * bd-oe6r47 — Record observation while upload-only is on (portal_observe_upload_only, default ON; the switch is read by
- * coach/observe/uploadOnly.ts): no in-app recorder. One line says what to do, the main button opens the phone's
- * recorder (PhoneRecorderInput), Upload recording picks a file. The file is checked and read the way Upload recording
- * always did (CoachAttach: a recording, not too large, its bytes held so the Android app can still send it), then Check
- * and send has it. A recording this phone already keeps for this teacher (the in-app recorder's chunks, IndexedDB) is
- * offered as Send saved recording: Check and send picks it up, as it does after a reload.
+ * The record step's screen when it does NOT go straight into the in-app recorder.
+ *
+ * mode "kept" (bd-ih6cej) — the in-app recorder is the default again, but a recording this phone keeps for THIS teacher
+ * (keptRecording.ts) is offered first: Send saved recording (Check and send picks it up), Start recording (a new one,
+ * onRecord), Upload recording (the upload step), under the weak-internet line. Nothing records until she chooses.
+ *
+ * mode "upload" (bd-oe6r47; a person portal_observe_upload_only names) — ONE action, Upload recording, with its line. The
+ * file is checked and held the way Upload recording always did (CoachAttach), then Check and send has it. bd-ih6cej: the
+ * "Record on phone" button (<input accept="audio/*" capture>) is gone: in WhatsApp's in-app browser and the NIETE app it
+ * opened the same attach chooser as Upload recording (the operator's test, 25 Nov ~17:15), because neither WebView hands
+ * an audio capture to a recorder. A kept copy for this teacher is still offered.
  */
-export default function PhoneRecord({ visit }: { visit: CoachVisit }) {
+export default function PhoneRecord({ visit, mode, onRecord }: { visit: CoachVisit; mode: "kept" | "upload"; onRecord?: () => void }) {
   const C = useCopy(OBSERVE);
   const routes = useObserveRoutes();
   const navigate = useNavigate();
-  const recordInput = useRef<HTMLInputElement>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  const [kept, setKept] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    latestUnsent()
-      .then((u) => {
-        const who = u ? recordingTeacher(u.meta.id) : null;
-        if (live && who && who.teacherExtId === visit.teacherExtId) setKept(true);
-      })
-      .catch(() => { /* none to offer */ });
-    return () => { live = false; };
-  }, [visit.teacherExtId]);
+  const kept = useKeptFor(visit.teacherExtId) === true || mode === "kept";
 
   const onChosen = async (picked: File | undefined) => {
     setError(null);
@@ -79,6 +58,12 @@ export default function PhoneRecord({ visit }: { visit: CoachVisit }) {
     navigate(routes.check(visit.id), { replace: true }); // like Upload's Next: Back from Check and send is the visit
   };
 
+  const sendKept = (
+    <Link to={routes.check(visit.id)} data-testid="send-kept" className={mode === "kept" ? PRIMARY : PLAIN}>
+      <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{C.sendKept}
+    </Link>
+  );
+
   return (
     <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(visit.id)} feature="observations"
       crumb={<>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</>}>
@@ -86,28 +71,32 @@ export default function PhoneRecord({ visit }: { visit: CoachVisit }) {
         <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#fee4e2] text-[#c8331f]" aria-hidden="true">
           <Mic className="h-9 w-9" />
         </span>
-        <p className="m-0 text-[16px] leading-snug text-[#1d2025]">{C.phoneHint}</p>
-        <button type="button" onClick={() => recordInput.current?.click()} disabled={opening}
-          className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#33374a] text-base font-semibold text-white disabled:opacity-60">
-          <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
-          {C.recordOnPhone}
-        </button>
-        <button type="button" onClick={() => uploadInput.current?.click()} disabled={opening}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025] disabled:opacity-60">
-          <Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{C.uploadRecording}
-        </button>
-        <PhoneRecorderInput ref={recordInput} testId="phone-record-input" onFile={(f) => { void onChosen(f); }} />
-        <input ref={uploadInput} data-testid="phone-upload-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
-          onChange={(e) => { void onChosen(e.target.files?.[0]); e.target.value = ""; }} />
+        {mode === "kept" && <h2 className="m-0 text-xl font-semibold" dir="auto">{C.savedOnPhone(visit.teacherName || C.dash)}</h2>}
+        <p className="m-0 text-[16px] leading-snug text-[#1d2025]" data-testid="record-tip">{mode === "kept" ? C.weakInternet : C.uploadOnlyLine}</p>
+        {mode === "kept" ? (
+          <>
+            {sendKept}
+            <button type="button" onClick={onRecord} className={PLAIN}>
+              <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
+              {C.startRecording}
+            </button>
+            <Link to={routes.attach(visit.id)} className={PLAIN}>
+              <Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{C.uploadRecording}
+            </Link>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => uploadInput.current?.click()} disabled={opening} className={PRIMARY}>
+              <Upload className="h-5 w-5 shrink-0" aria-hidden="true" />{C.uploadRecording}
+            </button>
+            <input ref={uploadInput} data-testid="phone-upload-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
+              onChange={(e) => { void onChosen(e.target.files?.[0]); e.target.value = ""; }} />
+            {kept && sendKept}
+          </>
+        )}
         {opening && <p className="m-0 text-[15px] font-semibold text-[#4b5563]" role="status">{C.openingFile}</p>}
         {error && <div role="alert" className="w-full rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">{error}</div>}
       </Card>
-      {kept && (
-        <Link to={routes.check(visit.id)} data-testid="send-kept"
-          className="mt-3 flex h-14 w-full items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">
-          {C.sendKept}
-        </Link>
-      )}
     </ObservePage>
   );
 }
