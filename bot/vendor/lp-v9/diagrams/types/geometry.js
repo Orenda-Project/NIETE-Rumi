@@ -126,20 +126,38 @@ function centroidOf(list) {
   return [sx / list.length, sy / list.length];
 }
 
-/** Minor-arc path between two rays out of a vertex, in SCREEN coords. */
-function angleArc(vx, vy, ax, ay, bx, by, r) {
+/**
+ * Arc path between two rays out of a vertex, in SCREEN coords: the minor angle
+ * by default.
+ * VENDOR DIVERGENCE (SYNC §3.45, bd-cu8noh.2.6): `mode` is the spec's `arc`.
+ * "reflex" takes the long way round and "full_circle" sweeps a whole turn from
+ * ray a back to itself. Both were drawn as the minor angle — a reflex angle came
+ * out obtuse and a whole turn (a == b) as a bare line, on live quiz pictures.
+ */
+function angleArc(vx, vy, ax, ay, bx, by, r, mode) {
   const a1 = Math.atan2(ay - vy, ax - vx);
+  const p1x = vx + r * Math.cos(a1);
+  const p1y = vy + r * Math.sin(a1);
+  if (mode === "full_circle") {
+    const ox = vx - r * Math.cos(a1);
+    const oy = vy - r * Math.sin(a1);
+    return {
+      d: `M${r2(p1x)},${r2(p1y)} A${r2(r)},${r2(r)} 0 1 1 ${r2(ox)},${r2(oy)} A${r2(r)},${r2(r)} 0 1 1 ${r2(p1x)},${r2(p1y)}`,
+      mid: a1 + Math.PI,
+      deg: 360,
+    };
+  }
   const a2 = Math.atan2(by - vy, bx - vx);
   let d = a2 - a1;
   while (d <= -Math.PI) d += 2 * Math.PI;
   while (d > Math.PI) d -= 2 * Math.PI;
+  if (mode === "reflex") d = d > 0 ? d - 2 * Math.PI : d + 2 * Math.PI;
   const sweep = d > 0 ? 1 : 0;
-  const p1x = vx + r * Math.cos(a1);
-  const p1y = vy + r * Math.sin(a1);
+  const large = Math.abs(d) > Math.PI ? 1 : 0;
   const p2x = vx + r * Math.cos(a2);
   const p2y = vy + r * Math.sin(a2);
   return {
-    d: `M${r2(p1x)},${r2(p1y)} A${r2(r)},${r2(r)} 0 0 ${sweep} ${r2(p2x)},${r2(p2y)}`,
+    d: `M${r2(p1x)},${r2(p1y)} A${r2(r)},${r2(r)} 0 ${large} ${sweep} ${r2(p2x)},${r2(p2y)}`,
     mid: a1 + d / 2,
     deg: Math.abs(d) / RAD,
   };
@@ -378,8 +396,10 @@ function render(spec) {
         svg.line(v[0], v[1], a[0], a[1], { stroke: C.ink, sw: 1.9, cap: "round" });
         svg.line(v[0], v[1], b[0], b[1], { stroke: C.ink, sw: 1.9, cap: "round" });
       }
-      const arc = angleArc(v[0], v[1], a[0], a[1], b[0], b[1], r);
-      svg.path(arc.d, { fill: "none", stroke: ac, sw: 2 });
+      const arc = angleArc(v[0], v[1], a[0], a[1], b[0], b[1], r, sh.arc);
+      // data-angle/data-deg name the turn the arc sweeps, so a test can read it (SYNC §3.45).
+      svg.group({ "data-angle": sh.label == null ? "" : String(sh.label), "data-deg": r2(arc.deg) }, (g) =>
+        g.path(arc.d, { fill: "none", stroke: ac, sw: 2 }));
       if (sh.label)
         lab(svg, v[0] + Math.cos(arc.mid) * (r + 17), v[1] + Math.sin(arc.mid) * (r + 17), sh.label, {
           size: LS,
