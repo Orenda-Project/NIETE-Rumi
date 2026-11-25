@@ -1,2 +1,3 @@
 {"ts":"2026-11-25T06:13:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"618c0977c08c","branch":"bd-vp2567-main-x","user":""}
 {"ts":"2026-11-25T06:15:06Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (re-pick of f0f830f9 for the -x trailer; web quiz report template only, no WhatsApp change; same declaration as the original pick)","sha":"618c0977c08c","branch":"bd-vp2567-main","user":""}
+{"ts":"2026-11-25T06:15:06Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-618c0977c08c","sha":"618c0977c08c","branch":"bd-vp2567-main","user":""}
