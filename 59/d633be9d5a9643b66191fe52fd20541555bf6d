@@ -1,2 +1,3 @@
 {"ts":"2026-11-25T01:51:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"59d633be9d5a","branch":"bd-rzjnjp.1.1-main","user":""}
 {"ts":"2026-11-25T02:03:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"59d633be9d5a","branch":"bd-rzjnjp.1.1-main","user":""}
+{"ts":"2026-11-25T02:04:59Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"59d633be9d5a","branch":"bd-rzjnjp.1.1-main","user":""}
