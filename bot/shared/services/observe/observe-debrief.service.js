@@ -1261,7 +1261,8 @@ async function processDebriefRecording(sessionId, payload = {}) {
         language: lang,
       });
       // ur/en: the judge scores rehearsal too (the rubric's eighth behaviour); Swahili's prompt does not ask for it.
-      feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw' });
+      // bd-ah8f7y: the transcript goes to the score-leak guard, so a figure the coach SAID is not read as a score.
+      feedback = await coachFeedbackWithRepair(prompt, sessionId, { rehearsal: _fbLang !== 'sw', transcript });
       // The lesson plan check's five parts (notes written with the check only): their own call, after the 8 behaviours,
       // kept beside them and never scored. Null (no check in the notes, a FICO 6-12 visit, or the judge failed) leaves the
       // feedback as it was.
