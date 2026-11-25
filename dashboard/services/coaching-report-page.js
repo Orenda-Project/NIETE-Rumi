@@ -161,6 +161,11 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
   if (typeof v.quizMessage === 'string' && v.quizMessage.trim()) {
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
+  } else if (links.makeQuiz) {
+    // qfix offers: the quiz offer held for a closed window (quiz/report-page-quiz.js); the link opens WhatsApp to us.
+    const ux = (key) => esc(resolveUx(key, { language: l }));
+    parts.push(`<section><h2>${ux('qfix_offers_cr_quiz_head')}</h2><p>${ux('qfix_offers_cr_quiz_body')}</p>`
+      + `<a class="btn" href="${esc(links.makeQuiz)}">${ux('qfix_offers_cr_quiz_button')}</a></section>`);
   }
   // Once she has sent the coach ping (C and D only), the question is answered: don't ask again.
   if (links.coach && COACH_SAID[coachState]) parts.push(coachSection(coachState, l));

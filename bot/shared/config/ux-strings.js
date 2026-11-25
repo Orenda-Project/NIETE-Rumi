@@ -4894,6 +4894,25 @@ const UX_STRINGS = {
     en: '{n} children played',
     ur: '{n} بچوں نے کھیلا',
   },
+  // ─── qfix offers (append-only): "Make a quiz" on the coaching report page (/cr) when the window was closed ───
+  // quiz/report-page-quiz.js, app_settings quiz_offer_closed_window.report_page. The prefill is what she sends us
+  // from WhatsApp; {ref} is the session's code (CR-a1b2c3d4), isolated so it keeps its order inside Urdu.
+  qfix_offers_cr_quiz_head: {
+    en: 'A quiz for your class',
+    ur: 'آپ کی کلاس کے لیے کوئز',
+  },
+  qfix_offers_cr_quiz_body: {
+    en: 'We can make a short quiz from this lesson for your students. Tap below, then press send in WhatsApp.',
+    ur: 'ہم اس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنا سکتے ہیں۔ نیچے ٹیپ کریں، پھر واٹس ایپ میں بھیجیں دبائیں۔',
+  },
+  qfix_offers_cr_quiz_button: {
+    en: 'Make a quiz',
+    ur: 'کوئز بنائیں',
+  },
+  qfix_offers_cr_quiz_prefill: {
+    en: 'Make a quiz for my class · {ref}',
+    ur: 'میری کلاس کے لیے کوئز بنائیں · ⁦{ref}⁩',
+  },
 };
 
 /**
