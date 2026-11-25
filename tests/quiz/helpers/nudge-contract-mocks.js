@@ -106,13 +106,22 @@ function makeStore(seed = []) {
       row.context = { ...(row.context || {}), send_started_at: new Date().toISOString() };
       return true;
     }),
+    // Handed back to pending, due at `until` (open question, or a send that never reached Meta). Guarded on sending.
+    defer: jest.fn(async (id, until, context = {}) => {
+      const row = find(id);
+      if (!row || row.status !== 'sending') return false;
+      row.status = 'pending';
+      row.scheduled_at = new Date(until).toISOString();
+      row.context = { ...(row.context || {}), ...context, deferred_at: new Date().toISOString() };
+      return true;
+    }),
     expireStuck: jest.fn(async () => 0),
   };
   return api;
 }
 
 const FUNCTIONS = ['schedule', 'markSkipped', 'markSent', 'markFailed', 'recordAnswer', 'claimQuiz',
-  'byId', 'rowsFor', 'todayRow', 'claimDue', 'markStarted', 'expireStuck'];
+  'byId', 'rowsFor', 'todayRow', 'claimDue', 'markStarted', 'defer', 'expireStuck'];
 
 function storeFacade(get) {
   const facade = { SKIP_REASONS, KINDS, STATUS, DEFAULT_CLAIM_LIMIT, STUCK_MINUTES, TABLE };
