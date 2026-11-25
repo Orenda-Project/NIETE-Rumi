@@ -2431,6 +2431,7 @@ async function processQuiz(quizId, payload, flight) {
       return { failed: true, reason };
     }
     meta = { ...meta, digest: r.digest, grade: r.grade, grade_source: r.gradeSource, lp_hint: r.lpHint,
+      ...(r.flnLesson ? { fln_lesson: r.flnLesson } : {}),
       digest_model: r.model, cost_usd: (meta.cost_usd || 0) + (r.costUsd || 0) };
     // The teacher's own choice, stored on the row when the language ask was
     // answered, outranks the subject rule. The rule is what a legacy row (or
