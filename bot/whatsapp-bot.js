@@ -769,8 +769,8 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
       }
     }
 
-    // "Make a quiz" from the coaching report page (quiz/report-page-quiz.js): her prefill ends in CR-<8 hex>, naming one
-    // of her sessions; it is the report template's "Make a quiz" tap. false (no code, switch off) → the text handler.
+    // "Make a quiz" from the coaching report page (quiz/report-page-quiz.js): the teacher's prefill ends in CR-<8 hex>, naming one
+    // of their sessions; it is the report template's "Make a quiz" tap. false (no code, switch off) → the text handler.
     if (messageType === 'text' && messageBody && /\bCR-[0-9a-f]{8}\b/i.test(messageBody)) {
       try {
         if (await require('./shared/services/quiz/report-page-quiz').handleReportPageText(messageBody, from)) return;

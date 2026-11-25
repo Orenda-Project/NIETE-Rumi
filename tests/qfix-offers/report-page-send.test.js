@@ -77,7 +77,7 @@ test('C/D: one message, the link template; the quiz row is held at send time (he
   expect(held()[0]).toMatchObject({ status: 'skipped', meta: expect.objectContaining({ skip_reason: 'window_closed', held_path: 'template' }) });
 });
 
-test('A/B: one message, the quiz-page template with her /cr token; held at send time', async () => {
+test('A/B: one message, the quiz-page template with the teacher\'s /cr token; held at send time', async () => {
   setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' }, group: 'A' });
   const s = sender();
   expect(await run(s)).toBe('template');

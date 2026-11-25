@@ -3,8 +3,8 @@
  * qfix offers — the quiz-only page (/cq/:token) the closed-window report's "Make a quiz" button opens for a teacher
  * who does not get the new report (v10 arms A/B, schools outside the draw; bot quiz/report-page-quiz.js). It shows
  * the lesson and the quiz, nothing of the report, so the v10 report arms stay as they are.
- *   makeQuiz      the offer is still held → "Make a quiz" (wa.me to the bot, her prefill with the session's code)
- *   quizMessage   the quiz is made → the message to send to her class, as the report card shows it
+ *   makeQuiz      the offer is still held → "Make a quiz" (wa.me to the bot, the prefill with the session's code)
+ *   quizMessage   the quiz is made → the message to send to the class, as the report card shows it
  *   neither       the /quiz door in the page's own noun (کوئز), and a button to WhatsApp
  * Pure HTML; every value escaped. Rendered by dashboard/routes/coaching-report.routes.js.
  */

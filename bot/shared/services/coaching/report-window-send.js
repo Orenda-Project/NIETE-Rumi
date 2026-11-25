@@ -129,9 +129,9 @@ async function sendQuizTemplate({ userId, sessionId }, d) {
 /**
  * qfix offers — "Make a quiz" on the page the report opens (quiz/report-page-quiz.js, switch
  * quiz_offer_closed_window.report_page, off → false at once and the chain below runs as before). A C/D teacher gets
- * the link template (sendLinkTemplate above, unchanged) and her /cr report carries the block; anyone else gets
+ * the link template (sendLinkTemplate above, unchanged) and their /cr report carries the block; anyone else gets
  * quiz_page_template (same image and body, URL button "Make a quiz" → /cq/<token>) when it is named. Either went →
- * the session's quiz row is written as held (held_path 'template'), so the page has its block when she opens it.
+ * the session's quiz row is written as held (held_path 'template'), so the page has its block when the teacher opens it.
  * The link template is asked once per report: after this, the chain's own link step sees no button.
  */
 async function sendQuizPage({ userId, sessionId }, d) {
