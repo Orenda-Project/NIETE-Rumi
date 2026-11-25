@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-49'); // sa-49: the English letter names e, B, t and d play production's v4 takes again (SESSION v34)
+    expect(sw.CORE).toBe('sa-core-sa-50'); // sa-50: the silence stop's own floor (sa-rec.js) and served_n on a one-at-a-time result (sa-core.js)
   });
 });
 

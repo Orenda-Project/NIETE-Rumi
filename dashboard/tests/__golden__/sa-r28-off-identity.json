@@ -1,5 +1,5 @@
 {
- "recorded": "2026-11-20",
+ "recorded": "2026-11-25",
  "batteries": {
   "sa.coach.G1.A.ur.json": {
    "all_off": "9cec98052950ff765402da8fdd066f3bbc0bacd02c82dc9c3fed06672850581e",
@@ -44,14 +44,14 @@
  },
  "runs": {
   "sa.coach.G3.A.ur.json:rdf_auto": {
-   "events": "b567f485e727e04fdb91ea83fd9a520fb220af669fc6cfd262b01bef9212f37d",
-   "results": "2f6050800a9324dcfd46387be78e32a8e4315510a36da5352a4fa53b68f1b2e6",
+   "events": "dd86d3a05546b783889d7ec6c4443b16b1df7876cae73d7ab4c9163005673577",
+   "results": "9422f006b274ad5684c94a38e7fb10dfc7413dc7744a8c70f80fe250313f4ca0",
    "n_events": 262,
    "n_results": 17
   },
   "sa.coach.G3.A.en.json:rdf_auto": {
-   "events": "52fcacc29784b31b5843f62e04c1a95cd2b32642fa6238d067112d1f79447e20",
-   "results": "2f6050800a9324dcfd46387be78e32a8e4315510a36da5352a4fa53b68f1b2e6",
+   "events": "9063d3d8db5d59eff6468b22a4ddc6ffd77f8fc0179ac866d511dc644f8567ce",
+   "results": "9422f006b274ad5684c94a38e7fb10dfc7413dc7744a8c70f80fe250313f4ca0",
    "n_events": 262,
    "n_results": 17
   }
