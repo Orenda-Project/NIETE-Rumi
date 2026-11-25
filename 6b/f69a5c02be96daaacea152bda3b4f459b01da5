@@ -1,1 +1,2 @@
 {"ts":"2026-11-25T17:10:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"6bf69a5c02be","branch":"bd-zrdvmi.69-main","user":""}
+{"ts":"2026-11-25T17:11:42Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.6 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"6bf69a5c02be","branch":"bd-zrdvmi.69-main","user":""}
