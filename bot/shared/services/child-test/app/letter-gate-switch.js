@@ -4,7 +4,7 @@
  * (CHILD_TEST_SA_SPEECH_GATE) mutes a whole clip when speech-to-text hears no WORD in it, and a child saying bare
  * letter sounds (/b/ /m/ /s/) says no word. ON, the letter name and letter sound tasks (by subtask name) skip
  * speech-to-text: only the duration floor and the model's own found:false mute a letter clip, and the letters prompt
- * says the clip may hold bare phonemes (sa/score.js scoreGrid). OFF, every path is exactly as before.
+ * says the clip may hold bare phonemes on letter sounds (sa/score.js scoreGrid). OFF, every path is exactly as before.
  *
  *   on()       30 s cache, JSON `true` only, fails closed (no row, any other value or a read error is off)
  */
