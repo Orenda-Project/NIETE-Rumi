@@ -1,2 +1,4 @@
 {"ts":"2026-11-24T23:47:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"92cfe2e767f0","branch":"bd-snkn32.77-fix","user":""}
 {"ts":"2026-11-24T23:48:02Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"92cfe2e767f0","branch":"bd-snkn32.77-fix","user":""}
+{"ts":"2026-11-24T23:48:12Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons spec_sync=true","sha":"92cfe2e767f0","branch":"bd-snkn32.77-fix","user":""}
+{"ts":"2026-11-25T00:10:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (the WhatsApp lesson-plan flow never calls the grades 1-5 Make my own author or its word checks)","sha":"92cfe2e767f0","branch":"bd-snkn32.77-fix","user":""}
