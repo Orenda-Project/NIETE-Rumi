@@ -220,6 +220,7 @@
     var askedAt = 0; // when this sitting's ask was drawn; 0 = none up, or it was answered (or left)
     var permUp = false; // Yes was tapped and the browser's permission prompt has not answered yet
     var primer = false; // the permission primer (web_quiz_push_primer, from the key): our Yes shows it first
+    var primerUp = false; // the primer is on screen: a second Yes tap (before it drew) counts nothing
     var primed = false; // the primer was answered OK once on this page: a later Yes (arm b's retry) asks the browser at once
     var arm = null; // the ask's arm from the key ('a' | 'b', web_quiz_push_ask_v2); null = no arm (today exactly)
     var watching = false;
@@ -351,10 +352,10 @@
 
     // The Yes tap: the ONLY place the browser's permission is asked, first thing inside the gesture.
     function onYes() {
-      if (busy) return;
+      if (busy || primerUp) return;
       ev('yes', dwell());
       // with the primer, Yes only draws it; the browser is asked from its OK, inside that tap
-      if (primer && !primed) { ev('primer_shown'); show.primer(); return; }
+      if (primer && !primed) { primerUp = true; ev('primer_shown'); show.primer(); return; }
       askBrowser();
     }
     function askBrowser() {
@@ -412,8 +413,8 @@
       var act = el && el.getAttribute('data-act');
       if (!act) return;
       if (act === 'yes') onYes();
-      else if (act === 'primer_go') { primed = true; ev('primer_go'); askBrowser(); }
-      else if (act === 'primer_back') { lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); }
+      else if (act === 'primer_go') { primerUp = false; primed = true; ev('primer_go'); askBrowser(); }
+      else if (act === 'primer_back') { primerUp = false; lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); }
       else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); }
       else if (act === 'stop') onStop();
       else if (act === 'test') onTest();
