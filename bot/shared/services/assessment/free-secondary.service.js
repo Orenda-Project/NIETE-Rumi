@@ -49,6 +49,7 @@ const Rewrite = require('./free-secondary-rewrite');
 const Pool = require('./free-secondary-pool');
 const Review = require('./free-secondary-review');
 const Levels = require('./free-secondary-levels');
+const { fdeTarget } = require('./free-secondary-target'); // bd-5jmnfj.38.43
 const { statedType } = require('./free-secondary-grammar');
 const { stripInstructions, scenarioParts, oneDigitSystem } = require('./free-secondary-tidy');
 const { isRtl } = require('./assessment-paper.renderer');
@@ -129,6 +130,9 @@ async function generateExam(args) {
 
   // The teacher's count is kept (a7 ruling on A5e): sizing only converts and lightens items.
   const sized = Rules.sizeTypes(questionTypes, grade);
+  // bd-5jmnfj.38.43 — FDE's thinking-level split for the grade and subject; null keeps the panel's 30/30/20/10/10.
+  const split = fdeTarget(grade, subject);
+  const levels = split ? split.levels : Levels.PANEL;
   const sizedCount = questionCount;
   const plan = Gen.planCounts({ contentSource, questionCount: sizedCount, questionTypes: sized.types, seenCount, seenTypes });
   const pool = Pool.poolTypes(sized.types);
@@ -143,7 +147,7 @@ async function generateExam(args) {
   };
   const system = Rules.withRules(Gen.buildSystemPrompt({ subject: base, includeAnswerKey }),
     PROMPTS['eg.safety.policies'], grade, chapterTitle,
-    { light: sized.light, levels: Levels.planText(Levels.plan(sized.types, sized.light), { extraMcqs: pool.extra }) }) + (appliesToGrade(grade) ? APPLY_NOTE : '');
+    { light: sized.light, split, levels: Levels.planText(Levels.plan(sized.types, sized.light, levels), { extraMcqs: pool.extra }) }) + (appliesToGrade(grade) ? APPLY_NOTE : '');
   const messages = [
     { role: 'system', content: system },
     { role: 'user', content: Gen.buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource,
@@ -227,7 +231,7 @@ async function generateExam(args) {
     onError: (err) => logToFile('[assessment] distractor review skipped', { error: err.message }),
   });
   // a8: the level split from the tags and a stem naming what its scheme marks go to the targeted rewrite.
-  const a8 = (exam) => [...Levels.levelIssues(exam), ...statedType(exam)];
+  const a8 = (exam) => [...Levels.levelIssues(exam, levels), ...statedType(exam)];
   issues = [...issues, ...reviewed, ...a8(examJson)];
 
   const check = (exam) => [...paperIssues(exam, checkOpts), ...Review.stillOpen(exam, reviewed), ...a8(exam)];
@@ -266,6 +270,10 @@ async function generateExam(args) {
   const tokenData = { inputTokens: usage.prompt_tokens ?? null, outputTokens: usage.completion_tokens ?? null,
     totalTokens: usage.total_tokens ?? null, model };
   const coverage = Gen.answerCoverage(examJson);
+  // bd-5jmnfj.38.43 — the target beside the split the finished paper's tags carry, by marks (percent).
+  logToFile('[assessment] thinking mix (grades 6-12 free)', {
+    grade, subject, fde: !!split, target: levels, paper: Object.fromEntries(Object.entries(Levels.paperSplit(examJson, levels)).map(([b, v]) => [b, Math.round(v * 100)])),
+  });
   logToFile('[assessment] generated (grades 6-12 free)', {
     grade, subject, questionCount: produced, revised, pooled, reviewed: reviewed.length, rewritten, swapped, stripped, digitsFixed, issuesLeft: issues.length, numbersSorted, keysMoved,
     loadMinutes: Math.round(load), timeMinutes: examJson._timeMinutes, overBand, elapsedMs: Date.now() - startedAt,
