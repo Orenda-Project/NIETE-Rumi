@@ -241,6 +241,15 @@ describe('startPortalObservation — the row startFromAudio writes, from the por
     expect(await start({ photoKeys: photos }, deps())).toEqual({ status: 'ok', coachingSessionId: SID });
   });
 
+  // bd-r2uzg1.23.5 (queue #274, call 6A; ICT sheet HITL 199): a principal's recording arrived as a 0-byte file, the
+  // analysis was queued and failed three times, and the screen said "upload again". An empty recording is refused here.
+  test('an empty recording (0 bytes) is refused before anything is written or queued', async () => {
+    const d = deps({ r2: { headObject: jest.fn().mockResolvedValue({ exists: true, sizeBytes: 0 }) } });
+    expect(await start({}, d)).toMatchObject({ status: 'invalid', reason: 'recording_empty' });
+    expect(d.supabase.writes.inserts).toHaveLength(0);
+    expect(d.queue.queueTranscription).not.toHaveBeenCalled();
+  });
+
   test('refuses without a teacher at all — a portal observation is never unbound', async () => {
     const d = deps();
     expect(await start({ teacherExtId: '' }, d)).toEqual({ status: 'invalid', reason: 'no_teacher' });

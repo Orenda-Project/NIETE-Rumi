@@ -245,6 +245,12 @@ async function checkUploaded(d, items) {
     const head = await d.r2.headObject(key);
     if (!head || !head.exists) return { status: 'invalid', reason: 'upload_missing', key };
     if (Number(head.sizeBytes) > KINDS[kind].maxBytes) return { status: 'invalid', reason: 'too_large', key };
+    // bd-r2uzg1.23.5 (queue #274, ICT call 6A; sheet HITL 199): a classroom recording that arrived EMPTY (0 bytes) is
+    // refused here, so no analysis is queued. On 25 Nov a principal's recording arrived as 0 bytes, the analysis ran and
+    // failed three times on its own ("invalid audio file"), and her screen said "Upload the recording again".
+    if (kind === 'audio' && head.sizeBytes != null && Number(head.sizeBytes) === 0) {
+      return { status: 'invalid', reason: 'recording_empty', key };
+    }
   }
   return null;
 }
