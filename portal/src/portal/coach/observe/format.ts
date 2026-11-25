@@ -51,6 +51,7 @@ export function failureWords(code: string | null | undefined, words: Pick<Observ
     return unread.kind === 'audio' ? words.failure.recordingUnreadable : words.failure.planUnreadable;
   }
   if (code === 'network') return words.failure.network;
+  if (code === 'empty_recording' || code === 'recording_empty') return words.failure.recordingEmpty; // bd-r2uzg1.23.5
   if (code === 'start_failed') return words.failure.startFailed; // bd-tfya0m: the files arrived; the start did not answer
   if (code === 'plan_not_ready' || code === 'plan_not_found') return words.failure.plan;
   if (code === 'not_your_teacher') return words.failure.notYourTeacher;

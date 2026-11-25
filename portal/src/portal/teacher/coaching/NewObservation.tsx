@@ -628,6 +628,7 @@ export function NewObservationPage() {
                   : failure.kind === 'in_progress' ? C.busy
                     : failure.kind === 'already_sent' ? C.alreadySent
                     : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? C.planNotUsed
+                      : failure.kind === 'empty_recording' ? C.recordingEmpty
                       : C.notAccepted}
               </span>
               {failure.kind === 'network' && failure.detail?.unreadable ? (
