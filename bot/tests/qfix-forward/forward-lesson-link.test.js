@@ -50,13 +50,44 @@ const url = (p) => `http://127.0.0.1:${srv.address().port}/api/internal/th${p}`;
 const H = () => ({ 'x-api-key': process.env.INTERNAL_API_KEY });
 const get = (p) => fetch(url(p), { headers: H() });
 
-function seed({ value, fail = false } = {}) {
+function seed({ value, fail = false, lp = null, lpRead = null, tables = null, lpLate = 0 } = {}) {
   fake = seedMaker(supabase, { on: true });
   fake.db.users = [{ ...TEACHER, phone_number: 'fixture-phone' }];
   fake.db.app_settings = [...fake.db.app_settings, { key: 'quiz_teacher_home', value: true },
     ...(value === undefined ? [] : [{ key: KEY, value }])];
+  // the lesson-plan tables the lp_v8 provider's own get() reads (A74's title): deliveries, assets, ingested versions
+  if (lp) Object.assign(fake.db, { niete_lp_downloads: lp, niete_lp_assets: lp.map((r) => ({ id: r.asset_id, asset_kind: 'lesson' })),
+    niete_lp_asset_sources: lp.map((r) => ({ lesson_id: r.lesson_id, version_stamp: r.version_stamp, content_hash: r.content_hash })), niete_lp_opens: [] });
+  if (tables) Object.assign(fake.db, tables);
+  if (lpRead) hookLpRead(lpRead);
+  if (lpLate) hookLpLate(lpLate);
   Flags.reset(); IdFlags._resetCache(); HubFlags._resetCache(); Gate._resetCache(); Bank._resetCache();
   if (fail) require('../first-touch/maker-fixture').hookPageRead(supabase, { fail: true });
+}
+/** The delivery-row read only: 'hang' never answers, 'fail' answers an error; every other read as seeded. */
+function hookLpRead(mode) {
+  const from0 = supabase.from;
+  supabase.from = (t) => {
+    const b = from0(t);
+    if (t !== 'niete_lp_downloads') return b;
+    b.maybeSingle = () => (mode === 'hang' ? { then: () => {} } : Promise.resolve({ data: null, error: { message: 'downloads down' } }));
+    return b;
+  };
+}
+/**
+ * Every lesson-plan read answers `ms` late, as a read from the app to its database does across regions (QF-F5, 23 Nov:
+ * production's app in Singapore reads a Mumbai DB, p50 88 / p90 112 ms per read; staging's in the Netherlands, 150 ms).
+ */
+const LP_TABLES = new Set(['niete_lp_downloads', 'niete_lp_opens', 'niete_lp_assets', 'niete_lp_asset_sources']);
+function hookLpLate(ms) {
+  const from0 = supabase.from;
+  supabase.from = (t) => {
+    const b = from0(t);
+    if (!LP_TABLES.has(t)) return b;
+    const then0 = b.then;
+    b.then = (ok, no) => new Promise((r) => setTimeout(r, ms)).then(() => then0.call(b, ok, no));
+    return b;
+  };
 }
 const tokenFor = (lang = 'en') => HomeToken.signTeacherHome({ uid: TEACHER.id, lang, via: 'portal' });
 /** The shell for `path` (after the token), the token masked so two shells compare by their bytes alone. */
@@ -117,5 +148,141 @@ describe.each([['absent', {}], ['false', { value: false }], ['the string "true"'
     const got = await shell(opts, `?lesson=${LESSON}`);
     expect(got).toEqual(today);
     expect(got.html).not.toContain('function one(){');
+  });
+});
+
+/**
+ * A74 (lead 20261122T144336): the one-lesson page NAMES its lesson. Under "Quiz from this lesson" / «اس سبق کا کوئز», one
+ * line with the lesson's name, read on the server by the lp_v8 provider's own get(teacher, ref): the delivery row behind
+ * `lsn_lp_v8_<deliveryRowId>`, only when it is this teacher's and makeable, named from the K-5 catalog (the name the home's
+ * list and the 15:00 offer print, in the lesson's own language). No name (another teacher's row, an unknown ref, a failed or
+ * slow read): today's one-lesson page byte for byte. The real provider runs over the in-memory tables.
+ */
+describe('A74: the one-lesson page names its lesson', () => {
+  const Page = require('../../shared/services/first-touch/teacher-home.page');
+  const row = (over = {}) => ({ id: 'dl-a74-1', user_id: TEACHER.id, lesson_id: 'grade_1_english_ch1_seg1', asset_id: 'as-a74-1',
+    version_stamp: 'v-a74', content_hash: 'h-a74', grade: '1', subject: 'english', status: 'sent', created_at: '2026-11-20T05:00:00.000Z', ...over });
+  const OWN = 'lsn_lp_v8_dl-a74-1';
+  const scriptOf = (html) => /<script>([\s\S]*?)<\/script>/.exec(html)[1];
+  const hashOf = (s) => `'sha256-${require('crypto').createHash('sha256').update(s, 'utf8').digest('base64')}'`;
+
+  test.each([['en', row(), 'All About Me: Key Words'], ['ur', row(), 'All About Me: Key Words'],
+    ['ur', row({ lesson_id: 'grade_1_urdu_ch4_seg1', subject: 'urdu' }), 'پسندیدہ کھیل اور جسمانی اعضا پر زبانی گفتگو']])(
+    '%s: the teacher\'s own delivery → the boot carries its catalog name, and the titled script draws it under the say line', async (lang, r, name) => {
+      const { html, csp } = await shell({ value: true, lp: [r] }, `?lesson=${OWN}`, lang);
+      const b = bootOf(html);
+      expect(b.one).toBe(OWN);
+      expect(b.ot).toBe(name);
+      const script = scriptOf(html);
+      expect(script).toContain("var ot=el('p','th-sub');ot.appendChild(topic(b.ot));c.appendChild(ot)");
+      expect(script).toBe(Page.ONE_LESSON_TITLED_SCRIPT);
+      expect(csp).toContain(hashOf(script));
+    });
+
+  test.each([['another teacher\'s delivery', { lp: [row({ user_id: 'someone-else' })] }],
+    ['no such delivery', { lp: [row({ id: 'dl-other' })] }], ['a row not sent', { lp: [row({ status: 'queued' })] }],
+    ['the delivery read fails', { lp: [row()], lpRead: 'fail' }]])('%s → today\'s one-lesson page, byte for byte', async (_n, opts) => {
+    const today = await shell({ value: true }, `?lesson=${OWN}`);
+    const got = await shell({ value: true, ...opts }, `?lesson=${OWN}`);
+    expect(got).toEqual(today);
+    expect(bootOf(got.html)).not.toHaveProperty('ot');
+    expect(scriptOf(got.html)).toBe(Page.ONE_LESSON_SCRIPT);
+  });
+
+  test('a delivery read that never answers: the page comes within the title wait, untitled', async () => {
+    const t0 = Date.now();
+    const got = await shell({ value: true, lp: [row()], lpRead: 'hang' }, `?lesson=${OWN}`);
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(bootOf(got.html)).not.toHaveProperty('ot');
+    expect(scriptOf(got.html)).toBe(Page.ONE_LESSON_SCRIPT);
+  });
+
+  test('?session= never reads a lesson name: byte for byte what it was', async () => {
+    const before = await shell({ value: true }, `?session=${SESSION}`);
+    const got = await shell({ value: true, lp: [row()] }, `?session=${SESSION}&lesson=${OWN}`);
+    expect(got).toEqual(before);
+    expect(fake.calls.filter((c) => c.table === 'niete_lp_downloads')).toHaveLength(0);
+  });
+
+  test('buildShell: forward on → the titled forward script; a ?session= page and a blank name are untitled', () => {
+    const b = (o) => Page.buildShell({ token: 'a.b', lang: 'en', ...o });
+    const fwd = b({ lesson: OWN, lessonTitle: 'All About Me: Key Words', forward: true });
+    expect(scriptOf(fwd.html)).toBe(Page.ONE_LESSON_TITLED_SCRIPT_FWD);
+    expect(fwd.csp).toContain(hashOf(Page.ONE_LESSON_TITLED_SCRIPT_FWD));
+    expect(b({ one: SESSION, lessonTitle: 'All About Me: Key Words' })).toEqual(b({ one: SESSION }));
+    expect(b({ lesson: OWN, lessonTitle: '   ' })).toEqual(b({ lesson: OWN }));
+  });
+
+  test('a lesson under religious review (Urdu ch1-3, Islamiyat) is never named, as it is never opened or made', async () => {
+    const untitled = await shell({ value: true }, `?lesson=${OWN}`);
+    const got = await shell({ value: true, lp: [row({ lesson_id: 'grade_1_urdu_ch1_seg1', subject: 'urdu' })] }, `?lesson=${OWN}`);
+    expect(got).toEqual(untitled);
+  });
+
+  test('switch off: no name read at all, today\'s shell', async () => {
+    const today = await shell({}, '');
+    const got = await shell({ lp: [row()] }, `?lesson=${OWN}`);
+    expect(got).toEqual(today);
+    expect(fake.calls.filter((c) => c.table === 'niete_lp_downloads')).toHaveLength(0);
+  });
+
+  // QF-F5 (qa-design 23 Nov): staging opened 6/6 one-lesson pages untitled, `{reason: slow, ms: 400}`. The name waited on the
+  // provider's whole make check, 5 reads in a row for an app-read lesson; at a cross-region read's cost that is over the wait.
+  const OPEN_ID = 'op-a74-1';
+  const appRead = (over = {}) => ({
+    niete_lp_downloads: [],
+    niete_lp_opens: [{ id: OPEN_ID, user_id: TEACHER.id, plan_kind: 'k5', plan_ref: 'grade_1_english_ch1_seg1', source: 'viewer',
+      opened_at: '2026-11-20T05:00:00.000Z', ...over }],
+    niete_lp_assets: [{ id: 'as-a74-op', lesson_id: 'grade_1_english_ch1_seg1', asset_kind: 'lesson', version_stamp: 'v-a74',
+      content_hash: 'h-a74', is_current: true, superseded_at: null, created_at: '2026-11-01T00:00:00.000Z' }],
+    niete_lp_asset_sources: [{ lesson_id: 'grade_1_english_ch1_seg1', version_stamp: 'v-a74', content_hash: 'h-a74' }],
+  });
+  const OPEN_KEY = `lsn_lp_v8_${OPEN_ID}`;
+
+  test('the teacher\'s own app-read lesson is named (reads answering at once)', async () => {
+    const { html } = await shell({ value: true, tables: appRead() }, `?lesson=${OPEN_KEY}`);
+    expect(bootOf(html).ot).toBe('All About Me: Key Words');
+  });
+
+  test.each([['an app-read lesson, 120 ms a read (production\'s p90 is 112)', { tables: appRead(), lpLate: 120 }, OPEN_KEY],
+    ['a WhatsApp delivery, 150 ms a read (staging\'s)', { lp: [row()], lpLate: 150 }, OWN]])(
+    '%s → still named inside the 400 ms wait', async (_n, opts, key) => {
+      const { html } = await shell({ value: true, ...opts }, `?lesson=${key}`);
+      expect(bootOf(html).ot).toBe('All About Me: Key Words');
+    });
+
+  test('a lesson whose version has no ingested script is still named: the make checks that when it is tapped, and refuses', async () => {
+    const Lp = require('../../shared/services/quiz/lp-v8-lesson-provider');
+    const tables = { ...appRead(), niete_lp_asset_sources: [] };
+    expect(bootOf((await shell({ value: true, tables }, `?lesson=${OPEN_KEY}`)).html).ot).toBe('All About Me: Key Words');
+    expect(await Lp.get(TEACHER.id, OPEN_ID)).toBeNull();
+    expect(bootOf((await shell({ value: true, lp: [row()], tables: { niete_lp_asset_sources: [] } }, `?lesson=${OWN}`)).html).ot)
+      .toBe('All About Me: Key Words');
+    expect(await Lp.get(TEACHER.id, 'dl-a74-1')).toBeNull();
+  });
+
+  test.each([['a delivery with no asset', { lp: [row({ asset_id: null })] }, OWN],
+    ['an assessment delivery', { lp: [row({ lesson_id: 'grade_1_english_ch1_seg995' })] }, OWN],
+    ['an app-read assessment', { tables: appRead({ plan_ref: 'grade_1_english_ch1_seg995' }) }, OPEN_KEY],
+    ['an app-read lesson under religious review (Urdu ch1-3)', { tables: appRead({ plan_ref: 'grade_1_urdu_ch1_seg1' }) }, OPEN_KEY]])(
+    '%s → never named, as before', async (_n, opts, key) => {
+      const untitled = await shell({ value: true }, `?lesson=${key}`);
+      expect(await shell({ value: true, ...opts }, `?lesson=${key}`)).toEqual(untitled);
+    });
+
+  test('another teacher\'s app-read lesson, or a non-k5 open, is never named', async () => {
+    const untitled = await shell({ value: true }, `?lesson=${OPEN_KEY}`);
+    expect(await shell({ value: true, tables: appRead({ user_id: 'someone-else' }) }, `?lesson=${OPEN_KEY}`)).toEqual(untitled);
+    expect(await shell({ value: true, tables: appRead({ plan_kind: 'g612' }) }, `?lesson=${OPEN_KEY}`)).toEqual(untitled);
+  });
+
+  test('every name read is logged with its time, named or not (the canary measures the wait, qa-design QF-F5)', async () => {
+    const { logEvent } = require('../../shared/utils/structured-logger');
+    logEvent.mockClear();
+    await shell({ value: true, lp: [row()] }, `?lesson=${OWN}`);
+    await shell({ value: true, lp: [row()], lpRead: 'hang' }, `?lesson=${OWN}`);
+    const got = logEvent.mock.calls.filter(([e]) => e === 'teacher_home.lesson_title').map(([, d]) => d);
+    expect(got).toEqual([expect.objectContaining({ named: true, ms: expect.any(Number), reads: 2 }),
+      expect.objectContaining({ named: false, reason: 'slow', ms: 400, reads: 2 })]);
   });
 });

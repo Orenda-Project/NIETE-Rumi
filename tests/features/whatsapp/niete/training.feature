@@ -1270,6 +1270,24 @@ Feature: NIETE (ICT) Teacher Training
     # The server decides whose lesson it is: quiz/make → the transcript provider's coaching_sessions read by the
     # token's teacher (user_id) → not_found → 404. Unit: teacher-home.one-lesson.test.js ("another teacher").
 
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1246
+  Scenario: The quiz home opened for one lesson plan names that lesson under "Quiz from this lesson"
+    Given app_settings "quiz_teacher_home_one_lesson" is true
+    And a lesson plan "All About Me: Key Words" was sent to me on WhatsApp, or I read it in the app
+    When I open my quiz home from a link that carries that lesson plan
+    Then the page says "Quiz from this lesson" (Urdu «اس سبق کا کوئز») and, on the line under it, "All About Me: Key Words"
+    And the lesson's name is shown as the catalog names it, an Urdu lesson in Urdu script on an English page too
+    And the name comes with the page, the same on a slow connection to the database as on a fast one
+    And a link carrying another teacher's lesson plan, a lesson under religious review, or a name that cannot be read in
+      time shows the page exactly as before, with no name line
+    # ADDED 2026-11-23 (bd-pdwwk4.3.8, QFIX A74): teacher-home.send.js lessonTitleOf → the lp_v8 provider's nameOf(teacher,
+    # ref): this teacher's sent delivery or K-5 app open, asked together in one round trip; catalog topic; 400 ms then no
+    # name; the page's ONE_LESSON_TITLED_SCRIPT draws boot `ot` in a dir=auto <bdi>. Unit:
+    # bot/tests/qfix-forward/forward-lesson-link.test.js, forward-page-run.test.js ("A74").
+    # CHANGED 2026-11-23 (QF-F5): the name was the provider's whole make check (get: 5 reads in a row for an app read),
+    # which overran 400 ms on every staging open (app and DB in different regions). It no longer asks whether a quiz can
+    # be made: "Quiz this" asks that when tapped. Every read logs teacher_home.lesson_title {named, ms, reads}.
+
   @quiz @no-mock-driver @wip @draft @P3 @T710
   Scenario: A child refused at the join's last step is counted
     Given app_settings "quiz_student_join" is true and "web_quiz_phone_bind" is not
@@ -3083,3 +3101,14 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
     When a child finishes a web quiz
     Then the result screen is exactly as before and no try is kept
+
+  @quiz @copy @wip @draft @P2 @T1244
+  Scenario: The quiz message I send again from my quiz home is in one language, the quiz's
+    Given the NIETE bot chat is open, my quiz home is in Urdu, and I made a quiz in English
+    When I send that quiz again to my class from my quiz home, or tap its one-tap link from a WhatsApp message
+    Then the whole message my class reads is in English, including its last line "Any day: send “quiz” to this number"
+    And a quiz made in Urdu sent from an English home ends with the Urdu line «کسی بھی دن اس نمبر پر ”کوئز“ لکھ کر بھیجیں»
+    And a quiz with no recorded language ends with the line in my home's language, as before
+    # teacher-home.send.js againOf: the return line follows quizzes.language (the language the stored message was written
+    # in), not the home's. Unit: bot/tests/qfix-forward/forward-route.test.js ("the return line follows the class
+    # message's language").
