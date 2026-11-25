@@ -41,7 +41,7 @@ const V21 = require('./teacher-report-v21.parts');
 const Confusions = require('./teacher-report-confusions.parts');
 // Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
 const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, digitsFor } = require('../config/ux-strings');
 
 const RTL_LANGS = new Set(['ur']);
 // The portal path of the report. Not /t: that is the training-template login link.
@@ -101,7 +101,8 @@ const SUBJECTS = {
 
 // A slash command is one left-to-right atom: in Urdu prose a bare "/" would
 // otherwise settle on the far side of the word ("quiz/").
-const CMD = (c) => `<span class="ltr">${c}</span>`;
+// a command is one atom: never broken between "/" and its name at the end of a line (a teacher types what they see)
+const CMD = (c) => `<span class="ltr nb">${c}</span>`;
 
 const SOURCES = { lp_v8: 'lp', lp612: 'lp', lp: 'lp', lp_v9: 'lp', transcript: 'coaching', video: 'video' };
 
@@ -377,6 +378,7 @@ html{font-size:var(--fs);-webkit-text-size-adjust:100%}
 body{margin:0;background:${print ? '#FFFFFF' : 'var(--paper)'};color:var(--ink);font-family:${body};line-height:var(--lead)${rtl ? ';word-spacing:.12em' : ''}}
 a{color:inherit}
 .ltr,.num{direction:ltr;unicode-bidi:isolate;font-family:${FONTS.bodyLatin};word-spacing:normal}
+.nb{white-space:nowrap}
 .c-rtl{font-family:${FONTS.bodyUrdu};line-height:${leadUr}}
 .c-ltr{font-family:${FONTS.bodyLatin}}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px 32px}
@@ -678,7 +680,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
  * The aggregate tab. M3c's renderClassTab fragment (teacher-report-class.page.js)
  * replaces this body when that module lands — wired by whichever PR lands second.
  */
-function classSections(r, { lang, print, tokens }) {
+function classSections(r, { lang, print, tokens, late = false }) {
   const { C, T, L, K } = kit(lang);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
@@ -721,11 +723,17 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
     if (!p) return L(W.noOne);
     return num(q.of) ? L(W.playedOf(p, num(q.of))) : L(W.quizLine(p));
   };
+  // ── late finishers (quiz_teacher_home_reports): a reported quiz's row carries "+{late} after the report" (the teacher
+  // home's chip words; Urdu digits on the Urdu page, as its dates) as its own item, so the row wraps it under the date
+  // line when there is no room, and its link says it came from here. `late` is passed only while the switch is on;
+  // off, nothing below changes a byte. ──
+  const lateChip = (q) => (late && q.reported && num(q.late) > 0
+    ? `<span class="late tag">${L(esc(resolveUx('qfix_report_home_late', { language: lang, params: { late: digitsFor(num(q.late), lang) } })))}</span>` : '');
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
     const a = num(q.avg);
-    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>`;
-    return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs([['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
+    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>${lateChip(q)}`;
+    return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs(late ? [['lang', lang], ['from', 'class']] : [['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
 ${weeks.length ? `<section class="card"><h2>${L(C.trend)}</h2><div class="wk">${wk}</div></section>` : ''}
@@ -757,7 +765,7 @@ function renderPage(data, opts = {}) {
   // ── end Jugnu tab ──
   const parts = tab === 'quiz'
     ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice, ok: opts.ok, late: opts.late })
-    : classSections((data && data.class) || {}, { lang, print, tokens });
+    : classSections((data && data.class) || {}, { lang, print, tokens, late: opts.late });
   const foot = print ? '' : `<div class="foot act">
 <div class="row2"><a class="btn btn-ghost" href="${base}/pdf${qs(tab === 'class' ? [['tab', 'class'], ['lang', lang]] : [['lang', lang]])}">${L(C.exportPdf)}</a>${
   tab === 'quiz'

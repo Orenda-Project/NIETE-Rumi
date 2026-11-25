@@ -43,7 +43,7 @@ function get(path) {
   });
 }
 
-test.each(['home', 'wa', 'list'])('from=%s reaches the bot on the page call', async (from) => {
+test.each(['home', 'wa', 'list', 'class'])('from=%s reaches the bot on the page call', async (from) => {
   await boot();
   const res = await get(`/r/${TOK}?from=${from}&lang=ur`);
   expect(res.status).toBe(200);

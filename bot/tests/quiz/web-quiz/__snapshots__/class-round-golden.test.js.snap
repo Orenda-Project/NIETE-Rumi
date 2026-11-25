@@ -141,29 +141,29 @@ exports[`round off (none): a Challenge run is byte-identical exercise payload, t
 
 exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98436,
-  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
+  "bytes": 98460,
+  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
 }
 `;
 
 exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99310,
-  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
+  "bytes": 99334,
+  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
 }
 `;
 
@@ -372,29 +372,29 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
 
 exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98436,
-  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
+  "bytes": 98460,
+  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
 }
 `;
 
 exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99310,
-  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
+  "bytes": 99334,
+  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
 }
 `;
 
@@ -539,28 +539,28 @@ exports[`round off (parent_off): a Challenge run is byte-identical exercise payl
 
 exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
 {
-  "bytes": 98011,
-  "sha256": "9551c3019de57ea2211585100969467256ffe8303e0c56d0c7776a932749efad",
+  "bytes": 98035,
+  "sha256": "0c6d77991c895d86744fec64e9c77ebfc3086cc2a8ba54ce19756b8e4d3c1183",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
 {
-  "bytes": 98436,
-  "sha256": "02b43cb267de69a883f589c0495e06252d03947f5f644801e1d4b61a9ef63c87",
+  "bytes": 98460,
+  "sha256": "0358f7004b2900722be6753ec89a154adc9c1d0d9138316f0eea1c629b87a9ce",
 }
 `;
 
 exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
 {
-  "bytes": 99310,
-  "sha256": "83350fe2c388eb7352a0e8b659bb8985bace7ad9dd30f209e245fe05e56e775d",
+  "bytes": 99334,
+  "sha256": "c7767697d7642fe4c00b112f16596d60199f0a180e58840fd5fcf4fe7471d4c7",
 }
 `;

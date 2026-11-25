@@ -52,9 +52,10 @@ const QUERY = {
   cl_open: (v) => UUID_RX.test(v),
   // Its "Make a new link" asks first: the class whose card shows the confirm (the bot signs the nonce).
   jconfirm: (v) => UUID_RX.test(v),
-  // Where the open came from (bd-5j1zaf): the teacher home, the WhatsApp report, the quiz list's link. The bot reads
-  // it only while quiz_teacher_home_reports is on (teacher_report.opened's from); off, it ignores it.
-  from: (v) => v === 'home' || v === 'wa' || v === 'list',
+  // Where the open came from (bd-5j1zaf): the teacher home, the WhatsApp report, the quiz list's link, a quiz row of the
+  // all-classes tab. The bot reads it only while quiz_teacher_home_reports is on (teacher_report.opened's from); off,
+  // it ignores it.
+  from: (v) => v === 'home' || v === 'wa' || v === 'list' || v === 'class',
 };
 
 function forwardQuery(q) {
