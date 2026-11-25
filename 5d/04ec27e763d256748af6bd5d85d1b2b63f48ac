@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T04:27:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"5d04ec27e763","branch":"bd-rzjnjp.1.1-main","user":""}
+{"ts":"2026-11-25T04:27:05Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,status,observe,attendance,child-test,portal-login,portal-smoke owe their Gherkin","sha":"5d04ec27e763","branch":"bd-rzjnjp.1.1-main","user":""}
