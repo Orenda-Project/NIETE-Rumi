@@ -649,7 +649,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span>${V21.codeChip(q.code)}</div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
   }).join('');
   // quiz_report_misconceptions: the class's common wrong answers on confirmed keys; '' when the data has none
-  const confusions = Confusions.confusionsSection(r.misconceptions, { lang, L, M, K, esc });
+  const confusions = Confusions.confusionsSection(r.misconceptions, { lang, L, M, esc });
   const questions = qrows ? `<section class="card" id="questions"><h2>${L(C.questions)}</h2><ul class="qs">${qrows}</ul></section>` : '';
 
   // 6. what to reteach
