@@ -36,6 +36,7 @@ const videoReco = require('../services/video-reco-events');
 const pageTime = require('../services/report-page-time');
 const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
 const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
+const { pageQuiz, fetchFrom: pageQuizSwitch } = require('../../bot/shared/services/quiz/report-page-quiz');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -112,6 +113,10 @@ function createCoachingReportRouter(opts = {}) {
   const switchCache = cachedSwitch({ ttlMs: 30 * 1000, off: () => ({ ...deliveryFixes.OFF }), read: () => deliveryFixes.fetchFrom(db()) });
   const readSwitch = opts.deliverySwitch || ((now) => switchCache.get(now));
   const timeOnPage = async () => { try { return (await readSwitch()).timeOnPage === true; } catch (_) { return false; } };
+  // qfix offers: quiz_offer_closed_window.report_page, the "Make a quiz" block for an offer held for a closed window.
+  const quizSwitchCache = cachedSwitch({ ttlMs: 30 * 1000, off: false, read: () => pageQuizSwitch(db()) });
+  const quizPageOn = async () => { try { return (await quizSwitchCache.get()) === true; } catch (_) { return false; } };
+  const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
   const router = express.Router();
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -163,6 +168,8 @@ function createCoachingReportRouter(opts = {}) {
     const state = USEFUL_STATES.has(req.query.useful) ? req.query.useful : undefined;
     const group = await groupOf(userId);
     if (COACH_GROUPS.has(group)) links.coach = `${REPORT_PATH}/${token}/coach`;
+    const quiz = await pageQuiz({ db: db(), sessionId, language: view.language, bot: botNumber(), switchOn: quizPageOn });
+    if (quiz) links.makeQuiz = quiz.href;
     const coachState = COACH_STATES.has(req.query.coach) ? req.query.coach : undefined;
     if (!state) log({ coachingSessionId: sessionId, userId, group, channel: 'page' }, 'coaching.useful.asked');
     return send(renderReportPage(view, process.env, links, state, coachState));
