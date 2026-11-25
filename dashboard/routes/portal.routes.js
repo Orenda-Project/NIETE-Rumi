@@ -9678,7 +9678,7 @@ router.get('/config', async (req, res) => {
       require('../../bot/shared/services/lp612-own-goal.store').goalStartOn(supabase, userId),
       // bd-snkn32.59 (queue #165) — Make my own → A whole unit: a list or "teachers" (bd-snkn32.59.8), rides with Make my own on.
       require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
-      // bd-oe6r47 (queue #278) — upload-only recording on the observe and debrief steps; DEFAULT ON (never throws).
+      // bd-oe6r47 / bd-ih6cej (queue #278) — upload-only recording on the observe and debrief steps; fail-closed (never throws).
       isObserveUploadOnlyFor(supabase, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
@@ -9777,8 +9777,8 @@ router.get('/config', async (req, res) => {
         lpWhatsappSend: true,
         lpViewerSlim: false,
         lpOwnGoalStart: false,
-        // bd-oe6r47 — DEFAULT ON: upload-only is the safe side, so a broken read keeps it.
-        observeUploadOnly: true,
+        // bd-ih6cej — fail-closed: a broken read is the in-app recorder (Upload recording beside it).
+        observeUploadOnly: false,
       },
       roleSwitchRoles: [],
     });
