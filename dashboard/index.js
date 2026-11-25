@@ -2816,6 +2816,8 @@ app.use('/api/portal', portalLinkRoutes.portalLinkScope);
 // is touched), and the pages report where she is to POST /funnel/events. Both write events to Axiom, never a table.
 app.use('/api/portal', appFunnelRoutes.actionLogger);
 app.use('/api/portal', cors(portalCorsOptions), appFunnelRoutes.createAppFunnelRouter());
+// bd-ma9jiy (queue #262) — Save to phone on the recording player: a live signed link re-signed as an attachment.
+app.use('/api/portal', cors(portalCorsOptions), require('./routes/recording-file.routes').createRecordingFileRouter());
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);

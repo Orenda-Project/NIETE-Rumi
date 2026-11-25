@@ -10,7 +10,9 @@ import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
-import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
+import { deleteRecording, latestUnsent, type KeptRecording } from '../../lib/recordingStore';
+import { useRecordingResume } from '../../lib/recordingResume';
+import { tellSent } from '../../lib/recordingBeat';
 import { withDuration } from '../../lib/webmDuration';
 import { isInAppBrowser } from '@/lib/runtime';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
@@ -211,17 +213,26 @@ export function NewObservationPage() {
     if (!session) return;
     setAudioProblem(null);
     setPhase('starting');
-    const result = await session.start({ returnTo: COACHING_NEW });
+    const result = await session.start({ returnTo: COACHING_NEW, beat: { kind: 'dc' } });
     setPhase(result === 'recording' ? 'recording' : 'micBlocked');
+  };
+  /** bd-ma9jiy: Resume — on a recording reopened from the phone it opens the microphone first. */
+  const resumeRecording = () => {
+    if (!session) return;
+    const r = session.resume();
+    if (r) void r.then((x) => { if (x === 'micBlocked') setPhase('micBlocked'); });
   };
   const finishRecording = async () => {
     if (!session) return;
     const out = await session.finish();
     setPhase('idle');
     if (!out) return;
+    // bd-ma9jiy: one reopened from the phone shows before a class too, like a recording taken back from the phone.
+    const wasKept = restored;
+    setRestored(null);
     const rec: Audio = {
-      blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs,
-      recordingId: out.id, source: 'recorded', size: out.blob.size, startedAt: null,
+      blob: out.blob, filename: lessonFilename(out.type.ext, wasKept ? new Date(wasKept) : undefined), durationMs: out.durationMs,
+      recordingId: out.id, source: wasKept ? 'resumed' : 'recorded', size: out.blob.size, startedAt: wasKept,
     };
     // Her ticks and taps are held with this recording (a trip to the library keeps them) and go with Submit.
     holdDraft({ audio: rec, plan, photos, cls, live: live.toRecord() });
@@ -293,7 +304,7 @@ export function NewObservationPage() {
   };
   // bd-r2uzg1.18.8 — the newest recording on this phone not sent (see "Not sent" above), read once on arrival. The one
   // recording now and the one already on the screen are the screen's own, never offered. No phone storage: nothing.
-  const [unsent, setUnsent] = useState<{ meta: StoredRecording; blob: Blob } | null>(null);
+  const [unsent, setUnsent] = useState<KeptRecording | null>(null);
   useEffect(() => {
     let alive = true;
     const own = new Set([session?.recordingId, kept?.audio && !isSavedAudio(kept.audio) ? kept.audio.recordingId : null]);
@@ -304,6 +315,29 @@ export function NewObservationPage() {
   }, []);
   /** Once it is on the screen, sent or thrown away, it is no longer offered. */
   const letGo = (id: string | null | undefined) => { if (id) setUnsent((u) => (u && u.meta.id === id ? null : u)); };
+  /**
+   * bd-ma9jiy (queue #262; the operator 25 Nov: "show them the same UI that you show somebody when they pause") — with
+   * portal_recording_resume on for her, the recording this phone kept is not a "Not sent" card: it IS the recording on
+   * this screen, PAUSED, its clock at the saved length. Resume carries on in the same recording; Stop gives it to step 3.
+   * Only a WebM one (the code joins WebM parts); anything else keeps the card. `restored`: when it was started.
+   */
+  const resumeOn = useRecordingResume();
+  const [restored, setRestored] = useState<string | null>(null);
+  // Read once, on arrival, on its own (not from the Not sent card's read): the newest recording kept on this phone.
+  const triedRestore = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    if (resumeOn !== true || triedRestore.current || !session || session.active || audio || phase !== 'idle') return;
+    triedRestore.current = true;
+    Promise.resolve().then(() => latestUnsent()).then((k) => {
+      if (!mounted.current || !k || k.meta.ext !== '.webm' || session.active) return;
+      setUnsent(null);
+      session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
+      setRestored(k.meta.startedAt);
+      setPhase('recording');
+    }).catch(() => { /* nothing to reopen: the screen as before */ });
+  }, [resumeOn, session, audio, phase]);
   const takeUnsent = async () => {
     const u = unsent;
     if (!u) return;
@@ -359,6 +393,8 @@ export function NewObservationPage() {
         ...(saveForLater ? { saveForLater: true } : {}),
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) {
+        // bd-ma9jiy: the heartbeat's recording joined to the coaching session it became.
+        tellSent(audio.recordingId, { kind: 'dc' }, coachingSessionId);
         try { await deleteRecording(audio.recordingId); } catch { /* gone */ }
         letGo(audio.recordingId);
       }
@@ -459,7 +495,7 @@ export function NewObservationPage() {
     : phase === 'recording'
       ? (
         <Dock>
-          <Action tone="outline" icon={session?.paused ? Mic : Pause} onClick={() => { if (session?.paused) session.resume(); else session?.pause(); }}>
+          <Action tone="outline" icon={session?.paused ? Mic : Pause} onClick={() => { if (session?.paused) resumeRecording(); else session?.pause(); }}>
             {session?.paused ? C.resume : C.pause}
           </Action>
           <Action tone="danger" icon={Square} onClick={() => setConfirmFinish(true)}>{C.stop}</Action>
@@ -520,7 +556,7 @@ export function NewObservationPage() {
           ) : null}
 
           <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.stepRecording}</FlowStep>
-          {cls && !audio && phase === 'recording' ? (
+          {(cls || restored || session?.active) && !audio && phase === 'recording' ? (
             <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
                 {session?.paused ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <i aria-hidden="true" className="h-2 w-2 rounded-full bg-[#c8331f] motion-safe:animate-pulse" />}
@@ -535,12 +571,16 @@ export function NewObservationPage() {
           {cls && !audio && phase === 'starting' ? (
             <p aria-live="polite" className="mx-1 text-[15px] font-semibold text-[#6b7280]">{C.starting}</p>
           ) : null}
-          {cls && !audio && phase === 'micBlocked' ? (
+          {(cls || restored) && !audio && phase === 'micBlocked' ? (
             <section className={cn(CARD, 'flex flex-col gap-3 p-4')}>
               <span className="text-[17px] font-semibold text-[#c8331f]">{C.micBlocked}</span>
               <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{micLine}</p>
               <Dock>
-                <Action onClick={() => { setMicTries((n) => n + 1); void startRecording(); }}>{C.tryAgain}</Action>
+                <Action onClick={() => {
+                  setMicTries((n) => n + 1);
+                  // bd-ma9jiy: a reopened recording tries its Resume again (it is still the session, paused).
+                  if (restored && session?.active) { setPhase('recording'); resumeRecording(); } else void startRecording();
+                }}>{C.tryAgain}</Action>
                 <Action tone="outline" icon={Upload} onClick={() => audioInput.current?.click()}>{C.uploadRecording}</Action>
               </Dock>
             </section>
@@ -592,7 +632,7 @@ export function NewObservationPage() {
           ) : null}
           {/* A recording kept from WhatsApp, or one taken back from the phone (bd-r2uzg1.18.8), shows before a class too. */}
           {audio && (cls || isSavedAudio(audio) || audio.source === 'resumed') ? (
-            <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
+            <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} full={resumeOn === true} />
           ) : null}
           {/* bd-bmc9a0.2 — ICT IAB row 31: Save recording, under the recording, once it could be sent (the same rule as
               Submit: a class and at least 15 minutes). */}

@@ -106,6 +106,7 @@ const {
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
   isObserveUploadOnlyFor,
+  PORTAL_RECORDING_RESUME_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -9614,6 +9615,7 @@ router.get('/config', async (req, res) => {
       lpViewerSlimRaw,
       lpOwnUnitRaw,
       observeUploadOnly,
+      recordingResumeRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9685,6 +9687,10 @@ router.get('/config', async (req, res) => {
       require('../../bot/shared/services/lp-own-unit.store').unitOn(supabase, userId),
       // bd-oe6r47 / bd-ih6cej (queue #278) — upload-only recording on the observe and debrief steps; fail-closed (never throws).
       isObserveUploadOnlyFor(supabase, userId),
+      // bd-ma9jiy (queue #262) — a teacher's own Digital Coaching recording kept on the phone reopens as a PAUSED recording
+      // (Resume / Stop). Fail-closed: no row, false or a failed read = off; true = every teacher; a users.id list = those;
+      // "teachers" = every teacher. Coaches' and principals' observation and debrief have it on by default (no switch).
+      isFlagEnabledForUser(supabase, PORTAL_RECORDING_RESUME_KEY, userId),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9748,6 +9754,8 @@ router.get('/config', async (req, res) => {
         lpViewerSlim: teacherV2 && lpViewerSlimRaw,
         // bd-oe6r47 — the observe and debrief recording steps offer the phone's recorder + Upload, no web recorder.
         observeUploadOnly,
+        // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
+        recordingResume: recordingResumeRaw === true,
       },
     });
   } catch (error) {
@@ -9796,6 +9804,7 @@ router.get('/config', async (req, res) => {
         lpViewerSlim: false,
         // bd-ih6cej — fail-closed: a broken read is the in-app recorder (Upload recording beside it).
         observeUploadOnly: false,
+        recordingResume: false,
       },
       roleSwitchRoles: [],
     });
