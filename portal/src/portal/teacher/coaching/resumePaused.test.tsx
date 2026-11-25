@@ -50,9 +50,11 @@ import { COACHING_NEW } from "./paths";
 import { clearDraft, holdDraft } from "./draft";
 import { COACHING_V2_COPY as C } from "./copy";
 import { beforeAll as preloadFirst } from "vitest";
-import { preloadAll } from "@/lib/lazyPage";
+import * as lazyPage from "@/lib/lazyPage";
 
-preloadFirst(() => preloadAll({ pages: true }), 120_000);
+// preloadAll is newer than main's lazyPage: this test runs on every rung (bd-ma9jiy), so it is used only where it exists.
+const preloadAll = (lazyPage as unknown as { preloadAll?: (o: { pages: boolean }) => Promise<unknown> }).preloadAll;
+preloadFirst(() => (preloadAll ? preloadAll({ pages: true }) : undefined), 120_000);
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const REC = "rec-0f1e2d3c";
