@@ -10,3 +10,4 @@
 {"ts":"2026-11-24T20:11:47Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (web quiz school league only; only the QA ledger file is shared with training, no WhatsApp training surface changed)","sha":"a5e635779a63","branch":"bd-97daxo.34.7-main3","user":""}
 {"ts":"2026-11-24T20:11:47Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"1f0ce907-2730-42b2-beae-99eca4df9b35","sha":"a5e635779a63","branch":"bd-97daxo.34.7-main3","user":""}
 {"ts":"2026-11-25T00:45:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"a5e635779a63","branch":"bd-97daxo.34.7-main3","user":""}
+{"ts":"2026-11-25T00:45:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"a5e635779a63","branch":"bd-97daxo.34.7-main3","user":""}
