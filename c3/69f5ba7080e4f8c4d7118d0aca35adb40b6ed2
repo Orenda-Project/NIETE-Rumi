@@ -4,3 +4,4 @@
 {"ts":"2026-11-25T04:02:06Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
 {"ts":"2026-11-25T04:02:07Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
 {"ts":"2026-11-25T04:03:11Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,coaching=none-needed (cherry-pick -x of #5805 already mock-laned on sandbox; server-side retry of a failed send, message bytes unchanged)","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
+{"ts":"2026-11-25T04:03:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-c369f5ba7080","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
