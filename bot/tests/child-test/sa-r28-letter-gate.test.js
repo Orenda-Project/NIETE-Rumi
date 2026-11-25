@@ -2,10 +2,12 @@
 
 /**
  * sa_r28_letter_gate (app_settings, default OFF): the speech gate muted a whole letter-sound clip when speech-to-text
- * heard no WORD in it, and a child saying bare letter sounds (/b/ /m/ /s/) says no word. ON, for letter SOUNDS only, an
- * energy voice-activity check on the clip (relative to its own noise floor; no speech-to-text call) takes the place of
- * the word count; the duration floor and the model's own found:false still mute; the card goes to the model without
- * the expected answers. Letter NAMES and spoken maths keep today's speech-to-text gate. The scorer's own path runs here
+ * heard no WORD in it, and a child saying bare letter sounds (/b/ /m/ /s/) says no word. ON, for letter SOUNDS and letter
+ * NAMES (a single spoken letter name often comes back from speech-to-text as no word too), an energy voice-activity
+ * check on the clip (relative to its own noise floor; no speech-to-text call) takes the place of the word count; the
+ * duration floor and the model's own found:false still mute. Letter sounds go to the model without the expected
+ * answers (variant B); the letter-names prompt is unchanged. Spoken maths and words keep today's speech-to-text gate.
+ * The scorer's own path runs here
  * (battery task, the real ffmpeg decode of the clip, prompt, marks); speech-to-text and the model are stand-ins. Every
  * clip is synthetic, generated below.
  */
@@ -227,19 +229,48 @@ describe('sa_r28_letter_gate: letter SOUNDS are gated on voice activity, not on 
     expect(got.marks.meta.calls[0].error).toMatch(/^vad_failed/);
   });
 
-  test('ON: letter NAMES keep the STT gate: a voiced names clip with STT 0 words stays not_reached x5, prompt unchanged', async () => {
-    const s = standIns({ clip: 'voiced3', words: 0 });
+  test('ON: letter NAMES take the voice-activity gate too: a voiced names clip with STT 0 words reaches the model (3/5), no STT call', async () => {
+    const s = standIns({ clip: 'voiced3', words: 0, right: 3 });
     const got = await score.scoreRow(row('ur.letter_names5'), session(), ON(s));
+    expect(verdicts(got)).toEqual(['correct', 'correct', 'correct', 'wrong', 'wrong']);
+    expect(got.marks.correct).toBe(3);
+    expect(s.stt).toEqual([]);
+    expect(s.prompts.map((p) => p.job)).toEqual(['child_test.sa_letters']);
+    expect(gateCalls(got)).toEqual(['skipped_r28']);
+    expect(got.marks.meta.calls.find((c) => c.model === 'skipped_r28')).toMatchObject({ vad_pass: true, clip_s: 3 });
+    expect(got.marks.detail.letter_gate).toBe('r28');
+    got.marks.detail.items.forEach((i) => { expect(i).toMatchObject({ vad_pass: true, clip_s: 3 }); expect(i).not.toHaveProperty('reason'); });
+  });
+
+  test('ON: a silent 6 s letter-NAMES clip scores 0 (no_voice), with no STT and no model call', async () => {
+    const s = standIns({ clip: 'silent6', right: 5 });
+    const got = await score.scoreRow(row('ur.letter_names5'), session(), ON(s));
+    expect(got.marks.correct).toBe(0);
+    expect(verdicts(got)).toEqual(Array(5).fill('not_reached'));
+    expect(s.stt).toEqual([]);
+    expect(s.prompts).toEqual([]);
+    expect(gateCalls(got)).toEqual(['skipped_r28']);
+    got.marks.detail.items.forEach((i) => expect(i).toMatchObject({ no_speech: true, conf: 0, reason: 'no_voice', vad_pass: false, clip_s: 6 }));
+  });
+
+  test('ON: the letter-NAMES prompt is unchanged (variant B stays letter sounds only)', async () => {
+    const on = standIns({ clip: 'voiced3', words: 3 });
+    const off = standIns({ clip: 'voiced3', words: 3 });
+    await score.scoreRow(row('ur.letter_names5'), session(), ON(on));
+    await score.scoreRow(row('ur.letter_names5'), session(), off);
+    expect(on.prompts[0].prompt).toBe(off.prompts[0].prompt);
+    expect(on.prompts[0].prompt).not.toContain(score.__internals.LETTER_SOUNDS_BARE);
+    expect(on.prompts[0].prompt).toContain('(دال)');
+  });
+
+  test('OFF: letter NAMES keep the STT gate: a voiced names clip with STT 0 words stays not_reached x5, as today', async () => {
+    const s = standIns({ clip: 'voiced3', words: 0 });
+    const got = await score.scoreRow(row('ur.letter_names5'), session(), s);
     expect(s.stt).toEqual(['ur']);
     expect(s.prompts).toEqual([]);
     expect(verdicts(got)).toEqual(Array(5).fill('not_reached'));
     expect(gateCalls(got)).toEqual(['stt:test']);
     expect(got.marks.detail).not.toHaveProperty('letter_gate');
-    const heard = standIns({ clip: 'voiced3', words: 3 });
-    const off = standIns({ clip: 'voiced3', words: 3 });
-    await score.scoreRow(row('ur.letter_names5'), session(), ON(heard));
-    await score.scoreRow(row('ur.letter_names5'), session(), off);
-    expect(heard.prompts[0].prompt).toBe(off.prompts[0].prompt);
   });
 
   test('ON: spoken maths (mental addition) keeps the STT gate: STT 0 words stays not_reached', async () => {

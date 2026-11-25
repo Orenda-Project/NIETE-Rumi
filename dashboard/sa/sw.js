@@ -108,7 +108,10 @@
 // sa-48: the letter-sound picker's re-made prompts and the your-turn / picker-intro lines (SESSION v33); no worker code changes.
 // sa-49: the English letter names e, B, t and d play production's v4 takes again under their keys (SESSION v34); no worker
 //   code changes.
-var VERSION = 'sa-49';
+// sa-50: hotfix, sa-rec.js (the silence stop hears a quiet child: its own floor, STOP_FLOOR 0.004, in place of FLOOR 0.02)
+//   and sa-core.js (a one-at-a-time result records served_n, the number of items served). SESSION unchanged: no clip or
+//   battery changed; no worker code changes.
+var VERSION = 'sa-50';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
