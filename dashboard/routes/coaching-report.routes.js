@@ -37,6 +37,7 @@ const pageTime = require('../services/report-page-time');
 const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
 const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
 const { pageQuiz, fetchFrom: pageQuizSwitch } = require('../../bot/shared/services/quiz/report-page-quiz');
+const { renderQuizPage } = require('../services/report-quiz-page');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -261,6 +262,30 @@ function createCoachingReportRouter(opts = {}) {
   router.get(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, coachPage);
   // 2 MB: a 20-second voice note arrives as base64 in the form.
   router.post(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '2mb' }), coachAnswer);
+
+  // qfix offers: GET /cq/:token, the quiz-only page the closed-window report's "Make a quiz" button opens for a
+  // teacher who does not get the new report (bot quiz/report-page-quiz.js). The /cr token and its checks; switch off →
+  // 404, the link not complete.
+  const quizPage = async (req, res) => {
+    if (!(await quizPageOn())) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const v = verified(String(req.params.token || ''), res);
+    if (!v) return undefined;
+    let data;
+    try {
+      data = await load(v.sessionId, v.userId);
+    } catch (_) {
+      log({ outcome: 'error', sessionId: v.sessionId, userId: v.userId, screen: 'quiz' });
+      return res.status(503).type('html').send(renderMessagePage('error'));
+    }
+    if (!data) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const language = data.language === 'ur' ? 'ur' : 'en';
+    const quiz = data.quizMessage ? null
+      : await pageQuiz({ db: db(), sessionId: v.sessionId, language, bot: botNumber(), switchOn: quizPageOn });
+    log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: data.quizMessage ? 'made' : quiz ? 'held' : 'none' });
+    const topic = data.session && data.session.analysis_data && data.session.analysis_data.topic;
+    return res.status(200).type('html').send(renderQuizPage({ language, topic, makeQuiz: quiz && quiz.href, quizMessage: data.quizMessage }));
+  };
+  router.get('/cq/:token', privateHeaders, limiter, quizPage);
   return router;
 }
 

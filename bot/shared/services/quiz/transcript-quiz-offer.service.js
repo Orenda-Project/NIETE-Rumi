@@ -150,13 +150,25 @@ async function reportQuizButtonFor({ coachingSessionId, userId }) {
   if (!enabled() || !coachingSessionId || !userId) return null;
   const closed = await ClosedWindow.settings();
   if (!closed.reportTemplate) return null;
+  const session = await module.exports.quizEligibleSession({ coachingSessionId, userId });
+  if (!session) return null;
+  return { template: closed.reportTemplate, payload: ClosedWindow.tapPayload(coachingSessionId), session, dryRun: closed.dryRun };
+}
+
+/**
+ * The session when the offer job would offer it a quiz, else null: the flag, her own session, not self-coaching, a
+ * long enough transcript, once-per-teacher. The report template's button above and the report page's "Make a quiz"
+ * (report-page-quiz.js) ask the same question, so the two never disagree.
+ */
+async function quizEligibleSession({ coachingSessionId, userId }) {
+  if (!enabled() || !coachingSessionId || !userId) return null;
   const { data: session, error } = await supabase.from('coaching_sessions')
     .select('id, user_id, observation_type, transcript_text, analysis_data')
     .eq('id', coachingSessionId).maybeSingle();
   if (error || !session || session.user_id !== userId || session.observation_type) return null;
   if (String(session.transcript_text || '').length < MIN_TRANSCRIPT_CHARS) return null;
   if (offerMode() === 'once' && await alreadyOffered(userId)) return null;
-  return { template: closed.reportTemplate, payload: ClosedWindow.tapPayload(coachingSessionId), session, dryRun: closed.dryRun };
+  return session;
 }
 
 /** The survey answer brings the offer forward. Idempotent with the delayed job. */
@@ -732,7 +744,7 @@ async function handleLanguageButton(buttonId, phone, user) {
 module.exports = {
   enabled, offerMode, subjectAllowed, alreadyOffered, introVideo, introVideoShows,
   scheduleOffer, triggerEarly, processOffer, handleOfferButton, handleLanguageButton, claimRow, languageByPhone,
-  handleReportQuizTap, answerTapOnExisting, reportQuizButtonFor,
+  handleReportQuizTap, answerTapOnExisting, reportQuizButtonFor, quizEligibleSession,
   sendLanguageAsk, startGenerating, tellAlready, queueLpQuiz, remakeLpQuiz,
   OFFER_YES, OFFER_NO, MIN_TRANSCRIPT_CHARS, OFFER_DELAY_SECONDS, MIN_CONFIDENCE, MIN_SLOS, FEATURE_KEY, SESSION_SELECT,
 };
