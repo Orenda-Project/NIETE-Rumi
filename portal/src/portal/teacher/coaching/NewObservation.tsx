@@ -322,15 +322,21 @@ export function NewObservationPage() {
    */
   const resumeOn = useRecordingResume();
   const [restored, setRestored] = useState<string | null>(null);
+  // Read once, on arrival, on its own (not from the Not sent card's read): the newest recording kept on this phone.
+  const triedRestore = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
   useEffect(() => {
-    if (resumeOn !== true || !unsent || !session || session.active || audio || phase !== 'idle') return;
-    if (unsent.meta.ext !== '.webm') return;
-    const k = unsent;
-    setUnsent(null);
-    session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
-    setRestored(k.meta.startedAt);
-    setPhase('recording');
-  }, [resumeOn, unsent, session, audio, phase]);
+    if (resumeOn !== true || triedRestore.current || !session || session.active || audio || phase !== 'idle') return;
+    triedRestore.current = true;
+    Promise.resolve().then(() => latestUnsent()).then((k) => {
+      if (!mounted.current || !k || k.meta.ext !== '.webm' || session.active) return;
+      setUnsent(null);
+      session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
+      setRestored(k.meta.startedAt);
+      setPhase('recording');
+    }).catch(() => { /* nothing to reopen: the screen as before */ });
+  }, [resumeOn, session, audio, phase]);
   const takeUnsent = async () => {
     const u = unsent;
     if (!u) return;
