@@ -1238,7 +1238,7 @@ Rules:
       const prompt = `You are enhancing a classroom observation report with the teacher's reflective responses.
 
 ORIGINAL ANALYSIS (from classroom observation):
-${JSON.stringify(analysisData, null, 2)}
+${JSON.stringify(require('./coaching/frameworks/fico17-v6/model-view').modelView(analysisData), null, 2)}
 
 CLASSROOM TRANSCRIPT:
 ${transcript}
@@ -1396,7 +1396,12 @@ GUIDELINES:
       GPT5MiniService._preserveFrameworkShape(enhancedAnalysis, analysisData);
 
       // Compute marks for Debrief & Reflection section
-      if (enhancedAnalysis.debrief_reflection) {
+      // Queue #282: a FICO17 v6 analysis's scores are its own (out of 44, never V3's 103 + 15 + 5), so no V3-based
+      // debrief totals are added to them; the debrief's own marks are still kept under debrief_reflection.
+      const v6Scores = !!(enhancedAnalysis.scores && enhancedAnalysis.scores.rubric === 'fico17_v6');
+      if (enhancedAnalysis.debrief_reflection && v6Scores) {
+        enhancedAnalysis.debrief_reflection = this._computeDebriefMarks(enhancedAnalysis.debrief_reflection);
+      } else if (enhancedAnalysis.debrief_reflection) {
         enhancedAnalysis.debrief_reflection = this._computeDebriefMarks(enhancedAnalysis.debrief_reflection);
 
         // Update overall scores to include debrief marks
@@ -1978,6 +1983,9 @@ YOUR LAST DRAFT WAS REJECTED: it described ${named} as part of this lesson, and 
  * source of truth, so for non-OECD frameworks they ALWAYS overwrite the LLM's
  * output — presence of an LLM-emitted key is never a reason to keep it.
  */
+// Queue #282: what a model prompt may see of an analysis (no V3 or raw-read keys on a v6 one): fico17-v6/model-view.js.
+GPT5MiniService.modelView = (analysis) => require('./coaching/frameworks/fico17-v6/model-view').modelView(analysis);
+
 GPT5MiniService._preserveFrameworkShape = function (enhancedAnalysis, analysisData) {
   const originalFramework = analysisData?.framework;
   if (originalFramework && originalFramework !== 'oecd') {

@@ -199,7 +199,10 @@ function v6RowLine(row, code) {
 function v6SectionsBlock(a) {
   const V6 = require('../frameworks/fico17-v6');
   const { v6LevelOf } = require('../target-resolver');
-  return Object.values(V6.SECTIONS).map((s) => {
+  // Queue #282: a self-recording scored on the 11 (indicator_set 'dc11') lists the 11 only: the six combined ones are
+  // not part of her report, so the model never reads their names.
+  const dc11 = a && a.indicator_set === 'dc11';
+  return Object.values(V6.SECTIONS).map((sec) => (dc11 ? { ...sec, codes: sec.codes.filter((c) => V6.isDc(c)) } : sec)).map((s) => {
     const rows = ((a.domains || {})[s.domain] || {}).indicators || [];
     const rowOf = (code) => rows.find((r) => r && String(r.id) === code) || null;
     const levels = s.codes.map((c) => v6LevelOf(rowOf(c))).filter((l) => typeof l === 'number');
@@ -249,7 +252,7 @@ function buildV6Prompt(a, { transcript, language, teacherName, target: requested
     ? `MANDATORY horizon focus — the indicator to grow next is "${target.name}" (level ${target.rung} of 4, in "${v6SectionName(target.domain)}").${target.rationale ? ` What was seen: "${clipText(target.rationale, V6_CLIP_FOCUS)}"` : ''}${next ? ` The next level on the rubric asks: "${next}"` : ' It is already at the top level: frame the horizon as taking it further.'} Your "horizon_title" (2-5 words) MUST name a concrete sub-skill of THAT indicator — nothing from any other area. The "horizon_note" must reference it in plain words and point toward that next level. Do not fall back to a generic aspirational phrase.`
     : 'MANDATORY horizon focus — no indicator has a level in this lesson: take "horizon_title" and "horizon_note" from one concrete next step the transcript supports.';
 
-  return `You are the NIETE Teaching Assistant, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} and the levels this lesson was given on the FICO17 v6 classroom rubric (17 indicators in three sections, each at level 1 to 4). Write the words for a CELEBRATION report that makes this teacher feel truly SEEN — not graded like a medical report.
+  return `You are the NIETE Teaching Assistant, a warm, perceptive instructional coach. Below is the FULL TRANSCRIPT of a real lesson by ${teacherName} and the levels this lesson was given on the FICO17 v6 classroom rubric (${a && a.indicator_set === 'dc11' ? '11 indicators' : '17 indicators'} in three sections, each at level 1 to 4). Write the words for a CELEBRATION report that makes this teacher feel truly SEEN — not graded like a medical report.
 
 The levels and evidence below are the record of this lesson: every claim about how something went must agree with them. Use the TRANSCRIPT for her real words and moments. Find what is UNIQUELY hers — a signature move, how she talks to children, how she connects ideas — and ground every claim in something she actually did. Lead with humanity. Address her as "you".
 
@@ -608,6 +611,7 @@ function subjectUnconfirmedNote(language) {
 }
 
 module.exports = {
+  _buildV6Prompt: buildV6Prompt,
   generateReportNarrative, buildPrompt, LANG_NAME, fixCodeswitch, subjectUnconfirmedNote,
   DOMAIN_WHYS_RULE, buildFicoSWhysPrompt, generateFicoSDomainWhys,
 };

@@ -99,7 +99,9 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
       return { recomputed: false, reason: 'review_submitted' };
     }
     const analysis = session.analysis_data || null;
-    if (!analysis || analysis.framework !== 'fico') return { recomputed: false, reason: 'not_fico' };
+    // Queue #282: a self-recording reported on FICO17 v6 has the same Section B (lp_fidelity, outside the v6 total).
+    const v6 = !!analysis && analysis.framework === 'fico17_v6';
+    if (!analysis || (analysis.framework !== 'fico' && !v6)) return { recomputed: false, reason: 'not_fico' };
     if (!session.transcript_text) return { recomputed: false, reason: 'no_transcript' };
     // bd-s192t.3 — ok is terminal only with a usable score. ok/pct-null is the
     // guard-refusal shape (all moves not_adjudicable, Section B empty); treating
@@ -138,7 +140,8 @@ async function recomputeFidelityForSession(sessionId, opts = {}) {
     }
 
     let v2 = { ...analysis, lp_fidelity: result };
-    v2 = apply(v2, result) || v2;
+    // V3's Section B writer rewrites V3 domains and scores: never on a v6 analysis, whose plan bar reads lp_fidelity only.
+    if (!v6) v2 = apply(v2, result) || v2;
     const saved = await persist(sessionId, { analysis_data: v2 }, RECOMPUTABLE_STATUSES);
     log('[fidelity-recompute] Section B recomputed', {
       sessionId, pct: result.fidelity_pct, source: result.source, persisted: saved && saved.ok,
