@@ -70,7 +70,7 @@ const VISIT = {
   lastVisit: null,
 };
 const WEAK = "Weak internet? Record in your phone's Recorder app, then upload it here.";
-const UPLOAD_ONLY = "Record the lesson in your phone's Recorder app, then upload it here.";
+const UPLOAD_ONLY = "Record in your phone's Recorder app, then upload it here.";
 
 const keep = (id: string, teacherExtId: string, startedAt: string) => {
   rememberRecording(id, { teacherExtId, schoolExtId: null, teacherName: "x" });
