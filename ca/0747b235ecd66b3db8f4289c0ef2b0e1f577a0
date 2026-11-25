@@ -1,3 +1,4 @@
 {"ts":"2026-11-25T00:36:24Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,teacher-lessons spec_sync=true","sha":"ca0747b235ec","branch":"bd-snkn32.77-staging","user":""}
 {"ts":"2026-11-25T00:38:19Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"ca0747b235ec","branch":"bd-snkn32.77-staging","user":""}
 {"ts":"2026-11-25T00:46:30Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"ca0747b235ec","branch":"bd-snkn32.77-staging","user":""}
+{"ts":"2026-11-25T00:46:30Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"ca0747b235ec","branch":"bd-snkn32.77-staging","user":""}
