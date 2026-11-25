@@ -34,7 +34,9 @@ const {
 } = require('./photo-capture-routing');
 
 // bd-wwcgf: observation_type rides every read so drivesSession() has its input.
-const SESSION_COLUMNS = 'id, status, user_id, observer_user_id, observation_type, created_at, conversation_state, classroom_photos';
+// bd-r2uzg1.18.6: lesson_plan_link_method too — after a confirmed list pick a photo at the plan step is a
+// classroom photo, not a plan (media-attach.attachLessonPlanMedia).
+const SESSION_COLUMNS = 'id, status, user_id, observer_user_id, observation_type, created_at, conversation_state, classroom_photos, lesson_plan_link_method';
 
 // kind → which sessions can accept this media right now. `targetKind` names
 // the stored-target kind that may pre-empt the candidate rule (null = never:
