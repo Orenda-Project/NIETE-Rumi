@@ -26,6 +26,8 @@ import { usePrincipalApp } from "../principal/usePrincipalApp";
 import { SchoolHomeCard } from "../principal/SchoolHomeCard";
 import { PrincipalHomeV6 } from "../principal/HomeV6";
 import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
+import { COACH_TRAINING } from "../../coach/coachTraining/copy";
+import { PRINCIPAL_TRAINING_PATH } from "../../coach/coachTraining/audience";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -75,6 +77,7 @@ export default function Home() {
   // and her school's card. Everyone else: nothing passed, so the look draws exactly what it drew.
   const principalApp = usePrincipalApp(user);
   const P = useCopy(PEOPLE);
+  const T = useCopy(COACH_TRAINING);
   // bd-o15qnr.28 (queue #204) — a principal on the principal app whom the v6/v7 switch names: her Home in the coach
   // flow's look (principal/HomeV6.tsx, #188's board p9-home). Everyone else: the trees below, unchanged.
   const flowV6 = useFlowV6();
@@ -84,7 +87,9 @@ export default function Home() {
     return (
       <LookHome tiles={principalApp ? PRINCIPAL_TILES : TILES} data={data} order={principalApp ? null : order} onGo={go}
         role={principalApp ? <StatusChip text={P.rolePrincipal} tone="info" className="bg-white/10 text-white" /> : undefined}
-        school={principalApp ? <SchoolHomeCard /> : undefined} />
+        school={principalApp ? <SchoolHomeCard /> : undefined}
+        // bd-v04lsh (queue #257) — Principal Training, after her tiles (a principal on the principal app only)
+        extraTile={principalApp ? <FeatureTile feature="coachTraining" label={T.principalTitle} to={PRINCIPAL_TRAINING_PATH} compact /> : undefined} />
     );
   }
   if (sw.card) {
