@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=ea0503417b35 gen=338d0d5e00b4 overflow=182 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=b2a01968dce9 gen=7f7cace9887d overflow=182 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | … | 33 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+209)
+- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
 - … 78 more → `CLAUDE.index.md`
 
 ## Never (human)

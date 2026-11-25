@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=873e7720744b gen=9faf491ef987 overflow=136 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=afe6ee5c8c29 gen=ac3e4cf536c0 overflow=136 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -13,11 +13,11 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `img/` | → (no door; 14 files) |
-| `v1/` | → (no door; 1375 files) |
-| `v2/` | → (no door; 1375 files) |
+| `v1/` | → (no door; 1378 files) |
+| `v2/` | → (no door; 1378 files) |
 | `v3/` | → (no door; 27 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
-| `v5/` | → (no door; 109 files) |
+| `v5/` | → (no door; 113 files) |
 | `sa*` | 12 files; most used `sa-core.js`: Pure runner: one child through a timed EGRA/EGMA battery; normalize() battery JSON, ordered events, no DOM/timers |
 | `sw.js` | Battery service worker (scope /sa/): network-first engine files, cache-first battery and clips; offline prepare |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |

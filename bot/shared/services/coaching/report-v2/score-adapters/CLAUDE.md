@@ -1,7 +1,7 @@
 # score-adapters — One score adapter per framework, turning analysis into scorecard groups
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=f52adb405227 gen=33e2bd78e3f4 overflow=12 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=be6ac3bf48f4 gen=247cb9b3ca17 overflow=12 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `dispatch.js` — framework key to adapter
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `teach-adapter.js` | TEACH score adapter: three areas plus time-on-task as four groups, elements scored 1-5 |
 
 ## Who reads this (generated)
-- `fico-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/hero-report.service.js:75:9bf0be34` · `bot/shared/services/coaching/report-v2/narrative.service.js:394:9bf0be34` (+2)
+- `fico-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/hero-report.service.js:76:9bf0be34` · `bot/shared/services/coaching/report-v2/narrative.service.js:394:9bf0be34` (+2)
 - `dispatch.js` ← imported by `bot/shared/services/coaching/report-v2/narrative.service.js:141:25bde1fe` · `bot/shared/services/coaching/report-v2/score-adapter.service.js:23:25bde1fe`
 - `fico17-v6-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:21:c1d5295b`
 - `hots-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:16:e71b22d3`

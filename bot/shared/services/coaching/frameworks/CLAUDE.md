@@ -1,7 +1,7 @@
 # frameworks — Observation frameworks (FICO, OECD, HOTS, MEWAKA, Teach): prompts and scoring
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=6770634c3916 gen=39f1227f46bc overflow=84 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=2f7e0ffb9b09 gen=c6ae4ec33b7c overflow=94 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `framework-registry.js` — key to module lookup
@@ -20,22 +20,22 @@ Full index: `CLAUDE.index.md`
 | `mewaka-framework.js` | MEWAKA Tanzanian CPD framework: 25 indicators in 6 domains, scale 0-3, prompt and scoring |
 | `framework-registry.js` | Lazy-loading registry mapping a framework key to its observation framework module |
 | `own-rubric.js` | (unmapped) |
-| … | 5 more → `CLAUDE.index.md` |
+| … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `fico-framework.js` ← imported by `bot/shared/services/coaching/coaching-breakdown.service.js:166:3f55b568` · `bot/shared/services/coaching/coaching-card/prioritized-action.service.js:53:e626b151` (+11)
+- `fico-framework.js` ← imported by `bot/shared/services/coaching/coaching-breakdown.service.js:166:3f55b568` · `bot/shared/services/coaching/coaching-card/prioritized-action.service.js:55:e626b151` (+11)
 - `fico17-v6-framework.js` ← imported by `bot/shared/services/observe/observe-fico17-v6.js:100:3284512b` · `bot/shared/services/observe/observe-framework.js:242:e5bf8808` (+3)
 - `own-rubric.js` ← imported by `bot/shared/services/coaching/coaching-trend.service.js:47:ae7e414a` · `bot/shared/services/coaching/report-v2/hero-report.service.js:26:5e4ef125` (+3)
-- … 7 more → `CLAUDE.index.md`
+- … 9 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Score adapters read the scale from the framework, never a local copy (report-v2/score-adapters/fico-adapter.js:11)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
+- `tests/coaching/fico-s-v1-2.test.js` (fico-s-framework.js, framework-registry.js, own-rubric.js)
 - `bot/tests/observe/observe-endpoint-hots.test.js` (hots-framework.js, mewaka-framework.js)
-- `bot/tests/observe/observe-framework-pack.test.js` (framework-registry.js, mewaka-framework.js)
-- … 72 more → `CLAUDE.index.md`
+- … 78 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?

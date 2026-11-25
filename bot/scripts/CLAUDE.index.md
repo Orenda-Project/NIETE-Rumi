@@ -10,6 +10,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `assets/` | Generate and upload Flow JSON and reading-passage background assets → `assets/CLAUDE.md` |
 | `audit/` | Read-only audits of deployed configuration → `audit/CLAUDE.md` |
 | `child-test/` | Print packs, SA battery bank build and SA voice recording for the child test → `child-test/CLAUDE.md` |
+| `data-analyst/` | (no description yet) → `data-analyst/CLAUDE.md` |
 | `deployment/` | Reference Meta Graph API scripts from the original Taleemabad WABA; ids are WABA-bound → `deployment/CLAUDE.md` |
 | `docs/` | Setup guides for optional AWS SQS and Railway Redis infrastructure → `docs/CLAUDE.md` |
 | `e2e/` | The local mock E2E lane: fake Graph API, local Postgres, local R2, stack scripts → `e2e/CLAUDE.md` |
@@ -24,6 +25,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `templates/` | Menu carousel template creation and video upload; WABA-bound ids → `templates/CLAUDE.md` |
 | `testing/` | Local chat and webhook simulators for manual testing → `testing/CLAUDE.md` |
 | `video-reco/` | Builds the training-video catalogue for the recommender → `video-reco/CLAUDE.md` |
+| `ab-tracker-cron.js` | (unmapped) |
 | `apply-lp-splits.js` | Applies data/lp_splits.json to committed lp_catalog.json on machines without the ingestion tree; --check is CI-friendly |
 | `apply-lp612-figure-notes.js` | Additively writes the diagram-plan figure directive into each Grades 6-12 segment's notes (bd-17mht) |
 | `apply-lp612-salutation-stamps.js` | Restores the salutation to eight Grades 6-12 menu titles that dropped it (bd-d6c8y, operator ruling 2026-09-23) |
@@ -63,6 +65,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lp612-overlay-backfill.js` | Entry point that runs the Grades 6-12 overlay repair pass through the backfill service (bd-vrt20) |
 | `lp612-sidecar-audit.js` | Audits which cached 6-12 lessons lost their .lp.json sidecar document beside the PDF (bd-oak77.18) |
 | `quiz-funnel-watch.js` | Dry-run of the quiz funnel watcher: prints the DM summary and due alerts for a window without posting or locking |
+| `recover-lost-lp-feedback.js` | (unmapped) |
 | `register-attendance-flows.js` | Registers the Attendance WhatsApp Flows with Meta via Graph API (created Jan 2026); --production flag |
 | `register-coach-visit-request-template.js` | Registers coach_visit_request_v2 UTILITY template in en_US and ur from the shared template module (bd-v0toag.45) |
 | `register-fa-video-template.js` | (unmapped) |
@@ -95,6 +98,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp-catalog-splits.js` ← imported by `bot/scripts/build-lp-catalog.js:44:60ad3b78` · `bot/scripts/apply-lp-splits.js:15:60ad3b78`
 - `lp-v8-pdf-guard.js` ← imported by `bot/scripts/upload-lp-v8-to-r2.js:30:11c5fdd0`
 - `upload-lp-v8-to-r2.js` ← imported by `bot/scripts/sync-sheet-lps.js:158:fbb4c266`
+- column `lp_feedback.created_at` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/lp-in-app-feedback.service.js:79:cef00616`
+- column `lp_feedback.lesson_plan_id` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/lp-feedback.service.js:318:fc4083db` · `bot/shared/services/lp-in-app-answer.js:22:be882615` · `bot/shared/services/lp-in-app-feedback.service.js:78:fb820125`
+- column `lp_feedback.trigger_mode` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/lp-in-app-answer.js:22:be882615`
+- column `lp_feedback.useful` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:162:6689cf6d` · `bot/shared/services/lp-feedback.service.js:317:4500ad2e` · `bot/shared/services/lp-in-app-answer.js:21:806094e8`
+- column `lp_feedback.user_id` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:124:e89767c0` · `bot/shared/services/lp-feedback.service.js:319:2c6fea63` · `bot/shared/services/lp-in-app-answer.js:22:be882615` · `bot/shared/services/lp-in-app-feedback.service.js:78:fb820125`
 - column `niete_lp_assets.asset_kind` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:182:bcc39851` · `bot/shared/services/coaching/live-moves/card-store.js:54:6d6b56b2` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:54:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+11: `python3 kg/kg.py who-reads niete_lp_assets.asset_kind`)
 - column `niete_lp_assets.bytes` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/scripts/verify-lp-v8-r2.js:112:ed6ce269`
 - column `niete_lp_assets.catalog_version` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/lp-v8-delivery.service.js:121:f7c96069` · `scripts/backfill-lp-fidelity-moves.js:65:1967989e` · `bot/scripts/sync-sheet-lps.js:112:0ac4c930`
@@ -106,6 +114,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `niete_lp_assets.version_stamp` (written by `upload-lp-v8-to-r2.js`) ← read by `bot/shared/services/coaching/live-moves/card-store.js:52:c6a45353` · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:111:b2096bb1` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:54:2fff1c6b` · `bot/shared/services/lp-ab-ch310.service.js:86:99dc5e17` (+8: `python3 kg/kg.py who-reads niete_lp_assets.version_stamp`)
 - column `region_features.book_keys` (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/teacher-books.service.js:47:46643abf`
 - table `region_features` whole row (`*`) (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/region-features.service.js:55:d2b02c3e`?
+- table `lp_feedback` (written by `recover-lost-lp-feedback.js`) ← read by `bot/shared/services/assessment/assessment-feedback.service.js:123:278f8d63`? · `bot/shared/services/lp-feedback.service.js:316:5cdfa157`? · `bot/shared/services/lp-in-app-answer.js:21:806094e8`? · `bot/shared/services/lp-in-app-feedback.service.js:77:cbce2d31`? (+1: `python3 kg/kg.py who-reads lp_feedback`)
 - table `niete_lp_assets` (written by `sync-sheet-lps.js`, `upload-lp-v8-to-r2.js`) ← read by `bot/shared/calls/call-tools.repo.js:179:c7464c20`? · `bot/shared/services/coaching/live-moves/card-store.js:51:c7464c20`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:110:c7464c20`? · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:53:c7464c20`? (+13: `python3 kg/kg.py who-reads niete_lp_assets`)
 - table `pre_generated_lps` (written by `seed-feat059-feat080-pakistan-lps.js`) ← read by `bot/shared/routes/pakistan-lp-endpoint.js:110:a684f67f`? · `bot/shared/services/pregen-lookup.service.js:31:a684f67f`? · `bot/scripts/migration/survey-lp-inventory.js:59:a684f67f`?
 - table `region_features` (written by `sync-sheet-lps.js`) ← read by `bot/shared/services/region-features.service.js:54:0fcdd9ba`? · `bot/shared/services/region-registry.js:32:0fcdd9ba`? · `bot/shared/services/teacher-books.service.js:47:46643abf`? · `scripts/create-analytics-user.js:170:0fcdd9ba`? (+1: `python3 kg/kg.py who-reads region_features`)
@@ -146,6 +155,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `WHATSAPP_TOKEN` read at `bot/scripts/broadcast-fa-video.js:69:6eac9260` · `bot/scripts/register-attendance-flows.js:31:651a42a4` · `bot/scripts/register-coach-visit-request-template.js:26:99dd7162` · `bot/scripts/register-observe-report-template.js:22:99dd7162` · `bot/scripts/register-observe-visit-templates.js:23:99dd7162` · `bot/scripts/register-student-quiz-flow.js:24:99dd7162` · `bot/scripts/register-weekly-usage-templates.js:20:99dd7162` · `bot/scripts/send-outage-broadcast.js:17:60bafac2` · `bot/scripts/set-conversational-components.js:46:99dd7162` · `bot/scripts/setup-flow-encryption.js:31:babb0b93` · `bot/scripts/upload-staging-video.js:18:922e7ad9`
 
 ## Tests (all, generated)
+- `ab-tracker-cron.js` ← `tests/ab-tracker/ab-tracker-cron.test.js`
 - `apply-lp612-figure-notes.js` ← `tests/lp612/figure-notes-additive.test.js`
 - `assert-native-modules.js` ← `tests/deploy/assert-native-modules.test.js`?
 - `backfill-lp-asset-sources.js` ← `bot/tests/lp-v8/backfill-lp-asset-sources.test.js`
@@ -171,6 +181,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp612-overlay-backfill.js` ← `tests/lp612/overlay-backfill-driver.test.js`
 - `lp612-sidecar-audit.js` ← `tests/lp612/sidecar-audit.test.js`
 - `quiz-funnel-watch.js` ← `tests/quiz/quiz-funnel-watch.test.js`
+- `recover-lost-lp-feedback.js` ← `tests/scripts/recover-lost-lp-feedback.test.js`
 - `register-coach-visit-request-template.js` ← `tests/coaching/bd-v0toag.38.9-agree-ping-service.test.js` · `tests/coaching/bd-v0toag.45-coach-visit-service.test.js`
 - `register-fa-video-template.js` ← `bot/tests/fa-video/fa-video-template.test.js`
 - `register-weekly-usage-templates.js` ← `bot/tests/coaching/weekly-report/register-script.test.js`
@@ -182,4 +193,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `verify-lp-v8-r2.js` ← `bot/tests/lp-v8/uploader-r2-only.test.js`
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/fico17-v6.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/video-enhancement-test.md`?
+- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/ab-tracker-store.md`? · `docs/e2e-mock-lane.md`? · `docs/fico17-v6.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/lp612/video-enhancement-test.md`?

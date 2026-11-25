@@ -1,7 +1,7 @@
 # training — Coach app guard and read-only Training Library
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/training kg=edddf7329b04 gen=3492699288b8 overflow=24 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/training kg=0bac3acbbe00 gen=9878e411ac15 overflow=25 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `appReady.ts` — allow-list of ready coach features, menu and landing
@@ -12,12 +12,12 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `appReady*` | 4 files; most used `appReady.ts`: Allow-list of coach app v2 features, menu, landing and path-ready rules (bd-s42dye.2) |
+| `appReady*` | 5 files; most used `appReady.ts`: Allow-list of coach app v2 features, menu, landing and path-ready rules (bd-s42dye.2) |
 | `CoachAppGuard*` | 5 files; most used `CoachAppGuard.dual.test.tsx`: Pins where a user with both coachip and coachipRm lands, by coachesHere (fix-r5 s5) |
 | `useCoachFullApp.ts` | (unmapped) |
 | `nav.test.tsx` | Pins coach menu on ready features: Training Library, Lesson Plans, My schools, More |
 | `LibraryPages.tsx` | Coach Training Library pages: home, provider, module and exam preview, read only |
-| … | 12 more → `CLAUDE.index.md` |
+| … | 13 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `appReady.ts` ← imported by `portal/src/portal/coach/insights/InsightsGate.tsx:6:f4172066` · `portal/src/portal/coach/insights/paths.ts:1:72012f5c` (+6)
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` (CoachAppGuard.tsx, appReady.ts)
 - `portal/src/portal/coach/people/schoolsReady.test.tsx` (CoachAppGuard.tsx, appReady.ts)
-- … 17 more → `CLAUDE.index.md`
+- … 18 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/rm/CLAUDE.md`?

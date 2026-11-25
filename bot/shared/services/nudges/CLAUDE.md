@@ -1,7 +1,7 @@
 # nudges — Scheduled teacher nudges: store, sweeper, caps, coaching ask, quiz offer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=ae2be8817c70 gen=4235c767de20 overflow=75 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=caed248dae5c gen=7b03741d7f8f overflow=89 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `teacher-nudges.sweeper.js` — periodic tick that claims and dispatches due rows
@@ -12,16 +12,17 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `weak-skill-jugnu/` | (no description yet) → `weak-skill-jugnu/CLAUDE.md` |
 | `pkt-time.js` | PKT calendar arithmetic (UTC+5, no DST) for scheduling teacher nudges by school day |
-| `lp-quiz-offer.service.js` | The 15:00 PKT afternoon quiz offer built from lessons a teacher planned that day, one teacher_nudges row each |
-| `lp-coaching-ask.service.js` | The coaching ask: one nudge on the first lesson plan a teacher takes in a day, offering recording and coaching |
+| `lp*` | 4 files; most used `lp-quiz-offer.service.js`: The 15:00 PKT afternoon quiz offer built from lessons a teacher planned that day, one teacher_nudges row each |
 | `teacher-nudges.store.js` | Main teacher_nudges store holding the scheduling guards; lp-coaching-ask.service.js:558 also updates rows directly |
-| … | 10 more → `CLAUDE.index.md` |
+| … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `quizzes` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/restore-bank-recorded-voices.js:107:5a5a53e8`? (+61)
-- column `quizzes.quiz_source` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/shared/routes/quiz-flow-endpoint.js:306:fca7d9fc` (+28)
-- … 33 more → `CLAUDE.index.md`
+- table `quizzes` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+68)
+- column `quizzes.meta` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+32)
+- column `quizzes.quiz_source` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+31)
+- … 36 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Parse nudge flags only via `flags.js` (ask took literal 'true', bd-mg9c7.159.10, `flags.js:8`)
@@ -29,9 +30,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
-- `tests/quiz/lp-quiz-offer-window-template.test.js` (lp-quiz-offer.service.js, pkt-time.js, teacher-nudges.sweeper.js, window-closed-template.js)
-- `bot/tests/nudges/nudge-flags.test.js` (lp-coaching-ask.service.js, lp-quiz-offer.service.js, teacher-nudges.sweeper.js)
-- … 42 more → `CLAUDE.index.md`
+- `tests/qfix-offers/held-path.test.js` (lp-coaching-ask.service.js, lp-quiz-offer.service.js, pkt-time.js, teacher-nudges.sweeper.js, window-closed-template.js)
+- `tests/qfix-offers/offer-net-retry.test.js` (lp-quiz-offer.service.js, pkt-time.js, send-retry.js, teacher-nudges.sweeper.js)
+- … 53 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`? · `docs/quiz-telemetry.md`? · `infrastructure/templates/drafts/README.md`?

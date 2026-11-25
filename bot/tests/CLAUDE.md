@@ -1,7 +1,7 @@
 # tests — Jest suite for the NIETE bot: unit, handler, worker, LP and call tests
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=318b49b2a9d1 gen=46bf43268c5c overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=d3357060afba gen=49ecbd762845 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `setup-loopback.js` — jest setupFile blocking live DB/Redis/LLM/WhatsApp in every test
@@ -12,12 +12,13 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 8 sub-dirs, each with `CLAUDE.md` | `child-test/` · `coaching/` · `fa-video/` · `first-touch/` · `helpers/` · `lp-v8/` · `observe/` · `quiz/` |
-| 23 sub-dirs without a door | `assessment/` (3 tests) · `calls/` (30 tests) · `fixtures/` (44 tests) · `handlers/` (12 tests) · `howto/` (2 tests) · +18 more → `CLAUDE.index.md` |
+| 31 sub-dirs without a door | `assessment/` (3 tests) · `calls/` (30 tests) · `fixtures/` (44 tests) · `handlers/` (12 tests) · `howto/` (2 tests) · +26 more → `CLAUDE.index.md` |
 | `student-video-feedback.test.js` | Tests StudentVideoFeedbackService thumbs-up/down button handling, snapshot insert and reason flag (bd-1598) |
 | `whatsapp-status-pricing.test.js` | Pins pricedFields and the whatsapp.status.priced event per delivered/read status keyed by users.id (bd-v0toag.65) |
 | `bug*` | 3 files; most used `bug-014-video-language.test.js`: Pins that video script prompts give Punjabi explicit vocabulary guidance so narration is not Urdu (BUG-014) |
 | `llm*` | 6 files; most used `llm-vendor-fallback.test.js`: Pins the OpenAI-behind-other-vendors fallback: used when account cannot spend or supplier is down (bd-4uw7n) |
 | `model*` | 6 files; most used `model-pilot-vision.test.js`: Pins the vision.analyse model pilot through the registry: default gpt-4.1-mini, VISION_MODEL honoured (bd-5rd2f) |
+| `secondary-writer-model.test.js` | (unmapped) |
 | `r2-download-miss-level.test.js` | (unmapped) |
 | `video-reco-status-webhook.test.js` | Pins clip message delivered/read/failed statuses reach video_reco_events through the real status webhook (bd-gzfdu9) |
 | `setup*` | 3 files; most used `setup-loopback.js`: Jest setupFile that loopbacks service endpoints, dummies credentials and blocks live DB/Redis/LLM/WhatsApp in tests |

@@ -1,7 +1,7 @@
 # setup — Register WhatsApp Flows, templates and encryption with Meta; doctor preflight
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/setup kg=158a966d9cce gen=0aa58e12b214 overflow=28 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/setup kg=6805fb1ec9a1 gen=cdba3e1ea03d overflow=29 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-configs.js` — the single list of Flows to register
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/setup/register-all-flows.test.js` (meta-api.js, register-all-flows.js, setup-state.js)
 - `tests/setup/validate-flows.test.js` (meta-api.js, setup-state.js, validate-flows.js)
-- … 15 more → `CLAUDE.index.md`
+- … 16 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `whatsapp-flows`?

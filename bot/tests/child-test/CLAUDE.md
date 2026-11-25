@@ -1,7 +1,7 @@
 # child-test — Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=e9ca2b2ea483 gen=9c56dc2a5d39 overflow=80 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=d3402fcba99e gen=6eb2aca7fc13 overflow=82 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-score.test.js` — the SA scorer's core behaviour
@@ -11,6 +11,7 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `sa-r28-bank.test.js` | (unmapped) |
 | `sa-rdf-w3.test.js` | Pins the RDF auto/manual W3 form shape: task list, official items with src, one-at-a-time display, coach_text |
 | `sa-r28-mcq-gate.test.js` | (unmapped) |
@@ -24,7 +25,7 @@ Full index: `CLAUDE.index.md`
 | `sa-device-bundle.test.js` | (unmapped) |
 | `sa-r28-mcq-of-all.test.js` | (unmapped) |
 | `sa-voice-sustained-sounds.test.js` | Pins letter-sound clips saying each sound once (continuants held) using ffmpeg silencedetect on served clips |
-| … | 93 more → `CLAUDE.index.md` |
+| … | 95 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

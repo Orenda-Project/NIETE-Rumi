@@ -26,13 +26,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fbise_chips.js` ← imported by `bot/vendor/lp-v9/lib/template.js:29:c18b5960`
 - `fonts.js` ← imported by `bot/shared/services/quiz/quiz-math.js:205:f7f657cc` · `bot/shared/services/quiz/transcript-quiz-card.js:26:e409cd03` · `bot/shared/services/quiz/transcript-quiz-figure.js:35:e409cd03` · `bot/vendor/lp-v9/render_lp.js:25:1007f682` (+1: `python3 kg/kg.py who-reads fonts.js`)
 - `migrate.js` ← imported by `bot/vendor/lp-v9/lib/template.js:27:97d8a010`
-- `overlay.js` ← imported by `bot/shared/services/lp612-author.service.js:69:a6ab6c97` · `bot/vendor/lp-v9/lint_lp.js:49:6395c51e` · `bot/vendor/lp-v9/render_lp.js:23:e99c399b` · `bot/vendor/lp-v9/lib/template.js:25:407af061`
+- `overlay.js` ← imported by `bot/shared/services/lp612-author.service.js:71:a6ab6c97` · `bot/vendor/lp-v9/lint_lp.js:49:6395c51e` · `bot/vendor/lp-v9/render_lp.js:23:e99c399b` · `bot/vendor/lp-v9/lib/template.js:25:407af061`
 - `pdfmeta.js` ← imported by `bot/vendor/lp-v9/render_lp.js:26:23afa7cf`
 - `questions.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:53:420eb334` · `bot/vendor/lp-v9/lib/template.js:28:d021eb78`
 - `religious_facts.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:55:30a7a942`
 - `rich.js` ← imported by `bot/shared/services/quiz/quiz-math.js:179:991497b6` · `bot/vendor/lp-v9/lint_lp.js:50:e778133a` · `bot/vendor/lp-v9/lib/fbise_chips.js:8:ab4acf76` · `bot/vendor/lp-v9/lib/template.js:24:b2462af9`
 - `template.js` ← imported by `bot/vendor/lp-v9/lint_lp.js:51:b4742e94` · `bot/vendor/lp-v9/render_lp.js:22:d35135a6`
-- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:66:8c195dd6` · `bot/shared/services/lp612-key-repair.js:18:8cfa4499` · `bot/vendor/lp-v9/lint_lp.js:48:3f517c5a` · `bot/vendor/lp-v9/render_lp.js:24:3f517c5a`
+- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:68:8c195dd6` · `bot/shared/services/lp612-key-repair.js:18:8cfa4499` · `bot/vendor/lp-v9/lint_lp.js:48:3f517c5a` · `bot/vendor/lp-v9/render_lp.js:24:3f517c5a`
 
 ## Tests (all, generated)
 - `fonts.js` ← `tests/lp612/vendor-integrity.test.js`
@@ -40,7 +40,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `overlay.js` ← `bot/tests/lp-v8/bd-k3ry8-pupil-says-label.test.js` · `tests/lp612/erq-heading-teacher-words.test.js` · `tests/lp612/fbise-slo-chips.test.js`
 - `religious_facts.js` ← `tests/lp612/religious-facts.test.js`
 - `rich.js` ← `tests/lp612/bidi-caps.test.js`
-- `template.js` ← `bot/tests/lp-v8/bd-psa3u-urdu-badges.test.js` · `tests/lp612/bidi-caps.test.js` · `tests/lp612/erq-heading-teacher-words.test.js` · `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/figure-widen-repair.test.js` · `tests/lp612/footer-page-ref-visible.test.js` (+7: `python3 kg/kg.py who-reads bot/vendor/lp-v9/lib/template.js`)
+- `template.js` ← `bot/tests/lp-v8/bd-ain69z-light-print.test.js` · `bot/tests/lp-v8/bd-psa3u-urdu-badges.test.js` · `tests/lp612/bidi-caps.test.js` · `tests/lp612/erq-heading-teacher-words.test.js` · `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/figure-widen-repair.test.js` (+8: `python3 kg/kg.py who-reads bot/vendor/lp-v9/lib/template.js`)
 - `validate.js` ← `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/key-repair.test.js` · `tests/lp612/vendor-integrity.test.js`
 
 ## Related (all, generated)

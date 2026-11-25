@@ -80,6 +80,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `tooltip.tsx` ← imported by `portal/src/App.tsx:3:dbe0efb6` · `portal/src/components/ui/sidebar.tsx:13:84f7f664`
 
 ## Tests (all, generated)
+- `chart.tsx` ← `tests/data-analyst/chart.test.js`?
 - `select.tsx` ← `tests/coaching/video-reco/select.test.js`?
 - `sheet.tsx` ← `portal/src/portal/newui/sheet.test.tsx`?
 - `toaster.tsx` ← `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx`

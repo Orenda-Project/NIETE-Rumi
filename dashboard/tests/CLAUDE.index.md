@@ -7,8 +7,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `__golden__/` | Byte-exact switch-OFF response goldens recorded on the base code before each switch → `__golden__/CLAUDE.md` |
-| `fixtures/` | → (no door; 47 files: 0 test + 47 support) |
+| `fixtures/` | → (no door; 49 files: 0 test + 49 support) |
 | `insights/` | Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks → `insights/CLAUDE.md` |
+| `qfix-class-link-fix/` | → (no door; 1 tests) |
+| `qfix-class-link/` | → (no door; 5 tests) |
+| `qfix-voice/` | (no description yet) → `qfix-voice/CLAUDE.md` |
 | `queue/` | → (no door; 2 tests) |
 | `support/` | Shared helper for the SA Urdu fit tests, not a test file itself → `support/CLAUDE.md` |
 | `__snapshots__/` | → (not mapped: excluded; 3 files) |
@@ -56,8 +59,25 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `niete-brand-obs.service.test.js` | bd-2458: file-level checks that the observability/admin dashboard carries NIETE brand colours, logo and strings |
 | `password-reset-language.service.test.js` | bd-2469: tests sendResetCode in password-reset.service sends the OTP in the user's language (en or ur) |
 | `portal-host.service.test.js` | bd-2467: tests isPortalHost (lib/portal-host, app-target.cjs): '/' on the portal hostname reaches the portal |
+| `portal-teacher-class-link.service.test.js` | (unmapped) |
 | `portal-teacher-push.service.test.js` | Tests portal-teacher-push.routes: 401 without a session, no bot call, a session lacking a portal user is no session |
 | `push-remind-edge.service.test.js` | Tests the /remind/:code edge (push-remind.routes): bot switch off falls through; junk code or bot down falls through |
+| `qfix-class-link-round-page.service.test.js` | (unmapped) |
+| `qfix-forward-edge.service.test.js` | (unmapped) |
+| `qfix-reminders-ask.service.test.js` | (unmapped) |
+| `qfix-reminders-gone.service.test.js` | (unmapped) |
+| `qfix-reminders-hub-ready.service.test.js` | (unmapped) |
+| `qfix-reminders-install.service.test.js` | (unmapped) |
+| `qfix-reminders-landed-dh.service.test.js` | (unmapped) |
+| `qfix-reminders-landed-qa.service.test.js` | (unmapped) |
+| `qfix-reminders-listen-host.service.test.js` | (unmapped) |
+| `qfix-reminders-meters.service.test.js` | (unmapped) |
+| `qfix-reminders-ps.service.test.js` | (unmapped) |
+| `qfix-reminders-push-funnel.service.test.js` | (unmapped) |
+| `qfix-reminders-switch-fail.service.test.js` | (unmapped) |
+| `qfix-report-edge.service.test.js` | (unmapped) |
+| `qfix-report-home-step-edge.service.test.js` | (unmapped) |
+| `qfix-shuffle-page.service.test.js` | (unmapped) |
 | `quiz-go-edge.service.test.js` | Tests the one-door edge /quiz/go/:token and /api/go/* (quiz-go.routes), forwarding path for path |
 | `quiz-join-adventure.service.test.js` | Tests the join screen and its expired/failed note in the adventure look (quiz-join.routes, adventure-look) |
 | `quiz-join-early-tap.service.test.js` | Tests quiz_join_early_tap: a grade tap made before join.js loads is kept; off matches the golden |
@@ -203,6 +223,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-rdf-w3-forms.service.test.js` | Tests RDF auto/manual W3 forms on the battery route: off gives no W3 list; on gives 17 W3 tasks and coach line |
 | `sa-rec-mercy.service.test.js` | Tests sa-rec silent-mic mercy at 12 s and early_stop_silence at 20 s; a voice at 8 s triggers neither |
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
+| `sa-release-pick-map.service.test.js` | (unmapped) |
 | `sa-sink-coach.service.test.js` | Tests sink-coach.js: batch, presign, register go to the relay with cookie; signed-out coach throws so sync retries |
 | `sa-store.service.test.js` | Tests sa-store: events/results/chunks pending until synced, IndexedDB failure falls back to memory |
 | `sa-sw-carry.service.test.js` | (unmapped) |
@@ -257,6 +278,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `video-observability-routes.test.js` | Standalone script test (run with node) of the Video Gallery route handler |
 | `video-observability-service.test.js` | Tests services/video-observability.service for the Video Gallery feature (run first, standalone node script) |
 | `video-observability-view.test.js` | Standalone script test (run with node) of the Video Gallery EJS template |
+| `weak-skill-jugnu-deeplink.service.test.js` | (unmapped) |
+| `weak-skill-jugnu-edge.service.test.js` | (unmapped) |
 | `web-quiz-adventure-kit-late.service.test.js` | Tests the adventure kit (public/wq/wq-adv.js) when it runs after the page is parsed and the Home is already drawn |
 | `web-quiz-adventure-kit.service.test.js` | Tests the adventure kit wq-adv.js (window.WQA) in a vm with the browser faked: icons and shared screen parts |
 | `web-quiz-adventure-look.service.test.js` | Tests web_quiz_adventure_look: every child page gets one html class plus the look's CSS and kit; off matches the golden |
@@ -569,4 +592,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `docs/testing/bd-60105-name-sweep.md`? · `portal/src/lib/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `docs/testing/bd-60105-name-sweep.md`? · `portal/src/lib/CLAUDE.md`?

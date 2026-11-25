@@ -37,6 +37,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `LeaderHome.coachV2.test.tsx` | bd-o15qnr: pins a v2-pilot coach redirected to the v2 Home while everyone else keeps My Patch |
 | `LeaderHome.test.tsx` | bd-2434: pins LeaderHome greets the leader by first name and renders KPIs and the leader nav |
 | `LeaderHome.tsx` | bd-2434: leader "My Patch" home at /portal/leader; shows KPIs and a focus list from GET /leader/overview |
+| `LeaderNoSchool.test.tsx` | (unmapped) |
 | `LeaderObservation.test.tsx` | bd-5rz1v.6: pins LeaderObservation's step tracker (analysed, draft, talk, feedback, report) and its buttons |
 | `LeaderObservation.tsx` | bd-5rz1v.6: one coach observation at /portal/leader/observe/:id, step by step like WhatsApp /observe, polls status |
 | `LeaderObservations.coachObserve.test.tsx` | bd-5rz1v.6: pins LeaderObservations' goal button and sent lessons only in the portal_coach_observation pilot |
@@ -184,8 +185,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalTraining.tsx` ← imported by `portal/src/App.tsx:81:8b507f06`
 - `PortalTrainingPage.tsx` ← imported by `portal/src/App.tsx:82:d7e20fa2`
 - `PortalTrainingV2.tsx` ← imported by `portal/src/portal/pages/PortalTrainingPage.tsx:8:b09c7a87`
-- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:171:380aa3eb`
-- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:173:3a991917`
+- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:173:380aa3eb`
+- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:175:3a991917`
 - `legacyLive.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:31:8621d378`
 - env `PROD` read at `portal/src/portal/pages/PortalReadingAssessments.tsx:66:a940a13e`
 
@@ -196,15 +197,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LeaderAssessResults.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.r28.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.test.tsx`
 - `LeaderAssessReview.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessReview.test.tsx`
 - `LeaderChildTest.tsx` ← `portal/src/portal/pages/LeaderChildTest.test.tsx`
-- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
+- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
 - `LeaderObservation.tsx` ← `portal/src/portal/pages/LeaderObservation.test.tsx` · `portal/src/portal/pages/LeaderObserve.v2names.test.tsx`
 - `LeaderObservations.tsx` ← `portal/src/portal/pages/LeaderObservations.coachObserve.test.tsx` · `portal/src/portal/pages/LeaderObservations.identity.test.tsx` · `portal/src/portal/pages/LeaderObservations.schedule.test.tsx` · `portal/src/portal/pages/LeaderObservations.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx`
 - `LeaderObserveDraft.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveDraft.test.tsx`
 - `LeaderObserveRecord.tsx` ← `portal/src/portal/pages/LeaderObserveRecord.androidFiles.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.coachV2.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.test.tsx`
 - `LeaderObserveTalk.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveTalk.test.tsx`
 - `LeaderTeacherDetail.tsx` ← `portal/src/portal/pages/LeaderTeacherDetail.feedback.test.tsx` · `portal/src/portal/pages/LeaderTeacherDetail.test.tsx` · `portal/src/portal/pages/LeaderTeacherDetail.trend.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
-- `LeaderTeachers.tsx` ← `portal/src/portal/pages/LeaderTeachers.identity.test.tsx` · `portal/src/portal/pages/LeaderTeachers.principal-route.test.tsx` · `portal/src/portal/pages/LeaderTeachers.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
-- `PortalAccount.tsx` ← `portal/src/portal/pages/PortalAccount.test.tsx`?
+- `LeaderTeachers.tsx` ← `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/LeaderTeachers.identity.test.tsx` · `portal/src/portal/pages/LeaderTeachers.principal-route.test.tsx` · `portal/src/portal/pages/LeaderTeachers.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
+- `PortalAccount.tsx` ← `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
 - `PortalAssessment.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/pages/PortalAssessment.test.tsx`
 - `PortalClasses.tsx` ← `portal/src/portal/pages/PortalClasses.test.tsx`
 - `PortalCoaching.tsx` ← `portal/src/portal/newui/coaching/CoachingMain.test.tsx` · `portal/src/portal/pages/PortalCoaching.flagOff.test.tsx` · `portal/src/portal/pages/PortalCoaching.home.test.tsx` · `portal/src/portal/pages/PortalCoaching.observation.test.tsx` · `portal/src/portal/pages/PortalCoaching.selfObservation.test.tsx` · `portal/src/portal/pages/PortalCoaching.sendLesson.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/pages/PortalCoaching.tsx`)
@@ -224,8 +225,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalTraining.tsx` ← `portal/src/portal/pages/App.routes.test.tsx` · `portal/src/portal/pages/PortalTraining.certificates.test.tsx` · `portal/src/portal/pages/PortalTraining.editbands.test.tsx` · `portal/src/portal/pages/PortalTraining.nobands.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.route.test.tsx`
 - `PortalTrainingPage.tsx` ← `portal/src/portal/newui/training/TrainingCertificates.test.tsx` · `portal/src/portal/newui/training/TrainingCourse.test.tsx` · `portal/src/portal/newui/training/TrainingGrades.test.tsx` · `portal/src/portal/newui/training/TrainingHome.test.tsx` · `portal/src/portal/newui/training/TrainingLevel.test.tsx` · `portal/src/portal/newui/training/TrainingLevelExam.test.tsx` (+6: `python3 kg/kg.py who-reads portal/src/portal/pages/PortalTrainingPage.tsx`)
 - `PortalTrainingV2.tsx` ← `portal/src/portal/pages/App.routes.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.deeplink.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.moduleCards.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.numericIds.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.pages.test.tsx` · `portal/src/portal/pages/PortalTrainingV2.quizTick.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/pages/PortalTrainingV2.tsx`)
-- `SchoolAnalytics.tsx` ← `portal/src/portal/pages/Analytics.tabs.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.axes.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.exams.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.history.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.scope.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.sections.test.tsx` (+5: `python3 kg/kg.py who-reads portal/src/portal/pages/SchoolAnalytics.tsx`)
-- `SchoolLessons.tsx` ← `portal/src/portal/pages/SchoolLessons.kinds.test.tsx` · `portal/src/portal/pages/SchoolLessons.test.tsx` · `portal/src/portal/pages/observation-bands.pages.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
+- `SchoolAnalytics.tsx` ← `portal/src/portal/pages/Analytics.tabs.test.tsx` · `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.axes.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.exams.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.history.test.tsx` · `portal/src/portal/pages/SchoolAnalytics.scope.test.tsx` (+6: `python3 kg/kg.py who-reads portal/src/portal/pages/SchoolAnalytics.tsx`)
+- `SchoolLessons.tsx` ← `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/SchoolLessons.kinds.test.tsx` · `portal/src/portal/pages/SchoolLessons.test.tsx` · `portal/src/portal/pages/observation-bands.pages.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx`
 - `legacyLive.ts` ← `portal/src/portal/pages/legacyLive.test.ts`
 
 ## Related (all, generated)

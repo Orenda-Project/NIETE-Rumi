@@ -1,6 +1,6 @@
 # home — Coach Home on the kit: visits today and feature tiles
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=edefb40d59ad gen=6b32c302bdf1 overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=4d1fb92091b7 gen=111916b09232 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `copy.ts` — Home and reports-waiting words in English and Urdu
@@ -27,4 +27,4 @@ _None found in code comments, tests or git log for this directory._
 - `portal/src/portal/coach/uxMusts.test.tsx` (copy.ts)
 
 ## Related (generated)
-- docs: `portal/src/portal/coach/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?
+- docs: `portal/src/portal/coach/CLAUDE.md`?

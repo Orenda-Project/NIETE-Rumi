@@ -1,7 +1,7 @@
 # pages — Top-level route pages: teacher portal, leader/coach, assessment and school analytics
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=c8f2279c5fa6 gen=ada1cd97bc6e overflow=218 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=fdaa324050f3 gen=8691dddf216b overflow=219 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `PortalRoot.tsx` — what / renders; `PortalLogin.tsx` is the sign-in; routes are mounted in src/App.tsx
@@ -14,7 +14,7 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `__snapshots__/` | → (not mapped: excluded; 4 files) |
 | `PortalCoaching*` | 6 files; most used `PortalCoaching.flagOff.test.tsx`: bd-5rz1v.26: pins every coaching page unchanged when portal_new_ui is off, or /config fails |
-| … | 140 more → `CLAUDE.index.md` |
+| … | 141 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `PortalLogin.tsx` ← imported by `portal/src/App.tsx:10:66a7a677` · `portal/src/portal/pages/PortalRoot.tsx:5:1b16e767`

@@ -24,7 +24,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-g4-2026.js` ← imported by `bot/shared/services/assessment/patterns/index.js:14:b5f5b0c7`
 - `fde-g5-2027.js` ← imported by `bot/shared/services/assessment/patterns/early/chrome.js:13:ef4af3ac` · `bot/shared/services/assessment/patterns/index.js:10:c2aca214` · `bot/shared/services/assessment/patterns/mid/chrome.js:12:ef4af3ac`
 - `fde-g5-islamiat.js` ← imported by `bot/shared/services/assessment/patterns/fde-g5-2027.js:32:8024ee9d`
-- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1716:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:307:1b1f5879` · `bot/shared/services/assessment/assessment-generation.service.js:820:1b1f5879` · `bot/shared/services/assessment/assessment-orchestrator.service.js:59:1b1f5879` (+4: `python3 kg/kg.py who-reads index.js`)
+- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1721:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:310:1b1f5879` · `bot/shared/services/assessment/assessment-generation.service.js:808:1b1f5879` · `bot/shared/services/assessment/assessment-orchestrator.service.js:59:1b1f5879` (+4: `python3 kg/kg.py who-reads index.js`)
 
 ## Tests (all, generated)
 - `fde-g1-2026.js` ← `tests/assessment/topics/topic-oral.test.js`
@@ -33,7 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-g4-2026.js` ← `tests/assessment/fde-mid-g4-layout.test.js` · `tests/assessment/fde-mid-g4-pattern.test.js` · `tests/assessment/fde-v31-key-echo.test.js` · `tests/assessment/fde-v31-prompt-rules.test.js` · `tests/assessment/fde-v31-work-box.test.js` · `tests/assessment/fde-v32-prompt-rules.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/fde-g4-2026.js`)
 - `fde-g5-2027.js` ← `tests/assessment/fde-pattern-module.test.js` · `tests/assessment/fde-v29-g5-keys.test.js` · `tests/assessment/fde-v33-mid-legend.test.js` · `tests/assessment/fde-v37-english-r2.test.js` · `tests/assessment/fde-v37-english-r3.test.js`
 - `fde-g5-islamiat.js` ← `tests/assessment/fde-g5-islamiat.test.js`?
-- `index.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/board-pattern-g5-only.test.js` · `tests/assessment/board-wiring/board-index.test.js` · `tests/assessment/composition-criteria.test.js` · `tests/assessment/fde-answer-repeats.test.js` · `tests/assessment/fde-blueprint-check.test.js` (+200: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/index.js`)
+- `index.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/board-pattern-g5-only.test.js` · `tests/assessment/board-wiring/board-index.test.js` · `tests/assessment/composition-criteria.test.js` · `tests/assessment/fde-answer-repeats.test.js` · `tests/assessment/fde-blueprint-check.test.js` (+201: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/index.js`)
 
 ## Related (all, generated)
 - docs: `bot/shared/services/assessment/CLAUDE.md`?

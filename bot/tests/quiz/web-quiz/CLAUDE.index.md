@@ -75,6 +75,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `registry-columns.js` | Reads Challenge tables' real column sets from SQL and guards the fake Supabase to answer 42703 on missing columns |
 | `report-fold-parity.test.js` | Pins quiz_report_fold_by_child parity: web report, teacher home count and 12h WhatsApp report name the same children |
 | `report-guidance-stored.test.js` | Pins storing PDF reteach guidance in quizzes.meta.report_guidance so the web report shows the same advice |
+| `report-key-review.test.js` | (unmapped) |
 | `report-pdf-not-played.test.js` | Pins the post-completion PDF listing children who have not played (greyed names, list numbers) with remind links |
 | `report-web-arm-first-finish.test.js` | Pins that a web-arm quiz report counts each child's first finish while WhatsApp quizzes keep the latest |
 | `sample-ping-dry-run-script.test.js` | Pins scripts/sample-ping-dry-run.js: one JSON of counts only, calls service dryRun, never send, no ids or phones |

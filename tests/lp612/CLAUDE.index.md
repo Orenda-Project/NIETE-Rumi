@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__fixtures__/` | → (no door; 7 files: 0 test + 7 support) |
+| `__fixtures__/` | → (no door; 8 files: 0 test + 8 support) |
 | `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `helpers/` | Shared harnesses and doubles for the lp612 E2E and unit suites → `helpers/CLAUDE.md` |
 | `atom-unknown-element.test.js` | bd-8lifl: pins the diagram engine raising ATOM_UNKNOWN_ELEMENT for an unknown atom instead of drawing hydrogen |
@@ -14,6 +14,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `author-brief-gender-neutral.test.js` | bd-oak77.32: pins author brief v3 requiring gender-neutral unnamed characters in worked scenarios |
 | `author-brief-poem-paraphrase.test.js` | (unmapped) |
 | `author-brief-reading-step.test.js` | (unmapped) |
+| `author-brief-science-hands-on.test.js` | (unmapped) |
 | `author-key-repair.test.js` | (unmapped) |
 | `author-ladder-stop.test.js` | bd-wbvtb: pins the authoring revision ladder stopping when only non-blocking BUDGET defects remain (zero rounds) |
 | `author-religious-marks-blocking.test.js` | Pins RELIGIOUS_MARKS as a blocking defect: a lesson missing an honorific is refused by the ladder, never delivered |
@@ -32,6 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-oak77-11-checkpoint.test.js` | bd-oak77.11: pins the author worker writing a checkpoint of each ladder candidate so a crash costs one round |
 | `bd-oak77-11-reaper-checkpoint.test.js` | bd-oak77.11: pins isStrandedAuthoring treating a fresh checkpoint as a living owner, not a stranded row |
 | `bd-oak77-11-resume.test.js` | bd-oak77.11: pins author resumeFrom skipping the initial LLM call when a deliverable checkpoint exists |
+| `bd-snkn32-70-change-checks.test.js` | (unmapped) |
 | `bidi-caps.test.js` | Pins the vendored 6-12 renderer's bidi pass and language-aware page caps for Urdu and English |
 | `book-crop-legibility.test.js` | bd-8lifl: pins the template's book-crop image clamp being no tighter than the diagram slot height |
 | `book-figure-counts.test.js` | bd-8lifl: pins the author brief's textbook-figure rules (4b.1 vs 4b.4) not contradicting each other |
@@ -54,6 +56,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `delivery-context.test.js` | Pins deliverRender leaving conversation state, a shelf entry and a download row so the chat can see a 6-12 lesson |
 | `delivery-honesty.test.js` | bd-m1xyt: pins a falsy sendDocumentByLink result counting as a failed 6-12 delivery, never as delivered |
 | `delivery-ledger.test.js` | Pins each received 6-12 lesson writing a durable niete_lp612_deliveries row (who, which render); none on failed send |
+| `diagram-cycle.test.js` | (unmapped) |
 | `diagram-label-floor.test.js` | bd-oak77.15: pins the diagram label floor as one 14px constant across the vendored diagram engine |
 | `diagram-roster.test.js` | Pins the vendored diagram roster matching its manifest, asserted on the serving copy |
 | `diagram-solid-bar-thermo.test.js` | bd-yggj4o.2: pins the vendored engine rendering solid (3-D shape), bar and thermometer diagram types |
@@ -158,6 +161,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `own-board-negation.test.js` | (unmapped) |
 | `own-book.test.js` | (unmapped) |
 | `own-change-service.test.js` | (unmapped) |
+| `own-children.test.js` | (unmapped) |
 | `own-close.test.js` | (unmapped) |
 | `own-edit-guard.test.js` | (unmapped) |
 | `own-edit-instruction.test.js` | (unmapped) |
@@ -215,6 +219,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `own-status-library.test.js` | (unmapped) |
 | `own-status-shelf-fallback.test.js` | (unmapped) |
 | `own-unified-rules.test.js` | (unmapped) |
+| `own-unit-day.test.js` | (unmapped) |
+| `own-unit-edit.test.js` | (unmapped) |
+| `own-unit-goal-day.test.js` | (unmapped) |
+| `own-unit-goals.test.js` | (unmapped) |
+| `own-unit-outline.test.js` | (unmapped) |
+| `own-unit-service.test.js` | (unmapped) |
+| `own-unit-store.test.js` | (unmapped) |
 | `own-ways.test.js` | (unmapped) |
 | `own-worker-book-grr.test.js` | (unmapped) |
 | `own-worker-change.test.js` | (unmapped) |
@@ -239,6 +250,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `pagetruth.test.js` | Pins lp612-pagetruth.service fetchPages (ported retrieve.py): local-dir and R2 sources return book, toc, pages |
 | `phone-page.test.js` | bd-oak77.16: pins the v9.3 phone-first page: body font size at/above the arm's-length reading floor |
 | `pickup-and-recovery.test.js` | bd-dr216/bd-7yxsu: pins the author worker stamping picked_up_at before authoring so the reaper can measure staleness |
+| `poem-paraphrase-gate.test.js` | (unmapped) |
 | `portal-browse.test.js` | Pins lp612-browse.service: 6-12 corpus in browser-renderable shape, religious hold enforced in the query |
 | `portal-claim.test.js` | bd-5rz1v.21: pins every portal teacher asking for a ready 6-12 lesson being able to open it, not just the first asker |
 | `portal-surface.test.js` | Pins requestLesson serving a surface with no phone number (portal) while WhatsApp behaviour stays unchanged |
@@ -250,6 +262,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `r2-prefix-guard.test.js` | Pins that nothing the lp612 lane writes to the shared R2 bucket leaves the lp612/ prefix |
 | `ray-diagram-plane-mirror.test.js` | Pins ray_diagram manifest accepting a plane mirror (lints clean) without silently allowing a curved one |
 | `readability-blocks.test.js` | bd-a8veu.11: pins colour-block section bands and type hierarchy tokens in the 6-12 template |
+| `reading-step-gate.test.js` | (unmapped) |
 | `redundant.test.js` | Pins REDUNDANT lint (render-law 23): a legend that exactly repeats its caption fails |
 | `reference-header.test.js` | bd-a8veu.9: pins the Reference page header as a running head within three line boxes, pill in the meta line |
 | `religious-detection-compound-names.test.js` | (unmapped) |

@@ -1,7 +1,7 @@
 # live-moves — Live move ticking while a teacher records in the app (group D only)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=254a63baca6a gen=d5cf6f9d730d overflow=14 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=f9e3d9da66b9 gen=05bf734fe0c6 overflow=14 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `live-moves.service.js` — logic behind /api/internal/coaching/live/*
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `live-moves.service.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
-- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:310:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
+- `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:311:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
 - `card-store.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:17:ac8199c3`
 - `detector-prompt.js` ← imported by `bot/shared/services/coaching/live-moves/detector.js:6:805ddbc5`
 - … 6 more → `CLAUDE.index.md`

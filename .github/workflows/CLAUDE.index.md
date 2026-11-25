@@ -6,6 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `ab-card-check.yml` | (unmapped) |
 | `android-debug.yml` | On-demand (workflow_dispatch) Android debug APK build for device testing against staging or a given API URL (bd-2553) |
 | `android-release.yml` | Builds, signs and ships the NIETE Android app to Play on android-v* tags or manual dispatch (bd-2553) |
 | `android-staging.yml` | Builds the Android app pointed at the staging portal on pushes to staging touching portal/, or manual dispatch (bd-2554) |
@@ -31,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `portal/ANDROID.md`?
+- docs: `.github/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `docs/qa-automation.md`? · `portal/ANDROID.md`?

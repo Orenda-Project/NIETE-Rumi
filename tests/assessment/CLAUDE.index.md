@@ -104,12 +104,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bloom-ceiling.test.js` | (unmapped) |
 | `board-pattern-g5-only.test.js` | (unmapped) |
 | `book-content.service.test.js` | Unit tests for book-content.service: parsePageRanges, normaliseSubject and chapter/page text assembly for the model |
+| `book-exercises.test.js` | (unmapped) |
 | `both-paper-order.test.js` | (unmapped) |
 | `compact-print.test.js` | (unmapped) |
 | `composition-criteria.test.js` | Pins fixed marking-scheme criteria templates for compositions (criteriaFor/kindFor, composition-criteria, patterns) |
 | `contracts-cross.test.js` | (unmapped) |
 | `deploy-killed-paper.test.js` | Pins orchestrator stale take-over and the worker keeping a live paper's row fresh so a deploy cannot strand it |
 | `draw-it-prompt.test.js` | Pins the prompt for Mind Map, Flow Chart and Graph types the child draws from text (generation.service) |
+| `drawn-items-picture.test.js` | (unmapped) |
 | `english-medium-gk-sst-menu.test.js` | (unmapped) |
 | `english-medium-gk-sst-paper.test.js` | (unmapped) |
 | `eval-plan.test.js` | Unit tests for scripts/assessment/eval-plan: which chapters get an exam and what each exam spec asks for |
@@ -146,6 +148,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-keep-missing.test.js` | (unmapped) |
 | `fde-key-pattern.test.js` | (unmapped) |
 | `fde-layout.test.js` | Pins applyLayout: puts model output into FDE's shape, deciding slot placement and marks (fde-layout, patterns) |
+| `fde-level-target-wiring.test.js` | (unmapped) |
+| `fde-level-target.test.js` | (unmapped) |
 | `fde-listening-check.test.js` | (unmapped) |
 | `fde-match-block.test.js` | bd-5jmnfj.4.23: pins match Column B ordering: sorted, turned so no answer sits beside its stem (fde-match-block) |
 | `fde-match.test.js` | bd-5jmnfj.4.23: pins the Urdu match slot printing two columns of stems and shuffled answers (patterns, fde renderer) |
@@ -500,13 +504,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `golden.test.js` | Golden test: pins today's generator prompts, printed papers/keys and options payloads for non-board-pattern papers |
 | `grade-gate-settings.test.js` | (unmapped) |
 | `grade-gate.test.js` | (unmapped) |
+| `grouped-question-limit.test.js` | (unmapped) |
 | `islamiat-no-true-false.test.js` | (unmapped) |
 | `llm-passthrough.test.js` | Pins that max_tokens and a per-call timeout reach the SDK through the shared model client (model-settings) |
 | `marking-scheme.test.js` | Unit tests for normaliseScheme: fixes model-written scheme sums, kinds, MCQ schemes and comprehension words |
 | `maths-check.test.js` | Unit tests for the maths key check: parseForm and recomputing percentages/arithmetic in exact integers and fractions |
+| `mcq-answer-check.test.js` | (unmapped) |
 | `orchestrator-duplicate-delivery.test.js` | Pins one request, one paper, one model call when SQS delivers the job twice (orchestrator.service) |
 | `orchestrator-patch-error.test.js` | (unmapped) |
 | `paper-diagram.test.js` | (unmapped) |
+| `paper-reuse-plain-key.test.js` | (unmapped) |
+| `paper-reuse-wiring.test.js` | (unmapped) |
+| `paper-reuse.test.js` | (unmapped) |
 | `pattern-question-cap.test.js` | Pins that every FDE pattern's slot-count sum fits the DB question_count cap (reads migrations; patterns) |
 | `picture-types-hidden.test.js` | Pins that Label the Diagram and Picture Description are no longer offered (question-types, create route, renderer) |
 | `prompts-6-12.test.js` | (unmapped) |
@@ -523,6 +532,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `save-paper-threading.test.js` | (unmapped) |
 | `scheme-accept-check.test.js` | (unmapped) |
 | `seen-categories.test.js` | (unmapped) |
+| `seen-picked-chain.test.js` | (unmapped) |
+| `seen-picked.test.js` | (unmapped) |
 | `slo-map-chapters.test.js` | (unmapped) |
 | `slo-map.test.js` | (unmapped) |
 | `standard-marks-complexity.test.js` | (unmapped) |

@@ -42,16 +42,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `oral-pages-only.js` ← imported by `bot/shared/services/assessment/topics/topic-oral.js:12:f0b8e11b`
 - `page-check.js` ← imported by `bot/scripts/import-assessment-topics.js:33:3e92da3e`
 - `reconcile.js` ← imported by `bot/scripts/import-assessment-topics.js:32:ad877765` · `bot/shared/services/assessment/topics/topics.repo.js:8:8e75e826`
-- `resolve.js` ← imported by `bot/shared/routes/internal-api.routes.js:1982:cbc65cf0`
+- `resolve.js` ← imported by `bot/shared/routes/internal-api.routes.js:2026:cbc65cf0`
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` · `bot/shared/services/assessment/topics/group-maths.js:20:22aff0f7` · `bot/shared/services/assessment/topics/group-science.js:7:22aff0f7`
 - `stem-bank.js` ← imported by `bot/shared/services/assessment/topics/stems.js:9:f84e7b6f`
 - `stem-bank.json` ← imported by `bot/shared/services/assessment/topics/stem-bank.js:13:893f4bed`
 - `stem-prompt.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:c93ea675` · `bot/shared/services/assessment/free-secondary.service.js:39:ef0762df`
 - `stems.js` ← imported by `bot/shared/routes/internal-api.routes.js:1694:e3dd3ca4`
 - `topic-checks.js` ← imported by `bot/shared/services/assessment/topics/topic-exam.js:7:138e698b`
-- `topic-exam.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:639:85439a36`
-- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:866:b1d3239b`
-- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1804:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:75:1fc5ef0e`
+- `topic-exam.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:658:85439a36`
+- `topic-oral.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:854:b1d3239b`
+- `topics.repo.js` ← imported by `bot/shared/routes/internal-api.routes.js:1848:e4013beb` · `bot/shared/services/nudges/topic-end-nudge.service.js:75:1fc5ef0e`
 
 ## Tests (all, generated)
 - `collect.js` ← `tests/assessment/topics/collect.test.js`

@@ -19,7 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ObservationsHome.tsx` ← imported by `portal/src/portal/teacher/principal/PrincipalObservations.tsx:17:bc14f843` · `portal/src/portal/teacher/observations/routes.tsx:6:af920adc`
 - `api.ts` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:18:f775a727`
 - `copy.ts` ← imported by `portal/src/portal/teacher/principal/NewVisit.tsx:13:b4a946db` · `portal/src/portal/teacher/principal/PickTeacher.tsx:9:b4a946db` · `portal/src/portal/teacher/principal/PrincipalObservations.tsx:16:b4a946db` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:19:376d03b0`
-- `paths.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:20:614029b8` · `portal/src/portal/teacher/home/chips.ts:4:614029b8` · `portal/src/portal/teacher/home/look/cardWords.ts:4:55f11086` · `portal/src/portal/teacher/principal/PickTeacher.tsx:10:224e17b0` (+5: `python3 kg/kg.py who-reads paths.ts`)
+- `paths.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:20:614029b8` · `portal/src/portal/teacher/home/chips.ts:4:614029b8` · `portal/src/portal/teacher/home/look/cardWords.ts:4:55f11086` · `portal/src/portal/teacher/principal/NewVisit.tsx:14:224e17b0` (+7: `python3 kg/kg.py who-reads paths.ts`)
 
 ## Tests (all, generated)
 - `ObservationsHome.tsx` ← `portal/src/portal/teacher/observations/Observations.test.tsx` · `portal/src/portal/teacher/observations/observations.ur.test.tsx`

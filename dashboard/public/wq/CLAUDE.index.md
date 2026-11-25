@@ -78,7 +78,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `wq-digits.js` ← `dashboard/tests/web-quiz-preview-urdu-digits.service.test.js`
-- `wq.js` ← `dashboard/tests/web-quiz-items.service.test.js` · `dashboard/tests/web-quiz-look-latin-feedback.service.test.js` · `dashboard/tests/web-quiz-look-latin-polish.service.test.js` · `dashboard/tests/web-quiz-option-voices.service.test.js` · `dashboard/tests/web-quiz-page-match-pictures.service.test.js` · `dashboard/tests/web-quiz-page-pictures.service.test.js` (+4: `python3 kg/kg.py who-reads dashboard/public/wq/wq.js`)
+- `wq.js` ← `dashboard/tests/qfix-voice/web-quiz-letters-capitals.service.test.js` · `dashboard/tests/qfix-voice/web-quiz-read-self.service.test.js` · `dashboard/tests/qfix-voice/web-quiz-voice-design.service.test.js` · `dashboard/tests/web-quiz-items.service.test.js` · `dashboard/tests/web-quiz-look-latin-feedback.service.test.js` · `dashboard/tests/web-quiz-look-latin-polish.service.test.js` (+7: `python3 kg/kg.py who-reads dashboard/public/wq/wq.js`)
 
 ## Related (all, generated)
 - docs: `dashboard/public/CLAUDE.md`?

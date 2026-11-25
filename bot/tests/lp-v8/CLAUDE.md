@@ -1,7 +1,7 @@
 # lp-v8 — Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=137bba27fff6 gen=9306142f7008 overflow=22 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=39e5a1a6d5cc gen=921e12596a52 overflow=22 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `delivery.test.js` — deliverV8Lesson, presigned URL and sent rows
@@ -15,13 +15,13 @@ Full index: `CLAUDE.index.md`
 | `ab-ch310.test.js` | Pins the ICT G1-5 ch3-10 lesson-plan A/B: group A gets the v8 PDF, B the v9 render, by school (bd-5o0ay.10.1) |
 | `flow-response-telemetry.test.js` | Pins lp612.flow.response telemetry: each data_exchange, INIT, BACK logs outcome, items, bytes, duration (bd-oak77.26) |
 | `lp*` | 7 files; most used `lp-shelf-plumbing.test.js`: Pins lp-shelf wiring: deliverV8Lesson pushes an exact-version entry; failures never break delivery (bd-njn7u 1) |
-| `bd*` | 12 files; most used `bd-oak77-route-all.test.js`: Pins LP_612_ROUTE_ALL/ROUTE_K5 flags: default off, only narrow, old 6-12 picker unreachable from free text (bd-oak77.4) |
+| `bd*` | 14 files; most used `bd-oak77-route-all.test.js`: Pins LP_612_ROUTE_ALL/ROUTE_K5 flags: default off, only narrow, old 6-12 picker unreachable from free text (bd-oak77.4) |
 | `tick-app-opens.test.js` | Pins that the lesson tick counts lessons opened in the teacher app for both the Flow list and the app list |
 | `upload-writes-slide-script.test.js` | Pins that the uploader writes the slide script with the same asset row and hash in one run (PLAN R8 2.2 lane S) |
 | `voicenote*` | 3 files; most used `voicenote-off.test.js`: (unmapped) |
 | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |
 | `endpoint-dispatch.test.js` | Tests Pakistan LP endpoint dispatch: INIT grade picker, v8 grades 1-5 path, Oxbridge 6-10 unchanged (FEAT-059, bd-fg3p4) |
-| … | 47 more → `CLAUDE.index.md` |
+| … | 49 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

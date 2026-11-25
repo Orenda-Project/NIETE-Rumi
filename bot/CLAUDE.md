@@ -1,7 +1,7 @@
 # bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot kg=77271fcf1b19 gen=4a448e447a78 overflow=56 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=2916f0a40306 gen=64907cbb93b7 overflow=58 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:8793:4337985e`? (+12)
-- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:8869:d2b02c3e`? (+4)
-- … 12 more → `CLAUDE.index.md`
+- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:8925:4337985e`? (+12)
+- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:9001:d2b02c3e`? (+4)
+- … 11 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Require `shared/services/queue` (the index), never a driver file — both drivers share one surface (shared/services/queue/index.js:6-9)
@@ -30,9 +30,9 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/coaching/bd-uwpohl-lesson-file-goes-to-app.test.js` (whatsapp-bot.js)
 - `bot/tests/first-touch/maker-fallback.webhook.test.js` (whatsapp-bot.js)
-- … 41 more → `CLAUDE.index.md`
+- … 43 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `video-generation`? · `whatsapp-flows`?
-- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v10/SYNC.md`? · `bot/vendor/lp-v9/SYNC.md`? (+6)
+- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v10/SYNC.md`? · `bot/vendor/lp-v9/SYNC.md`? (+7)
 - … 1 more → `CLAUDE.index.md`

@@ -1,7 +1,7 @@
 # checks — Design-rule tests that fail the build when the new UI breaks DESIGN.md
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=5621ce6e6935 gen=ef3b444c479b overflow=63 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/checks kg=73532f069935 gen=78b4971a9ace overflow=69 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `rules.ts` — rule functions (max 4-word labels, allowlist) the *.test files call
@@ -37,7 +37,7 @@ Full index: `CLAUDE.index.md`
 - `portal/src/portal/teacher/coaching/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/journey/checks.test.tsx` (rules.ts, source.ts)
 - `portal/src/portal/teacher/lessons/checks.test.tsx` (rules.ts, source.ts)
-- … 63 more → `CLAUDE.index.md`
+- … 69 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/CLAUDE.md`?

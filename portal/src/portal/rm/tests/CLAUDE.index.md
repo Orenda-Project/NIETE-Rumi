@@ -36,4 +36,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `portal/scripts/urdu-fit/CLAUDE.md`? · `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.md`? · `portal/src/portal/rm/pages/CLAUDE.md`?
+- docs: `portal/src/portal/rm/CLAUDE.md`? · `portal/src/portal/rm/components/CLAUDE.md`? · `portal/src/portal/rm/pages/CLAUDE.md`?

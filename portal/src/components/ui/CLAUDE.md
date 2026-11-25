@@ -1,7 +1,7 @@
 # ui — shadcn/ui primitives (Radix wrappers); generated style, mostly unused by the portal
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=28fff381cc73 gen=87246bb500c3 overflow=56 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/components/ui kg=078493ef346f gen=4fb6a92c1846 overflow=57 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `button.tsx` — most used primitive, with `dialog.tsx`, `card.tsx`, `input.tsx`
@@ -38,7 +38,7 @@ _None found in code comments, tests or git log for this directory._
 ## Tests (generated)
 - `portal/src/portal/newui/sheet.test.tsx`? (sheet.tsx)
 - `portal/src/portal/pages/ClassicAssessment.tabs.test.tsx` (toaster.tsx)
-- … 1 more → `CLAUDE.index.md`
+- … 2 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/components/CLAUDE.md`?

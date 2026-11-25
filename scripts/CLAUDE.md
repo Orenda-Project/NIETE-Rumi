@@ -1,7 +1,7 @@
 # scripts — Operator tools: data migrations, backfills, Flow publishers, QA
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=2d6cfffe75a3 gen=f64986a199b4 overflow=75 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=77dddee444fc gen=ce616e844d92 overflow=77 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `smoke-test.js` — pre-deploy load check of bot entry, workers and dashboard routes
@@ -12,15 +12,15 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| 13 sub-dirs, each with `CLAUDE.md` | `app-funnel/` · `assessment/` · `child-test/` · `ci/` · `data/` · `lib/` · `llm/` · `migrations/` · `ops/` · `predicates/` · `qa/` · `samples/` · `web-quiz/` |
+| 14 sub-dirs, each with `CLAUDE.md` | `app-funnel/` · `assessment/` · `child-test/` · `ci/` · `data/` · `fln-pdf/` · `lib/` · `llm/` · `migrations/` · `ops/` · `predicates/` · `qa/` · `samples/` · `web-quiz/` |
 | 1 sub-dirs without a door | `tests/` (12 tests) |
 | `row-history-audit.js` | Pure JS mirror of the record_history trigger rules (watched columns, no-op writes, actor) so tests can pin them |
-| … | 80 more → `CLAUDE.index.md` |
+| … | 82 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `backfill-names-from-fde.js` (+5)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+210)
-- table `app_settings` (written by `create-analytics-user.js` (+1)) ← read by `bot/shared/config/feature-flags.js:106:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+155)
-- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:108:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+153)
+- table `users` (written by `backfill-names-from-fde.js` (+5)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+220)
+- table `app_settings` (written by `create-analytics-user.js` (+1)) ← read by `bot/shared/config/feature-flags.js:114:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? (+173)
+- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:116:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+171)
 - … 60 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/bd-o98ji-coach-directory-match.test.js` (seed-coach-directory.js)
 - `scripts/dev-portal.test.sh`? (dev-portal.sh)
-- … 15 more → `CLAUDE.index.md`
+- … 16 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CONTRIBUTING.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/vendor/lp-v9/SYNC.md`? (+7)
+- docs: `.claude/CLAUDE.md`? · `.github/CONTRIBUTING.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/attendance-bigquery-sync.md`? (+6)

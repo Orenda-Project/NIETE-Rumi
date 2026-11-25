@@ -1,7 +1,7 @@
 # share — Leader sharing: Share bar, send to teachers, share link, WhatsApp text
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/share kg=7ead536b4553 gen=2b5f4f9a4233 overflow=30 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/fln/share kg=39a54d7921d7 gen=06bf404d1104 overflow=32 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `ShareBar.tsx` — sticky bar, renders only when me.share
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `api.ts` | Leader-side FLN API client (me, links, title, events, teachers, send): plain fetch, no-store, tagged results never throw |
 | `Fill.tsx` | Renders a catalogue string with {slot} values inside <bdi> in chrome digits so numbers keep direction in Urdu |
 | `SendSheet.test.tsx` | Vitest for "Send to teacher": keyed teacher ids, multi-select up to 30, POST /send, sent/partial/429/empty, 404 fallback |
-| … | 12 more → `CLAUDE.index.md` |
+| … | 13 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `strings.share.ts` ← imported by `portal/src/portal/fln/FlnSendCard.tsx:8:b664e792` · `portal/src/portal/fln/FlnSendTile.tsx:10:b664e792` (+12)
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/fln/tests/rootScope.test.tsx` (ShareBar.tsx, Sheet.tsx, testFetch.ts)
 - `portal/src/portal/fln/share/SendSheet.test.tsx` (SendSheet.tsx, testFetch.ts)
-- … 9 more → `CLAUDE.index.md`
+- … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/fln/CLAUDE.md`?

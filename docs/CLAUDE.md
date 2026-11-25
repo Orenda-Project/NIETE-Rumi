@@ -1,7 +1,7 @@
 # docs — Repo docs: architecture, E2E and QA system, migration history, ops guides
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=docs kg=688fcff7b6fd gen=2e4b0f3d37ce overflow=13 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=docs kg=f21074060100 gen=ffe07d4a9c09 overflow=14 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `architecture.md` — start here for the system overview
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `lesson-plan-data-model-debt.md` | (unmapped) |
 | `architecture.md` | System overview of the Rumi platform: webhook to Node bot, AI services, queues and storage components |
 | `attendance-bigquery-sync.md` | Nightly export of teacher presence rollups from Supabase to the STEPS BigQuery warehouse for the ACR pipeline |
-| … | 31 more → `CLAUDE.index.md` |
+| … | 32 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
@@ -35,5 +35,5 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `customizing`? · `niete-mock-e2e`? · `setup`?
-- docs: `.claude/CLAUDE.md`? · `.claude/commands/niete-e2e.md`? · `.claude/qa/README.md`? · `.claude/qa/SCHEDULE.md`? · `.githooks/README.md`? · `.github/CLAUDE.md`? (+79)
+- docs: `.claude/CLAUDE.md`? · `.claude/commands/niete-e2e.md`? · `.claude/qa/README.md`? · `.claude/qa/SCHEDULE.md`? · `.githooks/README.md`? · `.github/CLAUDE.md`? (+80)
 - … 1 more → `CLAUDE.index.md`

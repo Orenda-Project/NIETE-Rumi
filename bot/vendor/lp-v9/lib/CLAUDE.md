@@ -1,7 +1,7 @@
 # lib — Renderer support: template, rich text, fonts, overlay, validation, fact lint
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=839de2fab58d gen=e2298e6e8d84 overflow=30 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=c425bb7f412e gen=bf80a15844db overflow=31 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `template.js` — builds the two-page A4 HTML
@@ -23,9 +23,9 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `fonts.js` ← imported by `bot/shared/services/quiz/quiz-math.js:205:f7f657cc` · `bot/shared/services/quiz/transcript-quiz-card.js:26:e409cd03` (+3)
-- `overlay.js` ← imported by `bot/shared/services/lp612-author.service.js:69:a6ab6c97` · `bot/vendor/lp-v9/lint_lp.js:49:6395c51e` (+2)
+- `overlay.js` ← imported by `bot/shared/services/lp612-author.service.js:71:a6ab6c97` · `bot/vendor/lp-v9/lint_lp.js:49:6395c51e` (+2)
 - `rich.js` ← imported by `bot/shared/services/quiz/quiz-math.js:179:991497b6` · `bot/vendor/lp-v9/lint_lp.js:50:e778133a` (+2)
-- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:66:8c195dd6` · `bot/shared/services/lp612-key-repair.js:18:8cfa4499` (+2)
+- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:68:8c195dd6` · `bot/shared/services/lp612-key-repair.js:18:8cfa4499` (+2)
 - … 8 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -35,7 +35,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/lp612/fbise-slo-chips.test.js` (overlay.js, template.js, validate.js)
 - `tests/lp612/bidi-caps.test.js` (rich.js, template.js)
-- … 16 more → `CLAUDE.index.md`
+- … 17 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`?

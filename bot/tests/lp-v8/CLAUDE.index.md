@@ -8,6 +8,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `ab-ch310.test.js` | Pins the ICT G1-5 ch3-10 lesson-plan A/B: group A gets the v8 PDF, B the v9 render, by school (bd-5o0ay.10.1) |
 | `backfill-lp-asset-sources.test.js` | Pins backfill-lp-asset-sources: only a matrix row whose link names the served asset's hash is imported (PLAN R8 2.2) |
+| `bd-ain69z-light-print.test.js` | (unmapped) |
 | `bd-eb1ec-context-language-pin.test.js` | Pins the lesson context message names the reply language so an Urdu lesson block cannot flip an English reply (bd-eb1ec) |
 | `bd-hgwfo-gamma-door.test.js` | Pins that 'make me a lesson plan' opens the browse Flow, not the not-in-catalog reply (bd-hgwfo, bd-jnfbd) |
 | `bd-k3ry8-pupil-says-label.test.js` | Pins the lp-v9 mistakes-box label covering spoken and written answers in English and Urdu (bd-k3ry8) |
@@ -20,6 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-wpupy-delivery-marker.test.js` | Pins delivery marker: one assistant row per lesson delivery, no lesson content, deduped within window (bd-wpupy F5) |
 | `bd-wpupy-followup-context.test.js` | Pins a deictic 'this' in a follow-up reaches the lesson just delivered, using the real production failures (bd-wpupy) |
 | `bd-wssa3-no-lp-keyword-nudge.test.js` | Pins that the feature-intro keyword nudge no longer fires on 'lesson plan' (detectAndOfferVideo scorer) (bd-wssa3) |
+| `bd-zrdvmi55-topic-reference.test.js` | (unmapped) |
 | `catalog-builder.test.js` | Tests LP catalog builder: pure normalisation to Meta NavigationList caps, dedupeTopic and merging (FEAT-059, bd-82qs3) |
 | `catalog-splits.test.js` | (unmapped) |
 | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |

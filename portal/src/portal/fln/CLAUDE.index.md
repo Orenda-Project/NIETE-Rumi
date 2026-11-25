@@ -39,16 +39,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `FlnBandBody.tsx` ← imported by `portal/src/portal/fln/FlnBand.tsx:15:805387e8`
 - `FlnContext.tsx` ← imported by `portal/src/portal/fln/FlnGate.tsx:16:6028f41a` · `portal/src/portal/fln/FlnRoutes.tsx:17:27bf7e20` · `portal/src/portal/fln/LessonList.tsx:16:27bf7e20` · `portal/src/portal/fln/PlanPage.tsx:23:27bf7e20`
 - `FlnGate.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:16:3fd51080` · `portal/src/portal/fln/LessonList.tsx:17:701a9700`
-- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:178:56ef1400`
+- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:180:56ef1400`
 - `FlnSendCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:13:d3b0edb8`
 - `FlnSendTile.tsx` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:23:6907e93d`
 - `LessonList.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:18:175e80eb`
 - `PlanPage.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:20:036cde34`
-- `api.ts` ← imported by `portal/src/portal/fln/FlnBand.tsx:12:3367dabe` · `portal/src/portal/fln/FlnBandBody.tsx:25:3367dabe` · `portal/src/portal/fln/FlnGate.tsx:15:7af565ea` · `portal/src/portal/fln/PlanPage.tsx:21:3367dabe` (+1: `python3 kg/kg.py who-reads api.ts`)
+- `api.ts` ← imported by `portal/src/portal/fln/FlnBand.tsx:12:3367dabe` · `portal/src/portal/fln/FlnBandBody.tsx:25:3367dabe` · `portal/src/portal/fln/FlnGate.tsx:15:7af565ea` · `portal/src/portal/fln/PlanPage.tsx:21:3367dabe` (+2: `python3 kg/kg.py who-reads api.ts`)
 - `fln.css` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:32:3377d62d` · `portal/src/portal/fln/FlnGate.tsx:21:3377d62d`
-- `listShared.tsx` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:28:e4b15f54` · `portal/src/portal/fln/FlnRoutes.tsx:19:09fbb17e` · `portal/src/portal/fln/LessonList.tsx:22:0cd80724` · `portal/src/portal/fln/PlanPage.tsx:31:f7f32be9` (+1: `python3 kg/kg.py who-reads listShared.tsx`)
+- `listShared.tsx` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:28:e4b15f54` · `portal/src/portal/fln/FlnRoutes.tsx:19:09fbb17e` · `portal/src/portal/fln/LessonList.tsx:22:0cd80724` · `portal/src/portal/fln/PlanPage.tsx:32:f7f32be9` (+1: `python3 kg/kg.py who-reads listShared.tsx`)
 - `strings.audio.ts` ← imported by `portal/src/portal/fln/plan/SoundGrid.tsx:7:467c0a81` · `portal/src/portal/fln/player/SoundPill.tsx:5:84b263b1` · `portal/src/portal/fln/player/SoundTile.tsx:5:84b263b1`
-- `strings.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:26:2f8deb7e` · `portal/src/portal/fln/FlnContext.tsx:7:8d6a1774` · `portal/src/portal/fln/FlnGate.tsx:17:8d6a1774` · `portal/src/portal/fln/LessonList.tsx:20:b755bcbc` (+11: `python3 kg/kg.py who-reads strings.ts`)
+- `strings.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:26:2f8deb7e` · `portal/src/portal/fln/FlnContext.tsx:7:8d6a1774` · `portal/src/portal/fln/FlnGate.tsx:17:8d6a1774` · `portal/src/portal/fln/LessonList.tsx:20:b755bcbc` (+12: `python3 kg/kg.py who-reads strings.ts`)
 - `types.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:27:09b7cd91` · `portal/src/portal/fln/FlnContext.tsx:8:93f16bf1` · `portal/src/portal/fln/FlnGate.tsx:18:93f16bf1` · `portal/src/portal/fln/LessonList.tsx:21:4e1ebc58` (+10: `python3 kg/kg.py who-reads types.ts`)
 
 ## Tests (all, generated)

@@ -1,7 +1,7 @@
 # look — Teacher Home 'look' (portal_teacher_home_look): navy band, one card, rows, progress strip
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home/look kg=cfd17f3918d3 gen=8fcda38abdbc overflow=15 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home/look kg=523e7c65fbef gen=2803e4720015 overflow=15 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `LookHome.tsx` — composes band, card, strip, rows; `HomeBand.tsx` and `bandShape.ts` — band layout
@@ -21,9 +21,9 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `cardWords.ts` ← imported by `portal/src/portal/teacher/home/NextCard.tsx:8:1111e866` · `portal/src/portal/teacher/home/SlimCard.tsx:8:6e07efd2` (+1)
-- `FeatureTiles.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:24:ff6c2cfd`
+- `FeatureTiles.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:25:ff6c2cfd`
 - `LanguagePill.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:8:114e146e`
-- `LookCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:22:b78f8101`
+- `LookCard.tsx` ← imported by `portal/src/portal/teacher/home/look/LookHome.tsx:23:b78f8101`
 - … 3 more → `CLAUDE.index.md`
 
 ## Never (human)

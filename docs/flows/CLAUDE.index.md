@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `remark-mockups/` | → (no door; 3 files) |
+| `remark-mockups/` | (no description yet) → `remark-mockups/CLAUDE.md` |
 | `rollback/` | Frozen snapshots of live Flows taken before a cutover, for rollback → `rollback/CLAUDE.md` |
 | `assessment-gen-flow.README.md` | Notes on assessment-gen-flow.json: server-served screen order CLASS to CONFIRM and how review screens are reached |
 | `assessment-gen-flow.json` | Flow JSON v7.3: assessment generator form (class, coverage, pages, question types, counts, confirm), endpoint-driven |
@@ -16,6 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `child-test-check.json` | Flow JSON v7.3: coach's child test scoring screens for Urdu, English and Maths, then done |
 | `child-test-review.json` | Flow JSON v7.3: single REVIEW screen for the coach to check a child's test result |
 | `class-manager-flow.json` | Flow JSON v6.3: manage classes (list, add, subjects, roster, saved) |
+| `data-question.json` | (unmapped) |
 | `edit-class-flow.json` | Flow JSON v6.3: fix a class roster after creation (add, remove, rename students) |
 | `exam-checker-confirm-students-flow.json` | Flow JSON v6.2: Exam Checker screen to confirm detected students before grading |
 | `homework-request-flow.json` | Flow JSON v6.3: Homework request, pick grade and subject then multi-select chapters |
@@ -54,6 +55,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `attendance-setup-flow.json` ← `tests/attendance/class-setup-endpoint.test.js`
 - `child-test-review.json` ← `tests/child-test/L39/review-v3-flow-contract.test.js`
 - `class-manager-flow.json` ← `tests/classes/class-manager-endpoint.test.js` · `tests/classes/one-edit-screen.test.js` · `tests/classes/roster-add-failure-named.test.js` · `tests/classes/roster-empty-class.test.js`
+- `data-question.json` ← `tests/data-analyst/question-flow.test.js`
 - `observe-visit-v2.json` ← `bot/tests/observe/bd-88krt-school-admin.test.js` · `bot/tests/observe/bd-88krt-visit-actions.test.js` · `bot/tests/observe/bd-97daxo.30-gb-saturday.test.js` · `bot/tests/observe/bd-gndeg-remove-search.test.js` · `bot/tests/observe/bd-jrxo3-no-bare-capture.test.js` · `bot/tests/observe/bd-qy7dm-remove-school.test.js` (+5: `python3 kg/kg.py who-reads docs/flows/observe-visit-v2.json`)
 - `pakistan-lp-flow-v3.json` ← `bot/tests/lp-v8/flow-response-telemetry.test.js`
 - `quiz-multi-select-flow.json` ← `tests/quiz/transcript-quiz-multi.test.js`
@@ -63,4 +65,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `registration`?
-- docs: `docs/CLAUDE.md`? · `docs/features/attendance.md`? · `docs/features/registration.md`? · `infrastructure/flows/README.md`?
+- docs: `bot/shared/services/data-analyst/CLAUDE.md`? · `docs/CLAUDE.md`? · `docs/features/attendance.md`? · `docs/features/registration.md`? · `infrastructure/flows/README.md`?

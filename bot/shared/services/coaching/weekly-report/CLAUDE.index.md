@@ -14,12 +14,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `week.js` | Pure PKT calendar for the weekly report: Monday key, Saturday send window, weekend look-back |
 
 ## Who reads this (all, generated)
-- `job.js` ← imported by `bot/workers/sqs-worker.js:2045:3f57026f`
-- `message.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
+- `job.js` ← imported by `bot/workers/sqs-worker.js:2063:3f57026f`
+- `message.js` ← imported by `bot/shared/services/quiz/web-quiz-evening-round.js:1200:c0a1ec83` · `bot/shared/services/coaching/weekly-report/job.js:20:bc995631`
 - `reader.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:16:73533146`
 - `summarise.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:19:934b7eba` · `bot/shared/services/coaching/weekly-report/message.js:13:8fb51b5e`
 - `switch.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:17:2a9c4c5a`
-- `week.js` ← imported by `bot/shared/services/coaching/weekly-report/job.js:18:6cec1210`
+- `week.js` ← imported by `bot/shared/services/nudges/weak-skill-jugnu/job.js:23:c64a117a` · `bot/shared/services/coaching/weekly-report/job.js:18:6cec1210`
 
 ## Tests (all, generated)
 - `job.js` ← `bot/tests/coaching/weekly-report/job.test.js`

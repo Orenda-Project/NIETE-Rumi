@@ -16,6 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `compare_size.js` | Diagram type compare_size: longer/shorter and heavier/lighter comparison pictures for Grade 1 |
 | `count_frame.js` | Diagram type count_frame: ten-frame or tally marks for early quantity work |
 | `count_objects.js` | Diagram type count_objects: n pictures of a thing laid out to count or compare, for grades K-2 |
+| `cycle.js` | (unmapped) |
 | `dna_helix.js` | Diagram type dna_helix: double-helix ribbon with optional base sequence and paired rungs |
 | `flow.js` | Diagram type flow: boxes joined by labelled arrows with optional branching decisions |
 | `fraction_bar.js` | Diagram type fraction_bar: part-whole bars or disc sectors (model circle) |

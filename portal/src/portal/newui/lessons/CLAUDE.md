@@ -1,7 +1,7 @@
 # lessons — New-UI Lesson Plans, grades 1-12, behind one client over two services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/lessons kg=6489250717f5 gen=9babccc4a993 overflow=37 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/lessons kg=6f6638b68fd1 gen=c3a6489d7dc4 overflow=39 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `NewLessonPlans.tsx` — main page and flow router; `RecentPlans.tsx` shows the last 10
@@ -19,8 +19,8 @@ Full index: `CLAUDE.index.md`
 | … | 5 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `shared.ts` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:4:e5dbc0df` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:6:e5dbc0df` (+38)
-- `lessonPlansApi.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:22:0f0b92bd` · `portal/src/portal/teacher/coaching/libraryPick.ts:2:d4185e0b` (+15)
+- `shared.ts` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:4:e5dbc0df` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:6:e5dbc0df` (+42)
+- `lessonPlansApi.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:7:1a1a4623` · `portal/src/portal/teacher/coaching/NewObservation.tsx:22:0f0b92bd` (+16)
 - `LoadStatus.tsx` ← imported by `portal/src/portal/newui/lessons/LessonPlanPages.tsx:22:45665a4c` · `portal/src/portal/newui/lessons/NewLessonPlans.tsx:17:45665a4c`
 - `LessonPlanPages.tsx` ← imported by `portal/src/portal/newui/lessons/NewLessonPlans.tsx:18:3378c26b`
 - … 2 more → `CLAUDE.index.md`
@@ -31,8 +31,8 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` (NewLessonPlans.tsx, lessonPlansApi.ts)
-- `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` (lessonPlansApi.ts)
-- … 32 more → `CLAUDE.index.md`
+- `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` (lessonPlansApi.ts)
+- … 34 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/DESIGN.md`?

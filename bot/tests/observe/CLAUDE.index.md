@@ -99,6 +99,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fico-v3-framework.test.js` | Pins FICO V3 structure (37 indicators, B/C/D/F) and the scoring-discipline leniency fix (bd-2345) |
 | `gpt5-completejson.test.js` | Pins GPT5MiniService.completeJson port used by observe debrief and send stacks (bd-2342) |
 | `leader-teachers-deprecated.test.js` | Ratchet test: leader_teachers is deprecated and may gain no new callers |
+| `lp-check-wiring.test.js` | (unmapped) |
 | `message-window-24h.test.js` | Pins the 24h free-form messaging window check and its negative cache moving together |
 | `observe-audio-router.test.js` | Pins routeLeaderAudio role gate and armed states for voice and file-sent audio (FEAT-053 bd-29) |
 | `observe-coach-card.test.js` | Pins coach-feedback card values, normalisation and HTML build (FEAT-053 bd-44) |

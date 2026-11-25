@@ -1,6 +1,6 @@
 # urdu-fit — Measures whether Urdu (Nastaliq) text fits its boxes in the teacher kit
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/scripts/urdu-fit kg=07c6484f71a6 gen=e73c44068743 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/scripts/urdu-fit kg=6a612293c306 gen=5ecf38c4df0d overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
 
 ## Entry points
 - `run.mjs` — run `cd portal && node scripts/urdu-fit/run.mjs`; exits 1 on any clipped Urdu box
@@ -23,11 +23,7 @@
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
-- `portal/src/portal/coach/insights/tests/harness.test.tsx`? (harness.tsx)
-- `portal/src/portal/coach/insights/tests/harness.tsx`? (harness.tsx)
-- `portal/src/portal/rm/tests/harness.tsx`? (harness.tsx)
-- `tests/child-test/L37/harness.js`? (harness.tsx)
-- `tests/run.js`? (run.mjs)
+- (none)
 
 ## Related (generated)
 - docs: `portal/scripts/CLAUDE.md`?

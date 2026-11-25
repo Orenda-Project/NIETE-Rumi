@@ -29,7 +29,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `level.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:73:a093766f`
 - `review-store.js` ← imported by `bot/shared/services/child-test/app/sa-review.service.js:37:2ae41dd9`
 - `reviewed-lines.js` ← imported by `bot/shared/services/child-test/sa/build.js:21:e282362f`
-- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:751:dfafea0e` · `bot/whatsapp-bot.js:3060:1f15208c`
+- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:751:dfafea0e` · `bot/whatsapp-bot.js:3096:1f15208c`
 - `scripts.js` ← imported by `dashboard/routes/sa-battery-switches.js:229:36bc0454` · `bot/shared/services/child-test/sa/build-w3.js:21:e8856283` · `bot/shared/services/child-test/sa/build.js:19:41b0657a`
 - `set-aside.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:75:e5ebbf41` · `bot/shared/services/child-test/app/sa-review.service.js:20:e5ebbf41` · `bot/shared/services/child-test/sa-store.js:289:2ca04ca8` · `bot/shared/services/child-test/sa/score.js:123:1d2f1506`
 - `ur-tashdeed.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:99:46fcd804`
@@ -37,7 +37,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `voice-help.js` ← imported by `bot/shared/services/child-test/sa/score.js:115:8eaa2105`
 - `voice-manifest.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:92:f01bc739`
 - table `child_test_blocks` whole row (`*`) (written by `score.js`) ← read by `bot/shared/services/child-test/check-flow/check-store.js:49:b0acb96c`?
-- table `child_test_blocks` (written by `score.js`) ← read by `scripts/child-test/smoke-sandbox.js:83:c2d8ba96`?
+- table `child_test_blocks` (written by `score.js`) ← read by `bot/shared/services/nudges/weak-skill-jugnu/reader.js:117:b29394f2`? · `scripts/child-test/smoke-sandbox.js:83:c2d8ba96`?
 - env `CHILD_TEST_R2_ENV` read at `bot/shared/services/child-test/sa/score.js:180:20458b92`
 - env `CHILD_TEST_SA_CLIP_WAIT_S` read at `bot/shared/services/child-test/sa/score.js:178:d15c63b4`
 - env `CHILD_TEST_SA_MIN_SPEECH_S` read at `bot/shared/services/child-test/sa/score.js:177:41a507f4`

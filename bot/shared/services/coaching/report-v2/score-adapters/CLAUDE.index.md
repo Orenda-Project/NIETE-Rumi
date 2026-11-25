@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `dispatch.js` ← imported by `bot/shared/services/coaching/report-v2/narrative.service.js:141:25bde1fe` · `bot/shared/services/coaching/report-v2/score-adapter.service.js:23:25bde1fe`
-- `fico-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/hero-report.service.js:75:9bf0be34` · `bot/shared/services/coaching/report-v2/narrative.service.js:394:9bf0be34` · `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:18:0e2e3e52` · `bot/shared/services/coaching/report-v2/score-adapters/fico17-v6-adapter.js:16:e067dbb6`
+- `fico-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/hero-report.service.js:76:9bf0be34` · `bot/shared/services/coaching/report-v2/narrative.service.js:394:9bf0be34` · `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:18:0e2e3e52` · `bot/shared/services/coaching/report-v2/score-adapters/fico17-v6-adapter.js:16:e067dbb6`
 - `fico17-v6-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:21:c1d5295b`
 - `hots-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:16:e71b22d3`
 - `mewaka-adapter.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/dispatch.js:19:c27f8f87`

@@ -1,7 +1,7 @@
 # analytics — Schools analytics page (six tabs) for FDE/AEO analytics-only accounts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/analytics kg=03e0132d8f93 gen=ac13ff883d70 overflow=45 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/analytics kg=03e0132d8f93 gen=ac13ff883d70 overflow=46 rendered=2026-11-20 kg.py=1.1.0 -->
 
 ## Entry points
 - `SchoolsAnalytics.tsx` — page: one schools read feeds six tabs; view state in URL (view.ts)

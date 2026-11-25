@@ -6,6 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `fixtures/` | → (no door; 1 files: 0 test + 1 support) |
 | `record-sa-voice-v4-english-ops.test.js` | (unmapped) |
 | `record-sa-voice-v4-equals.test.js` | (unmapped) |
 | `record-sa-voice-v4-held-words.test.js` | (unmapped) |
@@ -31,7 +32,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-grade-with-visit.test.js` | Pins sa_all_grades at a school with today's observe visit: the named grade is honoured, never the visit's list |
 | `sa-last-word-hint.test.js` | Pins lastWordIndex alignment, saLastWordHint and its internal route for the sa_coach_last_word suggestion |
 | `sa-mic-check-kept.test.js` | (unmapped) |
+| `sa-number-id-g13-60.test.js` | (unmapped) |
 | `sa-per-visit.test.js` | (unmapped) |
+| `sa-picker-intro-edges.test.js` | (unmapped) |
 | `sa-practice-answer-kept.test.js` | (unmapped) |
 | `sa-practice-first.test.js` | (unmapped) |
 | `sa-practice-lookup-size.test.js` | (unmapped) |

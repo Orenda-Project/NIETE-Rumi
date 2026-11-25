@@ -11,6 +11,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `child-test/` | Child reading/maths test: scoring evals and sandbox simulation helpers → `child-test/CLAUDE.md` |
 | `ci/` | (no description yet) → `ci/CLAUDE.md` |
 | `data/` | (no description yet) → `data/CLAUDE.md` |
+| `fln-pdf/` | (no description yet) → `fln-pdf/CLAUDE.md` |
 | `lib/` | Pure decision logic imported by the write scripts so judgement is testable → `lib/CLAUDE.md` |
 | `llm/` | CLI to see and change which LLM model runs each job → `llm/CLAUDE.md` |
 | `migrations/` | Hand-applied data and schema migrations, dated; mostly training-content seeds → `migrations/CLAUDE.md` |
@@ -20,6 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `samples/` | Authored sample data for rendering demo coaching reports → `samples/CLAUDE.md` |
 | `tests/` | → (no door; 12 tests) |
 | `web-quiz/` | Web quiz content loading, backfills and by-hand health runs → `web-quiz/CLAUDE.md` |
+| `ab-card-check.js` | (unmapped) |
 | `assessment-parity.sh` | Gate: assessment-feature files must be identical on origin/main and origin/sandbox; run before calling a fix done |
 | `audit-reason-usage.js` | Read-only audit of how often coaches type a removal reason in leader_roster_audit.detail |
 | `backfill-lp-fidelity-moves.js` | Batched upsert of offline LP move-lists into niete_lp_fidelity_moves; checks project ref, --dry-run (bd-wmfsp.3) |
@@ -91,26 +93,26 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `verify-users-migration.py` | Parity check re-deriving eligible Taleemabad users and diffing them against NIETE users by normalized phone |
 
 ## Who reads this (all, generated)
-- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:108:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:327:8f3e60a7` (+151: `python3 kg/kg.py who-reads app_settings.key`)
-- column `app_settings.value` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:107:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/app-redirect.service.js:327:8f3e60a7` (+151: `python3 kg/kg.py who-reads app_settings.value`)
-- column `training_modules.audio_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/hcp.routes.js:603:4e5165b9` · `dashboard/routes/portal.routes.js:5473:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c`
-- column `training_modules.source_media_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/portal.routes.js:5473:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c` · `scripts/verify-training-media-inline.js:55:f6c5c963`
-- column `users.name` (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+66: `python3 kg/kg.py who-reads users.name`)
-- column `users.phone_number` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/observe-visit-flow.handler.js:1249:9e1a4c71` · `bot/shared/routes/homework-request-endpoint.js:56:0b64c13f` (+98: `python3 kg/kg.py who-reads users.phone_number`)
-- column `users.portal_activated` (written by `create-analytics-user.js`) ← read by `bot/shared/services/portal-invite.service.js:203:d17654ef` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445` · `dashboard/routes/portal.routes.js:385:af8b00f9` · `bot/scripts/deployment/get-portal-test-tokens.js:46:0cecdbb4`
-- column `users.portal_password_hash` (written by `create-analytics-user.js`) ← read by `dashboard/routes/portal.routes.js:385:af8b00f9`
-- column `users.role` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/handlers/observe-visit-flow.handler.js:1293:45738629` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+45: `python3 kg/kg.py who-reads users.role`)
-- column `users.school_id` (written by `create-analytics-user.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` · `bot/shared/routes/internal-api.routes.js:940:aa90cbd2` (+33: `python3 kg/kg.py who-reads users.school_id`)
-- table `schools` whole row (`*`) (written by `load-school-districts.js`) ← read by `bot/shared/services/observe/observe-school-admin.service.js:356:8d212f91`?
-- table `users` whole row (`*`) (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:289:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
-- table `app_settings` (written by `create-analytics-user.js`, `load-analytics-lists.js`) ← read by `bot/shared/config/feature-flags.js:106:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? · `bot/shared/config/web-quiz-brand.js:127:110366bd`? · `bot/shared/services/app-redirect.service.js:326:8d5282ae`? (+153: `python3 kg/kg.py who-reads app_settings`)
+- column `app_settings.key` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:116:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/ab-tracker/ab-tracker-rollup.service.js:84:ec579c76` (+169: `python3 kg/kg.py who-reads app_settings.key`)
+- column `app_settings.value` (written by `create-analytics-user.js`) ← read by `bot/shared/config/feature-flags.js:115:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` · `bot/shared/config/web-quiz-brand.js:127:110366bd` · `bot/shared/services/ab-tracker/ab-tracker-rollup.service.js:84:ec579c76` (+169: `python3 kg/kg.py who-reads app_settings.value`)
+- column `training_modules.audio_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/hcp.routes.js:603:4e5165b9` · `dashboard/routes/portal.routes.js:5592:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c`
+- column `training_modules.source_media_url` (written by `fix-pdf-in-audio-url.js`) ← read by `bot/shared/services/training/content-delivery.service.js:247:393812ae` · `dashboard/routes/portal.routes.js:5592:08b11a5f` · `dashboard/services/training-library.service.js:175:f4746f5c` · `scripts/verify-training-media-inline.js:55:f6c5c963`
+- column `users.name` (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` (+68: `python3 kg/kg.py who-reads users.name`)
+- column `users.phone_number` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` · `bot/shared/handlers/observe-visit-flow.handler.js:1249:9e1a4c71` · `bot/shared/routes/homework-request-endpoint.js:56:0b64c13f` (+100: `python3 kg/kg.py who-reads users.phone_number`)
+- column `users.portal_activated` (written by `create-analytics-user.js`) ← read by `bot/shared/services/portal-invite.service.js:203:d17654ef` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445` · `dashboard/routes/portal.routes.js:384:af8b00f9` · `bot/scripts/deployment/get-portal-test-tokens.js:46:0cecdbb4`
+- column `users.portal_password_hash` (written by `create-analytics-user.js`) ← read by `dashboard/routes/portal.routes.js:384:af8b00f9`
+- column `users.role` (written by `create-analytics-user.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/handlers/observe-visit-flow.handler.js:1293:45738629` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` (+51: `python3 kg/kg.py who-reads users.role`)
+- column `users.school_id` (written by `create-analytics-user.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` · `bot/shared/routes/internal-api.routes.js:940:aa90cbd2` (+34: `python3 kg/kg.py who-reads users.school_id`)
+- table `schools` whole row (`*`) (written by `load-school-districts.js`) ← read by `bot/shared/services/observe/observe-school-admin.service.js:362:8d212f91`?
+- table `users` whole row (`*`) (written by `backfill-names-from-fde.js`, `create-analytics-user.js`) ← read by `bot/shared/database/bot-helpers.js:33:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:692:7a0c163a`? · `dashboard/routes/portal.routes.js:288:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
+- table `app_settings` (written by `create-analytics-user.js`, `load-analytics-lists.js`) ← read by `bot/shared/config/feature-flags.js:114:8d5282ae`? · `bot/shared/config/model-settings.js:162:19a9a79a`? · `bot/shared/config/web-quiz-brand.js:127:110366bd`? · `bot/shared/services/ab-tracker/ab-tracker-rollup.service.js:84:ec579c76`? (+171: `python3 kg/kg.py who-reads app_settings`)
 - table `coach_directory` (written by `seed-coach-directory.js`) ← read by `bot/shared/services/observe/observe-calendar.service.js:51:d8b7d39b`? · `scripts/sandbox-pii-purge.py:605:57a5e242`?
 - table `leader_schools` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/calls/call-tools.repo.js:274:8704fd93`? · `bot/shared/handlers/observe-command.handler.js:52:bdb5dbab`? · `bot/shared/routes/roster-flow-endpoint.js:210:bdb5dbab`? · `bot/shared/services/child-test/app/app-api.service.js:92:7e334d3a`? (+14: `python3 kg/kg.py who-reads leader_schools`)
-- table `leader_teachers` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/routes/roster-flow-endpoint.js:248:4bf60e0b`? · `bot/shared/services/observe/observe-school-admin.service.js:248:d85551ca`?
-- table `schools` (written by `load-school-districts.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:360:e35d029b`? · `bot/shared/routes/roster-flow-endpoint.js:205:bb7c64c7`? · `bot/shared/services/attendance-portal.service.js:553:e35d029b`? · `bot/shared/services/attendance-register-delivery.service.js:44:e35d029b`? (+27: `python3 kg/kg.py who-reads schools`)
+- table `leader_teachers` (written by `fold-duplicate-leader-schools.sql`) ← read by `bot/shared/routes/roster-flow-endpoint.js:248:4bf60e0b`? · `bot/shared/services/observe/observe-school-admin.service.js:254:d85551ca`?
+- table `schools` (written by `load-school-districts.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:360:e35d029b`? · `bot/shared/routes/roster-flow-endpoint.js:205:bb7c64c7`? · `bot/shared/services/attendance-portal.service.js:553:e35d029b`? · `bot/shared/services/attendance-register-delivery.service.js:44:e35d029b`? (+29: `python3 kg/kg.py who-reads schools`)
 - table `teacher_training_assignments` (written by `backfill-training-assignments.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1216:1d73b094`? · `bot/shared/services/training/band-selection.service.js:259:1d73b094`? · `bot/shared/services/training/capstone-delivery.service.js:276:1d73b094`? · `bot/shared/services/training/quiz-delivery.service.js:475:1d73b094`? (+2: `python3 kg/kg.py who-reads teacher_training_assignments`)
 - table `training_modules` (written by `fix-pdf-in-audio-url.js`, `rehost-legacy-training-media.js`, `sync-rehosted-urls-to-staging.js`) ← read by `bot/shared/calls/call-context.repo.js:115:a5aff531`? · `bot/shared/routes/teacher-training-endpoint.js:849:3c67573c`? · `bot/shared/services/training/capstone-delivery.service.js:114:a5aff531`? · `bot/shared/services/training/certificate.service.js:314:0c981d44`? (+14: `python3 kg/kg.py who-reads training_modules`)
-- table `users` (written by `backfill-names-from-fde.js`, `backfill-school-id-from-roster.py`, `create-analytics-user.js`, `mark-test-users.py`, `migrate-schools.py`, `seed-gb-roster.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+208: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `backfill-names-from-fde.js`, `backfill-school-id-from-roster.py`, `create-analytics-user.js`, `mark-test-users.py`, `migrate-schools.py`, `seed-gb-roster.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+218: `python3 kg/kg.py who-reads users`)
 - env `BACKFILL_PROD_GO` read at `scripts/backfill-school-id-from-roster.py:300:15cf6021`
 - env `CHROME_BIN` read at `scripts/render-sample-report.js:75:6d368b54`
 - env `COACHIP_LOCK_BPORT` read at `scripts/coachip_lock_harness.sh:17:a34aa449`
@@ -122,7 +124,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `GB_MIGRATION_PROD_GO` read at `scripts/migrate-gb-from-rumi.py:313:0e0bfecc`
 - env `LOCAL_DB_PG_PORT` read at `scripts/dev-portal.sh:45:1b81e5f1`
 - env `MARK_PROD_GO` read at `scripts/mark-test-users.py:105:3f8f1283`
-- env `MERGE_DUPES_PROD_GO` read at `scripts/merge-duplicate-accounts.py:863:d5635028`
+- env `MERGE_DUPES_PROD_GO` read at `scripts/merge-duplicate-accounts.py:1367:d5635028`
 - env `NODE_ENV` read at `scripts/release-isaps-held-attempts.js:103:6f5c9442` · `scripts/settle-certificates.js:178:57358915` · `scripts/smoke-test-training-flow.js:23:747ba10c`
 - env `NODE_OPTIONS` read at `scripts/coachip_lock_harness.sh:49:4995b210` · `scripts/portal_rls_pooler_harness.sh:63:4995b210`
 - env `PGBIN` read at `scripts/coachip_lock_harness.sh:9:33852aac` · `scripts/portal_rls_pooler_harness.sh:10:33852aac`
@@ -140,7 +142,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `RUMI_SOURCE_DATABASE_URL` read at `scripts/migrate-gb-from-rumi.py:323:4ee19798`
 - env `SANDBOX_REFRESH` read at `scripts/dev-portal.sh:111:8811d7b9`
 - env `SET_ORG_PROD_GO` read at `scripts/set-organization.py:106:f8ebac71`
-- env `SMOKE_MODULES` read at `scripts/smoke-test.js:176:d57b4a1b`
+- env `SMOKE_MODULES` read at `scripts/smoke-test.js:192:d57b4a1b`
 - env `SUPABASE_DB_HOST` read at `scripts/backfill-training-certificates.py:55:e375d013`
 - env `SUPABASE_DB_PASSWORD` read at `scripts/backfill-progress-from-passes.py:41:53a9c869` · `scripts/backfill-training-certificates.py:62:53a9c869` · `scripts/migrate-training-attempts.py:62:53a9c869`
 - env `SUPABASE_DB_PORT` read at `scripts/backfill-training-certificates.py:59:1aef44b4`
@@ -156,6 +158,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `WEB_QUIZ_BASE_URL` read at `scripts/dev-portal.sh:62:b8191056`
 
 ## Tests (all, generated)
+- `ab-card-check.js` ← `tests/ab-tracker/ab-card-check.test.js`?
 - `backfill-lp-fidelity-moves.js` ← `tests/coaching/fidelity/backfill-lp-fidelity-moves.test.js`
 - `create-analytics-user.js` ← `tests/portal/analytics-account-not-in-broadcast.test.js` · `tests/portal/create-analytics-user.test.js`
 - `dev-portal.sh` ← `scripts/dev-portal.test.sh`?
@@ -168,4 +171,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `smoke-test.js` ← `tests/scripts/smoke-test.test.js`?
 
 ## Related (all, generated)
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `.github/CONTRIBUTING.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/attendance-bigquery-sync.md`? · `docs/data-standards.md`? · `docs/features/video-quiz.md`? · `docs/migration/02-teacher-training.md`? · `docs/migration/04-data-migration.md`? · `docs/migration/05-exam-generator.md`? · `docs/testing/bd-60105-name-sweep.md`?
+- docs: `.claude/CLAUDE.md`? · `.github/CONTRIBUTING.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/attendance-bigquery-sync.md`? · `docs/data-standards.md`? · `docs/features/video-quiz.md`? · `docs/migration/02-teacher-training.md`? · `docs/migration/04-data-migration.md`? · `docs/migration/05-exam-generator.md`? · `docs/testing/bd-60105-name-sweep.md`?
