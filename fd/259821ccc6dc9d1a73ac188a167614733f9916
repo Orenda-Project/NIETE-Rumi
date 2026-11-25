@@ -1,1 +1,2 @@
 {"ts":"2026-11-25T03:32:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"fd259821ccc6","branch":"bd-6jaq0i-staging","user":""}
+{"ts":"2026-11-25T03:38:43Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan,coaching=none-needed (cherry-pick of #5805 already mock-laned on sandbox; server-side retry of a failed send, message bytes unchanged)","sha":"fd259821ccc6","branch":"bd-6jaq0i-staging","user":""}
