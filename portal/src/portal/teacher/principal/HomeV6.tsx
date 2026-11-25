@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../TeacherPage";
 import { FeatureTile, HistoryRow, HomeGreeting, tileGrid } from "../ui";
+import { ObserveHelpButton } from "../help/observe/ObserveHelp";
 import { FeatureMotionProvider } from "../icons";
 import { FOCUS, LIST_CARD } from "../ui/styles";
 import { TEACHER_FRAME } from "../copy";
@@ -134,6 +135,7 @@ export function PrincipalHomeV6() {
           brand={C.brand}
           logoAlt={C.logoAlt}
           className="rounded-b-[28px] pb-6"
+          corner={<ObserveHelpButton pill onDark />}
         />
       )}
     >

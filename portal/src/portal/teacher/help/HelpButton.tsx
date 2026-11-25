@@ -97,36 +97,67 @@ export function HelpTray({ open, onClose, feature, video, showList = true }: {
 }
 
 /**
- * bd-ik5e8j.4 (queue #85, placement A) — the "?" at the end of a page's header: a 40 px circle in a 56 px target, like
- * Back. Drawn only when portal_help_videos is on for her (otherwise nothing, so the page is today's). Until she has
- * opened a help video once (remembered on the server, so on every phone) it pulses gently; it stops the moment a tray
- * opens. prefers-reduced-motion: no pulse, a small still dot instead. `onDark` for Home's navy band.
+ * The one look of every help "?" (the help videos' HelpButton and the Observe pages' ObserveHelpButton): a 56 px tap
+ * holding a 40 px face, white on a page, glass on Home's navy band (`onDark`). Until she has opened a help tray once it
+ * pulses (`fresh`); prefers-reduced-motion: a small still dot instead.
+ *
+ *   bare "?"   a 40 px circle with the "?" glyph; spoken "Help"
+ *   `pill`     bd-sil83f (queue #269) — "How to use ?": the words, then the glyph (turned for Urdu: ؟), in a 40 px pill
+ *              that never wraps; spoken by its words. The operator, 24 Nov ~19:20: "make it be the text how to use
+ *              question mark ... at least on the home page ... not too large, not take too much space". Every Home
+ *              draws it; a page header draws it only where it fits at 360 px in both languages (else the bare "?").
  */
-export function HelpButton({ feature, onDark = false }: { feature: HelpFeature; onDark?: boolean }) {
+export function HelpTrigger({ onClick, fresh, pill = false, onDark = false, testId }: {
+  onClick: () => void; fresh: boolean; pill?: boolean; onDark?: boolean; testId: string;
+}) {
   const H = useCopy(HELP);
-  const help = useHelp();
   const reduced = usePrefersReducedMotion();
+  const tone = onDark ? 'border-white/40 bg-white/10 text-white' : 'border-[#e5e7eb] bg-white text-[#33374a]';
+  const dot = fresh && reduced ? <span data-testid="help-dot" aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#47ba7d]" /> : null;
+  const pulse = fresh && !reduced
+    ? <span data-testid="help-pulse" aria-hidden="true" className={cn('niete-help-ring pointer-events-none absolute rounded-full border-2 border-[#47ba7d]', pill ? 'inset-x-0 inset-y-2' : 'inset-2')} />
+    : null;
+  if (pill) {
+    return (
+      // On Home's band (`onDark`) the 56 px tap overhangs the 44 px logo row (-my-1.5), so the band is no taller for it.
+      <button type="button" data-testid={testId} data-help-pill="" onClick={onClick}
+        className={cn('relative flex h-14 shrink-0 items-center rounded-full', onDark && '-my-1.5', FOCUS)}>
+        {pulse}
+        <span data-help-face="" className={cn('relative flex h-10 items-center gap-1 whitespace-nowrap rounded-full border pe-1.5 ps-2.5 text-[14px] font-semibold leading-none', tone)}>
+          <span>{H.pill}</span>
+          <CircleHelp className="h-[18px] w-[18px] shrink-0 rtl:-scale-x-100" aria-hidden="true" />
+          {dot}
+        </span>
+      </button>
+    );
+  }
+  return (
+    <button type="button" aria-label={H.help} data-testid={testId} onClick={onClick}
+      className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full', FOCUS)}>
+      {pulse}
+      <span data-help-face="" className={cn('relative flex h-10 w-10 items-center justify-center rounded-full border', onDark ? 'border-white/30 bg-white/10 text-white' : tone)}>
+        <CircleHelp className="h-[22px] w-[22px]" aria-hidden="true" />
+        {dot}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * bd-ik5e8j.4 (queue #85, placement A) — the help videos' "?" at the end of a page's header (HelpTrigger: a 40 px circle
+ * in a 56 px target, like Back; `pill` for "How to use ?", queue #269). Drawn only when portal_help_videos is on for her
+ * (otherwise nothing, so the page is today's). Until she has opened a help video once (remembered on the server, so on
+ * every phone) it pulses gently; it stops the moment a tray opens. `onDark` for Home's navy band.
+ */
+export function HelpButton({ feature, onDark = false, pill = false }: { feature: HelpFeature; onDark?: boolean; pill?: boolean }) {
+  const help = useHelp();
   const [open, setOpen] = useState(false);
   if (help.on !== true) return null;
   const video = help.data?.videos.find((v) => v.feature === feature) ?? null;
   const fresh = help.data !== null && !help.seen;
   return (
     <>
-      <button
-        type="button"
-        aria-label={H.help}
-        data-testid="help-button"
-        onClick={() => { setOpen(true); markHelpSeen(); }}
-        className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full', FOCUS)}
-      >
-        {fresh && !reduced ? (
-          <span data-testid="help-pulse" aria-hidden="true" className="niete-help-ring pointer-events-none absolute inset-2 rounded-full border-2 border-[#47ba7d]" />
-        ) : null}
-        <span className={cn('relative flex h-10 w-10 items-center justify-center rounded-full border', onDark ? 'border-white/30 bg-white/10 text-white' : 'border-[#e5e7eb] bg-white text-[#33374a]')}>
-          <CircleHelp className="h-[22px] w-[22px]" aria-hidden="true" />
-          {fresh && reduced ? <span data-testid="help-dot" aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#47ba7d]" /> : null}
-        </span>
-      </button>
+      <HelpTrigger testId="help-button" pill={pill} onDark={onDark} fresh={fresh} onClick={() => { setOpen(true); markHelpSeen(); }} />
       <HelpTray open={open} onClose={() => setOpen(false)} feature={feature} video={video} />
     </>
   );

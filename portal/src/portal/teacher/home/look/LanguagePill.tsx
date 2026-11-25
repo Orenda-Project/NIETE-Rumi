@@ -11,8 +11,11 @@ import type { useLanguageSwitch } from "../../useLanguageSwitch";
  *
  * The visual pill is 32 px; the target around it is 44×44. Its spoken name is "Language: <the other language>", from
  * the frame's existing words (more.language, more.switchTo), so it adds no string.
+ *
+ * `compact` (bd-sil83f, queue #269): the word alone, no glyph, when the "How to use ?" pill shares the corner (HelpCorner)
+ * and the row at 360 px has no room for both glyphs.
  */
-export function LanguagePill({ lang }: { lang: ReturnType<typeof useLanguageSwitch> }) {
+export function LanguagePill({ lang, compact = false }: { lang: ReturnType<typeof useLanguageSwitch>; compact?: boolean }) {
   const C = useCopy(TEACHER_FRAME);
   const word = C.more.switchTo[lang.target];
   return (
@@ -25,7 +28,7 @@ export function LanguagePill({ lang }: { lang: ReturnType<typeof useLanguageSwit
       className="relative flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center disabled:opacity-70"
     >
       <span className="flex min-h-[32px] items-center gap-1.5 rounded-full border border-white/40 bg-white/10 px-3 text-[14px] font-semibold text-white">
-        <Languages className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {compact ? null : <Languages className="h-4 w-4 shrink-0" aria-hidden="true" />}
         <span>{word}</span>
       </span>
     </button>
