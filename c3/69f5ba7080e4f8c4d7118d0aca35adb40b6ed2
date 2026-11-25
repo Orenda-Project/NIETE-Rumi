@@ -1,3 +1,4 @@
 {"ts":"2026-11-25T04:00:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan,coaching spec_sync=true","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
 {"ts":"2026-11-25T04:01:07Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
 {"ts":"2026-11-25T04:01:08Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
+{"ts":"2026-11-25T04:02:06Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"c369f5ba7080","branch":"bd-6jaq0i-staging2","user":""}
