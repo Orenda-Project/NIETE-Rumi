@@ -18,7 +18,11 @@
 // hardcoded country: this engine serves several markets.
 //
 // Spec
-//   items     [{value:10, kind:"coin"|"note", count:2}, …]   required
+//   items     [{value:10, kind:"coin"|"note", count:2, label:"P"}, …]   required
+//             `label` (optional) is the piece's NAME — the letter an option
+//             points at — drawn above it. VENDOR DIVERGENCE (SYNC §3.45,
+//             bd-cu8noh.2.6): it was dropped, so "which one is the note? P/Q/R"
+//             showed three unlettered pieces on a live quiz.
 //   currency  "Rs"          the unit written beside each value
 //   perRow    5
 //   lang      "en" | "ur"
@@ -37,7 +41,10 @@ function render(spec) {
     if (!Number.isFinite(value) || value <= 0) throw new Error(`money: a piece needs a positive \`value\` (got ${JSON.stringify(it && it.value)})`);
     const kind = it.kind === "note" ? "note" : "coin";
     const count = Math.max(1, Math.floor(Number(it.count) || 1));
-    for (let i = 0; i < count; i += 1) pieces.push({ value, kind });
+    // A name that only repeats the value ("25 Cent" on the 25 coin) is not drawn twice.
+    const given = it.label == null ? "" : String(it.label).trim();
+    const name = new RegExp(`(^|\\D)${value}(\\D|$)`).test(given) ? "" : given;
+    for (let i = 0; i < count; i += 1) pieces.push({ value, kind, name: i === 0 ? name : "" });
   });
   if (pieces.length > MAX_PIECES) throw new Error(`money: ${pieces.length} pieces is past counting; keep it to ${MAX_PIECES}`);
 
@@ -61,7 +68,12 @@ function render(spec) {
   const noteW = Math.max(spec.noteWidth ?? 172, textW + size * 1.4);
   const noteH = Math.max(Math.round(noteW * 0.46), size * 1.9);
   const cellW = Math.max(coinR * 2, noteW);
-  const cellH = Math.max(coinR * 2, noteH);
+  // Names exist to tell pieces apart, so a lone named piece draws none: "Pakistan" over the one note of
+  // "which currency is this?" would be the answer, not a handle.
+  if (raw.filter((it) => it && String(it.label ?? "").trim()).length < 2) pieces.forEach((p) => { p.name = ""; });
+  const named = pieces.some((p) => p.name);
+  const nameH = named ? size * 1.5 : 0; // a row of names above the pieces
+  const cellH = Math.max(coinR * 2, noteH) + nameH;
 
   const rows = Math.ceil(pieces.length / perRow);
   const wide = Math.min(perRow, pieces.length);
@@ -86,7 +98,7 @@ function render(spec) {
     // left-to-right even inside an Urdu figure.
     const text = label(p);
     const cx = x + cellW / 2;
-    const cy = y + cellH / 2;
+    const cy = y + nameH + (cellH - nameH) / 2;
     if (p.kind === "coin") {
       svg.circle(cx, cy, coinR, { fill: C.paper, stroke: C.ink, sw: 3 });
       svg.circle(cx, cy, coinR - 7, { fill: "none", stroke: C.rule, sw: 1.6 });
@@ -95,6 +107,7 @@ function render(spec) {
       svg.rect(cx - noteW / 2 + 7, cy - noteH / 2 + 7, noteW - 14, noteH - 14, { fill: "none", stroke: C.rule, sw: 1.4 });
     }
     svg.text(cx, cy, text, { size, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink });
+    if (p.name) svg.text(cx, y + nameH / 2, p.name, { size, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink });
   });
   return svg.toString();
 }
