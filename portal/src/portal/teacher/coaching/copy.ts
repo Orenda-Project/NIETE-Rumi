@@ -117,6 +117,11 @@ export const COACHING_V2_COPY = {
   notVideo: 'This is a video. Upload an audio recording.',
   /* after */
   sending: 'Sending',
+  /* bd-q261rec (queue #261) — the line dropped; what arrived is safe and it goes on by itself (Try now: at once). */
+  weakLine: 'Weak internet',
+  piecesSent: (sent: number, all: number) => `${sent} of ${all} sent`,
+  retryIn: (clock: string) => `Trying again ${clock}`,
+  tryNow: 'Try now',
   sent: 'Sent',
   openLesson: 'Open DC observation',
   noInternet: 'No internet',
@@ -320,6 +325,10 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   notAudio: 'یہ ریکارڈنگ نہیں',
   notVideo: 'یہ ویڈیو ہے۔ آڈیو ریکارڈنگ اپ لوڈ کریں۔',
   sending: 'بھیجا جا رہا ہے',
+  weakLine: 'انٹرنیٹ کمزور ہے',
+  piecesSent: (sent: number, all: number) => `${sent} از ${all}`,
+  retryIn: (clock: string) => `دوبارہ کوشش ${clock}`,
+  tryNow: 'ابھی بھیجیں',
   sent: 'بھیجا گیا',
   openLesson: 'ڈیجیٹل کوچنگ مشاہدہ کھولیں',
   noInternet: 'انٹرنیٹ نہیں',

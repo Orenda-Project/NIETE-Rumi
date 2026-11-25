@@ -251,6 +251,11 @@ function createAppFunnelRouter({ limiter } = {}) {
         // "photo" is from its first bytes. Absent stays null; anything not on the lists is 'unknown'.
         errName: body.errName == null ? null : pick(body.errName, DC_UPLOAD_ERR_NAMES),
         magic: body.magic == null ? null : pick(body.magic, DC_UPLOAD_MAGIC),
+        // bd-q261rec (queue #261) — sent in pieces: the piece that failed (-1: asking our API), of how many, on which try.
+        // Absent (a file sent whole) stays null.
+        piece: body.piece == null ? null : (Number.isInteger(body.piece) && body.piece >= -1 && body.piece < 5000 ? body.piece : null),
+        pieces: body.pieces == null ? null : clampInt(body.pieces, 5000),
+        attempt: body.attempt == null ? null : clampInt(body.attempt, 1000),
       });
       return res.status(204).end();
     },
@@ -677,7 +682,8 @@ const LP_VIEWER_REASONS = ['http', 'network', 'timeout', 'abort', 'unknown'];
 const DC_UPLOAD_STAGES = ['pick', 'read', 'presign', 'upload', 'start'];
 const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
 const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown', 'unreadable', 'not_image'];
-const DC_UPLOAD_SENT_AS = ['copy', 'slice', 'blob', 'none'];
+// bd-q261rec (queue #261): 'pieces' — the recording sent in pieces that resume (portal lib/pieceUpload).
+const DC_UPLOAD_SENT_AS = ['copy', 'slice', 'blob', 'none', 'pieces'];
 // bd-r2uzg1.9 — DOMException names a failed File read can carry (portal lib/pickedRead.ts errNameOf).
 const DC_UPLOAD_ERR_NAMES = ['NotReadableError', 'NotFoundError', 'SecurityError', 'AbortError', 'InvalidStateError',
   'EncodingError', 'NotAllowedError', 'TypeError', 'Error'];

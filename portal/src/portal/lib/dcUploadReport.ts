@@ -35,7 +35,14 @@ export type SendFailure = {
    */
   sentBytes: number;
   online: boolean;
-  sentAs: 'copy' | 'slice' | 'blob' | 'none';
+  sentAs: 'copy' | 'slice' | 'blob' | 'none' | 'pieces';
+  /**
+   * bd-q261rec (queue #261) — a recording sent in pieces ('pieces'): which piece failed (-1: asking our API, before a
+   * piece), of how many, on which try. Absent for a file sent whole.
+   */
+  piece?: number;
+  pieces?: number;
+  attempt?: number;
   /**
    * bd-r2uzg1.9 — the browser's own name for a failed read (NotReadableError, NotFoundError, SecurityError …): what
    * tells a lost permission from a file that changed after she picked it. Absent when there was no read error.
