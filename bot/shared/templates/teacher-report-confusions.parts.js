@@ -3,15 +3,17 @@
  * The teacher's live quiz report: "what your class got wrong, and the likely confusion" (queue #299, bd-vo9fkc).
  * Renders `r.misconceptions` (report-misconceptions.js), which teacher-report.data supplies only while app_settings
  * `quiz_report_misconceptions` is on; absent or empty, this returns '' and the page is unchanged byte for byte.
- * Strings are in ux-strings.js (en + ur); counts in the page language's digits (the page kit's D).
+ * Strings are in ux-strings.js (en + ur); counts in the page language's own digits (digitsFor, as the v21 parts do),
+ * so the piece needs nothing from the page kit beyond L, M, K and esc.
  */
-const { resolveUx } = require('../config/ux-strings');
+const { resolveUx, digitsFor } = require('../config/ux-strings');
 
 /**
  * @param {Array|undefined} items   r.misconceptions
- * @param {{lang: string, L: Function, M: Function, K: Function, D: Function, esc: Function}} kit the page's helpers
+ * @param {{lang: string, L: Function, M: Function, K: Function, esc: Function}} kit the page's helpers
  */
-function confusionsSection(items, { lang, L, M, K, D, esc }) {
+function confusionsSection(items, { lang, L, M, K, esc }) {
+  const D = (v) => digitsFor(v, lang);
   if (!Array.isArray(items) || !items.length) return '';
   const S = (key, params) => esc(resolveUx(key, { language: lang, params }));
   const rows = items.map((m) => {
