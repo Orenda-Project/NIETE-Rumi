@@ -10,7 +10,14 @@
  * second from the begin line on; no voice by after_s → cb({kind:'mercy'}) once, still none at total_s →
  * cb({kind:'early_stop_silence', silence_s}). The first voice ends the watch. A voice is the level above
  * 2 × the room's quietest tick, within [FLOOR, CEIL] and capped at half the probe's peak (the coach's or the game's mic
- * check): a child who reads from the first second on is never taken for the room. An AudioContext that is not
+ * check): a child who reads from the first second on is never taken for the room.
+ * The stop decision has its own, lower minimum: onSilence judges a voice against STOP_FLOOR = 0.004 (about -48 dBFS)
+ * in place of FLOOR = 0.02 (about -34 dBFS), in both the outer max and the probe cap (stopThresholdFor); everything
+ * else about the threshold is the same. Children on quiet phones answer at about -37 to -44 dBFS (rms 0.006-0.014), so
+ * with FLOOR they were never heard and were stopped at 20 s while answering (and in RDF auto a silence stop ends the
+ * whole section). Replayed through this ear, real voiced answers are heard between 1.2 s and 7.9 s with STOP_FLOOR,
+ * while a truly silent clip (p95 rms 0.000, about -58 dB) is still silent. onVoice (the story's reading position, cell
+ * pacing) and thresholdFor keep FLOOR unchanged. An AudioContext that is not
  * running (Android starts one made outside a tap suspended) is no ear, never silence: the watch ends with
  * cb({kind:'ear_unavailable'}). The context is resumed at the watch's start and on every tap (wake()).
  *
@@ -39,6 +46,8 @@
   var SLICE_MS = 1000;
   var TICK_MS = 100;
   var FLOOR = 0.02;
+  // The silence STOP's own minimum (onSilence only): a quiet child at -37 to -44 dBFS is a voice, the silent room is not
+  var STOP_FLOOR = 0.004;
   var CEIL = 0.06;
   var VOICE_TICKS = 3;
   var last = null;
@@ -63,12 +72,18 @@
     return null;
   }
 
-  /** The level above which the room is a voice: 2× its floor, within [FLOOR, CEIL], never over half the probe's peak. */
-  function thresholdFor(floor, ls) {
-    var t = Math.max(FLOOR, Math.min(CEIL, 2 * (floor || 0)));
+  /** 2× the room's floor, within [min, CEIL], never over half the probe's peak (and never under min). */
+  function levelOver(floor, ls, min) {
+    var t = Math.max(min, Math.min(CEIL, 2 * (floor || 0)));
     var peak = probePeak(ls);
-    return peak ? Math.max(FLOOR, Math.min(t, peak / 2)) : t;
+    return peak ? Math.max(min, Math.min(t, peak / 2)) : t;
   }
+
+  /** The level above which the room is a voice: 2× its floor, within [FLOOR, CEIL], never over half the probe's peak. */
+  function thresholdFor(floor, ls) { return levelOver(floor, ls, FLOOR); }
+
+  /** The same for the silence stop (onSilence): STOP_FLOOR in place of FLOOR, so a quiet child is heard. */
+  function stopThresholdFor(floor, ls) { return levelOver(floor, ls, STOP_FLOOR); }
 
   function pickType(MR) {
     if (!MR || typeof MR.isTypeSupported !== 'function') return null;
@@ -171,7 +186,8 @@
         var r = rmsOf(buf);
         floor = floor == null ? r : Math.min(floor, r);
         // The room's floor is judged after its first second; a voice is three loud ticks in a row after that.
-        loud = t - t0 >= 1000 && r > thresholdFor(floor, ls) ? loud + 1 : 0;
+        // The stop's threshold has STOP_FLOOR as its minimum (a quiet child is a voice); onVoice keeps FLOOR.
+        loud = t - t0 >= 1000 && r > stopThresholdFor(floor, ls) ? loud + 1 : 0;
         if (loud >= VOICE_TICKS) { end(); return; }
         var el = t - t0;
         var s = Math.round(el / 100) / 10;
@@ -329,5 +345,5 @@
   /** SAE.rec.stream: the open stream of the recorder made last, or null. */
   function streamLast() { return last ? last.stream() : null; }
 
-  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, stream: streamLast, rmsOf: rmsOf, thresholdFor: thresholdFor, FLOOR: FLOOR, CEIL: CEIL };
+  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, stream: streamLast, rmsOf: rmsOf, thresholdFor: thresholdFor, stopThresholdFor: stopThresholdFor, FLOOR: FLOOR, STOP_FLOOR: STOP_FLOOR, CEIL: CEIL };
 }));
