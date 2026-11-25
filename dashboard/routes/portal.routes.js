@@ -3146,9 +3146,12 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     const userId = req.session.portalUserId;
     // bd-4joiqz — a leader is named AS A READER: the plan of their school, and no lifecycle row or plan_served event.
     const reader = await LpReader.readerOf(userId);
+    // bd-zrdvmi.70 — ?download=1: the app's Download PDF, a link that SAVES the plan on her phone (an attachment),
+    // so she can open it with no internet (sheet rows 986, 984). Without it, exactly today's calls.
+    const dl = isOpenHint(req.query.download) ? { download: true } : null;
     const hit = reader.leader
-      ? await LpCatalogue.lessonPdf(lessonId, kind, userId, { reader: 'leader' })
-      : await LpCatalogue.lessonPdf(lessonId, kind, userId);
+      ? await LpCatalogue.lessonPdf(lessonId, kind, userId, { reader: 'leader', ...dl })
+      : dl ? await LpCatalogue.lessonPdf(lessonId, kind, userId, dl) : await LpCatalogue.lessonPdf(lessonId, kind, userId);
     if (!hit) {
       return res.status(200).json({ success: true, available: false });
     }
@@ -3343,7 +3346,10 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     if (!renderId) {
       return res.status(400).json({ success: false, error: 'render_id required' });
     }
-    const out = await Lp612.requestStatus(renderId, req.session.portalUserId);
+    // bd-zrdvmi.70 — ?download=1: the app's Download PDF (an attachment the phone saves). The poll never asks for it.
+    const out = isOpenHint(req.query.download)
+      ? await Lp612.requestStatus(renderId, req.session.portalUserId, { download: true })
+      : await Lp612.requestStatus(renderId, req.session.portalUserId);
     if (out.notFound) {
       return res.status(404).json({ success: false, error: 'No such lesson request' });
     }
