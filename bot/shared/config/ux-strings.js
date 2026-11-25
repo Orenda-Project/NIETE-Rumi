@@ -4546,6 +4546,28 @@ const UX_STRINGS = {
     en: 'More ways to share',
     ur: 'شیئر کرنے کے اور طریقے',
   },
+  // ─── quiz_report_misconceptions (queue #299, bd-vo9fkc): the live report's "what your class got wrong" block ───
+  // report-misconceptions.js + templates/teacher-report-confusions.parts.js; only questions whose key a person confirmed
+  quiz_report_confusions_title: {
+    en: 'What your class got wrong',
+    ur: 'آپ کی کلاس نے کہاں غلطی کی',
+  },
+  quiz_report_confusions_sub: {
+    en: 'Questions where most children who got it wrong chose the same answer. We have checked these answers.',
+    ur: 'وہ سوال جن میں غلط جواب دینے والے زیادہ تر بچوں نے ایک ہی جواب چنا۔ ان کے جواب ہم نے جانچ لیے ہیں۔',
+  },
+  quiz_report_confusions_picked: {
+    en: '{picked} of {answered} children chose',
+    ur: '{answered} میں سے {picked} بچوں نے چنا',
+  },
+  quiz_report_confusions_right: {
+    en: 'Right answer',
+    ur: 'درست جواب',
+  },
+  quiz_report_confusions_likely: {
+    en: 'Likely confusion',
+    ur: 'ممکنہ الجھن',
+  },
 };
 
 /**
