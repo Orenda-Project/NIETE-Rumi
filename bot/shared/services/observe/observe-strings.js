@@ -255,6 +255,10 @@ const STRINGS = {
     fid_truncation_recheck:
       'نوٹ: ریکارڈنگ سبق مکمل ہونے سے پہلے ختم ہوتی دکھائی دیتی ہے، اس لیے بعد کے مراحل کی '
       + 'درست جانچ نہیں ہو سکی۔ نیچے جس درجہ بندی سے اختلاف ہو، براہ کرم اُس پر دوبارہ نظر ڈالیں۔',
+    // bd-r2uzg1.21.1 — see the en entries. طریقہ is the coach portal's word for a move ("طریقہ ۳ از ۹").
+    fid_move_mandatory: 'لازمی طریقہ',
+    fid_move_group: 'متعلقہ گروپ کے لیے لازمی طریقہ',
+    fid_move_optional: 'اختیاری طریقہ، اسکور میں شمار نہیں',
     no_account: 'معاف کیجیے، آپ کا اکاؤنٹ نہیں ملا۔ براہ کرم پہلے رجسٹر کریں۔',
     capture_failed: 'معاف کیجیے — یہ مشاہدہ محفوظ کرتے وقت میری طرف سے مسئلہ ہوا۔ آپ کی ریکارڈنگ ضائع نہیں ہوئی۔ براہ کرم دوبارہ \u2066/observe\u2069 لکھ کر بھیجیں۔',
     // bd-erpvf (HITL row 185) — see the en entry. `کا تجزیہ` is masculine, so
@@ -654,6 +658,12 @@ const STRINGS = {
     fid_truncation_recheck:
       'Note: the recording appears to end before the lesson did, so the later moves '
       + 'could not be checked properly. Please re-check any rating below that you disagree with.',
+    // ── Section B: whether the plan makes each move mandatory or optional (bd-r2uzg1.21.1, ICT sheet HITL 192) ──
+    // One line under each move, from the scorer's bucket: must_happen and a group step (adaptive_set) count toward
+    // the score; an optional_extension move (homework, "if time permits") never does, whatever its rating.
+    fid_move_mandatory: 'Mandatory move',
+    fid_move_group: 'Mandatory move for its group',
+    fid_move_optional: 'Optional move, not counted',
     no_account: "Sorry, I couldn't find your account. Please send me any message first, then try /observe again.",
     capture_failed: "Sorry — something went wrong on my side while saving that observation. Your recording isn't lost. Please type /observe and send it again; if it keeps happening, tell the team.",
     // bd-erpvf (HITL row 185) — the coach re-sent bytes we already analysed.
