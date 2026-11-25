@@ -80,8 +80,9 @@ describe('GET /config — the flag reads run together', () => {
     // and Make my own from a learning goal (bd-snkn32.56, list-only), and the lesson plan in the app's three: the survey
     // bar, Home's activity block and My journey; lp_whatsapp_pdf_off (features.lpWhatsappSend); the plan screen's
     // slim layout; and Make my own's whole unit (portal_lp_own_unit, bd-snkn32.59, #5289).
-    // bd-oe6r47 (queue #278): + upload-only recording (portal_observe_upload_only, default ON).
-    expect(started).toBe(36);
+    // bd-oe6r47 (queue #278): + upload-only recording (portal_observe_upload_only); bd-mcksos (queue #279): + its two
+    // per-person rows (portal_observe_upload_only_on / _off), read at once with it.
+    expect(started).toBe(38);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
