@@ -29,7 +29,8 @@ const SQL = {
     SELECT c.id, c.created_at,
            c.analysis_data->'observer_debrief'->>'completed_at' AS feedback_at,
            c.analysis_data->'observer_debrief'->'feedback'->'rubric' AS rubric,
-           c.analysis_data->'observer_debrief'->'feedback'->'lp_discussion' AS lp
+           c.analysis_data->'observer_debrief'->'feedback'->'lp_discussion' AS lp,
+           c.framework, c.analysis_data->>'framework' AS analysis_framework
     FROM coaching_sessions c
     WHERE c.observer_user_id = $1
       AND c.observation_type = 'leader_observation'
@@ -67,7 +68,12 @@ const both = (field, key) => ({ en: (EN[field] || {})[key] || null, ur: (UR[fiel
 async function readDebriefs(query, coachId, untilIso) {
   const { rows } = await query(SQL.DEBRIEFS, [coachId, untilIso]);
   return (rows || [])
-    .map((r) => ({ id: r.id, at: r.feedback_at || r.created_at, rubric: r.rubric, lp: r.lp || null }))
+    // Queue #255: a FICO 6-12 debrief has no lesson plan discussion to count (one judged before carries one); its 8
+    // behaviours count as before.
+    .map((r) => ({
+      id: r.id, at: r.feedback_at || r.created_at, rubric: r.rubric,
+      lp: LpCheck.isFicoSVisit({ framework: r.framework, analysis_data: { framework: r.analysis_framework } }) ? null : (r.lp || null),
+    }))
     .filter((d) => d.at && d.rubric && typeof d.rubric === 'object')
     .map((d) => ({ ...d, week: Week.weekOfDebrief(d.at) }));
 }

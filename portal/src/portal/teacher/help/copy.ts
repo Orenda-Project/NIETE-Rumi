@@ -43,7 +43,7 @@ export const HELP_COPY = {
   watchOut: 'Watch out',
   whoDc: 'Digital Coach suggests · you check',
   whoRoom: 'Set from the room',
-  /** Queue #259: Rifat's FICO M/H "who sets it" (her 24 Nov edit), her words: 21 indicators, then E2 and E3. */
+  /** Queue #259: her FICO M/H "who sets it" (24 Nov), her words: 22 pre-filled (E2 as the bot, #267), then E3. */
   whoPre: 'Pre-filled in the app · you review',
   whoSelf: 'You fill this yourself',
   noNa: 'No N/A here: level 1 covers it',

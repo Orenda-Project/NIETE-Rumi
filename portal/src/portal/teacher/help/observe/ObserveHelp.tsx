@@ -25,7 +25,8 @@ import '../help.css';
  *               for her (coachFlowV2 for a coach, principalFlowV2 for a principal: the 3 accounts). It pulses only
  *               where #85's help is on and she has not opened a help video yet.
  *   The tray    the how-to film for feature "observe" when one is up for her (help switch + manifest, added without a
- *               deploy), else "Video coming soon"; then Indicator guide: Grades 1–5 and Grades 6–12, the visit's own
+ *               deploy), else nothing in its place (queue #249, the operator 24 Nov: "Remove the Video coming soon text
+ *               from the manual guide"); then Indicator guide: Grades 1–5 and Grades 6–12, the visit's own
  *               band first and marked "This visit"; then All videos where #85's help is on.
  *   The guide   opens INSIDE the tray (tall), so a coach mid-way through the Feedback Form never leaves it: the band
  *               switch, Dr Rifat Yasmeen's credit and "Open the full manual" (her live canvas at that part), a chip per
@@ -222,8 +223,8 @@ export function ObserveHelpTray({ open, at, onView, onClose, band, video, showLi
     <Tray open={open} title={view === 'menu' ? H.observeHowTo : H.guide} onClose={onClose} testId="observe-help-tray" tall={view !== 'menu'}>
       {view === 'menu' ? (
         <div className="flex flex-col gap-3 pb-2">
-          {video ? <HelpPlayer video={video} /> : <p data-testid="help-coming-soon" className="m-0 text-[17px] font-semibold text-[#4b5563]">{H.comingSoon}</p>}
-          <p className="m-0 mt-2 text-[13px] font-bold uppercase tracking-[0.04em] text-[#6b7280] rtl:normal-case rtl:tracking-normal">{H.guide}</p>
+          {video ? <HelpPlayer video={video} /> : null}
+          <p className={cn('m-0 text-[13px] font-bold uppercase tracking-[0.04em] text-[#6b7280] rtl:normal-case rtl:tracking-normal', video && 'mt-2')}>{H.guide}</p>
           {order.map((b) => (
             <button key={b} type="button" data-testid="observe-guide-row" data-band={b} onClick={() => onView(b)}
               className={cn('flex min-h-[64px] w-full items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3 py-2 text-start', FOCUS)}>

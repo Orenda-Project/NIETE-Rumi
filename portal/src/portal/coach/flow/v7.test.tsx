@@ -85,14 +85,14 @@ describe("the status line, option A", () => {
     render(<StatusLine at={2} />);
     const line = screen.getByTestId("status-line");
     expect(within(line).getAllByTestId("status-seg").map((s) => s.getAttribute("data-state"))).toEqual(["done", "done", "current", "later"]);
-    expect(within(line).getAllByTestId("status-label").map((s) => s.textContent)).toEqual(["Analysed", "Form filled", "Record the debrief", "Yet to send"]);
-    expect(line).toHaveTextContent("Now: Record the debrief");
+    expect(within(line).getAllByTestId("status-label").map((s) => s.textContent)).toEqual(["Analysed", "Form filled", "Take the debrief", "Yet to send"]);
+    expect(line).toHaveTextContent("Now: Take the debrief");
     expect(line.textContent).not.toMatch(/Step \d of 4/);
   });
 
   it("each step's three words", () => {
     expect(stepWords(1, FLOW_V7.en)).toEqual({ done: "Form filled", current: "Fill the form", later: "Form to fill" });
-    expect(stepWords(2, FLOW_V7.en)).toEqual({ done: "Debriefed", current: "Record the debrief", later: "Debrief to do" });
+    expect(stepWords(2, FLOW_V7.en)).toEqual({ done: "Debriefed", current: "Take the debrief", later: "Debrief to do" });
     expect(stepWords(3, FLOW_V7.en)).toEqual({ done: "Sent", current: "Send the report", later: "Yet to send" });
   });
 
@@ -219,19 +219,20 @@ function renderVisit(principal = false) {
 
 describe("the visit (v7): the line, the due day, the current step's card", () => {
   // bd-o15qnr.47 (#243): the step's card is the "Next: <step>" card on top; the line under it no longer repeats "Now: …".
-  it("debrief: Next: Record the debrief, due Mon 23 Nov, with Start recording and Upload recording", async () => {
+  // bd-o15qnr.49 (#254): Take the debrief, ONE button (Take debrief) to the notes; recording starts there.
+  it("debrief: Next: Take the debrief, due Mon 23 Nov, with the one Take debrief button", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk" }));
     L.getObservation.mockResolvedValue(VIEW("talk"));
     renderVisit();
     const next = await screen.findByTestId("visit-next");
-    expect(next).toHaveTextContent("Next: Record the debrief");
-    expect(screen.getByTestId("status-line")).not.toHaveTextContent("Now: Record the debrief");
+    expect(next).toHaveTextContent("Next: Take the debrief");
+    expect(screen.getByTestId("status-line")).not.toHaveTextContent("Now: Take the debrief");
     // "Due by Mon 23 Nov", or "Was due Mon 23 Nov" once that day has passed (the fixture's visit is 19 Nov)
     expect(within(next).getByTestId("debrief-due")).toHaveTextContent(/due (by )?Mon 23 Nov/i);
     const card = screen.getByTestId("stage-debrief");
-    expect(card).toHaveTextContent("Talk with the teacher, then record it here.");
-    expect(within(card).getByRole("link", { name: /Start recording/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
-    expect(within(card).getByRole("link", { name: /Upload recording/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief?upload=1");
+    expect(card).toHaveTextContent("Read the guide, talk with the teacher, then record it.");
+    expect(within(card).getByRole("link", { name: "Take debrief" })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
+    expect(within(card).queryByRole("link", { name: /Start recording|Upload recording/ })).toBeNull();
   });
 
   it("send: the feedback card (38%) opens the one feedback page; Send Lubna the report", async () => {
@@ -278,15 +279,25 @@ describe("the visit while the Digital Coach works, and when it stopped (v7)", ()
     expect(screen.getByTestId("status-line")).toHaveTextContent("Now: Analysing");
   });
 
+  // bd-f5a245 (queue #245): a stopped ANALYSIS (failed, or the system gave up) says so, with Upload recording; one she
+  // cancelled keeps "Observation stopped".
   it("stopped: one card with a red edge and the plain line; no steps", async () => {
-    C.getObservation.mockResolvedValue(OBS({ step: "analysing" }));
-    L.getObservation.mockResolvedValue(VIEW("stopped"));
+    C.getObservation.mockResolvedValue(OBS({ step: "stopped" }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { sessionStatus: "failed" }));
     renderVisit();
     const card = await screen.findByTestId("stage-stopped");
     expect(card.className).toContain("border-[#c8331f]");
-    expect(card).toHaveTextContent("Observation stopped");
+    expect(card).toHaveTextContent("Analysis stopped");
     expect(card).not.toHaveTextContent("Recording already used");
     expect(screen.queryByTestId("stage-analysing")).toBeNull();
+  });
+
+  it("stopped because she cancelled it: 'Observation stopped'", async () => {
+    C.getObservation.mockResolvedValue(OBS({ step: "stopped", cancelled: true }));
+    L.getObservation.mockResolvedValue(VIEW("stopped", { sessionStatus: "cancelled" }));
+    renderVisit();
+    const card = await screen.findByTestId("stage-stopped");
+    expect(card).toHaveTextContent("Observation stopped");
   });
 
   // bd-k8uh1r (queue #238; the operator 23 Nov ~19:02: "it said Observation Stopped on prod" right after the upload) —

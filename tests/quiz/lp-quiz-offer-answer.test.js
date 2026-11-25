@@ -127,6 +127,10 @@ describe('Make the quiz — one lp_v8 quiz, queued once', () => {
       content_hash: 'hash-served-aaa',
       delivered_at: pkt(NUDGE_DATE, 9, 30).toISOString(),
     }]);
+    // bd-ptl6x9.13.1: the plan on the quiz.
+    expect(quiz.meta.lesson_links).toEqual([expect.objectContaining({
+      lesson_id: 'grade_4_urdu_ch5_seg1', plan_asset_id: 'asset-1', book: 'grade_4_urdu', chapter: 5, lesson: 1, via: 'plan',
+    })]);
 
     expect(SQSQueueService.queueJob).toHaveBeenCalledTimes(1);
     expect(SQSQueueService.queueJob).toHaveBeenCalledWith(quiz.id, 'quiz_generate',

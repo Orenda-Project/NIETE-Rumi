@@ -30,7 +30,7 @@ const PKT_OFFSET_H = 5; // Pakistan has no DST
 const OPEN_H = 9; // design-pending: school calendar; an engineering default
 const CLOSE_H = 17;
 const ELIGIBLE_STATUSES = ['sent', 'report_sent', 'ready'];
-const KEEP_META = ['lessons', 'lesson_date', 'digest', 'slo_codes', 'slo_code_status', 'content_language', 'grade_source', 'class'];
+const KEEP_META = ['lessons', 'lesson_date', 'digest', 'slo_codes', 'slo_code_status', 'content_language', 'grade_source', 'class', 'lesson_links'];
 const QUIZ_COLS = 'id, teacher_id, coaching_session_id, quiz_source, topic, subject, grade, language, status, meta, created_at';
 
 const lockKey = (quizId) => `quiz:retest:${quizId}`;

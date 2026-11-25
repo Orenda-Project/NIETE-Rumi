@@ -268,13 +268,15 @@ describe('worker: SIGTERM and an in-flight paper', () => {
     expect(out).toMatchObject({ status: 'ready', paperId: 'paper-1' });
   });
 
+  // bd-3itk00: an `analysis` is now finished on shutdown rather than handed back at 30 s
+  // (tests/queue/bd-3itk00-deploy-finishes-analysis.test.js); a transcription still gets the 30 s grace.
   test('a coaching job is NOT released at SIGTERM — it still gets the 30 s grace', async () => {
     seedPaper({ id: 'paper-1', request_id: 'req-1', status: 'generating' });
     const w = new SQSCoachingWorker('w-term-2');
     const paper = pending();
-    const analysis = pending();
+    const transcription = pending();
     w.activeJobs.set('rh-paper', { promise: paper.promise, sourceQueue: 'main', jobType: 'assessment_generate', requestId: 'req-1' });
-    w.activeJobs.set('rh-analysis', { promise: analysis.promise, sourceQueue: 'main', jobType: 'analysis' });
+    w.activeJobs.set('rh-transcription', { promise: transcription.promise, sourceQueue: 'main', jobType: 'transcription' });
 
     const done = w.shutdown();
     await jest.advanceTimersByTimeAsync(1000);
@@ -283,7 +285,7 @@ describe('worker: SIGTERM and an in-flight paper', () => {
 
     await jest.advanceTimersByTimeAsync(30_000);
     expect(mockRelease).toHaveBeenCalledTimes(2);
-    expect(mockRelease).toHaveBeenLastCalledWith('rh-analysis', 'main');
+    expect(mockRelease).toHaveBeenLastCalledWith('rh-transcription', 'main');
     await done;
   });
 

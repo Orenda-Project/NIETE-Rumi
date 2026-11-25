@@ -17,10 +17,10 @@ import { scanCopy, scanStyle } from "../../newui/checks/source";
  *                   NIETE Teaching Assistant's one line, a green/yellow mark, ›); "Next to check" walks the yellow rows
  *   one indicator   prev/next, the level, the evidence, To improve, "Agree and next" (gaps: a counted toast, the first
  *                   unfilled item scrolled to and focused, the inline marks kept)
- *   evidence (B)    the summary (edited in place) and every quote as a row: time chip (plays the lesson from there when
- *                   the recording is on the page), the quote (Urdu right to left, Nastaliq), ⋯ → Edit / Remove (Undo
- *                   for 5 s, an "edited" tag); "Add evidence" adds the coach's own line with a dark "You" tag
- *   saved           ev_<code> as today's server reads it, plus `evidence_review` per indicator
+ *   evidence        queue #251 (was option B): the Digital Coach's line and every quote as a read-only row (time chip,
+ *                   the quote, Urdu right to left in Nastaliq); "Edit evidence" opens an empty "Your evidence" box; the
+ *                   time chip plays the lesson from there in a player under the evidence
+ *   saved           ev_<code> as today's server reads it (her words when she typed some), plus `evidence_review`
  *   every box       sized to its text (auto-grow), each paragraph its own direction
  *   the name        "Digital Coach", never "Rumi" (bd-o15qnr.36; was "NIETE Teaching Assistant")
  */
@@ -105,7 +105,7 @@ const sectionRow = (title: RegExp) => within(screen.getByTestId("ff-sections")).
 const openSection = async (title: RegExp) => { fireEvent.click(await screen.findByRole("button", { name: title })); await screen.findByTestId("ff-section"); };
 const openRow = (code: string) => fireEvent.click(within(screen.getByTestId("ff-section")).getByRole("button", { name: new RegExp(`^${code}\\b`) }));
 const toC1 = async () => { renderPage(); await openSection(/C\. What the teacher does/); openRow("C1"); return screen.findByTestId("ff-indicator"); };
-const quoteRows = () => within(screen.getByTestId("ff-evidence")).queryAllByTestId("ff-quote");
+const quoteRows = () => within(screen.getByTestId("ff-evidence")).queryAllByTestId("dc-row");
 const group = (name: string) => within(screen.getByRole("radiogroup", { name }));
 const unisolated = (t: string) => t.replace(/[⁦-⁩]/g, "");
 
@@ -316,66 +316,28 @@ describe("the indicator's name sits between Previous and Next", () => {
   });
 });
 
-describe("evidence: remove (Undo), edit, add, the summary in place", () => {
-  it("⋯ → Remove hides the row and says Quote removed · Undo for 5 seconds; Undo brings it back", async () => {
+describe("evidence: the Digital Coach's once, and Your evidence (queue #251; was option B, edited in place)", () => {
+  it("read only rows: no ⋯ menu, no summary pencil, no Add evidence; Edit evidence opens an empty box sized to its text", async () => {
     await toC1();
-    vi.useFakeTimers();
-    fireEvent.click(within(quoteRows()[1]).getByRole("button", { name: "More: edit or remove" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-    expect(quoteRows()).toHaveLength(2);
-    const toast = screen.getByTestId("ff-toast");
-    expect(toast).toHaveTextContent("Quote removed");
-    fireEvent.click(within(toast).getByRole("button", { name: "Undo" }));
     expect(quoteRows()).toHaveLength(3);
-    fireEvent.click(within(quoteRows()[1]).getByRole("button", { name: "More: edit or remove" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-    act(() => { vi.advanceTimersByTime(4900); });
-    expect(screen.getByTestId("ff-toast")).toBeInTheDocument();
-    act(() => { vi.advanceTimersByTime(200); });
-    expect(screen.queryByTestId("ff-toast")).toBeNull();
-    expect(quoteRows()).toHaveLength(2);
-  });
-
-  it("⋯ → Edit opens the quote in place; the time stays and the row says edited", async () => {
-    await toC1();
-    fireEvent.click(within(quoteRows()[2]).getByRole("button", { name: "More: edit or remove" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    const box = within(quoteRows()[2]).getByRole("textbox");
-    expect(box).toHaveValue(Q3);
+    expect(screen.queryByRole("button", { name: "More: edit or remove" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit the summary" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add evidence" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit evidence" }));
+    const box = screen.getByLabelText("Your evidence");
+    expect(box).toHaveValue("");
     expect(box).toHaveAttribute("data-autosize");
-    fireEvent.change(box, { target: { value: `${Q3} دودھ۔` } });
-    fireEvent.click(within(quoteRows()[2]).getByRole("button", { name: "Done" }));
-    expect(quoteRows()[2]).toHaveTextContent("18:40");
-    expect(quoteRows()[2]).toHaveTextContent(`${Q3} دودھ۔`);
-    expect(within(quoteRows()[2]).getByText("edited")).toBeInTheDocument();
+    expect(quoteRows()).toHaveLength(3); // the Digital Coach's evidence stays above
   });
 
-  it("Add evidence: what you saw (sized to its text) and an optional mm:ss time; shown with a dark You tag", async () => {
+  it("Keep the Digital Coach’s closes the box and drops what she typed", async () => {
     await toC1();
-    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
-    const saw = screen.getByLabelText("What you saw");
-    expect(saw).toHaveAttribute("data-autosize");
-    fireEvent.change(saw, { target: { value: "The teacher praised two answers by name." } });
-    fireEvent.change(screen.getByLabelText("Time (optional)"), { target: { value: "2105" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(screen.getByText("Time as mm:ss")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Time (optional)"), { target: { value: "21:05" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    const mine = quoteRows()[3];
-    expect(mine).toHaveAttribute("data-source", "coach");
-    expect(within(mine).getByText("You")).toBeInTheDocument();
-    expect(mine).toHaveTextContent("21:05");
-    expect(mine).toHaveTextContent("The teacher praised two answers by name.");
-  });
-
-  it("the summary edits in place: the pencil opens a box sized to its text, Done closes it", async () => {
-    await toC1();
-    fireEvent.click(screen.getByRole("button", { name: "Edit the summary" }));
-    const box = within(screen.getByTestId("ff-evidence")).getByDisplayValue(BECAUSE);
-    expect(box).toHaveAttribute("data-autosize");
-    fireEvent.change(box, { target: { value: "Teacher mainly asks closed recall questions; one open prompt about animals near home." } });
-    fireEvent.click(within(screen.getByTestId("ff-evidence")).getByRole("button", { name: "Done" }));
-    expect(screen.getByTestId("ff-summary")).toHaveTextContent("one open prompt about animals near home.");
+    fireEvent.click(screen.getByRole("button", { name: "Edit evidence" }));
+    fireEvent.change(screen.getByLabelText("Your evidence"), { target: { value: "The teacher praised two answers by name." } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep the Digital Coach’s" }));
+    expect(screen.queryByLabelText("Your evidence")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit evidence" }));
+    expect(screen.getByLabelText("Your evidence")).toHaveValue("");
   });
 });
 
@@ -413,19 +375,11 @@ const finishRest = async () => {
 };
 
 describe("what is saved: ev_<code> as today, and evidence_review beside it", () => {
-  it("an edited review: ev_ is the summary · kept and edited quotes with their times · the coach's lines", async () => {
+  it("her own words: ev_ is her words alone; the record keeps every quote and adds her line", async () => {
     renderPage();
     await fillAll();
-    fireEvent.click(within(quoteRows()[1]).getByRole("button", { name: "More: edit or remove" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-    fireEvent.click(within(quoteRows()[1]).getByRole("button", { name: "More: edit or remove" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(within(quoteRows()[1]).getByRole("textbox"), { target: { value: `${Q3} دودھ۔` } });
-    fireEvent.click(within(quoteRows()[1]).getByRole("button", { name: "Done" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
-    fireEvent.change(screen.getByLabelText("What you saw"), { target: { value: "The teacher praised two answers by name." } });
-    fireEvent.change(screen.getByLabelText("Time (optional)"), { target: { value: "21:05" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit evidence" }));
+    fireEvent.change(screen.getByLabelText("Your evidence"), { target: { value: "The teacher praised two answers by name." } });
     await finishRest();
     const save = dock().getByRole("button", { name: "Save" });
     expect(save).not.toHaveAttribute("aria-disabled", "true");
@@ -434,15 +388,15 @@ describe("what is saved: ev_<code> as today, and evidence_review beside it", () 
     await waitFor(() => expect(L.saveObservationDraft).toHaveBeenCalledTimes(1));
     const [id, edits, review] = L.saveObservationDraft.mock.calls[0];
     expect(id).toBe("cs-1");
-    expect(edits.ev_C1).toBe(`${BECAUSE} · 04:30 "${Q1}" · 18:40 "${Q3} دودھ۔" · 21:05 The teacher praised two answers by name.`);
+    expect(edits.ev_C1).toBe("The teacher praised two answers by name.");
     expect(edits.ev_C2).toBe("Corrected answers herself.");
     expect(review.C1).toEqual({
       summary: { rumi: BECAUSE, coach: BECAUSE },
       items: [
         { source: "rumi", time: "04:30", quote: Q1, status: "kept" },
-        { source: "rumi", time: "12:15", quote: Q2, status: "removed" },
-        { source: "rumi", time: "18:40", quote: Q3, status: "edited", coach_text: `${Q3} دودھ۔` },
-        { source: "coach", time: "21:05", text: "The teacher praised two answers by name." },
+        { source: "rumi", time: "12:15", quote: Q2, status: "kept" },
+        { source: "rumi", time: "18:40", quote: Q3, status: "kept" },
+        { source: "coach", time: null, text: "The teacher praised two answers by name." },
       ],
     });
     expect(review.C2).toBeUndefined(); // no assistant list: no review
@@ -465,8 +419,10 @@ describe("what is saved: ev_<code> as today, and evidence_review beside it", () 
     expect(review.C1.items.map((i: any) => i.status)).toEqual(["kept", "kept", "kept"]);
   });
 
-  it("a review saved before comes back as it was saved", async () => {
+  it("a form saved with option B's edits: the Digital Coach's evidence as it gave it, what she submitted in Your evidence", async () => {
+    const submitted = `My own line. · 12:15 "${Q2}" · 18:40 "edited words" · Mine.`;
     L.getObservationDraft.mockResolvedValue(V6({ saved: true }, {
+      evidence: submitted, rumiText: SERVER_EV,
       evidenceReview: {
         summary: { rumi: BECAUSE, coach: "My own line." },
         items: [
@@ -478,25 +434,28 @@ describe("what is saved: ev_<code> as today, and evidence_review beside it", () 
       },
     }));
     await toC1();
-    expect(screen.getByTestId("ff-summary")).toHaveTextContent("My own line.");
+    expect(screen.getByTestId("ff-summary")).toHaveTextContent(BECAUSE);
     const rows = quoteRows();
     expect(rows).toHaveLength(3);
-    expect(rows[1]).toHaveTextContent("edited words");
-    expect(within(rows[2]).getByText("You")).toBeInTheDocument();
+    expect(rows[2]).toHaveTextContent(Q3);
+    expect(screen.getByLabelText("Your evidence")).toHaveValue(submitted);
   });
 });
 
 /* ── the time chip plays the lesson ────────────────────────────────────────────────────────────────────────────── */
 
 describe("the time chip", () => {
-  it("with the recording on the page: tap plays the lesson from that time", async () => {
+  it("with the recording on the page: tap plays the lesson from that time, in a player under the evidence", async () => {
     CO.getObservation.mockResolvedValue({ id: "cs-1", audioUrl: "https://r2.example/lesson.webm" });
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => undefined);
     await toC1();
     const chip = await within(quoteRows()[0]).findByRole("button", { name: "Play the lesson at 04:30" });
-    const audio = document.querySelector("audio[data-testid='ff-audio']") as HTMLAudioElement;
-    expect(audio).toHaveAttribute("src", "https://r2.example/lesson.webm");
+    expect(screen.queryByTestId("ff-player")).toBeNull();
     fireEvent.click(chip);
+    const audio = screen.getByTestId("ff-player").querySelector("audio") as HTMLAudioElement;
+    expect(audio).toHaveAttribute("src", "https://r2.example/lesson.webm");
+    Object.defineProperty(audio, "duration", { configurable: true, value: 2400 });
+    fireEvent(audio, new Event("loadedmetadata"));
     expect(audio.currentTime).toBe(270);
     expect(play).toHaveBeenCalled();
     play.mockRestore();
@@ -521,7 +480,7 @@ describe("the principal, Urdu and the rest", () => {
     const legend = screen.getByTestId("legend");
     expect((legend.textContent || "").replace(/\s+/g, " ").trim()).toBe("You · Digital Coach"); // bd-o15qnr.36
     expect(screen.queryByText(/%/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Add evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit evidence" })).toBeInTheDocument();
   });
 
   it("in Urdu: the boards' words; the assistant by its Urdu name; Urdu quotes right to left", async () => {
@@ -535,7 +494,7 @@ describe("the principal, Urdu and the rest", () => {
     openRow("C1");
     await screen.findByTestId("ff-indicator");
     expect(screen.getByText((t) => unisolated(t) === "ڈیجیٹل کوچ کے شواہد")).toBeInTheDocument(); // bd-o15qnr.39.1
-    expect(screen.getByRole("button", { name: "شواہد شامل کریں" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "شواہد میں ترمیم کریں" })).toBeInTheDocument();
     expect(dock().getByRole("button", { name: "متفق، اگلا" })).toBeInTheDocument();
     expect(within(quoteRows()[0]).getByText(`“${Q1}”`)).toHaveAttribute("data-urdu");
     expect(document.body.textContent).not.toMatch(/Rumi/);

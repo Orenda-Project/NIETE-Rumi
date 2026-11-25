@@ -40,6 +40,7 @@ const {
 const { digestFailureDetail } = require('./digest-failure-detail');
 const LpDigest = require('./lp-quiz-digest.service');
 const WebItems = require('./web-quiz-items');
+const WordHelp = require('./quiz-word-help.service');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const Store = require('./lp-asset-source.store');
 const Funnel = require('./quiz-funnel');
@@ -3207,10 +3208,17 @@ async function processQuiz(quizId, payload, flight) {
       }
     }
     const drafted = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
+    // bd-0q8b4x — Urdu word help under hard English words (lp_v8 English only; off unless
+    // app_settings quiz_word_help): book glossary first, every meaning key-checked. Never fails a quiz.
+    const wh = isLp ? await WordHelp.maybeAttach(drafted, { language, slideScript, quizId }) : { rows: drafted, record: null };
+    if (wh.record) {
+      meta.word_help = wh.record;
+      meta.cost_usd = (meta.cost_usd || 0) + (wh.record.cost_usd || 0);
+    }
     // SCHEMA_v2 — the web arm's items ride BESIDE the rows (media.web), written by one
     // call after the quiz is final; the row's own columns are untouched. Off unless the
     // teacher is on the web arm and app_settings web_quiz_items_v2 is on. Never fails a quiz.
-    const web = await WebItems.maybeAttach(drafted, {
+    const web = await WebItems.maybeAttach(wh.rows, {
       teacherId: quiz.teacher_id, quizId, language, gradeBand: digest.grade_band || meta.grade, subject: digest.subject,
       source: isLp
         ? { kind: 'lesson_plan', text: slideScript ? LpDigest.lessonExcerpts(slideScript) : '' }

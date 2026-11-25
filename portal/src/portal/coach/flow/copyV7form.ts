@@ -22,6 +22,10 @@
  * operator's words), on every indicator where the Digital Coach gave evidence: it replaces "From the recording", the
  * evidence box's "Evidence" label and its "Digital Coach heard" line. Heard nothing: no box, so "Nothing for this in the
  * recording" goes; the six's "You add: …" goes too (how to fill it is now in the line under the name, the bot's data).
+ *
+ * Queue #251 (the operator 24 Nov ~10:25) — the Digital Coach's evidence is shown once, read only; "Edit evidence" opens
+ * "Your evidence" under it, and "Keep the Digital Coach’s" closes it. Option B's per-quote words (Edit / Remove / Undo,
+ * Add evidence, the summary's pencil) go with it. A time chip plays the lesson "From 37:46" in a player under the box.
  */
 import { bilingual, type Bilingual, type Words } from "../../teacher/i18n";
 
@@ -79,25 +83,18 @@ export const FORM_V7_COPY = {
   agreeNext: "Agree and next",
   /* bd-o15qnr.37: under the indicator's line, opens it in the "?" guide (#217) once the guide has it */
   examples: "Examples",
-  /* evidence option B with editing; bd-o15qnr.39.1: the box's one title, on the eleven and the six alike */
+  /* bd-o15qnr.39.1: the box's one title, on the eleven and the six alike */
   dcEvidence: "Digital Coach’s evidence",
-  editSummary: "Edit the summary",
+  /* queue #251 (the operator 24 Nov): the Digital Coach's evidence once; "Edit evidence" opens her own box under it */
+  editEvidence: "Edit evidence",
+  yourEvidence: "Your evidence",
+  keepDc: "Keep the Digital Coach’s",
   done: "Done",
   more: "More: edit or remove",
-  edit: "Edit",
-  remove: "Remove",
-  edited: "edited",
-  you: "You",
-  addEvidence: "Add evidence",
-  whatYouSaw: "What you saw",
-  timeOptional: "Time (optional)",
-  timeFormat: "Time as mm:ss",
   cancel: "Cancel",
-  add: "Add",
-  quoteRemoved: "Quote removed",
-  undo: "Undo",
+  /* queue #251: a time chip plays the class recording from there, in a player under the evidence */
   playAt: (t: string) => `Play the lesson at ${t}`,
-  pauseAt: (t: string) => `Pause the lesson at ${t}`,
+  fromTime: (t: string) => `From ${t}`,
   /* gaps: a short toast, counted */
   needLevel: (n: number) => (n === 1 ? "1 item still needs a level" : `${n} items still need a level`),
   needAnswer: (n: number) => (n === 1 ? "1 item still needs an answer" : `${n} items still need an answer`),
@@ -156,23 +153,15 @@ export const FORM_V7_COPY_UR: FormV7Copy = {
   agreeNext: "متفق، اگلا",
   examples: "مثالیں",
   dcEvidence: "ڈیجیٹل کوچ کے شواہد",
-  editSummary: "خلاصہ بدلیں",
+  // NATIVE-CHECK (queue #251, machine-drafted; Edit = ترمیم کریں and Keep = رہنے دیں are the ontology's words)
+  editEvidence: "شواہد میں ترمیم کریں",
+  yourEvidence: "آپ کے شواہد",
+  keepDc: "ڈیجیٹل کوچ کے شواہد رہنے دیں",
   done: "مکمل",
   more: "مزید: بدلیں یا ہٹائیں",
-  edit: "بدلیں",
-  remove: "ہٹائیں",
-  edited: "بدلا گیا",
-  you: "آپ",
-  addEvidence: "شواہد شامل کریں",
-  whatYouSaw: "آپ نے کیا دیکھا",
-  timeOptional: "وقت (اختیاری)",
-  timeFormat: "وقت mm:ss کی طرح لکھیں",
   cancel: "منسوخ",
-  add: "شامل کریں",
-  quoteRemoved: "اقتباس ہٹا دیا گیا",
-  undo: "واپس لائیں",
   playAt: (t: string) => `${t} سے سبق سنیں`,
-  pauseAt: (t: string) => `${t} پر سبق روکیں`,
+  fromTime: (t: string) => `${t} سے`,
   needLevel: (n: number) => `${n} ${n === 1 ? "اشاریے" : "اشاریوں"} کی سطح ابھی باقی ہے`,
   needAnswer: (n: number) => `${n} ${n === 1 ? "جگہ" : "جگہیں"} ابھی بھرنی باقی ہیں`,
   toCheck: (n: number) => `${n} ${n === 1 ? "اشاریہ" : "اشاریے"} ابھی دیکھنا باقی`,
@@ -190,7 +179,7 @@ export const FORM_V7 = bilingual(FORM_V7_COPY, FORM_V7_COPY_UR);
 /** Lines the boards print word for word: past the 4-word label rule. */
 const LONG_OK: readonly string[] = [
   "whyLevelMin", "changedSummary", "savedPartByPart", "noRumiLevels",
-  "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "pauseAt", "needLevel", "needAnswer", "toCheck",
+  "saveLeft", "nextToCheck", "indicatorCrumb", "playAt", "needLevel", "needAnswer", "toCheck",
   "cantCount", "recIe", "recNa", "recStarred", "d2Turns", "submitLeft", "tooShort",
 ];
 const SAME: readonly string[] = [];
