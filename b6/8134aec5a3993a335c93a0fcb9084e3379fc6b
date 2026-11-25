@@ -1,1 +1,2 @@
 {"ts":"2026-11-25T16:47:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,portal-smoke spec_sync=true","sha":"b68134aec5a3","branch":"HEAD","user":""}
+{"ts":"2026-11-25T17:07:40Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training,portal-smoke=none-needed (tests, a doc line and one log field; nothing a teacher sees changed)","sha":"b68134aec5a3","branch":"bd-ke5dtg-22697","user":""}
