@@ -154,12 +154,12 @@ describe('web_quiz_voice_v2 on: a refused or stalled clip is retried on the chil
   test('a stalled clip on a phone with no voice for the language: big words and the tap; one retry only, then the words stay', () => {
     const h = harness({ v2: true, voices: [{ lang: 'fr-FR' }] });
     h.ctx.speak('Which month comes after January?', R2_CLIP, null, { qid: 'q1aaaaaaaa', part: 'q' });
-    h.runTimers(5000);
+    h.runTimers(8000); // no phone voice to hand it to: the clip gets the full 8 s
     expect(h.cls.has('wq-novoice')).toBe(true);
     expect(h.cls.has('wq-tap')).toBe(true);
     h.tap();
     expect(h.clips).toHaveLength(2);
-    h.runTimers(5000); // the retry stalls too
+    h.runTimers(8000); // the retry stalls too
     expect(h.events.filter((e) => e.name === 'audio_retry').map((e) => e.data.ok)).toEqual([false]);
     h.tap();
     expect(h.clips).toHaveLength(2); // never a second retry
