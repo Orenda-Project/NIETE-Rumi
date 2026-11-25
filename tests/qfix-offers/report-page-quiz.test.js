@@ -236,3 +236,66 @@ describe('the page: /cr carries "Make a quiz" only for a held offer with the swi
     expect(r.body).not.toContain('Make a quiz');
   });
 });
+
+describe('the quiz-only page: /cq/:token for a teacher outside the new report', () => {
+  const VIEW = {
+    language: 'en',
+    session: { id: SID, created_at: '2026-10-19T05:30:00Z', analysis_data: { subject: 'Maths', topic: 'Adding tens', scores: { overall_percentage: 71 } },
+      prioritized_action: { thing_to_try: { text: 'In pairs, students solve Q1.' } } },
+    firstName: 'Sadia', trend: [],
+  };
+  let mockPortalDb;
+  let servers = [];
+  afterEach(async () => { await Promise.all(servers.map((s) => new Promise((r) => s.close(r)))); servers = []; });
+
+  async function get({ settings = [ON], quizzes = [{ ...HELD }], view = VIEW, token } = {}) {
+    jest.resetModules();
+    process.env = { ...ENV, INTERNAL_API_KEY: 'k1', SUPABASE_URL: 'https://abc.supabase.co', WHATSAPP_BOT_NUMBER: '923206281951' };
+    mockPortalDb = makeDb({ app_settings: settings, quizzes });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
+    jest.doMock('../../dashboard/services/telemetry.service', () => ({ logEvent() {}, flush() {}, isEnabled: () => true }));
+    jest.doMock('../../dashboard/config/supabase', () => ({ from: (...a) => mockPortalDb.from(...a) }));
+    const a = express();
+    a.use(require('../../dashboard/routes/coaching-report.routes').createCoachingReportRouter({
+      load: async () => view, groupOf: async () => null,
+      deliverySwitch: async () => ({ linkTemplate: null, tipWording: false, timeOnPage: false }),
+    }));
+    const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+    servers.push(srv);
+    const t = token || require('../../bot/shared/services/coaching/report-link-token').signReportLink({ sessionId: SID, userId: UID });
+    return new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: srv.address().port, path: `/cq/${t}` }, (res) => {
+        let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode, body: b }));
+      }).on('error', reject);
+    });
+  }
+
+  test('held + on → the lesson and "Make a quiz", nothing of the report (no score, no thing to try)', async () => {
+    const r = await get();
+    expect(r.status).toBe(200);
+    expect(r.body).toContain('Adding tens');
+    expect(r.body).toContain('>Make a quiz</a>');
+    expect(r.body.replace(/&amp;/g, '&')).toMatch(/wa\.me\/923206281951\?text=[^"]*CR-a1b2c3d4/);
+    expect(r.body).not.toContain('71%');
+    expect(r.body).not.toContain('In pairs, students solve Q1.');
+  });
+
+  test('the quiz is made → the message to send to her class', async () => {
+    const r = await get({ view: { ...VIEW, quizMessage: 'Class 4 quiz: https://q.example/abc' } });
+    expect(r.body).toContain('Class 4 quiz: https://q.example/abc');
+    expect(r.body).toContain('Send it to your class on WhatsApp');
+    expect(r.body).not.toContain('>Make a quiz</a>');
+  });
+
+  test('neither held nor made → the /quiz door', async () => {
+    const r = await get({ quizzes: [] });
+    expect(r.status).toBe(200);
+    expect(r.body).toContain('/quiz');
+    expect(r.body).not.toContain('>Make a quiz</a>');
+  });
+
+  test('switch off → 404 (link not complete); a bad token → 404', async () => {
+    expect((await get({ settings: [] })).status).toBe(404);
+    expect((await get({ token: 'not-a-token' })).status).toBe(404);
+  });
+});
