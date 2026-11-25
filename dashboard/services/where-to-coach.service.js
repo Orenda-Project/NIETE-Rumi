@@ -16,6 +16,10 @@
  * (isDcObservation); a coach observation counts only once REVIEWED and on the FICO form (a /observe2 field-form visit
  * is never mixed in). No transcript is read.
  *
+ * Queue #282 / bd-ra8xu.64.2: a DC report scored on a rubric of its own (FICO17 v6, ICT's self-recordings on the 11)
+ * counts as a DC session (her check-in, no_dc / one_dc, the session list) and its plan steps count; it reaches the
+ * engine marked `own`, so its practices and its scale never meet the V3 ones (the engine's readReport).
+ *
  * CHECK-IN (her spec, "NIETE use check-in"): a card per feature with low or no use in the period — Digital Coaching: 0,
  * or fewer than 3 a week (her coach-only cut, kept as she wrote it); lesson plans: 0, or fewer than half the school's
  * median; training: no part finished in the period while a training she is assigned is unfinished (ours: her "next
@@ -29,7 +33,7 @@ const P = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
 const I = Card.internals;
-const { SQL, isDcObservation, isCoachObservation, nextStepShown, reportTitleOf, lessonPlansOf } = Card;
+const { SQL, isCoachObservation, nextStepShown, reportTitleOf, lessonPlansOf } = Card;
 const rowsOf = I.rowsOf;
 
 const LIST_MAX = 8; // her spec: "the session list shows the last 8"
@@ -48,10 +52,14 @@ const SQL_WTC = Object.freeze({
 const byAt = (a, b) => (Date.parse(a.at instanceof Date ? a.at.toISOString() : a.at) || 0) - (Date.parse(b.at instanceof Date ? b.at.toISOString() : b.at) || 0);
 const daysBetween = (from, to) => Math.max(0, Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS));
 
-/** The engine's input row for a session, from its domains read (analysis_data.domains + lp_fidelity). */
-const inputOf = (domainsById) => (s) => {
+/**
+ * The engine's input row for a session, from its domains read (analysis_data.domains + lp_fidelity). `own`: the session
+ * was scored on a rubric of its own (queue #282 / bd-ra8xu.64.2), read from the score read the counts use.
+ */
+const inputOf = (domainsById, act) => (s) => {
   const r = domainsById.get(s.id) || {};
-  return { id: s.id, date: s.day, domains: r.domains || null, lp_fidelity: r.lp_fidelity || null };
+  const own = !!(act && ((act.scored.get(s.id) || {}).info || {}).own);
+  return { id: s.id, date: s.day, domains: r.domains || null, lp_fidelity: r.lp_fidelity || null, ...(own ? { own: true } : {}) };
 };
 
 /** A practice with its tips (both languages; the page picks hers), or null. */
@@ -60,8 +68,8 @@ const withTips = (framework) => (p) => (p ? { ...p, tips: Lib.suggestionsFor(fra
 /** Her two lists in the period: DC reports, and coach observations that are reviewed and on the FICO form. */
 function scoredInPeriod(act, period, userId) {
   const inP = (s) => P.inPeriod(period, s.day) && (!userId || s.user_id === userId);
-  const pctOf = (s) => (act.scored.get(s.id) || {}).pct;
-  const dc = act.sessions.filter((s) => inP(s) && isDcObservation(s, pctOf(s))).sort(byAt);
+  const counted = I.dcCounted(act);
+  const dc = act.sessions.filter((s) => inP(s) && counted(s)).sort(byAt);
   const coach = act.sessions.filter((s) => inP(s) && isCoachObservation(s) && I.ficoVisitScore(act, s) != null).sort(byAt);
   return { dc, coach };
 }
@@ -122,7 +130,7 @@ async function getWhereToCoach(query, coachId, ext, opts = {}) {
   const domains = await domainsOf(query, [...dc, ...coach]);
   const fw = I.frameworkConstants();
   const result = Engine.whereToCoach(
-    { dc: dc.map(inputOf(domains)), coach: coach.map(inputOf(domains)) },
+    { dc: dc.map(inputOf(domains, act)), coach: coach.map(inputOf(domains, act)) },
     undefined,
     { scaleMax: fw && fw.scaleMax },
   );
@@ -189,7 +197,7 @@ async function getCoachFirst(query, coachId, emis, opts = {}) {
 
   const rows = ctx.teachers.map((t) => {
     const l = lists.get(t.id);
-    const r = Engine.whereToCoach({ dc: l.dc.map(inputOf(domains)), coach: l.coach.map(inputOf(domains)) }, undefined, { scaleMax: fw && fw.scaleMax });
+    const r = Engine.whereToCoach({ dc: l.dc.map(inputOf(domains, act)), coach: l.coach.map(inputOf(domains, act)) }, undefined, { scaleMax: fw && fw.scaleMax });
     const f = r.focus;
     const last = lastDc.get(t.id) || null;
     return {

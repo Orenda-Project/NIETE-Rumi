@@ -1572,3 +1572,73 @@ describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; 
     expect(v6).toEqual(v5);
   });
 });
+
+// ── queue #282 / bd-ra8xu.64.2: a self-recording scored on FICO17 v6 (the 11) is still Digital Coach use ─────────────
+
+/** A switched-on self-recording: v6 sections under their own keys, no V3 score at the top, the V3 analysis kept apart. */
+function v6Analysis(extra = {}) {
+  const row = (id, result) => ({ id, name: `Name of ${id}`, kind: 'dc', result, score: typeof result === 'number' ? result : null, applicable: typeof result === 'number' });
+  return {
+    framework: 'fico17_v6', rubric: 'fico17_v6', indicator_set: 'dc11', grade: 3, subject: 'math',
+    scores: { overall_marks: 18, overall_max_marks: 28, overall_percentage: 64.3, counted: 7, rubric: 'fico17_v6' },
+    domains: {
+      v6_teacher: { key: 'C', name: 'What the teacher does', domain_score: 10, domain_max: 16, indicators_applicable: 4,
+        indicators: [row('C1', 3), row('C2', 2), row('C4', 'IE'), row('C6', 3), row('C8', 2)] },
+      // every row couldn't-tell: not assessed, never 0/0
+      v6_children: { key: 'D', name: 'What the children do', domain_score: 0, domain_max: 0, indicators_applicable: 0,
+        indicators: [row('D1', 'IE'), row('D5', 'IE')] },
+      v6_subject: { key: 'F', name: 'Subject knowledge', domain_score: 8, domain_max: 12, indicators_applicable: 3,
+        indicators: [row('F1', 3), row('F2', 3), row('F3', 2), row('F4', 'IE')] },
+    },
+    lp_fidelity: { status: 'ok', fidelity_pct: 50, moves: [{ move_id: 'm1', phase: 'warm_up', bucket: 'must_happen', verdict: 'executed', text: 'Warm up' }] },
+    v3_fico: analysis(55),
+    ...extra,
+  };
+}
+
+describe('queue #282 / bd-ra8xu.64.2: a v6 self-recording counts as Digital Coach use, never in a V3 average', () => {
+  const addV6 = () => tables.sessions.push({ id: 'v1', user_id: 'u2', created_at: pk('2026-10-27 10:00'), status: 'completed', observation_type: null, analysis_data: v6Analysis() });
+
+  test('isDcObservation: a completed v6 self-recording with no V3 score counts; one with no score at all still does not', () => {
+    expect(Card.isDcObservation({ observation_type: null, status: 'completed', duplicate_of_session_id: null }, null, 'fico17_v6')).toBe(true);
+    expect(Card.isDcObservation({ observation_type: null, status: 'completed', duplicate_of_session_id: 'x' }, null, 'fico17_v6')).toBe(false);
+    expect(Card.isDcObservation({ observation_type: null, status: 'completed' }, null, null)).toBe(false);
+  });
+
+  test('the school card: her v6 lesson is in the DC tally and makers; the DC average stays the V3 lessons only', async () => {
+    addV6();
+    const out = await Card.getSchoolCard(db, 'coach-1', '901', opts());
+    expect(out.tiles.find((t) => t.feature === 'dc')).toMatchObject({ total: 3, makers: 2, series: [1, 1, 1, 0, 0] });
+    expect(out.scores.dc).toMatchObject({ count: 3, makers: 2, avg: 65 });
+    expect(out.scores.dc.points.map((p) => p.id)).toEqual(['d1', 'd5']);
+    expect(out.overview.active.now).toBe(2);
+  });
+
+  test('the principal\'s card counts it too', async () => {
+    addV6();
+    const mine = await Card.getPrincipalSchoolCard(db, 'up', opts());
+    expect(mine.scores.dc).toEqual({ count: 3, makers: 2 });
+  });
+
+  test('her DC scores page lists it, with no V3 score', async () => {
+    addV6();
+    const out = await Card.getTeacherScores(db, 'coach-1', PHONE.t2, 'dc', opts());
+    expect(out).toMatchObject({ count: 1, avg: null, series: [] });
+    expect(out.reports.map((r) => [r.id, r.score])).toEqual([['v1', null]]);
+  });
+
+  test('the coach view of a v6 report: its own sections (C, D, F from the v6 rows; D not assessed) and plan, its practices on 1-4', async () => {
+    addV6();
+    const out = await Card.getSession(db, 'coach-1', 'v1', opts());
+    expect(out.sections).toEqual([
+      { code: 'B', name: 'Lesson Plan Fidelity', pct: 50 },
+      { code: 'C', name: 'What the teacher does', pct: 63 },
+      { code: 'D', name: 'What the children do', pct: null },
+      { code: 'F', name: 'Subject knowledge', pct: 67 },
+    ]);
+    expect(out.overall).toBe(64);
+    expect(out.practices.map((p) => p.id)).toEqual(['C1', 'C2', 'C4', 'C6', 'C8', 'D1', 'D5', 'F1', 'F2', 'F3', 'F4']);
+    expect(out.practices.find((p) => p.id === 'C1')).toEqual({ id: 'C1', name: 'Name of C1', section: 'C', score: 3, scaleMax: 4 });
+    expect(out.practices.find((p) => p.id === 'D1').score).toBeNull();
+  });
+});

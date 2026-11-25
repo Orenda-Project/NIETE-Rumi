@@ -186,6 +186,17 @@ const GOAL_TO_AREA = {
   goal5_classroom_management: 'classroom_environment',
 };
 
+// Queue #282 / bd-ra8xu.64.2: a self-recording scored on FICO17 v6 (ICT's, on the 11) keeps its sections under its
+// own keys, so the V3 keys above found none and the brief said "no coaching data" for a teacher who had just recorded.
+// Each v6 section is read as the leader-facing area it is about (v6 C/D/F are the same letters as V3's sections), for
+// that ONE lesson's weakest / strongest only. Never a score: overallScoreFromAnalysis refuses a v6 analysis first, and
+// the journey line (loadTrendData) never takes a v6 point. A section with no levelled row (domain_max 0) is skipped.
+const V6_AREA = {
+  v6_teacher: 'high_leverage_practices',
+  v6_children: 'student_engagement',
+  v6_subject: 'teacher_subject_knowledge',
+};
+
 function _slotRatio(d) {
   if (!d || typeof d !== 'object') return null;
   const max = Number(d.area_max ?? d.domain_max);
@@ -211,6 +222,12 @@ function _areaRatios(analysis) {
       if (!KNOWN_AREAS.includes(key)) continue;
       const r = _slotRatio(analysis.domains[key]);
       if (r != null) ratios[key] = r;
+    }
+    // FICO17 v6 (queue #282 / bd-ra8xu.64.2): its own section keys, read as the area each is about.
+    for (const [key, areaKey] of Object.entries(V6_AREA)) {
+      if (!KNOWN_AREAS.includes(areaKey) || ratios[areaKey] != null) continue;
+      const r = _slotRatio(analysis.domains[key]);
+      if (r != null) ratios[areaKey] = r;
     }
   }
   // HOTS / PK: top-level goalN_* slots → mapped area key.
