@@ -36,6 +36,11 @@
       askBYes: 'Yes, remind us',
       // arm b, after Yes the permission prompt was closed (not Block): nothing is off, one more Yes asks again
       askBRetry: 'Tap Yes again and choose Allow',
+      // the permission primer (web_quiz_push_primer): between our Yes and the browser's own prompt, so the child knows
+      // the phone asks next; names no button in Urdu (the browser's dialog follows the phone's language)
+      primerHead: 'One more step',
+      primerBody: 'Your phone will ask about reminders next. Choose Allow.',
+      primerGo: 'OK',
       remindWait: 'Turning reminders on…',
       remindHint: 'Now tap Allow below',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
@@ -65,6 +70,9 @@
       askBWhen: 'پیر سے جمعہ، شام ۶ بجے تک',
       askBYes: 'ہاں، یاد دلائیں',
       askBRetry: 'دوبارہ ہاں دبائیں، پھر اجازت دیں',
+      primerHead: 'بس ایک قدم اور',
+      primerBody: 'اب آپ کا فون یاد دہانی کے بارے میں پوچھے گا۔ وہاں اجازت دیں۔',
+      primerGo: 'ٹھیک ہے',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
       // names no button: Chrome's permission dialog follows the phone's language, not the page's
       remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
@@ -211,6 +219,8 @@
     var iab = false;
     var askedAt = 0; // when this sitting's ask was drawn; 0 = none up, or it was answered (or left)
     var permUp = false; // Yes was tapped and the browser's permission prompt has not answered yet
+    var primer = false; // the permission primer (web_quiz_push_primer, from the key): our Yes shows it first
+    var primed = false; // the primer was answered OK once on this page: a later Yes (arm b's retry) asks the browser at once
     var arm = null; // the ask's arm from the key ('a' | 'b', web_quiz_push_ask_v2); null = no arm (today exactly)
     var watching = false;
 
@@ -294,6 +304,11 @@
       },
       denied: function () { draw(line(c.remindDenied)); },
       // arm b, a CLOSED prompt ('default'): the browser blocked nothing, so the card says how to try again and keeps Yes
+      // the primer: what comes next, then OK (the browser is asked inside that tap) and Not now
+      primer: function () {
+        var ok = '<button type="button" class="wq-btn wq-soft" data-act="primer_go">' + esc(c.primerGo) + '</button>';
+        draw(title(c.primerHead) + line(c.primerBody) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + ok + btn('wq-ghost', 'primer_back', c.remindLater) + '</div>');
+      },
       retry: function () {
         var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.askBYes) + '</button>';
         draw(line(c.askBRetry) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + yes + btn('wq-ghost', 'later', c.remindLater) + '</div>');
@@ -337,10 +352,18 @@
     // The Yes tap: the ONLY place the browser's permission is asked, first thing inside the gesture.
     function onYes() {
       if (busy) return;
-      busy = true;
       ev('yes', dwell());
+      // with the primer, Yes only draws it; the browser is asked from its OK, inside that tap
+      if (primer && !primed) { ev('primer_shown'); show.primer(); return; }
+      askBrowser();
+    }
+    function askBrowser() {
+      if (busy) return;
+      busy = true;
       show.hint();
       permUp = true;
+      var t0 = Date.now();
+      var tookMs = function () { var ms = Date.now() - t0; return ms >= 0 ? Math.round(ms) : 0; };
       var asked = new Promise(function (resolve) {
         var r = window.Notification.requestPermission(resolve);
         if (r && typeof r.then === 'function') r.then(resolve, function () { resolve('default'); });
@@ -349,11 +372,11 @@
         permUp = false;
         if (perm !== 'granted') {
           lsSet('wq_rm_asked', Date.now());
-          ev('denied', { perm: perm === 'denied' ? 'denied' : 'default' });
+          ev('denied', { perm: perm === 'denied' ? 'denied' : 'default', prompt_ms: tookMs() });
           if (arm === 'b' && perm !== 'denied') show.retry(); else show.denied();
           return null;
         }
-        ev('granted');
+        ev('granted', { prompt_ms: tookMs() });
         show.wait();
         return subscribe().then(function (out) {
           if (out === 'ok') { ev('subscribed'); show.done(); } else if (out === 'class') { ev('failed', { ok: false }); draw(''); } else { ev('failed', { ok: false }); show.ask(); }
@@ -389,6 +412,8 @@
       var act = el && el.getAttribute('data-act');
       if (!act) return;
       if (act === 'yes') onYes();
+      else if (act === 'primer_go') { primed = true; ev('primer_go'); askBrowser(); }
+      else if (act === 'primer_back') { lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); }
       else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); }
       else if (act === 'stop') onStop();
       else if (act === 'test') onTest();
@@ -411,6 +436,7 @@
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
           // the landing keeps its own question: no arm there
           if (!landing && r.body && (r.body.ask_v === 'a' || r.body.ask_v === 'b')) arm = r.body.ask_v;
+          primer = Boolean(r.body && r.body.primer === true);
           var b = branch();
           if (b === 'iab') { iab = true; askShown(); show.iab(); return null; }
           if (b === 'ios') { ev('ios'); show.ios(); return null; }

@@ -49,7 +49,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const HubDevice = require('../quiz/web-quiz-hub-device');
 
 const TABLE = 'web_quiz_push_subscriptions';
-const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children', askV2: 'web_quiz_push_ask_v2' });
+const KEYS = Object.freeze({ remind: 'web_quiz_push_remind', test: 'web_quiz_push_test', portal: 'portal_push_remind', names: 'web_quiz_push_name_children', askV2: 'web_quiz_push_ask_v2', primer: 'web_quiz_push_primer' });
 const CANARY_KEY = 'web_quiz_push_canary';
 const ENV = Object.freeze(['WQ_PUSH_VAPID_PUBLIC', 'WQ_PUSH_VAPID_PRIVATE', 'WQ_PUSH_VAPID_SUBJECT', 'WQ_PUSH_ENC_KEY', 'WQ_PUSH_HASH_SALT']);
 const OFF = Object.freeze({ remind: false, test: false, portal: false, names: false });
@@ -127,6 +127,8 @@ async function switches(now = Date.now()) {
     s = { remind, test: remind && on(KEYS.test), portal: remind && on(KEYS.portal), names: remind && on(KEYS.names) };
     // the ask's second wording: present only while on, so every answer with it off is exactly as before
     if (remind && on(KEYS.askV2)) s.askV2 = true;
+    // the permission primer: one "your phone will ask next" screen between our Yes and the browser's prompt
+    if (remind && on(KEYS.primer)) s.primer = true;
     lastGood = s;
   } catch (err) {
     s = lastGood || { ...OFF, unread: true };
@@ -266,7 +268,9 @@ function armOf(device) {
 async function keyFor({ code, device } = {}, { now = Date.now() } = {}) {
   const ask = await canaryAllows(code, now);
   const out = { key: vapidPublic(), ask };
-  if (ask && (await switches(now)).askV2) out.ask_v = armOf(device);
+  const sw = ask ? await switches(now) : {};
+  if (sw.askV2) out.ask_v = armOf(device);
+  if (sw.primer) out.primer = true;
   return out;
 }
 
@@ -715,7 +719,9 @@ async function expireTick(now = Date.now()) {
 }
 
 // gone: the page went away (hidden, or closed) with the ask up and unanswered, once per sitting
-const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test', 'gone']);
+// primer_*: the permission primer's screen (web_quiz_push_primer): drawn, OK (the browser is asked), Not now
+const STEPS = new Set(['shown', 'yes', 'later', 'granted', 'denied', 'subscribed', 'failed', 'escape', 'copy', 'ios', 'nopush', 'stop', 'test', 'gone',
+  'primer_shown', 'primer_go', 'primer_back']);
 const HOWS = new Set(['intent', 'menu', 'copy']);
 // Where the ask was answered: the quiz result screen, under the standing link's chips, or the /remind/:code landing.
 const SRCS = new Set(['result', 'class_link', 'landing']);
@@ -723,6 +729,10 @@ const SRCS = new Set(['result', 'class_link', 'landing']);
 const DWELL_STEPS = new Set(['yes', 'later', 'escape', 'gone']);
 const DWELL_MAX_MS = 864e5;
 const dwellOf = (step, ms) => (DWELL_STEPS.has(step) && Number.isInteger(ms) && ms >= 0 && ms <= DWELL_MAX_MS ? { dwell_ms: ms } : {});
+// prompt_ms: how long the browser's permission step took (the prompt asked → its answer); whole ms, at most 10 min,
+// on the browser's answer only
+const PROMPT_STEPS = new Set(['granted', 'denied']);
+const promptOf = (step, ms) => (PROMPT_STEPS.has(step) && Number.isInteger(ms) && ms >= 0 && ms <= 600000 ? { prompt_ms: ms } : {});
 // perm on denied: 'denied' (Block) or 'default' (the prompt was closed); after on gone: 'yes' (left with the prompt up)
 const permOf = (step, perm) => (step === 'denied' && (perm === 'denied' || perm === 'default') ? { perm } : {});
 const afterOf = (step, after) => (step === 'gone' && after === 'yes' ? { after } : {});
@@ -739,6 +749,7 @@ function stepEvent(body = {}, { ua } = {}) {
     ...(typeof body.ok === 'boolean' ? { ok: body.ok } : {}),
     ...(SRCS.has(body.src) ? { src: body.src } : {}),
     ...dwellOf(body.step, body.dwell_ms),
+    ...promptOf(body.step, body.prompt_ms),
     ...permOf(body.step, body.perm),
     ...afterOf(body.step, body.after),
     ...armIn(body.ask_v),
