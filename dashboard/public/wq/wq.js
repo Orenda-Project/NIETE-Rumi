@@ -1368,8 +1368,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error', a.error); };
         setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
-        setTimeout(function () { if (!started) fallback('stalled'); }, GAP_SLOW ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
-        if (GAP_SLOW) setTimeout(function () { if (!started && late.indexOf(a) >= 0) { try { a.pause(); } catch (e) {} late = late.filter(function (x) { return x !== a; }); } }, CLIP_GIVEUP_MS);
+        // The 5 s give-up hands a slow line to the phone's voice; a phone with no voice for it (Urdu on Android) gets
+        // nothing from that, so its clip keeps the full 8 s (24 Nov 2026: 40 of 204 lost sittings lost only clips that started at 5-8 s).
+        var quick = GAP_SLOW && phoneReads();
+        setTimeout(function () { if (!started) fallback('stalled'); }, quick ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
+        if (quick) setTimeout(function () { if (!started && late.indexOf(a) >= 0) { try { a.pause(); } catch (e) {} late = late.filter(function (x) { return x !== a; }); } }, CLIP_GIVEUP_MS);
         var pr = a.play();
         if (pr && pr.catch) pr.catch(function (e) { fallback('reject', e); });
         return;
