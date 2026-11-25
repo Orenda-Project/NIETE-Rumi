@@ -20,6 +20,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -47,6 +48,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -74,6 +76,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -121,6 +124,7 @@
             }
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -199,6 +203,7 @@
             "footer": "And 3 more classes not shown here"
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -226,6 +231,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -253,6 +259,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -280,6 +287,7 @@
             ]
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -327,6 +335,7 @@
             }
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
@@ -405,6 +414,7 @@
             "footer": "مزید ۳ کلاسیں یہاں نہیں دکھائی گئیں"
           },
           {
+            "onError": "<function>",
             "onMessageId": "<function>"
           }
         ]
