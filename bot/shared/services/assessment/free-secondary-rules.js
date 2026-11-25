@@ -9,6 +9,8 @@
  * (A5b) and implausible distractors (A7b); each rule below answers one of those.
  */
 
+const { splitText } = require('./free-secondary-target');
+
 // Words per sentence and per MCQ stem (panel A2d), and the minutes a free paper is sized to (A5g).
 const BANDS = [
   { upTo: 8, sentence: 14, mcqStem: 25, minutes: 60 },
@@ -84,6 +86,16 @@ function sizeTypes(types, grade) {
   return { types: out, converted, light: plannedMinutes(out) > budget };
 }
 
+// bd-5jmnfj.38.43 (q304): FDE's split for the grade and subject when free-secondary-target has one; else the panel's.
+const PANEL_MIX = 'Of the paper\'s marks, aim for about 30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create.';
+const CREATE_NOTE = ' Create can be one small item or one part: design, propose or write something new from the lesson.';
+
+function mixSentence(split) {
+  if (!split || !split.levels) return PANEL_MIX + CREATE_NOTE;
+  return `Of the paper's marks, aim for about ${splitText(split.levels)}: FDE's split for this grade and subject (${split.source}).`
+    + (split.levels.C > 0 ? CREATE_NOTE : '');
+}
+
 function rulesBlock(grade, lessonTitle, opts = {}) {
   const b = bandOf(grade);
   const marks = opts.light
@@ -114,7 +126,7 @@ ONE FACT, ONE ITEM
 THINKING LEVELS
 - Every item carries "blooms": Remember, Understand, Apply, Analyze, Evaluate or Create: the level it really demands, on every item, not the level you were asked for.
 - An item in labelled parts also carries "part_levels": one level per part, in order (for parts (a), (b), (c): "part_levels": ["Understand", "Apply", "Create"]). Tag each part by what that part demands.
-- Of the paper's marks, aim for about 30% Remember, 30% Understand, 20% Apply, 10% Analyze or Evaluate and 10% Create. Create can be one small item or one part: design, propose or write something new from the lesson. Apply means using the lesson in a new situation the book does not describe; at least one written item does that.${levels}
+- ${mixSentence(opts.split)} Apply means using the lesson in a new situation the book does not describe; at least one written item does that.${levels}
 MARKING (every item that is not an MCQ)
 - Add "marking_points": [{"point": "<what earns the mark>", "marks": <number>}], one entry per mark or part, summing exactly to the item's marks.
 - ${SCHEME_RULE}
