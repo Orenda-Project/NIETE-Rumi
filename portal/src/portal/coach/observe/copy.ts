@@ -193,7 +193,7 @@ export const OBSERVE_COPY = {
    * to use their own recorders if their internet is not very good"), the upload-only line (a person the switch names),
    * and a recording kept on the phone for this teacher. "Upload recording" is the locked word. */
   weakInternet: "Weak internet? Record in your phone's Recorder app, then upload it here.",
-  uploadOnlyLine: "Record the lesson in your phone's Recorder app, then upload it here.",
+  uploadOnlyLine: "Record in your phone's Recorder app, then upload it here.",
   savedOnPhone: (name = '') => `${name}’s recording is saved on this phone.`,
   sendKept: 'Send saved recording',
   openingFile: 'Opening the recording…',
@@ -358,7 +358,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   handoffLine: (code = '') => (code ? `میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں (کوڈ ${code})` : 'میرا دورہ واٹس\u00A0ایپ پر جاری رکھیں'),
   // bd-oe6r47 / bd-ih6cej — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK); «اپ لوڈ» as in «ریکارڈنگ اپ لوڈ کریں».
   weakInternet: 'انٹرنیٹ کمزور ہے؟ فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
-  uploadOnlyLine: 'فون کی ریکارڈر ایپ میں سبق ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
+  uploadOnlyLine: 'فون کی ریکارڈر ایپ میں ریکارڈ کریں، پھر یہاں اپ لوڈ کریں۔',
   savedOnPhone: (name = '') => `${name} کی ریکارڈنگ اس فون میں محفوظ ہے۔`,
   sendKept: 'محفوظ ریکارڈنگ بھیجیں',
   openingFile: 'ریکارڈنگ کھل رہی ہے…',

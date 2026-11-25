@@ -9,6 +9,14 @@ import { dayShort, failureWords, lengthShort, observationLine } from "./format";
  * sentences, the locked vocabulary, "observation" and never "lesson" for the coach's observation.
  */
 describe("Observe copy", () => {
+  // bd-ih6cej: the recording-step lines speak of recording, never "lesson" (main's copy guard; one word set everywhere).
+  it("the recording-step lines never say 'lesson'", () => {
+    for (const lang of ["en"] as const) {
+      expect(OBSERVE[lang].weakInternet).not.toMatch(/lesson/i);
+      expect(OBSERVE[lang].uploadOnlyLine).not.toMatch(/lesson/i);
+    }
+  });
+
   it("the Urdu is complete: none empty, none still the English", () => {
     expect(untranslated(OBSERVE, SAME)).toEqual([]);
   });
