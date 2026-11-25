@@ -773,9 +773,11 @@ class AnalysisProcessorService {
       });
     } catch (err) {
       // Class N — degraded, not terminal: the analysis goes ahead, and the monitor still sees it.
-      require('../../utils/logger').logWarn('⚠️ observe duplicate check at analysis failed — analysing normally (non-fatal)', {
+      // bd-r2uzg1.23.5: the file's own logToFile at 'warn' (the same line, the same level), not a second require — a
+      // logger stub without logWarn turned this degraded path into a thrown error (the 18.4 Devanagari write test).
+      logToFile('⚠️ observe duplicate check at analysis failed — analysing normally (non-fatal)', {
         coachingSessionId: session.id, error: err && err.message,
-      });
+      }, 'warn');
       return false;
     }
   }
