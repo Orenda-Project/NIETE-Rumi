@@ -1,2 +1,3 @@
 {"ts":"2026-11-24T20:04:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"a0021584c6b0","branch":"bd-97daxo.34.7-staging","user":""}
 {"ts":"2026-11-24T20:04:56Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"a0021584c6b0","branch":"bd-97daxo.34.7-staging","user":""}
+{"ts":"2026-11-25T00:45:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"a0021584c6b0","branch":"bd-97daxo.34.7-staging","user":""}
