@@ -16,6 +16,9 @@
  *                    voice note, her coach when the school has more than one; Send pings the coach
  *                    (dashboard/services/coach-visit-request.js) and she goes back to the card (303, ?coach=).
  *
+ *   POST /cr/:token/time   bd-chz35n.25: the seconds the page was in view (report-page-time.js), only while
+ *                    report_delivery_fixes.time_on_page is on; off → 404, and the pages carry no script (today's bytes).
+ *
  * No link is sent until the report arm sends one (.19), so nothing changes for teachers when this ships.
  * The token is the credential: never logged; every answer is private and no-store. Rate limited per IP.
  */
@@ -30,6 +33,9 @@ const { firstNameOf } = require('../../bot/shared/utils/person-name');
 const useful = require('../services/coaching-useful');
 const coachVisit = require('../services/coach-visit-request');
 const videoReco = require('../services/video-reco-events');
+const pageTime = require('../services/report-page-time');
+const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
+const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -102,6 +108,10 @@ function createCoachingReportRouter(opts = {}) {
   const listCoaches = opts.coachesFor || ((userId) => coachVisit.coachesFor(db(), userId));
   const coachesFor = async (userId) => { try { return (await listCoaches(userId)) || []; } catch (_) { return []; } };
   const requestVisit = opts.requestVisit || ((args) => coachVisit.requestVisit(db(), args));
+  // bd-chz35n.25: report_delivery_fixes, read through the portal's own client; any failure is off.
+  const switchCache = cachedSwitch({ ttlMs: 30 * 1000, off: () => ({ ...deliveryFixes.OFF }), read: () => deliveryFixes.fetchFrom(db()) });
+  const readSwitch = opts.deliverySwitch || ((now) => switchCache.get(now));
+  const timeOnPage = async () => { try { return (await readSwitch()).timeOnPage === true; } catch (_) { return false; } };
   const router = express.Router();
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -147,13 +157,24 @@ function createCoachingReportRouter(opts = {}) {
     const view = buildReportView(data);
     const links = { card: `${REPORT_PATH}/${token}`, detail: `${REPORT_PATH}/${token}/detail`, useful: `${REPORT_PATH}/${token}/useful` };
     log({ outcome: 'ok', sessionId, userId, language: view.language, screen });
-    if (screen === 'detail') return res.status(200).type('html').send(renderDetailPage(view, links));
+    const timed = await timeOnPage();
+    const send = (html) => res.status(200).type('html').send(timed ? pageTime.withTiming(html, `${REPORT_PATH}/${token}/time`, screen) : html);
+    if (screen === 'detail') return send(renderDetailPage(view, links));
     const state = USEFUL_STATES.has(req.query.useful) ? req.query.useful : undefined;
     const group = await groupOf(userId);
     if (COACH_GROUPS.has(group)) links.coach = `${REPORT_PATH}/${token}/coach`;
     const coachState = COACH_STATES.has(req.query.coach) ? req.query.coach : undefined;
     if (!state) log({ coachingSessionId: sessionId, userId, group, channel: 'page' }, 'coaching.useful.asked');
-    return res.status(200).type('html').send(renderReportPage(view, process.env, links, state, coachState));
+    return send(renderReportPage(view, process.env, links, state, coachState));
+  };
+
+  const timeAnswer = async (req, res) => {
+    if (!(await timeOnPage())) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const v = verified(String(req.params.token || ''), res);
+    if (!v) return undefined;
+    const t = pageTime.parseTime(req.body);
+    if (t) log({ sessionId: v.sessionId, userId: v.userId, screen: t.screen, ms: t.ms }, 'coaching.report_page.time');
+    return res.status(204).end();
   };
 
   const answer = async (req, res) => {
@@ -229,6 +250,7 @@ function createCoachingReportRouter(opts = {}) {
   router.get(`${REPORT_PATH}/:token`, privateHeaders, limiter, serve('card'));
   router.get(`${REPORT_PATH}/:token/detail`, privateHeaders, limiter, serve('detail'));
   router.post(`${REPORT_PATH}/:token/useful`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '8kb' }), answer);
+  router.post(`${REPORT_PATH}/:token/time`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '1kb' }), timeAnswer);
   router.get(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, coachPage);
   // 2 MB: a 20-second voice note arrives as base64 in the form.
   router.post(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '2mb' }), coachAnswer);
