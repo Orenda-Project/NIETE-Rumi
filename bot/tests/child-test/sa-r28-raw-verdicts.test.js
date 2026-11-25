@@ -9,6 +9,9 @@
  * the echo override, where it is the phone's own question by construction: a coach-led clip's transcript (an adult's
  * words, a child's name) never enters the marks. No mark changes; OFF stores nothing new. Only the clip, speech-to-text and
  * the model are stand-ins; every fixture is synthetic.
+ * Letter names (like letter sounds) take sa_r28_letter_gate's voice-activity check in place of speech-to-text's word
+ * count, so their gate keys are the voice check's numbers (vad_*, clip_s), never stt_words; the speech-to-text keys are
+ * asserted on the tasks that keep the speech-to-text gate (words, passage, spoken maths, questions).
  */
 
 jest.mock('../../shared/config/supabase', () => ({ from: () => { throw new Error('no db in this test'); } }));
@@ -64,6 +67,13 @@ function standIns({ dur = 3, stt = '', found = true, question = null } = {}) {
   };
 }
 const NEW = ['raw_verdict', 'raw_heard', 'stt_words', 'stt_text', 'clip_s', 'reason'];
+// 16 kHz PCM for the voice check: 3 s of silence, or three short 220 Hz sounds (0.4 s each) over the silence
+const RATE = 16000;
+const pcmOf = (voiced) => async () => {
+  const out = new Int16Array(3 * RATE);
+  if (voiced) for (let i = 0; i < out.length; i += 1) { const t = i / RATE; if ([[0.3, 0.7], [1.2, 1.6], [2.1, 2.5]].some(([a, b]) => t >= a && t < b)) out[i] = Math.round(0.3 * Math.sin(2 * Math.PI * 220 * t) * 32767); }
+  return { samples: out, rate: RATE };
+};
 const noNewKeys = (got) => got.marks.detail.items.forEach((i) => NEW.forEach((k) => expect(i).not.toHaveProperty(k)));
 const ON = { letterGate: true };
 
@@ -75,22 +85,28 @@ describe('E-11: a gate override keeps what the model and speech-to-text said', (
   });
   afterEach(() => { process.env = { ...before }; });
 
-  test('speech gate mute (letter names, STT 0 words): ON stores reason, stt_words, clip_s and never stt_text; OFF nothing new', async () => {
-    const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns(), ...ON });
-    on.marks.detail.items.forEach((i) => expect(i).toMatchObject({ verdict: 'not_reached', no_speech: true, reason: 'no_words', stt_words: 0, clip_s: 3 }));
-    on.marks.detail.items.forEach((i) => expect(i).not.toHaveProperty('stt_text'));
+  test('speech gate mute (letter names, no voice heard): ON stores reason no_voice, the voice check\'s numbers and clip_s, never stt_words / stt_text; OFF nothing new', async () => {
+    const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns(), pcmOf: pcmOf(false), ...ON });
+    on.marks.detail.items.forEach((i) => expect(i).toMatchObject({ verdict: 'not_reached', no_speech: true, reason: 'no_voice', vad_pass: false, clip_s: 3 }));
+    on.marks.detail.items.forEach((i) => { expect(i).not.toHaveProperty('stt_text'); expect(i).not.toHaveProperty('stt_words'); });
     expect(on.marks.detail.items[0]).not.toHaveProperty('raw_verdict');
     noNewKeys(await score.scoreRow(row('ur.letter_names5'), session(), standIns()));
   });
 
-  test("the model's found:false (letter names, STT heard words): ON stores reason 'found_false', raw_verdict / raw_heard per item and the STT word count, never the transcript", async () => {
+  test('speech gate mute (words, STT 0 words): ON stores reason, stt_words, clip_s and never stt_text', async () => {
+    const on = await score.scoreRow(row('ur.words4'), session(), { ...standIns(), ...ON });
+    on.marks.detail.items.forEach((i) => expect(i).toMatchObject({ verdict: 'not_reached', no_speech: true, reason: 'no_words', stt_words: 0, clip_s: 3 }));
+    on.marks.detail.items.forEach((i) => expect(i).not.toHaveProperty('stt_text'));
+  });
+
+  test("the model's found:false (letter names, a voice heard): ON stores reason 'found_false', raw_verdict / raw_heard per item and the voice check's numbers, never the transcript", async () => {
     const s = standIns({ stt: 'دال جیم', found: false });
-    const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...s, ...ON });
+    const on = await score.scoreRow(row('ur.letter_names5'), session(), { ...s, pcmOf: pcmOf(true), ...ON });
     expect(on.marks.correct).toBe(0);
     expect(on.marks.detail.items.map((i) => [i.verdict, i.raw_verdict, i.raw_heard])).toEqual([
       ['not_reached', 'wrong', 'h1'], ['not_reached', 'correct', 'h2'], ['not_reached', 'correct', 'h3'], ['not_reached', 'correct', 'h4'], ['not_reached', 'correct', 'h5']]);
-    expect(on.marks.detail.items[0]).toMatchObject({ reason: 'found_false', stt_words: 2, clip_s: 3 });
-    on.marks.detail.items.forEach((i) => { expect(i.reason).toBe('found_false'); expect(i).not.toHaveProperty('stt_text'); });
+    expect(on.marks.detail.items[0]).toMatchObject({ reason: 'found_false', vad_pass: true, clip_s: 3 });
+    on.marks.detail.items.forEach((i) => { expect(i.reason).toBe('found_false'); expect(i).not.toHaveProperty('stt_text'); expect(i).not.toHaveProperty('stt_words'); });
     noNewKeys(await score.scoreRow(row('ur.letter_names5'), session(), s));
   });
 
@@ -136,12 +152,21 @@ describe('E-11: a gate override keeps what the model and speech-to-text said', (
     expect(on.marks.detail.items[0]).toMatchObject({ verdict: 'no_answer', echo: true, stt_words: 100 });
     expect(Array.from(on.marks.detail.items[0].stt_text)).toHaveLength(80);
     expect(long.startsWith(on.marks.detail.items[0].stt_text)).toBe(true);
-    // the same long transcript on a letter-names found:false or a speech-gate mute leaves only its word count
-    const names = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: long, found: false }), ...ON });
-    names.marks.detail.items.forEach((i) => { expect(i.stt_words).toBe(100); expect(i).not.toHaveProperty('stt_text'); });
+    // the same long transcript on a spoken-maths found:false leaves only its word count
+    const sums = await score.scoreRow(row('ma.add2i'), session(), { ...standIns({ stt: long, found: false }), ...ON });
+    sums.marks.detail.items.forEach((i) => { expect(i.stt_words).toBe(100); expect(i).not.toHaveProperty('stt_text'); });
+    // and on letter names (the voice check, no speech-to-text) no transcript and no word count at all
+    const names = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: long, found: false }), pcmOf: pcmOf(true), ...ON });
+    names.marks.detail.items.forEach((i) => { expect(i).not.toHaveProperty('stt_words'); expect(i).not.toHaveProperty('stt_text'); });
   });
 
   test('ON with no override (the model marks stand): no new keys', async () => {
-    noNewKeys(await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: 'دال' }), ...ON }));
+    noNewKeys(await score.scoreRow(row('ur.words4'), session(), { ...standIns({ stt: 'بچہ' }), ...ON }));
+    // letter names keep the voice check's numbers on every item, as letter sounds do, and nothing an override adds
+    const names = await score.scoreRow(row('ur.letter_names5'), session(), { ...standIns({ stt: 'دال' }), pcmOf: pcmOf(true), ...ON });
+    names.marks.detail.items.forEach((i) => {
+      expect(i).toMatchObject({ vad_pass: true, clip_s: 3 });
+      ['raw_verdict', 'raw_heard', 'stt_words', 'stt_text', 'reason'].forEach((k) => expect(i).not.toHaveProperty(k));
+    });
   });
 });
