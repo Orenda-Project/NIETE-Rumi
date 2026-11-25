@@ -135,6 +135,15 @@ describe('bd-lfzoz — portal coaching upload (bot side)', () => {
       expect(d.queue.queueTranscription).not.toHaveBeenCalled();
     });
 
+    // bd-r2uzg1.23.5 (queue #274, call 6A): an empty recording is refused, not analysed three times.
+    test('refuses an empty recording (0 bytes) before anything is written or queued', async () => {
+      const d = deps({ r2: { headObject: jest.fn().mockResolvedValue({ exists: true, sizeBytes: 0 }) } });
+      const out = await Svc.startPortalSession({ userId: USER, key }, d);
+      expect(out).toMatchObject({ status: 'invalid', reason: 'recording_empty' });
+      expect(d.supabase.writes.inserts).toHaveLength(0);
+      expect(d.queue.queueTranscription).not.toHaveBeenCalled();
+    });
+
     test('refuses when the browser never finished the upload', async () => {
       const d = deps({ r2: { headObject: jest.fn().mockResolvedValue({ exists: false }) } });
       const out = await Svc.startPortalSession({ userId: USER, key }, d);

@@ -103,6 +103,15 @@ async function submitted() {
 const failed = (detail: SendDetail) => new SendError("network", undefined, undefined, detail);
 const audioPart = { kind: "audio" as const, photo: 0 };
 
+describe("an empty recording (bd-r2uzg1.23.5, queue #274 call 6A)", () => {
+  it("says the recording did not reach us complete, in the operator's words", async () => {
+    sendLesson.mockRejectedValueOnce(new SendError("empty_recording"));
+    await submitted();
+    const card = await screen.findByRole("alert");
+    expect(within(card).getByText("This recording didn't reach us complete. Record or upload it again.")).toBeTruthy();
+  });
+});
+
 describe("a failed Submit on the one screen (bd-bmc9a0.1)", () => {
   it("the recording did not go and the phone is online: it names the recording, never 'No internet'", async () => {
     sendLesson.mockRejectedValueOnce(failed({ part: audioPart, offline: false, unreadable: false }));
