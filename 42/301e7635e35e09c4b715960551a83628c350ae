@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T01:57:50Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan,coaching spec_sync=true","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
+{"ts":"2026-11-25T01:58:31Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: attendance,child-test,portal-login,teacher-home,coach-portal,leader-portal owe their Gherkin","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
