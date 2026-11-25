@@ -890,11 +890,25 @@ async function confirmFromDb(ids) {
   return data || [];
 }
 
-async function postToSlack(text, slack) {
+/**
+ * One chat.postMessage. `opts` (the production incident watch uses them; a plain call is unchanged):
+ *   color          a colour bar — the text rides as one attachment, its first line the notification text
+ *   thread_ts      reply in that message's thread
+ *   reply_broadcast  a thread reply that also shows in the channel
+ */
+async function postToSlack(text, slack, opts = {}) {
+  const payload = { channel: slack.channel, text, unfurl_links: false };
+  if (opts.color) {
+    const fallback = String(text).split('\n')[0].replace(/[*_]/g, '').trim();
+    delete payload.text;
+    payload.attachments = [{ color: opts.color, text, fallback, mrkdwn_in: ['text'] }];
+  }
+  if (opts.thread_ts) payload.thread_ts = opts.thread_ts;
+  if (opts.thread_ts && opts.reply_broadcast) payload.reply_broadcast = true;
   const res = await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${slack.token}`, 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ channel: slack.channel, text, unfurl_links: false }),
+    body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
   if (!body.ok) throw new Error(`slack ${body.error || res.status}`);
