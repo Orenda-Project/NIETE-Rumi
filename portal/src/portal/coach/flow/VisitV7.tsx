@@ -96,17 +96,27 @@ export function DebriefStage({ to, due }: { to: string; due?: ReactNode }) {
  * screen while she reads, above the menu and the phone's safe area (TeacherPage's sticky dock: in flow, so the last note
  * scrolls clear of it). Record is the dark button with the red recording dot; Upload sits beside it.
  */
-export function DebriefDock({ onRecord, onUpload, recordLabel }: { onRecord: () => void; onUpload: () => void; recordLabel?: string }) {
+/**
+ * bd-ih6cej — `tip`: one line above the buttons (the weak-internet advice, or how to record before uploading). No
+ * `onRecord` (upload-only): Upload recording alone, full width.
+ */
+export function DebriefDock({ onRecord, onUpload, tip }: { onRecord?: () => void; onUpload: () => void; tip?: string }) {
   const W = useCopy(FLOW_V7) as FlowV7Copy;
   return (
-    <div data-testid="debrief-dock" className="flex w-full gap-2.5">
-      <button type="button" onClick={onRecord} className={cn(BIG, "flex-[3] bg-[#33374a] text-white shadow-[0_4px_12px_rgba(16,24,40,0.18)]", FOCUS)}>
-        <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
-        {recordLabel || W.recordDebrief}
-      </button>
-      <button type="button" onClick={onUpload} className={cn(BIG, "flex-[2] border border-[#e5e7eb] bg-white text-[#33374a]", FOCUS)}>
-        <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
-      </button>
+    <div data-testid="debrief-dock" className="flex w-full flex-col gap-2">
+      {tip && <p data-testid="record-tip" className="m-0 text-center text-[14px] leading-snug text-[#4b5563]">{tip}</p>}
+      <div className="flex w-full gap-2.5">
+        {onRecord && (
+          <button type="button" onClick={onRecord} className={cn(BIG, "flex-[3] bg-[#33374a] text-white shadow-[0_4px_12px_rgba(16,24,40,0.18)]", FOCUS)}>
+            <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#ff4d3d] shadow-[0_0_0_3px_rgba(255,77,61,0.25)]" />
+            {W.recordDebrief}
+          </button>
+        )}
+        <button type="button" onClick={onUpload}
+          className={cn(BIG, onRecord ? "flex-[2] border border-[#e5e7eb] bg-white text-[#33374a]" : "flex-1 bg-[#33374a] text-white", FOCUS)}>
+          <Upload className="h-5 w-5 shrink-0" aria-hidden="true" /><UploadWord />
+        </button>
+      </div>
     </div>
   );
 }

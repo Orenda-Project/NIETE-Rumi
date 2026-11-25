@@ -4,11 +4,12 @@
  * coach records with the phone's own recorder and uploads the file. The operator, 25 Nov: "until we are completely
  * sure ... the recordings don't go away if you have bad internet ... we only give the upload recording button".
  *
- * DEFAULT ON, the opposite of the usual fail-closed switch: the safe side here is upload-only (the audio stays in the
- * phone's recorder app whatever the internet does), so no row, a malformed value or a failed read all say ON. Only a
- * deliberate `false` (or "off") gives everyone the web recorder back; a list of users.id narrows it to those users.
+ * bd-ih6cej (the operator 25 Nov ~17:20: "Actually on second thought, give both the options again. But advise whoever is
+ * using to use their own recorders if their internet is not very good.") — OFF for all again: the in-app recorder is
+ * back, with Upload recording and a weak-internet line beside it. The switch is now the usual fail-closed kind: no row,
+ * a malformed value or a failed read = OFF; true = everyone upload-only; a list of users.id = upload-only for those.
  *
- * /api/portal/config carries it as `features.observeUploadOnly`; its error fallback says true.
+ * /api/portal/config carries it as `features.observeUploadOnly`; its error fallback says false.
  */
 let settings;
 
@@ -63,7 +64,7 @@ async function getConfig({ userId = 'hina', sessionThrows = false } = {}) {
 
 const { PORTAL_OBSERVE_UPLOAD_ONLY_KEY, isObserveUploadOnlyFor } = require('../../dashboard/lib/feature-flags');
 
-describe('portal_observe_upload_only — the key and its reader', () => {
+describe('portal_observe_upload_only — the key and its reader (fail-closed since bd-ih6cej)', () => {
   test('its own app_settings key', () => {
     expect(PORTAL_OBSERVE_UPLOAD_ONLY_KEY).toBe('portal_observe_upload_only');
   });
@@ -76,17 +77,17 @@ describe('portal_observe_upload_only — the key and its reader', () => {
     return chain;
   }
 
-  test('no row, true, "true", "on", an object or a number: ON (the safe side)', async () => {
-    for (const row of [null, { value: true }, { value: 'true' }, { value: 'on' }, { value: { a: 1 } }, { value: 7 }]) {
+  test('no row, false, "off", an object or a number: OFF (the in-app recorder for everyone)', async () => {
+    for (const row of [null, { value: false }, { value: 'off' }, { value: { a: 1 } }, { value: 7 }]) {
       // eslint-disable-next-line no-await-in-loop
-      expect(await isObserveUploadOnlyFor(sb(row), 'u-' + Math.random())).toBe(true);
+      expect(await isObserveUploadOnlyFor(sb(row), 'u-' + Math.random())).toBe(false);
     }
   });
 
-  test('false, "false" or "off": OFF for everyone (the web recorder back)', async () => {
-    for (const row of [{ value: false }, { value: 'false' }, { value: '"off"' }, { value: 'off' }]) {
+  test('true or "true": ON for everyone (upload-only)', async () => {
+    for (const row of [{ value: true }, { value: 'true' }]) {
       // eslint-disable-next-line no-await-in-loop
-      expect(await isObserveUploadOnlyFor(sb(row), 'u-' + Math.random())).toBe(false);
+      expect(await isObserveUploadOnlyFor(sb(row), 'u-' + Math.random())).toBe(true);
     }
   });
 
@@ -95,9 +96,9 @@ describe('portal_observe_upload_only — the key and its reader', () => {
     expect(await isObserveUploadOnlyFor(sb({ value: ['hina'] }), 'other')).toBe(false);
   });
 
-  test('a failed read, or a client that throws: ON', async () => {
-    expect(await isObserveUploadOnlyFor(sb(null, { message: 'down' }), 'u-err')).toBe(true);
-    expect(await isObserveUploadOnlyFor({ from: () => { throw new Error('boom'); } }, 'u-throw')).toBe(true);
+  test('a failed read, or a client that throws: OFF', async () => {
+    expect(await isObserveUploadOnlyFor(sb(null, { message: 'down' }), 'u-err')).toBe(false);
+    expect(await isObserveUploadOnlyFor({ from: () => { throw new Error('boom'); } }, 'u-throw')).toBe(false);
   });
 });
 
@@ -114,13 +115,13 @@ describe('GET /config — features.observeUploadOnly', () => {
   });
   afterEach(() => jest.resetModules());
 
-  test('no row: true for a coach (default ON)', async () => {
-    expect((await getConfig({ userId: 'hina' })).payload.features).toHaveProperty('observeUploadOnly', true);
+  test('no row: false for a coach (the in-app recorder is back)', async () => {
+    expect((await getConfig({ userId: 'hina' })).payload.features).toHaveProperty('observeUploadOnly', false);
   });
 
-  test('false: false (the web recorder back for everyone)', async () => {
-    settings.portal_observe_upload_only = false;
-    expect((await getConfig({ userId: 'hina' })).payload.features.observeUploadOnly).toBe(false);
+  test('true: true (upload-only for everyone)', async () => {
+    settings.portal_observe_upload_only = true;
+    expect((await getConfig({ userId: 'hina' })).payload.features.observeUploadOnly).toBe(true);
   });
 
   test('a list: true for the one it names, false for another', async () => {
@@ -129,10 +130,10 @@ describe('GET /config — features.observeUploadOnly', () => {
     expect((await getConfig({ userId: 'other-coach' })).payload.features.observeUploadOnly).toBe(false);
   });
 
-  test('the error fallback says observeUploadOnly: true', async () => {
-    settings.portal_observe_upload_only = false;
+  test('the error fallback says observeUploadOnly: false', async () => {
+    settings.portal_observe_upload_only = true;
     const { statusCode, payload } = await getConfig({ sessionThrows: true });
     expect(statusCode).toBe(200);
-    expect(payload.features).toHaveProperty('observeUploadOnly', true);
+    expect(payload.features).toHaveProperty('observeUploadOnly', false);
   });
 });
