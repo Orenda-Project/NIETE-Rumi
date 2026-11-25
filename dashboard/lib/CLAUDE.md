@@ -16,7 +16,7 @@ Full index: `CLAUDE.index.md`
 | `feature-flags.js` | Fail-closed feature flags backed by app_settings, shared by bot and dashboard so both surfaces give one answer; bd-2460. |
 | `portal*` | 3 files; most used `portal-auth.js`: (unmapped) |
 | `teacher-app.js` | (unmapped) |
-| `leader-role.js` | Middleware gating the Leader Portal (My Patch, roster) to the school-leader role family; bd-2434, port of bd-2385. |
+| `leader-role.js` | Middleware gating the Leader Portal (My Patch, roster) to the school-leader role family. |
 | … | 30 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)

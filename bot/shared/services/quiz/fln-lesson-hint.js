@@ -16,6 +16,8 @@ const { logToFile } = require('../../utils/logger');
 const { bookForSubject, pickFlnLesson, BEFORE_MS, AFTER_MS } = require('../fln-lesson-key');
 
 const MAX_ROWS = 50;
+// The teacher key, never the raw id, on a log line (tests/setup/log-raw-ids.test.js); lazy, so a failed load is null.
+const tkOf = (userId) => { try { return require('./web-quiz-kid').tk(userId); } catch (_) { return null; } };
 
 async function flnLessonFor({ userId, sessionCreatedAt, subject }) {
   const book = bookForSubject(subject);
@@ -35,7 +37,7 @@ async function flnLessonFor({ userId, sessionCreatedAt, subject }) {
     if (error || !Array.isArray(data)) return null;
     return pickFlnLesson(data, { book });
   } catch (err) {
-    logToFile('⚠️ transcript quiz: fln lesson lookup failed (non-fatal)', { userId, error: err.message });
+    logToFile('⚠️ transcript quiz: fln lesson lookup failed (non-fatal)', { tk: tkOf(userId), error: err.message });
     return null;
   }
 }

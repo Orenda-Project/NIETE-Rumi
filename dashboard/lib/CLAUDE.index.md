@@ -23,7 +23,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `final-error-handler.js` | Last Express error handler: handles malformed JSON bodies and renders error pages safely; bd-nmwmr4.2. |
 | `fln-access.js` | Single access rule for Reading Hour and Numeracy (FLN): portal_fln_lessons and portal_fln_share switches per user. |
 | `health.js` | GET /health handler including db_writable check so a read-only DB is caught by deploy proof; bd-sex15q.19. |
-| `leader-role.js` | Middleware gating the Leader Portal (My Patch, roster) to the school-leader role family; bd-2434, port of bd-2385. |
+| `leader-role.js` | Middleware gating the Leader Portal (My Patch, roster) to the school-leader role family. |
 | `lesson-plan-file.js` | Relays a lesson-plan PDF from storage through the portal's own origin so the in-app pdf.js viewer works; bd-5rz1v.10. |
 | `local-dev.js` | Laptop-only tweaks (no SSL to loopback DB, relaxed session cookie) for scripts/dev-portal.sh; no-op in prod. |
 | `lp-app-switches.js` | (unmapped) |
