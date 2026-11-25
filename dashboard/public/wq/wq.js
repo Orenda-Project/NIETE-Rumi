@@ -2432,6 +2432,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = (retry && oneB() ? bar() + '<div class="wq-dotrow wq-2nd"><span class="wq-chip">' + esc(T.second) + '</span></div>' : bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i))) +
       (retry ? '' : qRow(i, T.qof(i + 1, N))) +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
+      (window.WQW ? WQW.html(q) : '') + // Urdu word help (bd-0q8b4x): '' unless the quiz carries words
       '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>' + WQI.rewatchHtml(B.video, T);
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
