@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T16:13:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,portal-smoke spec_sync=true","sha":"17b3198f6f51","branch":"bd-ke5dtg-22697","user":""}
+{"ts":"2026-11-25T16:13:32Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,portal-smoke owe their Gherkin","sha":"17b3198f6f51","branch":"bd-ke5dtg-22697","user":""}
