@@ -119,7 +119,11 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   // written for the teacher who recorded herself. A "?" after Download on HER own DC report scored on FICO17 v6
   // (the stored rubric's label, "FICO17 v6" / "FICO17 v6.1"): never a V3 report, a coach visit's, or one still loading.
   const guideButton = showsDcGuide(detail) ? <DcGuideButton /> : null;
-  const action = downloadButton || guideButton ? <>{downloadButton}{guideButton}</> : undefined;
+  // Queue #282 prod smoke (25 Nov): side by side, the two left the title ~150 px at 360 px and it broke mid-word, so
+  // with both they stack in one column and the title keeps today's width.
+  const action = downloadButton && guideButton
+    ? <div data-testid="report-actions" className="flex flex-col items-center gap-2">{downloadButton}{guideButton}</div>
+    : (downloadButton || guideButton || undefined);
 
   const closeSession = () => {
     setClosed(true);

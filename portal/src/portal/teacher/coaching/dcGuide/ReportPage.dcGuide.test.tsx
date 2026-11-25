@@ -82,6 +82,20 @@ describe("the '?' on her report page", () => {
     expect((await within(tray).findAllByTestId("dc-guide-card")).length).toBe(11);
   });
 
+  // Queue #282 prod smoke (25 Nov): with Download AND the "?" side by side, the title had ~150 px at 360 px and
+  // "Patterns and Sequences" broke mid-word. The two buttons stack in one column, so the title keeps today's width.
+  it("Download and the '?' stack in one column, so the title keeps its width at phone size", async () => {
+    ready(DETAIL);
+    open();
+    const q = await screen.findByTestId("dc-guide-button");
+    const header = q.closest("header")!;
+    const download = within(header).getByRole("button", { name: C.download });
+    const column = q.closest('[data-testid="report-actions"]') as HTMLElement | null;
+    expect(column).not.toBeNull();
+    expect(column!.contains(download)).toBe(true);
+    expect(column!.className).toMatch(/\bflex-col\b/);
+  });
+
   it("FICO17 v6.1 (a minor version) too", async () => {
     ready({ ...DETAIL, rubric: "FICO17 v6.1" });
     open();
