@@ -198,10 +198,12 @@ function summarizeSchoolAnalytics(sessions, opts = {}) {
 
   return {
     // Scored sessions of BOTH kinds, as before: a session with no usable score
-    // is skipped, never counted as a zero.
+    // is skipped, never counted as a zero. Queue #282 / bd-ra8xu.64.2: a session
+    // scored on a rubric of its own (FICO17 v6, getOverall's `rubric`) is a
+    // scored session too: counted here, never averaged.
     totalSessions: all.filter((x) => {
       const o = x.analysis_data ? getOverall(x.analysis_data) : null;
-      return o && o.percentage != null && Number.isFinite(o.maxPoints) && o.maxPoints > 0;
+      return !!o && (!!o.rubric || (o.percentage != null && Number.isFinite(o.maxPoints) && o.maxPoints > 0));
     }).length,
     humanObservations: list.length,
     digitalCoachObservations: all.length - list.length,

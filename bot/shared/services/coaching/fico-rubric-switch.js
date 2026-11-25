@@ -44,6 +44,12 @@ const DC_KEY = 'fico_dc_rubric';
 // observer) or self-recordings (the teacher): frameworks/fico17-v6-framework.js starredVariant.
 const STARRED_SETTING = 'fico_v6_starred';
 const STARRED_VALUES = ['off', 'on'];
+// Queue #282: which grades the DC's v6 (the 11) reaches when fico_dc_rubric says 'v6' for a teacher. 'primary' (the
+// default, and on any failure): grades 1-5 only (the operator, 11 Nov: "for primary, both HITL and DC is FICO v6").
+// 'all': grades 6-12 too. Not decided for the DC yet (19 Nov: "That would be a follow up"), so it is a row, not code.
+const GRADES_KEY = 'fico_dc_grades';
+const GRADES_VALUES = ['primary', 'all'];
+const GRADES_OFF = 'primary';
 const TTL_MS = 30 * 1000;
 
 const COACH_VALUES = ['current', 'v6'];
@@ -76,12 +82,17 @@ function asMap(value) {
 
 const cache = cachedSwitch({
   ttlMs: TTL_MS,
-  off: () => ({ coach: {}, dc: {}, starred: {} }),
+  off: () => ({ coach: {}, dc: {}, starred: {}, grades: {} }),
   read: async () => {
-    const { data, error } = await supabase.from('app_settings').select('key,value').in('key', [COACH_KEY, DC_KEY, STARRED_SETTING]);
+    const { data, error } = await supabase.from('app_settings').select('key,value').in('key', [COACH_KEY, DC_KEY, STARRED_SETTING, GRADES_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const byKey = new Map((data || []).map((r) => [r.key, r.value]));
-    return { coach: asMap(byKey.get(COACH_KEY)), dc: asMap(byKey.get(DC_KEY)), starred: asMap(byKey.get(STARRED_SETTING)) };
+    return {
+      coach: asMap(byKey.get(COACH_KEY)),
+      dc: asMap(byKey.get(DC_KEY)),
+      starred: asMap(byKey.get(STARRED_SETTING)),
+      grades: asMap(byKey.get(GRADES_KEY)),
+    };
   },
   log: (err) => logToFile('fico rubric switch: settings lookup failed — treating as off', { error: err.message }, 'error'),
 });
@@ -204,6 +215,20 @@ async function v6Starred(who = {}, now = Date.now()) {
 }
 
 /**
+ * Queue #282: 'all' when this teacher's v6 DC may score grades 6-12 too, else 'primary'. Never throws: 'primary' on any
+ * failure, and no region lookup while the setting has no value anywhere.
+ */
+async function dcGrades(who = {}, now = Date.now()) {
+  try {
+    const { grades } = await cache.get(now);
+    if (!grades || !Object.keys(grades).length) return GRADES_OFF;
+    return await pickFor(grades, who, GRADES_VALUES, GRADES_OFF);
+  } catch (_) {
+    return GRADES_OFF;
+  }
+}
+
+/**
  * Whether a switch has any value at all (cheap: the cached row only). Callers skip their own lookups (a user's
  * region) when it is false, so the default-off path costs no more than one cached settings read.
  */
@@ -245,7 +270,7 @@ async function roleOfUser(userId) {
 function _resetCache() { cache.reset(); }
 
 module.exports = {
-  COACH_KEY, DC_KEY, STARRED_SETTING, COACH_VALUES, DC_VALUES, COACH_OFF, DC_OFF,
-  asMap, resolve, pickFor, coachRubric, dcRubric, v6Starred, isAnySet, regionOfUser, roleOfUser, _resetCache,
+  COACH_KEY, DC_KEY, STARRED_SETTING, GRADES_KEY, COACH_VALUES, DC_VALUES, GRADES_VALUES, COACH_OFF, DC_OFF, GRADES_OFF,
+  asMap, resolve, pickFor, coachRubric, dcRubric, dcGrades, v6Starred, isAnySet, regionOfUser, roleOfUser, _resetCache,
   COACH_ROLE, isCoachRole, knownRole,
 };

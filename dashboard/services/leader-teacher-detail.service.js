@@ -17,7 +17,7 @@
 
 // bd-33wxxi.1 — every principal check reads the role through one helper.
 const { isPrincipalRole } = require('../lib/leader-role');
-const { getOverall } = require('./coaching-frameworks.service');
+const { getOverall, isOwnRubric } = require('./coaching-frameworks.service');
 // bd-2671's TERMINAL, imported rather than respelled. A leader observation never
 // reaches status='completed' — the coach submits her review and observer_review_complete
 // IS the end state — so this service's own `status = 'completed'` filter hid 629 of
@@ -131,8 +131,19 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = 
       // p90 606), naming a strength and a growth area in prose. No new column,
       // no generation step. Null on sessions written before the field existed.
       summary: summaryOf(s.analysis_data),
+      // queue #282 / bd-ra8xu.64.2: scored on a rubric of its own (FICO17 v6); internal, dropped before the payload.
+      own: isOwnRubric(s.analysis_data),
     };
   });
+  // The header's written line — the newest summary that actually has one, rather than the newest session, so one
+  // summary-less session does not blank a teacher who has plenty of written feedback behind it.
+  // Queue #282 / bd-ra8xu.64.2: except behind a newest session on a rubric of its own (FICO17 v6). Most have no
+  // summary (none is written unless she reflects), and reaching back showed an older V3 lesson's summary as her
+  // latest. Then it is that session's own summary, or none.
+  const newest = sessions[0];
+  const lastSummary = newest && newest.own
+    ? newest.summary
+    : (sessions.find((x) => x.summary) || {}).summary || null;
   const counts = (countRows && countRows[0]) || {};
 
   return {
@@ -142,12 +153,9 @@ async function getPatchTeacherDetail(query, leaderUserId, teacherUserId, opts = 
       lessonPlans: Number(counts.lesson_plans) || 0,
       readingAssessments: Number(counts.reading_assessments) || 0,
       lastScore: sessions.length ? sessions[0].score : null,
-      // The header's written line — the newest summary that actually has one,
-      // rather than the newest session, so one summary-less session does not
-      // blank a teacher who has plenty of written feedback behind it.
-      lastSummary: (sessions.find((x) => x.summary) || {}).summary || null,
+      lastSummary,
     },
-    sessions,
+    sessions: sessions.map(({ own, ...x }) => x),
   };
 }
 

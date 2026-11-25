@@ -392,10 +392,11 @@ function getScoringConstants() {
 // nothing for them (no combined_evidence, no D2 count); it names them in `starred`. The coach sets them as today.
 // Behind app_settings.fico_v6_starred (coaching/fico-s-switch.js isV6StarredOn), OFF by default; off, nothing changes.
 const STARRED_PROMPT_VERSION = `fico17-v6-dc-2s+${v6.RUBRIC_SHA8}`;
-const STARRED_SCHEMA = () => `{
+// The levels-only schema and prompt (no evidence part), for the codes asked. Starred mode and the 11-only mode share them.
+const levelsOnlySchema = (asked) => `{
   "rubric": "fico17_v6",
   "levels": {
-${v6.DC_CODES.filter((c) => !v6.isStarred(c)).map((c, i) => (i === 0
+${asked.map((c, i) => (i === 0
     ? `    "${c}": {"result": 3, "because": "one short line on why this level", "evidence": [{"time": "12:40", "quote": "exact words from the transcript"}]}`
     : `    "${c}": {...}`)).join(',\n')}
   }
@@ -404,10 +405,8 @@ ${v6.DC_CODES.filter((c) => !v6.isStarred(c)).map((c, i) => (i === 0
 - Every "time" is MM:SS from the transcript; every "quote" is copied exactly from the transcript line at that time.`;
 let _starredCached = null;
 
-function getStarredSystemPrompt() {
-  if (_starredCached && _starredCached.version === STARRED_PROMPT_VERSION) return _starredCached.prompt;
-  const asked = v6.DC_CODES.filter((c) => !v6.isStarred(c));
-  const prompt = `You are an expert classroom observer scoring one primary-school lesson with FICO17 v6 (the ICT classroom observation rubric).
+function levelsOnlyPrompt(asked) {
+  return `You are an expert classroom observer scoring one primary-school lesson with FICO17 v6 (the ICT classroom observation rubric).
 
 You are reading the transcript of one primary-school lesson. Each line is
 \`[MM:SS] Speaker (LANG): text\`; speakers are labelled Teacher or Student.
@@ -425,7 +424,12 @@ Give 1-3 evidence items, each a timestamp and the exact words from the transcrip
 ${asked.map((c) => renderLevelBlock(v6.indicator(c))).join('\n\n')}
 
 Return only JSON matching this schema:
-${STARRED_SCHEMA()}`;
+${levelsOnlySchema(asked)}`;
+}
+
+function getStarredSystemPrompt() {
+  if (_starredCached && _starredCached.version === STARRED_PROMPT_VERSION) return _starredCached.prompt;
+  const prompt = levelsOnlyPrompt(v6.DC_CODES.filter((c) => !v6.isStarred(c)));
   _starredCached = { version: STARRED_PROMPT_VERSION, prompt };
   return prompt;
 }
@@ -470,6 +474,83 @@ function starredVariant() {
   };
 }
 
+// ─── The 11 only, for a teacher's own recording (queue #282) ────────────
+// The operator, 25 Nov: "lets get DC live for Islamabad on Fico v6, with just the 11 indicators". On a self-recording
+// the Digital Coach scores the 11 DC indicators and nothing else: the six combined ones (C3 C5 C7 D2 D3 D4) are coach-only
+// and are dropped from her scoring and her report, not shown as evidence any more. So the prompt has the 11 level blocks
+// and no evidence part, a reply that brings a level or evidence for one of the six is refused, and the stored analysis
+// has no row, no evidence and no student-turn count for them (domains hold the 11 rows only). It is stamped
+// indicator_set 'dc11' so every reader can tell it from a coach visit's v6 (where the coach sets the six).
+// Coach visits are untouched: /observe and /observe2 keep the full v6 scorer above.
+const DC11_PROMPT_VERSION = `fico17-v6-dc11-1+${v6.RUBRIC_SHA8}`;
+const DC11_SET = 'dc11';
+let _dc11Cached = null;
+
+function getDc11SystemPrompt() {
+  if (_dc11Cached && _dc11Cached.version === DC11_PROMPT_VERSION) return _dc11Cached.prompt;
+  const prompt = levelsOnlyPrompt(v6.DC_CODES);
+  _dc11Cached = { version: DC11_PROMPT_VERSION, prompt };
+  return prompt;
+}
+
+/** The per-lesson prompt, asking for the levels only (the full one asks for "Part 1" and "Part 2"). */
+function buildDc11AnalysisPrompt(transcript, metadata = {}) {
+  return buildAnalysisPrompt(transcript, metadata)
+    .replace('Score Part 1 and report Part 2 for this lesson.', 'Score each indicator for this lesson.');
+}
+
+function validateDc11(analysis, transcript) {
+  const a = analysis || {};
+  const errors = [];
+  const ce = a.combined_evidence && typeof a.combined_evidence === 'object' ? a.combined_evidence : null;
+  if (ce) {
+    for (const code of v6.COMBINED_CODES) {
+      if (ce[code] !== undefined) errors.push(`${code}: not one of the 11: never asked of the Digital Coach on a self-recording`);
+    }
+  }
+  // The level checks (the six never carry a level, each of the 11 present and valid, quotes in the transcript) are the
+  // full validator's, over a copy whose evidence part is empty (none was asked).
+  const copy = { ...a, combined_evidence: Object.fromEntries(EVIDENCE_CODES.map((c) => [c, { result: null, items: [] }])) };
+  const base = validate(copy, transcript);
+  if (a.levels) for (const code of v6.DC_CODES) if (copy.levels && copy.levels[code]) a.levels[code] = copy.levels[code];
+  const all = [...errors, ...base.errors];
+  return { ok: all.length === 0, errors: all, dropped: base.dropped, warnings: base.warnings };
+}
+
+function computeScoresDc11(analysis, hasLp) {
+  const a = analysis || {};
+  // In the live path GPT5MiniService.analyzePedagogy adds up the reply before the validator sees it, so anything the
+  // model volunteered for the six is dropped here; its codes are kept (never shown) so the drift can be counted.
+  const ce = a.combined_evidence && typeof a.combined_evidence === 'object' ? a.combined_evidence : {};
+  const lv = a.levels && typeof a.levels === 'object' ? a.levels : {};
+  const brought = v6.COMBINED_CODES.filter((c) => ce[c] !== undefined || lv[c] !== undefined);
+  delete a.combined_evidence;
+  const out = computeScores(a, hasLp); // no transcript: no D2 count
+  delete out.combined_evidence;
+  for (const d of Object.values(out.domains || {})) {
+    d.indicators = (d.indicators || []).filter((i) => !v6.isCombined(i.id));
+  }
+  out.prompt_version = DC11_PROMPT_VERSION;
+  out.indicator_set = DC11_SET;
+  if (brought.length) out.dropped_six = brought;
+  else delete out.dropped_six;
+  return out;
+}
+
+/** The v6 scorer for a self-recording: the 11 only. Same interface and name, so every v6 reader treats it as v6. */
+function dc11Variant() {
+  return {
+    ...module.exports,
+    promptVersion: DC11_PROMPT_VERSION,
+    dc11: true,
+    indicatorSet: DC11_SET,
+    getSystemPrompt: getDc11SystemPrompt,
+    buildAnalysisPrompt: buildDc11AnalysisPrompt,
+    validate: validateDc11,
+    computeScores: computeScoresDc11,
+  };
+}
+
 module.exports = {
   name: 'fico17_v6',
   version: '6.0',
@@ -492,4 +573,7 @@ module.exports = {
   KINDS,
   starredVariant,
   STARRED_PROMPT_VERSION,
+  dc11Variant,
+  DC11_PROMPT_VERSION,
+  DC11_SET,
 };

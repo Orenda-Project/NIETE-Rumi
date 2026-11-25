@@ -13,6 +13,8 @@ const { disagreementsFor } = require('../../bot/shared/services/coaching/live-mo
 // bd-r2uzg1.12: the same soft line the hero image adds after a lesson-mismatch Section B (groups C and D read it here).
 const { lessonMismatchNote, withNote } = require('../../bot/shared/services/coaching/report-v2/lesson-mismatch-note');
 
+const { isOwnRubric, isV6Scored } = require('./coaching-frameworks.service');
+
 // fico-framework.js DOMAINS, in its order; the Urdu name in brackets as on the template.
 const SECTIONS = [
   ['lesson_plan_fidelity', 'Lesson Plan Fidelity', 'سبق کے منصوبے پر عمل'],
@@ -71,6 +73,48 @@ function sections(a, l, s) {
   });
 }
 
+/**
+ * Queue #282 / bd-ra8xu.64.2 — a report scored on FICO17 v6 keeps its sections under its own keys (v6_teacher,
+ * v6_children, v6_subject: frameworks/fico17-v6 SECTIONS C, D, F), so the V3 rows above found none. Its rows, in the
+ * names her WhatsApp v6 image prints (the catalog's reportV6Section*, the rubric's own section names): B, the plan
+ * steps followed (outside the v6 total, on the image's /40), then C, D, F as stored (domain_score / domain_max). A
+ * section with no levelled row (every row couldn't-tell) is not assessed, never "0/0"; so is B with no plan read.
+ */
+const V6_ROWS = [
+  ['lesson_plan_fidelity', 'reportV6SectionPlan'],
+  ['v6_teacher', 'reportV6SectionTeacher'],
+  ['v6_children', 'reportV6SectionChildren'],
+  ['v6_subject', 'reportV6SectionSubject'],
+];
+const PLAN_MAX = 40; // the v6 image's B bar (fico17-v6-adapter FIDELITY_MAX)
+
+function v6Sections(a, l, s) {
+  const { UX_STRINGS } = require('../../bot/shared/config/ux-strings');
+  const domains = a.domains && typeof a.domains === 'object' ? a.domains : {};
+  const whys = (a.report_narrative && a.report_narrative.domain_whys) || {};
+  const notAssessed = (key, name) => ({ key, name, score: null, max: null, pct: null, colour: null, notAssessed: true, why: null });
+  return V6_ROWS.map(([k, uxKey]) => {
+    const words = UX_STRINGS[uxKey] || {};
+    const name = l === 'ur' && words.ur ? `${words.en} (${words.ur})` : words.en;
+    if (k === 'lesson_plan_fidelity') {
+      const lp = a.lp_fidelity;
+      const fp = lp && lp.status === 'ok' ? num(lp.fidelity_pct) : null;
+      if (fp == null) return notAssessed(k, name);
+      const pct = Math.round(fp);
+      const note = lessonMismatchNote(a, s, l);
+      const why = text(whys[k]);
+      return { key: k, name, score: Math.round((fp / 100) * PLAN_MAX), max: PLAN_MAX, pct, colour: colourOf(pct), notAssessed: false, why: note ? withNote(why, note) : why };
+    }
+    const d = domains[k];
+    if (!d || typeof d !== 'object') return null;
+    const score = num(d.domain_score);
+    const max = num(d.domain_max);
+    if (score == null || !max || max <= 0) return notAssessed(k, name);
+    const pct = Math.round((score / max) * 100);
+    return { key: k, name, score, max, pct, colour: colourOf(pct), notAssessed: false, why: text(whys[k]) };
+  }).filter(Boolean);
+}
+
 function journey(trend) {
   const points = (Array.isArray(trend) ? trend : []).map((p) => num(p && p.pct)).filter((p) => p != null).map(Math.round);
   if (points.length < 2) return null;
@@ -90,8 +134,10 @@ function buildReportView(input = {}) {
     header: cardHeader(s, a, input.firstName, l),
     wells: wells(a, l),
     thing: thing(s, a, l),
-    sections: sections(a, l, s),
-    journey: journey(input.trend),
+    // Queue #282 / bd-ra8xu.64.2: a v6 report's own sections; no journey beside a report on a rubric of its own (the
+    // trend is V3 points only, so its "now" would be an older V3 lesson; the WhatsApp hero leaves it out too).
+    sections: isV6Scored(a) ? v6Sections(a, l, s) : sections(a, l, s),
+    journey: isOwnRubric(a) ? null : journey(input.trend),
     quizMessage: text(input.quizMessage) ? input.quizMessage : null,
     voice: https(s.voice_debrief_url),
     report: https(s.report_pdf_url),

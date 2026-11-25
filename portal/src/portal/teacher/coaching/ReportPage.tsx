@@ -27,6 +27,8 @@ import { VideoRecoCard } from './VideoRecoCard';
 import { Obs612Block } from '../../components/coaching/Obs612Block';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { usePrincipalAppState } from '../principal/usePrincipalApp';
+import { DcGuideButton } from './dcGuide/DcGuide';
+import { showsDcGuide } from './dcGuide/guide';
 
 /**
  * bd-fmf24g.4 — the shared report page (v28 canvas CoachingLesson; the coach-visit report uses the same
@@ -102,7 +104,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       setDownloading(false);
     }
   };
-  const action = ready && reportImage ? (
+  const downloadButton = ready && reportImage ? (
     <button
       type="button"
       onClick={() => { void download(); }}
@@ -112,7 +114,12 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
     >
       <Download className="h-5 w-5" aria-hidden="true" />
     </button>
-  ) : undefined;
+  ) : null;
+  // bd-ra8xu.64.3 (queue #282) — the operator, 25 Nov: "for DC the ? needs to also be there", with the descriptions
+  // written for the teacher who recorded herself. A "?" after Download on HER own DC report scored on FICO17 v6
+  // (the stored rubric's label, "FICO17 v6" / "FICO17 v6.1"): never a V3 report, a coach visit's, or one still loading.
+  const guideButton = showsDcGuide(detail) ? <DcGuideButton /> : null;
+  const action = downloadButton || guideButton ? <>{downloadButton}{guideButton}</> : undefined;
 
   const closeSession = () => {
     setClosed(true);

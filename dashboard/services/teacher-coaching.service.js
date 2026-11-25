@@ -12,7 +12,7 @@
  * Every statement carries a `teacher-coaching:<name>` comment so a test can answer it by name.
  */
 
-const { getOverall } = require('./coaching-frameworks.service');
+const { getOverall, isOwnRubric } = require('./coaching-frameworks.service');
 const LpHistory = require('./lp-history.service');
 const { pkToday, pkInstantWindow } = require('../lib/pk-range');
 // One definition of "recorded in the portal", shared with the bot (portal.routes.js loads the same module: crypto
@@ -109,7 +109,10 @@ async function visitsInProgress(query, userId) {
 
 /* ── the journey line on a report ──────────────────────────────────────── */
 
-const OWNER_SQL = '/* teacher-coaching:owner */ SELECT id, created_at FROM coaching_sessions WHERE id = $1 AND user_id = $2';
+// Its scores and framework only (never the whole analysis_data): is it on a rubric of its own (queue #282)?
+const OWNER_SQL = `/* teacher-coaching:owner */
+  SELECT id, created_at, analysis_data->'scores' AS scores, analysis_data->>'framework' AS framework
+    FROM coaching_sessions WHERE id = $1 AND user_id = $2`;
 
 const JOURNEY_SQL = `/* teacher-coaching:journey */
   SELECT created_at, analysis_data->'scores' AS scores
@@ -120,11 +123,17 @@ const JOURNEY_SQL = `/* teacher-coaching:journey */
    ORDER BY created_at DESC
    LIMIT $3`;
 
-/** Her scored sessions up to and including this one, oldest first; null when it is not hers. */
+/**
+ * Her scored sessions up to and including this one, oldest first; null when it is not hers.
+ * Queue #282 / bd-ra8xu.64.2: a report on a rubric of its own (FICO17 v6) has no journey: the line is V3 points only
+ * (percentOf skips a v6 one), and beside a v6 report its "now" would be an older V3 lesson. The WhatsApp hero leaves
+ * it out the same way (hero-report.service isV6Scored).
+ */
 async function journey(query, userId, sessionId) {
   const { rows: own } = await query(OWNER_SQL, [sessionId, userId]);
   const session = own && own[0];
   if (!session) return null;
+  if (isOwnRubric({ scores: session.scores, framework: session.framework })) return [];
   const { rows } = await query(JOURNEY_SQL, [userId, session.created_at, JOURNEY_POINTS]);
   return (rows || [])
     .map((r) => ({ date: pkDayOf(r.created_at), pct: percentOf(r.scores) }))

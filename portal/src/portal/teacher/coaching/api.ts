@@ -95,7 +95,11 @@ export function historyParams(d: HistoryDates): Record<string, string> {
   return p;
 }
 
-/** KpiTiles: the server's counts against the period before, and the latest SCORED lesson's band. */
+/**
+ * KpiTiles: the server's counts against the period before, and her NEWEST report's band ('—' when it has none).
+ * Queue #282 / bd-ra8xu.64.2: a report scored on FICO17 v6 has no V3 percentage, so no band; reaching back to the
+ * newest lesson that has one showed an older V3 lesson's band as her latest.
+ */
 export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>, C: CoachingCopy = COACHING_V2_COPY): KpiItem[] {
   const tile = (k: DcKpi, label: string, trend?: number[]): KpiItem => {
     const t: KpiItem = { value: k.value, label };
@@ -103,7 +107,8 @@ export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>, C: Co
     if (trend && trend.length >= 2) t.trend = trend;
     return t;
   };
-  const latestBand = h.items.map((i) => scoreBandFor(i.percentage)).find((b): b is BandKey => !!b);
+  const newest = h.items.find((i) => i.reportReady);
+  const latestBand: BandKey | null = newest ? scoreBandFor(newest.percentage) : null;
   return [
     tile(h.kpis.sessions, C.kpiSessions, h.trend && h.trend.points),
     { value: latestBand ? C.bands[latestBand] : '—', label: C.kpiLatestBand },
