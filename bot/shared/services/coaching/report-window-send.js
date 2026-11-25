@@ -39,6 +39,7 @@ function defaultDeps() {
     markSent: (id, v) => require('./video-reco/store').markSent(id, v),
     quizButton: (req) => require('../quiz/transcript-quiz-offer.service').reportQuizButtonFor(req),
     holdQuiz: (req) => require('../quiz/closed-window-offer').recordHeld(req),
+    linkButton: (req) => require('./report-link-button').linkButtonFor(req),
   };
 }
 
@@ -76,6 +77,29 @@ async function sendClipTemplate({ userId, sessionId, clip }, d) {
   return false;
 }
 
+/**
+ * bd-chz35n.25 (1) — the report template with an "Open my report" URL button (report-link-button.js; switch
+ * report_delivery_fixes.template_link, off by default → null, never sent). True when it went.
+ */
+async function sendLinkTemplate({ userId, sessionId }, d) {
+  let link = null;
+  try {
+    link = await d.linkButton({ userId, sessionId });
+  } catch (_) {
+    link = null;
+  }
+  if (!link) return false;
+  let out = null;
+  try {
+    out = await d.sendShare({ userId, kind: 'dc', id: sessionId, clip: { template: link.template, token: link.token } });
+  } catch (err) {
+    out = { status: 'failed', reason: 'error', message: err && err.message };
+  }
+  const sent = !!out && out.status === 'sent';
+  logOutcome(sent ? 'coaching.report.link_template_sent' : 'coaching.report.link_template_not_sent', { userId, sessionId }, out);
+  return sent;
+}
+
 /** The quiz sibling of the report template. True when it went (and the held row is written). */
 async function sendQuizTemplate({ userId, sessionId }, d) {
   let quiz = null;
@@ -108,6 +132,7 @@ async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId, cl
     const button = !!(clip && clip.template && clip.token);
     if (!(button && clip.promised) && await d.windowOpen(phone)) return null;
     if (button && await sendClipTemplate({ userId, sessionId, clip }, d)) return 'template';
+    if (!button && await sendLinkTemplate({ userId, sessionId }, d)) return 'template';
     if (!button && await sendQuizTemplate({ userId, sessionId }, d)) return 'template';
     const out = await d.sendShare({ userId, kind: 'dc', id: sessionId });
     const sent = !!out && out.status === 'sent';
