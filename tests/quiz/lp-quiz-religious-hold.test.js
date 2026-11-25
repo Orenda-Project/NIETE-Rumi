@@ -254,6 +254,10 @@ describe('/quiz: the lesson provider lists, opens and makes Maths, never Islamiy
     expect(out.outcome).toBe('asked');
     expect(db.tables.quizzes).toHaveLength(1);
     expect(db.tables.quizzes[0]).toEqual(expect.objectContaining({ quiz_source: 'lp_v8', subject: 'math' }));
+    // bd-ptl6x9.13.1: the plan on the quiz, "math" read as the maths book.
+    expect(db.tables.quizzes[0].meta.lesson_links).toEqual([expect.objectContaining({
+      lesson_id: MATH, plan_asset_id: 'asset-math', book: 'grade_5_maths', chapter: 2, lesson: 1, via: 'plan',
+    })]);
   });
 
   test('a start from the teacher home ("Quiz this", via home) writes meta.source home; the list keeps list', async () => {

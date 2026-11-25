@@ -99,7 +99,10 @@ async function recordHeld({ session, heldPath }) {
       topic: (session.analysis_data && session.analysis_data.topic) || 'Lesson',
       subject: (session.analysis_data && session.analysis_data.subject) || null,
       status: 'skipped',
-      meta: { step: 'skipped', skip_reason: HELD_REASON, held_path: path, held_at: new Date().toISOString() },
+      meta: {
+        step: 'skipped', skip_reason: HELD_REASON, held_path: path, held_at: new Date().toISOString(),
+        lesson_links: await require('./quiz-lesson-link').forRecording(session.id),
+      },
     });
     if (error && error.code !== '23505') throw new Error(error.message || 'insert failed');
     return true;
