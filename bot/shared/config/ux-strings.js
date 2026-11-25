@@ -402,6 +402,12 @@ const UX_STRINGS = {
     en: 'Your full report: what went well, your one thing to try next class, and your marks.',
     ur: 'آپ کی پوری رپورٹ: کیا اچھا رہا، اگلی کلاس میں آزمانے کی ایک بات، اور آپ کے نمبر۔',
   },
+  // bd-chz35n.25 (2): the same message naming her one thing to try, behind report_delivery_fixes.tip_wording (off).
+  // {tip} is the stored move text, any script, so it sits in a first-strong isolate (FSI … PDI).
+  coachingReportLinkBodyTip: {
+    en: 'Your one thing to try next class: “⁨{tip}⁩”\nOpen your report to see how, what went well, and your marks.',
+    ur: 'اگلی کلاس میں آزمانے کی ایک بات: ”⁨{tip}⁩“\nیہ کیسے کرنا ہے، کیا اچھا رہا، اور آپ کے نمبر دیکھنے کے لیے اپنی رپورٹ کھولیں۔',
+  },
   coachingReportLinkButton: {
     en: 'Open my report',
     ur: 'میری رپورٹ کھولیں',
