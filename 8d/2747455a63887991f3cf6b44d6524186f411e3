@@ -8,3 +8,4 @@
 {"ts":"2026-11-25T00:44:52Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"8d2747455a63","branch":"main","user":""}
 {"ts":"2026-11-25T01:49:49Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"8d2747455a63","branch":"main","user":""}
 {"ts":"2026-11-25T03:39:52Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"attendance=none-needed (no commit authored this session: brief range empty; only fetch + a discarded merge/rebase of PR #5843 on a feature branch)","sha":"8d2747455a63","branch":"main","user":""}
+{"ts":"2026-11-25T03:39:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (no commit authored this session: brief range empty; only fetch + a discarded merge/rebase of PR #5843 on a feature branch)","sha":"8d2747455a63","branch":"main","user":""}
