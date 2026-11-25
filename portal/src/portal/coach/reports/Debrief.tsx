@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Check, Compass, MessageCircle, Sparkles } from "lucide-react";
+import { Check, Compass, MessageCircle, RotateCcw, Sparkles } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { leader } from "../../services/api";
 import type { TalkGuide, TalkGuideSection } from "../../services/api";
@@ -11,6 +11,8 @@ import { AUDIO_ACCEPT, checkRecording } from "../../lib/coachingUpload";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
 import { SendError } from "../../lib/coachingSend";
 import { sendTalk } from "../../lib/coachObserve";
+import { wakePieces } from "../../lib/pieceUpload";
+import { RetryIn } from "../../lib/retryClock";
 import type { FinishedRecording } from "../../lib/lessonRecorder";
 import { canRecordHere } from "../../lib/recordingSupport";
 import { deleteRecording } from "../../lib/recordingStore";
@@ -136,6 +138,8 @@ export default function Debrief() {
   const [canRecord, setCanRecord] = useState(true);
   const [stage, setStage] = useState<Stage>("guide");
   const [progress, setProgress] = useState(0);
+  // bd-q261rec (queue #261): the line dropped while the talk went up in pieces; it waits and goes on by itself.
+  const [wait, setWait] = useState<{ until: number; sent: number; pieces: number } | null>(null);
   const [failure, setFailure] = useState<SendError | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -202,7 +206,10 @@ export default function Debrief() {
     setProgress(0);
     setStage("sending");
     try {
-      await sendTalk(id, { blob: audio.blob, filename: audio.filename }, undefined, undefined, setProgress);
+      setWait(null);
+      await sendTalk(id, { blob: audio.blob, filename: audio.filename, recordingId: audio.recordingId }, undefined, undefined, (p) => { setWait(null); setProgress(p); }, {
+        onWait: (w) => setWait({ until: Date.now() + w.ms, sent: w.sent, pieces: w.pieces }),
+      });
       if (audio.recordingId) {
         tellSent(audio.recordingId, { kind: "dbrf", observationId: id }, id); // bd-ma9jiy: heartbeat → this observation
         try { await deleteRecording(audio.recordingId); } catch { /* already gone */ }
@@ -347,6 +354,19 @@ export default function Debrief() {
           <div className="relative h-4 w-full overflow-hidden rounded-full bg-[#e5e7eb]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
             <div className="h-full rounded-full bg-[#33374a] transition-[width]" style={{ width: `${Math.max(4, progress)}%` }} />
           </div>
+          {wait ? (
+            <div role="status" className="flex flex-col items-center gap-1 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-center text-[15px] font-semibold text-[#7c2d12]">
+              <span>{O.weakLine}</span>
+              <span>{O.piecesSent(wait.sent, wait.pieces)}</span>
+              <RetryIn testId="talk-retry-in" until={wait.until} words={O.retryIn} />
+            </div>
+          ) : null}
+          {wait ? (
+            <button type="button" onClick={() => wakePieces()}
+              className={cn("flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
+              <RotateCcw className="h-5 w-5" aria-hidden="true" />{O.tryNow}
+            </button>
+          ) : null}
           <p className={cn(LIST_CARD, "p-3.5 text-[15px] font-semibold text-[#4b5563]")}>{C.keepOpenSending}</p>
         </div>
       )}

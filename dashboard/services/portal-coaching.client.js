@@ -95,6 +95,23 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
 }
 
 /**
+ * bd-q261rec (queue #261) — a recording sent in pieces (bot portal-upload-pieces.service): begin (or pick up again with
+ * `key`), sign the pieces still to send, join them into the one key the start reads.
+ */
+// All three are safe to ask again (a repeat returns the same answer; a second join answers `already`).
+function piecesBegin({ userId, filename, sizeBytes, pieceBytes, key }) {
+  return postAgainIfUnreached('pieces-begin', { userId, filename, sizeBytes, pieceBytes, key });
+}
+function piecesSign({ userId, key, pieces, attempt }) {
+  return postAgainIfUnreached('pieces-sign', { userId, key, pieces, attempt });
+}
+/** A join reads every piece back from R2 and writes the whole file: a 40 MB recording can take a while. */
+const PIECES_JOIN_TIMEOUT_MS = 120_000;
+function piecesJoin({ userId, key, sizeBytes, pieceBytes, digests }) {
+  return postAgainIfUnreached('pieces-join', { userId, key, sizeBytes, pieceBytes, digests }, PIECES_JOIN_TIMEOUT_MS);
+}
+
+/**
  * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves}} args
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked in the app
  *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it
@@ -184,7 +201,7 @@ function liveEnd({ userId, liveId, drops, bytesSent }) { return post('live/end',
 function liveTaps({ userId, coachingSessionId, taps }) { return post('live/taps', { userId, coachingSessionId, taps }); }
 
 module.exports = {
-  presignUpload, startSession, submitReflection, answerClassCheck, recentPlans,
+  presignUpload, piecesBegin, piecesSign, piecesJoin, startSession, submitReflection, answerClassCheck, recentPlans,
   pendingRecordings, checkDuplicate, // bd-c5reix
   startObservation, observeLessonQuestion, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,

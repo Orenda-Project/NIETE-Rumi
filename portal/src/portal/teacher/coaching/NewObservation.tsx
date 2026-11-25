@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Check, ChevronDown, ImageIcon, Mic, Pause, Save, Send, Square, Upload } from 'lucide-react';
+import { Check, ChevronDown, ImageIcon, Mic, Pause, RotateCcw, Save, Send, Square, Upload, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, AUDIO_ACCEPT, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { isOffline, SendError, sendLesson } from '../../lib/coachingSend';
+import { wakePieces } from '../../lib/pieceUpload';
+import { RetryIn as RetryClock } from '../../lib/retryClock';
 import { holdFile, holdPhoto, isFileRefused, isRefused, tellUnreadablePick } from '../../lib/pickedRead';
 import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
@@ -77,7 +79,8 @@ import { useDcReport } from './useDcReport';
 /** bd-bsc0ox: 'wont_open' — the phone would not read the recording she picked ('File will not open'). */
 type AudioProblem = 'too_large' | 'not_audio' | 'video' | 'wont_open' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
-type Sending = { pct: number } | null;
+/** bd-q261rec — `wait`: the line dropped; the pieces wait until `until` (epoch ms) and go on ( `sent` of `pieces` arrived). */
+type Sending = { pct: number; wait?: { until: number; sent: number; pieces: number } | null } | null;
 const UPLOADING = 'uploading';
 
 const NO_SUBJECTS: SubjectsByGrade = {};
@@ -348,13 +351,15 @@ export function NewObservationPage() {
     navigate(`${COACHING_NEW}?sent=${UPLOADING}`, { replace: true });
     try {
       const { coachingSessionId } = await sendLesson({
-        audio: isSavedAudio(audio) ? { key: audio.key } : { blob: audio.blob, filename: audio.filename },
+        audio: isSavedAudio(audio) ? { key: audio.key } : { blob: audio.blob, filename: audio.filename, recordingId: audio.recordingId },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos: these,
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
         liveMoves: peekDraft()?.live ?? null,
         uploaded: uploaded.current,
         ...(saveForLater ? { saveForLater: true } : {}),
+        // bd-q261rec (queue #261): the line dropped while it went up in pieces — say so; it goes on by itself.
+        onWait: (w) => setSending((now) => ({ pct: now?.pct ?? 0, wait: { until: Date.now() + w.ms, sent: w.sent, pieces: w.pieces } })),
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) {
         // bd-ma9jiy: the heartbeat's recording joined to the coaching session it became.
@@ -680,7 +685,20 @@ export function NewObservationPage() {
               />
             </section>
           ) : null}
-          {sending ? (
+          {sending && sending.wait ? (
+            /* bd-q261rec (queue #261): the line dropped. What arrived is safe on the server; it goes on by itself. */
+            <section role="status" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#fef3c7] text-[#b45309]">
+                <WifiOff className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <span className="text-[18px] font-semibold text-[#7c2d12]">{C.weakLine}</span>
+              <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
+              <span className="text-[15px] font-semibold text-[#7c2d12]">{C.piecesSent(sending.wait.sent, sending.wait.pieces)}</span>
+              <RetryClock testId="dc-retry-in" className="text-[15px] font-semibold text-[#7c2d12]" until={sending.wait.until} words={C.retryIn} />
+              <Action icon={RotateCcw} onClick={() => wakePieces()}>{C.tryNow}</Action>
+              <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+            </section>
+          ) : sending ? (
             <section aria-live="polite" className={cn(CARD, 'flex flex-col items-center gap-2 px-4 py-6 text-center')}>
               <span className="text-[18px] font-semibold">{C.sending}</span>
               <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
