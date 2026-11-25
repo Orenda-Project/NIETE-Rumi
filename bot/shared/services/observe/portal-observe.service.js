@@ -41,7 +41,7 @@ const { stepOfRow } = require('./portal-observe-step');
 const OwnPlans = require('./observe-own-plans');
 const { isPrincipalRole } = require('../../config/role-features');
 
-const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_PHOTOS } = PortalCoaching;
+const { isOwnPortalKey, isPortalSession, libraryPick, checkUploaded, extOf, KINDS, MAX_OBSERVE_PHOTOS } = PortalCoaching;
 
 // observe-gate's LEADER_ROLES — who may run /observe.
 const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'principal', 'aeo'];
@@ -402,7 +402,7 @@ async function startPortalObservation({
   // Every key must be this coach's own upload, of the right kind.
   if (!isOwnPortalKey(userId, key, 'audio')) return { status: 'invalid', reason: 'not_your_upload' };
   if (lessonPlanKey && !isOwnPortalKey(userId, lessonPlanKey, 'lesson_plan')) return { status: 'invalid', reason: 'not_your_upload' };
-  if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
+  if (photos.length > MAX_OBSERVE_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
   const own = OwnPlans.ownPick(picked); // bd-snkn32.41: { ownId } — a plan she made herself
   const { pick, bad } = own ? { pick: null, bad: !!own.bad } : libraryPick(picked);
