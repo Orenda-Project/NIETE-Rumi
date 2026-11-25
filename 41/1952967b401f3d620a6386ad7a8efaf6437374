@@ -1,2 +1,3 @@
 {"ts":"2026-11-25T02:09:58Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"411952967b40","branch":"HEAD","user":""}
 {"ts":"2026-11-25T02:10:13Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"registration,menu,training,lesson-plan,coaching,language,status,observe,child-test=none-needed (picks of staging commits already declared; block ships off)","sha":"411952967b40","branch":"bd-vo9fkc-main","user":""}
+{"ts":"2026-11-25T02:10:13Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-411952967b40","sha":"411952967b40","branch":"bd-vo9fkc-main","user":""}
