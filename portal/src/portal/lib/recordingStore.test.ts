@@ -25,6 +25,21 @@ beforeEach(async () => {
 });
 
 describe("recordingStore", () => {
+  // bd-ih6cej (queue #278) — a teacher's kept copy is found even when a newer unsent recording belongs to someone else
+  // (Hafsa, 25 Nov: a newer recording hid Aqila's lesson). `accept` picks which recordings count.
+  it("latestUnsent(accept): the newest recording the filter accepts, past a newer one it refuses", async () => {
+    await createRecording({ id: "aqila", mimeType: "audio/webm", ext: ".webm", startedAt: "2026-11-25T04:38:00Z" });
+    await appendChunk("aqila", 0, new Blob(["aq"]), 5_000);
+    await createRecording({ id: "huma", mimeType: "audio/webm", ext: ".webm", startedAt: "2026-11-25T06:30:00Z" });
+    await appendChunk("huma", 0, new Blob(["hu"]), 5_000);
+
+    expect((await latestUnsent())!.meta.id).toBe("huma");
+    const got = await latestUnsent((m) => m.id === "aqila");
+    expect(got!.meta.id).toBe("aqila");
+    expect(await readText(got!.blob)).toBe("aq");
+    expect(await latestUnsent(() => false)).toBeNull();
+  });
+
   it("returns nothing when there is no unsent recording", async () => {
     expect(await latestUnsent()).toBeNull();
   });
