@@ -1322,6 +1322,23 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
 .foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .fr{ text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
+/* LIGHT PRINT (bd-zrdvmi.54 / bd-40mww6, queue #221) — the same block as the bot's vendored copy
+   (NIETE bd-ain69z, SYNC §3.44, live 23 Nov). Plans printed almost black on a school printer (sheet
+   Lesson Plan row 962; Amena, 22 Nov: "lighter", English + Urdu). Every large solid fill (title,
+   section bars, "open with this question", check, coach, board label) ends white with a coloured edge
+   and dark ink. Words and layout unchanged: the edge is an inset box-shadow, never a border, so no
+   box grows by a pixel and no plan moves onto another page. */
+.hero, .hook, .ck, .srq, .coach{ background:#fff !important; color:var(--ink) !important;
+  box-shadow:inset 0 0 0 2px var(--navy) !important; }
+.hero *, .hook *, .ck *, .srq *, .coach *{ color:var(--ink) !important; }
+.hook .lbl, .hook [class*="lbl"], .hero [class*="kick"]{ color:#8A5F04 !important; }
+.s-o, .s-w, .s-i, .s-d, .s-a, .s-c, .s-h{ background:#fff !important; color:var(--ink) !important;
+  --edge:var(--navy); box-shadow:inset 0 0 0 2px var(--edge), inset 8px 0 0 0 var(--edge) !important; }
+.s-o{ --edge:var(--s-note-ink); } .s-w{ --edge:var(--band-w); } .s-i{ --edge:var(--band-i); }
+.s-d{ --edge:var(--navy); } .s-a{ --edge:var(--leaf); } .s-c{ --edge:var(--band-c); } .s-h{ --edge:var(--mut); }
+.s-o *, .s-w *, .s-i *, .s-d *, .s-a *, .s-c *, .s-h *{ color:var(--ink) !important; }
+.bar .badge{ background:#fff !important; box-shadow:inset 0 0 0 1.5px var(--ink); }
+.board .lbl{ background:#fff !important; color:var(--navy) !important; box-shadow:inset 0 -2px 0 var(--navy); }
 </style>
 <link rel="stylesheet" href="../fonts-da56006c.css"></head>
 <body>
@@ -1344,7 +1361,7 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
 <div data-atom class="band two sp-2"><div class="jrn"><span class="lbl">Journey so far</span><div class="t">Memory Lane &amp; New Words: Memory Chain</div></div><div class="up"><span class="lbl">Coming up</span><div class="t">Diving Deeper: Fact/Fiction, Questions &amp; Compound Words</div></div></div>
 <div data-atom class="slo sp-2">
     <div class="lbl">Learning outcome &middot; E-02-RD-20</div>
-    <p>A sight word is a word a reader can recognise and read quickly when it appears in a text.</p>
+    <p>Children read common sight words (I, if, is, the, and) quickly without sounding them out, and find them in Pinky's diary on p.111.</p>
     
   </div>
 <div data-atom class="rescard sp-2"><div class="rmat"><span class="lbl">To prepare</span><div class="mlist"><span class="mi">chalk</span><span class="mi">board</span><span class="mi">textbook p.111</span><span class="mi">students' English notebooks</span><span class="mi">slates</span></div></div></div>
@@ -1361,7 +1378,7 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
         <div class="bb"><span class="bx">Read, cover, point, read again.</span></div></div></div></div></div>
 <div data-atom class="blk board pc pc-m sp-0"><div class="bd"><div class="bp"><span class="bn">3</span>
         <div>
-        <div class="bb"><span class="bk">was, this, those, shelves</span><span class="bg">/z/ sound</span><span class="bk">butter + fly</span><span class="bg">butterfly</span><span class="bx">Pause 3: I</span></div></div></div></div></div>
+        <div class="bb"><span class="bk">was, those, shelves · this</span><span class="bg">/z/ · /s/</span><span class="bk">butter + fly</span><span class="bg">butterfly</span><span class="bx">Pause 3: I</span></div></div></div></div></div>
 <div data-atom class="blk board pc pc-z sp-0"><div class="bd"><div class="bp"><span class="bn">4</span>
         <div>
         <div class="bb"><span class="bx">Eyes on the words. Voice steady. Read again.</span></div></div></div></div></div>
@@ -1370,15 +1387,15 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
     <span class="badge">I</span><span class="nm">Opening</span>
     <span class="mins">4 min</span></div>
 <div data-atom class="blk sp-2"><div class="lbl g">Set this up</div><ul class="kp"><li>Show textbook p.111.</li></ul></div>
-<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Expected answers.</li></ul></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 1 of 4</div></div>
+<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Write I · if · is · the · and on the board before the bell.</li></ul></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 1 of 4</div></div>
     </div></div>
 <div class="page" id="t2" data-part="teach"><div class="pad">
       <div class="contstrip"><span class="ct">Reading: Pinky's Store Adventure</span><span class="cc">&middot; continued</span></div><div class="bar s-i cont" data-sec="introduction">
     <span class="badge">I</span><span class="nm">Opening &middot; continued</span></div><div data-atom class="opn ofirst olast blk hook sp-3"><div class="lbl">Open with this question</div>
-           <div class="q">See–Think–Wonder: point to Pinky's diary entry on p.111, “Pinky's Store Adventure!” Say: “Look at the words ‘butterfly-shaped candy.’ Tell me one thing for each: I see…, I think…, I wonder….” If children are stuck: I see — the words ‘butterfly-shaped candy.’ I think — which small word keeps appearing, is it easy to read by sight? I wonder — where have you seen a grocery store or a park like Pinky's? Give children one minute to think. Take two or three answers. Link: “Today we read Pinky's diary and hunt for sight words we can read quickly.”</div>
+           <div class="q"><ul class="kp"><li>See–Think–Wonder: point to Pinky's diary entry on p.111, “Pinky's Store Adventure!”</li><li>Say: “Look at the words ‘butterfly-shaped candy.’ Tell me one thing for each: I see…, I think…, I wonder….”</li><li>If children are stuck: I see — the words ‘butterfly-shaped candy.’ I think — which small word keeps appearing, is it easy to read by sight? I wonder — where have you seen a grocery store or a park like Pinky's?</li><li>Give children one minute to think. Take two or three answers.</li><li>Link: “Today we read Pinky's diary and hunt for sight words we can read quickly.”</li></ul></div>
            </div>
-<div data-atom class="blk sp-2"><div class="lbl g">Then read aloud</div><ul class="kp"><li>at a grocery store</li></ul></div>
-<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>at a park.</li></ul></div>
+<div data-atom class="blk sp-2"><div class="lbl g">Then read aloud</div><ul class="kp"><li>Read aloud the line where Pinky is at a grocery store.</li></ul></div>
+<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Ask: “Where else could Pinky get lost? At a park?”</li></ul></div>
 <div data-atom id="v9-explain" class="bar s-d sp-4" data-sec="development">
     <span class="badge">D</span><span class="nm">Explanation</span>
     <span class="mins">8 min</span><span class="mv">I Do</span></div>
@@ -1389,7 +1406,7 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
 <div data-atom class="blk exq pc pc-m sp-0"><div class="scr"><div class="tn k-say"><span class="tx">I will read Pinky’s first paragraph once while my finger follows the words: ‘Dear Diary, Oh my God!</span></div></div></div>
 <div data-atom class="blk exq pc pc-m sp-0"><div class="scr"><div class="tn k-say"><span class="tx">So today was crazy!</span></div></div></div>
 <div data-atom class="blk exq pc pc-m sp-0"><div class="scr"><div class="tn k-say"><span class="tx">I notice the word ‘I.’</span></div></div></div>
-<div data-atom class="blk exq pc pc-z sp-0"><div class="scr"><div class="tn k-say"><span class="tx">I do not need to stop and sound it out; I recognise it by sight.</span></div></div><div class="cfu"><span class="cl">Ask this</span>Understanding is checked twice, once per phase, each a RECALL check matching this lesson's 'understand'-level SLO. After I-Do: cold-call a child to point to 'I' anywhere on the page and read it aloud without sounding it out — this catches children still decoding sight words letter-by-letter instead of recognising them by sight. After We-Do: a partner names the compound word 'butterfly' split as butter + fly, then points to where 'I' appears in paragraph 3 — this catches pairs who echoed the reading without actually locating the target words. Both checks read directly onto E-02-RD-20: reading common high-frequency (sight) words by sight at grade level.</div></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 2 of 4</div></div>
+<div data-atom class="blk exq pc pc-z sp-0"><div class="scr"><div class="tn k-say"><span class="tx">I do not need to stop and sound it out; I recognise it by sight.</span></div></div><div class="cfu"><span class="cl">Ask this</span><ul class="kp"><li>After I Do: ask one child to point to ‘I’ anywhere on the page and read it without sounding it out. If the child sounds it out letter by letter, read it together and try again.</li><li>After We Do: a partner splits ‘butterfly’ into butter + fly, then points to ‘I’ in paragraph 3. If a pair only echoed, ask them to point to the word.</li></ul></div></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 2 of 4</div></div>
     </div></div>
 <div class="page" id="t3" data-part="teach"><div class="pad">
       <div class="contstrip"><span class="ct">Reading: Pinky's Store Adventure</span><span class="cc">&middot; continued</span></div><div data-atom id="v9-we" class="bar s-we sp-4" data-sec="activity">
@@ -1404,41 +1421,40 @@ figure.dg .legend .lbl{ color:var(--s-teach-ink); display:block; margin-bottom:2
 <div data-atom id="v9-you" class="bar s-a sp-4" data-sec="activity">
     <span class="badge">A</span><span class="nm">You Do</span>
     <span class="mins">13 min</span></div>
-<div data-atom class="blk sp-2"><span class="mvt you">You Do</span><span class="dct">Independent</span><div class="lbl g">Set the task going</div><ul class="kp"><li>Students independently reread the final two paragraphs beginning “And guess what?!”</li></ul></div>
-<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>through “Until next time, Diary! Pinky.”</li></ul></div>
+<div data-atom class="blk sp-2"><span class="mvt you">You Do</span><span class="dct">Independent</span><div class="lbl g">Set the task going</div><ul class="kp"><li>Students reread the final two paragraphs alone, from “And guess what?!” to “Until next time, Diary! Pinky.”</li></ul></div>
 <div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>They circle the sight words “and,” “they,” “I,” and “it” where they see them, then read the paragraph once to a partner and once again more smoothly.</li></ul></div>
-<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Partners use the dialogue frame.</li></ul></div>
-<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Students answer one inferential oral question using evidence from the text: why does Pinky want to learn a phone number and address?</li></ul></div>
+<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Partners say: “I saw the sight word ‘___’ in the sentence ‘___’.”</li></ul></div>
+<div data-atom class="blk sp-0"><ul class="kp" style="margin-top:0"><li>Each child answers aloud: why does Pinky want to learn the phone number and address?</li></ul></div>
 <div data-atom class="blk pr pc pc-a sp-2"><span class="mvt you">You Do</span><span class="dct">Independent</span><span class="tag">YOU DO · pupils work alone</span>
           <div class="items"><div class="it"><div class="qr"><span class="n">1.</span>
             <span class="q">Textbook p.111: “Find the words in the paragraph that end with ‘s’. How do they sound?”</span>
             
             </div>
-            <div class="arow"><span class="al">Answer</span><span class="a">The words are was, this, those, and shelves. When read aloud, these words end with a /z/ sound.</span></div></div></div></div>
+            <div class="arow"><span class="al">Answer</span><span class="a">The words are was, this, those and shelves. Was, those and shelves end with a /z/ sound; this ends with an /s/ sound.</span></div></div></div></div>
 <div data-atom class="blk pr pc pc-m sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">2.</span>
             <span class="q">Textbook p.111: “Can you find the compound word in the paragraph? Hint: It’s a type of candy!”</span>
             
             </div>
-            <div class="arow"><span class="al">Answer</span><span class="a">butterfly. It can be shown as butter + fly.</span></div></div></div></div>
-<div data-atom class="blk pr pc pc-m sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">3.</span>
-            <span class="q">Textbook p.111: “Spot a super easy word in the paragraph that starts with an ‘I’. What is it?”</span>
-            
-            </div>
-            <div class="arow"><span class="al">Answer</span><span class="a">I. It appears in “I thought,” “if I get lost,” “I just stood,” and “I tried.”</span></div></div></div></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 3 of 4</div></div>
+            <div class="arow"><span class="al">Answer</span><span class="a">butterfly. It can be shown as butter + fly.</span></div></div></div></div><div class="foot"><div class="fl">Grade 2 English &middot; Ch.9 · Pinky's Personality Play &middot; pp. 111</div><div class="fr">page 3 of 4</div></div>
     </div></div>
 <div class="page" id="t4" data-part="teach"><div class="pad">
       <div class="contstrip"><span class="ct">Reading: Pinky's Store Adventure</span><span class="cc">&middot; continued</span></div><div class="bar s-a cont" data-sec="activity">
-    <span class="badge">A</span><span class="nm">You Do &middot; continued</span></div><div data-atom class="blk pr pc pc-z sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">4.</span>
-            <span class="q">At a grocery store, Pinky sees a butterfly-shaped candy. Read the sight word in this sentence: “I saw the candy.” Then tell why Pinky stayed where Pinky was.</span>
+    <span class="badge">A</span><span class="nm">You Do &middot; continued</span></div><div data-atom class="blk pr pc pc-m sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">3.</span>
+            <span class="q">Textbook p.111: “Spot a super easy word in the paragraph that starts with an ‘I’. What is it?”</span>
             
             </div>
-            <div class="arow"><span class="al">Answer</span><span class="a">The sight word is “I.” Pinky stayed where Pinky was because Abbu’s wise words said that if Pinky got lost, Pinky should stay where Pinky was.</span></div></div></div></div>
-<div data-atom class="blk sp-3"><div class="lbl g">Differentiation</div><div class="grid3"><div class="card"><span class="lbl">If stuck</span><p>Echo-Track-Reread: teacher reads a sentence, students echo it while finger-tracking, then reread with a partner.</p></div></div></div>
-<div data-atom class="grid3 sp-2"><div class="card"><span class="lbl">If they finish early</span><p>Ask students to reread the final paragraph and explain how knowing a phone number and address could help at a park or a store.</p></div></div>
+            <div class="arow"><span class="al">Answer</span><span class="a">I. It appears in “I thought,” “if I get lost,” “I just stood,” and “I tried.”</span></div></div></div></div>
+<div data-atom class="blk pr pc pc-z sp-0"><div class="items"><div class="it"><div class="qr"><span class="n">4.</span>
+            <span class="q">Read the sight word in this sentence: “I saw the candy.” Then tell why Pinky stayed where she was when she got lost.</span>
+            
+            </div>
+            <div class="arow"><span class="al">Answer</span><span class="a">The sight word is “I.” Pinky stayed where she was because Abbu said: if you get lost, stay where you are.</span></div></div></div></div>
+<div data-atom class="blk sp-3"><div class="lbl g">Differentiation</div><div class="grid3"><div class="card"><span class="lbl">If stuck</span><ul class="kp"><li>Echo-Track-Reread: teacher reads a sentence, students echo it while finger-tracking, then reread with a partner.</li></ul></div></div></div>
+<div data-atom class="grid3 sp-2"><div class="card"><span class="lbl">If they finish early</span><ul class="kp"><li>Ask students to reread the final paragraph and explain how knowing a phone number and address could help at a park or a store.</li></ul></div></div>
 <div data-atom id="v9-check" class="bar s-c sp-4" data-sec="conclusion">
     <span class="badge">C</span><span class="nm">Check</span>
     <span class="mins">1 min</span></div>
-<div data-atom class="blk exit sp-2"><div class="lbl">Exit ticket</div><div class="it"><span>1.</span><span>On a slate, read this new sentence aloud: “I am at a park.” Circle the sight word “I.” Then say one reason Pinky wants to learn a phone number and address. <span class="a">&rarr; Correct if the student reads the sentence aloud, circles “I,” and says that Pinky can tell someone the phone number and address so someone can help find Mama and Abbu.</span></span></div></div>
+<div data-atom class="blk exit sp-2"><div class="lbl">Exit ticket</div><div class="it"><span>1.</span><span>On a slate, read this new sentence aloud: “I am at a park.”<br>Circle the sight word “I.” Then say one reason Pinky wants to learn a phone number and address. <span class="a">&rarr; Correct if the student reads the sentence aloud, circles “I,” and says that Pinky can tell someone the phone number and address so someone can help find Mama and Abbu.</span></span></div></div>
 <div data-atom id="v9-hw" class="bar s-h sp-4" data-sec="homework">
     <span class="badge">H</span><span class="nm">Homework</span>
     </div>
