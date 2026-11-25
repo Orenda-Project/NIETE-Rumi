@@ -3,3 +3,4 @@
 {"ts":"2026-11-23T04:06:11Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"20f6f591d633","branch":"bd-zrdvmi.48-render","user":""}
 {"ts":"2026-11-23T04:06:12Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"20f6f591d633","branch":"bd-zrdvmi.48-render","user":""}
 {"ts":"2026-11-24T01:10:14Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"20f6f591d633","branch":"bd-zrdvmi.48-render","user":""}
+{"ts":"2026-11-25T00:46:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"20f6f591d633","branch":"bd-zrdvmi.48-render","user":""}
