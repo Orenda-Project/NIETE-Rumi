@@ -2323,8 +2323,9 @@ const EVENT_PROPS = Object.freeze({
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
   // M4b library: a bank video's id, a grade, a bank subject name
   vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
-  // The share funnel: what the phone could share with, how the child did, and where a page's link came from.
-  cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct)$/,
+  // The share funnel: what the phone could share with, how the child did, and where a page's link came from (push:
+  // the child reminder opened it).
+  cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct|push)$/,
   // The invite ask (web-quiz-invite-ask.js): the arm (a0 today's button, a1 the panel) and the tile tapped.
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
   // class-link: round_done_for_tonight (wq.js, "Done for tonight!" shown): the round's two codes the start's reply named.
