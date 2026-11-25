@@ -2,8 +2,11 @@
  * The mock lane's database has what the migrations since its dump added (bd-4hyyp2).
  *
  * The lane builds its local database from supabase/baseline/schema.sql (a sandbox dump) + the seed snapshot +
- * seed-overrides.sql. It runs NO migrations. So a column a migration adds after the dump is missing on the lane, and
- * PostgREST answers any select naming it with 42703.
+ * seed-overrides.sql. Until bd-5b3u70.6 it ran NO migrations, so a column a migration added after the dump was missing
+ * on the lane, and PostgREST answered any select naming it with 42703. Since then local-db.sh applies, on top of the
+ * dump, every migration that supabase/baseline/schema.migrations.txt (the files the dump carries) does not list. So a
+ * migration NEWER than the stamp is the lane's to apply and is not checked here; one the stamp lists must already be
+ * in the dump, and that is what this pins.
  *
  * That is what broke lesson-plan/L03 from 5 Nov: V1.8.6__book_curriculum.sql added niete_lp612_segments.curriculum,
  * lp612-catalog.service.js started filtering on it, the baseline never got it, and the Grade 6 picker on the lane
@@ -25,6 +28,11 @@ const REPO = path.resolve(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const MIGRATIONS = 'infrastructure/supabase/migrations';
 const FLOOR = [1, 8, 6];
+// The migration files the dump already carries (local-db.sh baseline writes it); null when absent (an older checkout).
+const STAMP = 'supabase/baseline/schema.migrations.txt';
+const CARRIED = fs.existsSync(path.join(REPO, STAMP))
+  ? new Set(read(STAMP).split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')))
+  : null;
 
 function version(file) {
   const m = /^V(\d+)\.(\d+)\.(\d+)__/.exec(file);
@@ -49,7 +57,8 @@ function baselineTables() {
 /** [{ file, table, column? }] every forward migration from FLOOR on adds. */
 function migrationAdds() {
   const adds = [];
-  const files = fs.readdirSync(path.join(REPO, MIGRATIONS)).filter((f) => version(f) && atLeast(version(f), FLOOR));
+  const files = fs.readdirSync(path.join(REPO, MIGRATIONS)).filter((f) => version(f) && atLeast(version(f), FLOOR)
+    && (!CARRIED || CARRIED.has(`${MIGRATIONS}/${f}`)));   // newer than the dump: local-db.sh applies it on top
   for (const file of files.sort()) {
     const sql = read(`${MIGRATIONS}/${file}`).replace(/--.*$/gm, '');
     for (const a of sql.matchAll(/ALTER TABLE (?:IF EXISTS )?(?:ONLY )?(?:public\.)?(\w+)\s+ADD COLUMN (?:IF NOT EXISTS )?(\w+)/gi)) {
