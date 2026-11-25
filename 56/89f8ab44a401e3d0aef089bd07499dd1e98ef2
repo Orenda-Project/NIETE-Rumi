@@ -1,0 +1,2 @@
+{"ts":"2026-11-25T20:18:38Z","hook":"post-commit","event":"armed","switch":"","detail":"features=menu,observe spec_sync=true","sha":"5689f8ab44a4","branch":"bd-4jlu31.8.13.2-37895","user":"tariqtaleemabad"}
+{"ts":"2026-11-25T20:18:39Z","hook":"mock-lane","event":"not-ready","switch":"","detail":"menu,observe: postgrest missing (bash bot/scripts/e2e/local-db.sh install-tools)","sha":"5689f8ab44a4","branch":"bd-4jlu31.8.13.2-37895","user":"tariqtaleemabad"}
