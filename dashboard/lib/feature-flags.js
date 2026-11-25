@@ -320,13 +320,13 @@ const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
  * both into the same upload path. The operator, 25 Nov: "until we are completely sure ... the recordings don't go away
  * if you have bad internet ... we only give the upload recording button".
  *
- * DEFAULT ON — the opposite of the keys above, on the operator's word ("default ON for every account"), because the
- * safe side here is upload-only: the audio stays in the phone's recorder app whatever the internet does, while the
- * web recorder is the path that lost recordings. So:
+ * bd-ih6cej — FAIL-CLOSED since 25 Nov ~17:20 (the operator: "Actually on second thought, give both the options again. But
+ * advise whoever is using to use their own recorders if their internet is not very good."): OFF for all, so the in-app
+ * recorder is back, with Upload recording and a weak-internet line beside it. Same shapes as the keys above:
  *
- *   no row, true, "true", "on", a malformed value, a failed read  → ON (upload-only) for everyone
- *   false, "false", "off"                                          → OFF: the web recorder back, for everyone
- *   ["<users.id>", …]                                              → ON only for those users (a narrowing)
+ *   true (or "true")       → upload-only for everyone
+ *   ["<users.id>", …]      → upload-only for those users (a per-person override)
+ *   no row, anything else, a failed read → OFF (the in-app recorder)
  *
  * /config sends it as features.observeUploadOnly. It only changes what the portal draws: the upload routes take a
  * file however it was recorded, so there is no server gate to keep in step. Teachers' own recording is not touched.
@@ -334,28 +334,14 @@ const PORTAL_COACH_FLOW_V2_KEY = 'portal_coach_flow_v2';
 const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
 
 /**
- * bd-oe6r47 — is upload-only recording on for this user? See PORTAL_OBSERVE_UPLOAD_ONLY_KEY: ON unless the row says
- * off (or a list leaves her out). Never throws.
+ * bd-oe6r47 / bd-ih6cej — is upload-only recording on for this user? isFlagEnabledForUser's rule (fail-closed). Never throws.
  *
  * @param {object} supabase
  * @param {string|null} userId the SESSION user
  * @returns {Promise<boolean>}
  */
 async function isObserveUploadOnlyFor(supabase, userId) {
-  try {
-    const { data, error } = await readFlagRow(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY);
-    if (error || !data) return true;
-    let value = data.value;
-    if (typeof value === 'string') {
-      try { value = JSON.parse(value); } catch (_) { /* the raw string */ }
-    }
-    if (value === false) return false;
-    if (typeof value === 'string') return !['false', 'off'].includes(value.trim().toLowerCase());
-    if (Array.isArray(value)) return !!userId && value.some((id) => typeof id === 'string' && id === userId);
-    return true;
-  } catch (_) {
-    return true;
-  }
+  return isFlagEnabledForUser(supabase, PORTAL_OBSERVE_UPLOAD_ONLY_KEY, userId);
 }
 
 /**

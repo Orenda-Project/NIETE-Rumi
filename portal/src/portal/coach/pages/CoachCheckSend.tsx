@@ -546,7 +546,8 @@ const CoachCheckSend = () => {
   useEffect(() => {
     if (audio || !visit) return undefined;
     let live = true;
-    latestUnsent().then(async (u) => {
+    // bd-ih6cej: THIS teacher's kept copy, even when a newer kept recording belongs to someone else.
+    latestUnsent((m) => recordingTeacher(m.id)?.teacherExtId === visit.teacherExtId).then(async (u) => {
       const who = u ? recordingTeacher(u.meta.id) : null;
       if (live && u && who && who.teacherExtId === visit.teacherExtId) {
         const blob = await withDuration(u.blob, u.meta.ext, u.meta.elapsedMs);
@@ -576,6 +577,7 @@ const CoachCheckSend = () => {
       {visit && looked && !audio && (
         <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-xl font-light">{C.noRecording}</h2>
+          <p data-testid="record-tip" className="m-0 text-[15px] leading-snug text-[#4b5563]">{C.weakInternet}</p>
           <div className="[display:grid] grid-cols-2 gap-2.5">
             <Link to={routes.record(id)} className="flex h-14 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.startRecording}</Link>
             <Link to={routes.attach(id)} className="flex h-14 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>

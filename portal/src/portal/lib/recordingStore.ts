@@ -93,12 +93,17 @@ export async function markFinished(id: string, elapsedMs: number): Promise<void>
 }
 
 /** The most recently started recording that has audio in it, assembled. */
-export async function latestUnsent(): Promise<{ meta: StoredRecording; blob: Blob } | null> {
+/**
+ * The newest recording still on the phone (it has chunks), or null. bd-ih6cej: `accept` narrows which recordings count
+ * (the coach's screens pass "this teacher's"), so a kept copy is found even when a newer one belongs to someone else.
+ */
+export async function latestUnsent(accept?: (meta: StoredRecording) => boolean): Promise<{ meta: StoredRecording; blob: Blob } | null> {
   const db = await open();
   const tx = db.transaction([RECORDINGS, CHUNKS], "readonly");
   const all = await request<StoredRecording[]>(tx.objectStore(RECORDINGS).getAll());
   const newestFirst = [...all].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
   for (const meta of newestFirst) {
+    if (accept && !accept(meta)) continue;
     const range = IDBKeyRange.bound([meta.id, 0], [meta.id, Number.MAX_SAFE_INTEGER]);
     // eslint-disable-next-line no-await-in-loop
     const chunks = await request<{ seq: number; blob: Blob }[]>(tx.objectStore(CHUNKS).getAll(range));
