@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { CalendarDays, MapPin, Send, User, X } from "lucide-react";
+import { CalendarDays, MapPin, Play, Send, User, X } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { HistoryRow, RecordUploadPair, StatStrip } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
@@ -162,7 +162,15 @@ const CoachVisit = () => {
                 <div className="flex flex-col gap-3">
                 {/* bd-ih6cej (queue #278) — a recording this phone keeps for this teacher (cut or never sent) comes first,
                     then the one line with the buttons: the weak-internet advice (upload-only: how to record first). */}
-                {kept && (
+                {/* bd-ma9jiy (queue #262) — with the in-app recorder, a kept recording is continued: the record step opens it
+                    as a paused recording (Resume / Stop). Upload-only: Send saved recording, as before. */}
+                {kept && uploadOnly === false && (
+                  <Link to={routes.record(id)} data-testid="continue-kept"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+                    <Play className="h-5 w-5 shrink-0 fill-current rtl:-scale-x-100" aria-hidden="true" />{C.continueKept}
+                  </Link>
+                )}
+                {kept && uploadOnly === true && (
                   <Link to={routes.check(id)} data-testid="send-kept"
                     className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
                     <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{C.sendKept}

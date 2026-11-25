@@ -86,7 +86,7 @@ describe("LessonRecorder", () => {
     const mr = FakeMediaRecorder.instances[0];
 
     expect(mr.opts.mimeType).toBe("audio/webm;codecs=opus");
-    expect(mr.timeslice).toBe(5_000);
+    expect(mr.timeslice).toBe(1_000) // bd-ma9jiy: 1 s pieces (was 5 s);
     expect(store.createRecording).toHaveBeenCalledWith({
       id: "rec-1", mimeType: "audio/webm;codecs=opus", ext: ".webm", startedAt: "2026-10-02T10:00:00.000Z",
     });

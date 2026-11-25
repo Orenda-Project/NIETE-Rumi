@@ -4,7 +4,10 @@ import { LogoutWhileRecording } from '../newui/coaching/LogoutWhileRecording';
 import { keepScreenOn } from './keepAwake';
 import { newUiRemembered } from './newUiMemory';
 import { LessonRecorder, type FinishedRecording } from './lessonRecorder';
-import { pickRecordingType } from './recordingSupport';
+import { pickRecordingType, type RecordingType } from './recordingSupport';
+import { withDuration } from './webmDuration';
+import { markFinished, type KeptRecording } from './recordingStore';
+import { RecordingHeart, cutOf, type BeatContext } from './recordingBeat';
 
 /**
  * bd-5rz1v.10 — the lesson being recorded lives HERE, above the routes, not in
@@ -32,6 +35,12 @@ import { pickRecordingType } from './recordingSupport';
  * the coach's recorder could move here later without this file knowing pages.
  * Nothing here touches Capacitor until a recording starts (keepScreenOn guards
  * its own plugin call), so an app build that cannot record never runs any of it.
+ *
+ * bd-ma9jiy (queue #262) — `restore`: a recording this phone kept (cut by a kill: WhatsApp swiped away, the phone off;
+ * or stopped and never sent) comes back as THIS session, PAUSED: active, the clock at its saved length, no microphone.
+ * `resume` then opens the microphone and continues the same recording (LessonRecorder `resume`: same id, the pieces
+ * joined into one file); `finish` without a Resume hands back the kept file. "Simulate as if the observation got paused
+ * in the middle" (the operator, 25 Nov). `beat` on start/restore: the heartbeat (recordingBeat) for every save.
  */
 
 export type StartResult = 'recording' | 'micBlocked';
@@ -50,9 +59,12 @@ export type RecordingSession = {
   returnTo: string | null;
   /** Time actually recorded, now (pauses excluded). */
   elapsedMs: () => number;
-  start: (opts: { returnTo: string }) => Promise<StartResult>;
+  start: (opts: { returnTo: string; beat?: BeatContext }) => Promise<StartResult>;
+  /** bd-ma9jiy: open a kept recording as this session, paused (nothing starts until Resume). */
+  restore: (opts: { returnTo: string; kept: KeptRecording; beat?: BeatContext }) => void;
   pause: () => void;
-  resume: () => void;
+  /** Carries on; on a restored recording it opens the microphone first (micBlocked when refused). */
+  resume: () => void | Promise<StartResult>;
   /** Stop and keep: the recording, or null when there was none. */
   finish: () => Promise<FinishedRecording | null>;
   /** bd-v0toag.31: who hears each chunk as it is saved (the live screen), or null. Never affects the recording. */
@@ -124,15 +136,19 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     chunkListener.current = fn;
   }, []);
   const [live, setLive] = useState<Live>(IDLE);
+  /** bd-ma9jiy: a kept recording restored as paused, until Resume makes it live (or finish hands it back). */
+  const keptRef = useRef<KeptRecording | null>(null);
+  const heartRef = useRef<RecordingHeart | null>(null);
+  const resuming = useRef<Promise<StartResult> | null>(null);
   // The pending Logout, and which look asks about it: the new UI's (portal_new_ui on for her)
   // or the old one. Decided when she taps, from the flag the layout last read for her.
   const [logoutAsk, setLogoutAsk] = useState<{ logout: () => unknown; newUi: boolean } | null>(null);
 
-  const elapsedMs = useCallback(() => recorderRef.current?.elapsedMs() ?? 0, []);
+  const elapsedMs = useCallback(() => recorderRef.current?.elapsedMs() ?? keptRef.current?.meta.elapsedMs ?? 0, []);
 
-  const start = useCallback(async ({ returnTo }: { returnTo: string }): Promise<StartResult> => {
+  const start = useCallback(async ({ returnTo, beat }: { returnTo: string; beat?: BeatContext }): Promise<StartResult> => {
     // One lesson at a time: a second start shows the one already running.
-    if (recorderRef.current) {
+    if (recorderRef.current || keptRef.current) {
       setLive((l) => ({ ...l, returnTo }));
       return 'recording';
     }
@@ -148,7 +164,12 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     } catch {
       return 'micBlocked';
     }
-    const rec = new LessonRecorder({ stream: media, type, onChunk: (b, seq, ms) => chunkListener.current?.(b, seq, ms) });
+    const id = (() => { try { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined; } catch { return undefined; } })();
+    let heart: RecordingHeart | undefined;
+    if (beat && id) { try { heart = new RecordingHeart({ recordingId: id, ctx: beat }); } catch { heart = undefined; } }
+    const rec = new LessonRecorder({
+      stream: media, type, onChunk: (b, seq, ms) => chunkListener.current?.(b, seq, ms), ...(id ? { id } : {}), ...(heart ? { heart } : {}),
+    });
     try {
       await rec.start();
     } catch {
@@ -156,9 +177,57 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
       return 'micBlocked';
     }
     recorderRef.current = rec;
+    heartRef.current = heart || null;
     releaseScreen.current = await keepScreenOn();
     setLive({ active: true, paused: false, stream: media, screenWentOff: false, recordingId: rec.id ?? null, returnTo });
     return 'recording';
+  }, []);
+
+  const restore = useCallback(({ returnTo, kept, beat }: { returnTo: string; kept: KeptRecording; beat?: BeatContext }) => {
+    if (recorderRef.current || keptRef.current) { setLive((l) => ({ ...l, returnTo })); return; }
+    keptRef.current = kept;
+    if (beat) {
+      try {
+        const heart = new RecordingHeart({ recordingId: kept.meta.id, ctx: beat, bytesSoFar: kept.blob.size });
+        heartRef.current = heart;
+        heart.event('cut', { ...(cutOf(kept.beats, Date.now()) || {}), ms: kept.meta.elapsedMs, finished: kept.meta.finished, parts: kept.parts });
+      } catch { /* instrumentation only */ }
+    }
+    setLive({ active: true, paused: true, stream: null, screenWentOff: false, recordingId: kept.meta.id, returnTo });
+  }, []);
+
+  /** bd-ma9jiy: Resume on a restored recording — the microphone, then the SAME recording carries on. */
+  const resumeKept = useCallback((kept: KeptRecording): Promise<StartResult> => {
+    if (resuming.current) return resuming.current;
+    resuming.current = (async (): Promise<StartResult> => {
+      const supported = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(kept.meta.mimeType);
+      const type: RecordingType | null = supported ? { mimeType: kept.meta.mimeType, ext: kept.meta.ext as RecordingType['ext'] } : pickRecordingType();
+      if (!type) return 'micBlocked';
+      let media: MediaStream;
+      try {
+        media = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+      } catch {
+        heartRef.current?.event('mic_blocked', { ms: kept.meta.elapsedMs });
+        return 'micBlocked';
+      }
+      const rec = new LessonRecorder({
+        stream: media, type, id: kept.meta.id, onChunk: (b, seq, ms) => chunkListener.current?.(b, seq, ms),
+        resume: { prior: kept.blob, nextSeq: kept.nextSeq, elapsedMs: kept.meta.elapsedMs },
+        ...(heartRef.current ? { heart: heartRef.current } : {}),
+      });
+      try {
+        await rec.start();
+      } catch {
+        try { media.getTracks().forEach((t) => t.stop()); } catch { /* already stopped */ }
+        return 'micBlocked';
+      }
+      recorderRef.current = rec;
+      keptRef.current = null;
+      releaseScreen.current = await keepScreenOn();
+      setLive((l) => ({ ...l, active: true, paused: false, stream: media }));
+      return 'recording';
+    })().finally(() => { resuming.current = null; });
+    return resuming.current;
   }, []);
 
   const pause = useCallback(() => {
@@ -168,23 +237,40 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     setLive((l) => ({ ...l, paused: true }));
   }, []);
 
-  const resume = useCallback(() => {
+  const resume = useCallback((): void | Promise<StartResult> => {
     const rec = recorderRef.current;
-    if (!rec) return;
+    if (!rec) {
+      if (keptRef.current) return resumeKept(keptRef.current);
+      return undefined;
+    }
     rec.resume();
     setLive((l) => ({ ...l, paused: false }));
-  }, []);
+    return undefined;
+  }, [resumeKept]);
 
   const finish = useCallback(async (): Promise<FinishedRecording | null> => {
     // Two taps (Finish here, Logout there) finish it once.
     if (finishing.current) return finishing.current;
     const rec = recorderRef.current;
+    const kept = keptRef.current;
+    if (!rec && kept) {
+      // bd-ma9jiy: Stop on a restored recording never resumed: the kept file as it is (its length written in).
+      keptRef.current = null;
+      const blob = await withDuration(kept.blob, kept.meta.ext, kept.meta.elapsedMs);
+      try { await markFinished(kept.meta.id, kept.meta.elapsedMs); } catch { /* the kept copy stays */ }
+      heartRef.current?.event('stop', { ms: kept.meta.elapsedMs, kept: true });
+      void heartRef.current?.dispose(true);
+      heartRef.current = null;
+      setLive(IDLE);
+      return { blob, durationMs: kept.meta.elapsedMs, type: { mimeType: kept.meta.mimeType, ext: kept.meta.ext as RecordingType['ext'] }, id: kept.meta.id };
+    }
     if (!rec) return null;
     finishing.current = (async () => {
       try {
         return await rec.stop();
       } finally {
         recorderRef.current = null;
+        heartRef.current = null;
         const release = releaseScreen.current;
         releaseScreen.current = null;
         void release?.();
@@ -196,7 +282,8 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   }, []);
 
   const askBeforeLogout = useCallback((logout: () => unknown) => {
-    if (!recorderRef.current) { void logout(); return; }
+    // A restored, never-resumed recording is already safe on the phone: nothing to ask.
+    if (!recorderRef.current) { keptRef.current = null; setLive(IDLE); void logout(); return; }
     setLogoutAsk({ logout, newUi: newUiRemembered() });
   }, []);
 
@@ -225,8 +312,8 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   }, []);
 
   const value = useMemo<RecordingSession>(() => ({
-    ...live, elapsedMs, start, pause, resume, finish, askBeforeLogout, setChunkListener,
-  }), [live, elapsedMs, start, pause, resume, finish, askBeforeLogout, setChunkListener]);
+    ...live, elapsedMs, start, restore, pause, resume, finish, askBeforeLogout, setChunkListener,
+  }), [live, elapsedMs, start, restore, pause, resume, finish, askBeforeLogout, setChunkListener]);
 
   const finishThenLogout = async () => {
     const logout = logoutAsk?.logout;
