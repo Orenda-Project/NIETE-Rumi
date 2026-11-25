@@ -32,6 +32,9 @@ import { DebriefDock, DebriefListeningStage, ErrorAction, ErrorCard, FeedbackCar
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
+import { useUploadOnly } from "../observe/uploadOnly";
+import { PhoneRecorderInput } from "../observe/PhoneRecord";
+import { OBSERVE } from "../observe/copy";
 
 /**
  * bd-4404s7.5 — Debrief, step 3 of 5 (Blueprint Coach_Debrief): the guide for her talk with the teacher — the one the
@@ -134,6 +137,10 @@ export default function Debrief() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // bd-oe6r47 (queue #278) — upload-only (default ON; still being read counts as on): Record opens the phone's recorder.
+  const phoneOnly = useUploadOnly() !== false;
+  const O = useCopy(OBSERVE);
+  const phoneInput = useRef<HTMLInputElement>(null);
   const asked = useRef(false);
   // bd-ewbzns.4.5 — the guide's ask outlives a re-render of the view; only leaving the page stops it.
   const mounted = useRef(true);
@@ -222,10 +229,12 @@ export default function Debrief() {
   const canRetry = view?.problem === "failed" || view?.problem === "feedback_failed";
   // bd-w0zbbe: no recording until the guide is there (or did not load) — the talk follows the guide.
   const canStart = stage === "guide" && !!view && hers && (guideState === "ready" || guideState === "failed");
-  const record = () => setStage(canRecord ? "recording" : "micBlocked");
+  // bd-oe6r47 — upload-only: no in-app recorder; the main button asks for the phone's own recorder (its file is sent
+  // exactly as an uploaded one). Off: today's recorder.
+  const record = () => (phoneOnly ? phoneInput.current?.click() : setStage(canRecord ? "recording" : "micBlocked"));
   const pick = () => input.current?.click();
   // bd-o15qnr.49 — v7: Record debrief floats at the bottom (the frame's dock), not at the end of the notes.
-  const dock = v7 && canStart ? <DebriefDock onRecord={record} onUpload={pick} /> : undefined;
+  const dock = v7 && canStart ? <DebriefDock onRecord={record} onUpload={pick} recordLabel={phoneOnly ? O.recordOnPhone : undefined} /> : undefined;
 
   return (
     <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
@@ -247,7 +256,7 @@ export default function Debrief() {
           {guideState === "failed" && v7 && (
             <ErrorCard testId="guide-failed" title={E.noGuide} line={E.noGuideLine}>
               <ErrorAction onClick={guideAgain}>{C.retry}</ErrorAction>
-              {hers && <ErrorAction quiet onClick={() => setStage(canRecord ? "recording" : "micBlocked")}>{E.recordWithoutGuide}</ErrorAction>}
+              {hers && <ErrorAction quiet onClick={record}>{E.recordWithoutGuide}</ErrorAction>}
             </ErrorCard>
           )}
           {guideState === "failed" && !v7 && (
@@ -283,9 +292,15 @@ export default function Debrief() {
               buttons are the dock's (bd-o15qnr.49); the file input and its error stay here. */}
           {canStart && (
             <>
-              {!dock && <RecordUploadPair onRecord={record} onUpload={pick} />}
+              {!dock && <RecordUploadPair onRecord={record} onUpload={pick} copy={phoneOnly ? { startRecording: O.recordOnPhone } : undefined} />}
               <input ref={input} data-testid="talk-input" type="file" accept={AUDIO_ACCEPT} className="hidden"
                 onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
+              {phoneOnly && (
+                <>
+                  <PhoneRecorderInput ref={phoneInput} testId="talk-record-input" onFile={(f) => { void onFile(f); }} />
+                  <p data-testid="phone-hint" className="m-0 text-center text-[15px] text-[#4b5563]">{O.phoneHint}</p>
+                </>
+              )}
               {fileError && <Note tone="amber">{fileError}</Note>}
             </>
           )}
