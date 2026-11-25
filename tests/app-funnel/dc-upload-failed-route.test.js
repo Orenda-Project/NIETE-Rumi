@@ -89,3 +89,17 @@ test('the pick stage, the not_image reason, the error name and what the file is 
   await post(srv, good);
   expect(rows()[3].d).toEqual(expect.objectContaining({ errName: null, magic: null }));
 });
+
+// bd-q261rec (queue #261) — a recording sent in PIECES: which piece failed (-1: asking our API), of how many, on which
+// try; sentAs 'pieces'. A file sent whole has none of them (null).
+test('a piece that failed: its number, the piece count and the try are kept; sentAs pieces; bad values are null', async () => {
+  const srv = await app();
+  await post(srv, { ...good, kind: 'audio', sentAs: 'pieces', piece: 12, pieces: 30, attempt: 3 });
+  await post(srv, { ...good, kind: 'audio', sentAs: 'pieces', piece: -1, pieces: 30, attempt: 1 });
+  await post(srv, { ...good, piece: 'x', pieces: -4, attempt: 'y' });
+  await post(srv, good);
+  expect(rows()[0].d).toEqual(expect.objectContaining({ sentAs: 'pieces', piece: 12, pieces: 30, attempt: 3 }));
+  expect(rows()[1].d).toEqual(expect.objectContaining({ piece: -1 }));
+  expect(rows()[2].d).toEqual(expect.objectContaining({ piece: null, pieces: 0, attempt: 0 }));
+  expect(rows()[3].d).toEqual(expect.objectContaining({ piece: null, pieces: null, attempt: null }));
+});
