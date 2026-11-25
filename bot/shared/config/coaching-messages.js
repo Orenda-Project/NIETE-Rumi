@@ -103,6 +103,13 @@ const COACHING_MESSAGES = {
     ...en("This observation's review has already been submitted, so I can't change its lesson plan."),
     ur: 'اس مشاہدے کا جائزہ پہلے ہی جمع ہو چکا ہے، اس لیے اب اس کا سبق کا منصوبہ تبدیل نہیں کیا جا سکتا۔',
   },
+  // Lesson-plan branch: the pick was confirmed but the database could not link it, even after retries
+  // (bd-r2uzg1.18.6). The step stops instead of going on without the plan; the "Yes" button is still in the
+  // chat, so the ask is to tap it again. «ہاں» is the Urdu button title (lessonPlan_confirm_yes).
+  lessonPlan_link_failed: {
+    ...en("Sorry, I couldn't attach that lesson plan just now. Please wait a minute, then tap *Yes* again."),
+    ur: 'معذرت، یہ سبق کا منصوبہ ابھی منسلک نہیں ہو سکا۔ ایک منٹ بعد دوبارہ *ہاں* دبائیں۔',
+  },
   // Lesson-plan branch: document received, queued for processing
   lessonPlan_received: {
     ...en("📄 Lesson plan received! I'm processing it in the background and will weave it into your analysis."),
