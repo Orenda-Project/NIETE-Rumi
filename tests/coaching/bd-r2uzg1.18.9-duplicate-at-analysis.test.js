@@ -228,10 +228,15 @@ describe('refuseIfAlreadyAnalysed', () => {
     expect(t.sent).toEqual([]);
   });
 
-  test("a teacher's own recording (DC) is not this check's business", async () => {
+  // bd-r2uzg1.18.15: a teacher's own recording now has its own half (her copies, by user_id); never the coach lookup.
+  test("a teacher's own recording (DC) goes to the DC half, never the coach lookup", async () => {
     const t = deps({ id: 'obs-older', status: 'completed', created_at: '2026-11-01T08:00:00Z' });
+    const dcLookups = [];
+    t.d.findDone = async (o) => { dcLookups.push(['done', o.userId]); return null; };
+    t.d.findInFlight = async (o) => { dcLookups.push(['inFlight', o.userId]); return []; };
     expect(await Cache.refuseIfAlreadyAnalysed(leaderObservation({ observation_type: null }), t.d)).toBe(false);
     expect(t.lookups).toEqual([]);
+    expect(dcLookups).toEqual([['done', 'teacher-0001'], ['inFlight', 'teacher-0001']]);
   });
 
   test('no hash on the row (not stamped): fails open, no lookup', async () => {
@@ -310,10 +315,13 @@ describe('processAnalysis runs the check before the analysis starts', () => {
     spy.mockRestore();
   });
 
-  test("control: a teacher's own recording (DC) is never looked up here", async () => {
+  // bd-r2uzg1.18.15: a teacher's own recording is looked up by HER (user_id), never by a coach; nothing found → analysed.
+  test("control: a teacher's own recording (DC) is looked up as hers, and analysed when nothing else is there", async () => {
     mockSession = leaderObservation({ observation_type: null, observer_user_id: null });
     await AnalysisProcessorService.processAnalysis('obs-current', { from: '920000000009' }).catch(() => {});
-    expect(mockLookups).toEqual([]);
+    expect(mockLookups.length).toBe(1);
+    expect(mockLookups[0]).toContainEqual(['eq', 'user_id', 'teacher-0001']);
+    expect(mockLookups[0].find((c) => c[1] === 'observer_user_id')).toBeUndefined();
     expect(mockPriorFeedback).toHaveBeenCalled();
   });
 });
