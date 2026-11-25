@@ -217,7 +217,7 @@ describe("the one screen", () => {
     at(COACHING_NEW);
     await pickClass();
     fireEvent.click(within(await openRecording()).getByRole("button", { name: C.recordTitle }));
-    await waitFor(() => expect(session.start).toHaveBeenCalledWith({ returnTo: COACHING_NEW }));
+    await waitFor(() => expect(session.start).toHaveBeenCalledWith(expect.objectContaining({ returnTo: COACHING_NEW })));
     expect(await screen.findByRole("timer")).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(C.pause) })).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(C.stop) })).toBeTruthy();

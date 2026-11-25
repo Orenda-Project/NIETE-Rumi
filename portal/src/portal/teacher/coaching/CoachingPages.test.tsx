@@ -271,7 +271,7 @@ describe("the page: no class, the recording first", () => {
     await waitFor(() => expect(recordBtn()).toBeTruthy(), { timeout: 5000 });
     session.start.mockImplementationOnce(async () => { session.active = true; return "recording"; });
     fireEvent.click(recordBtn());
-    await waitFor(() => expect(session.start).toHaveBeenCalledWith({ returnTo: COACHING_NEW }));
+    await waitFor(() => expect(session.start).toHaveBeenCalledWith(expect.objectContaining({ returnTo: COACHING_NEW })));
     expect(await screen.findByRole("timer")).toBeTruthy();
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
     session.finish.mockImplementationOnce((async () => {

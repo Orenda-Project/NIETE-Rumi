@@ -26,7 +26,12 @@ import { clockText } from "../../components/coaching/coach/CoachRecorder";
 import type { CoachVisit } from "../types";
 import { useUploadOnly } from "../observe/uploadOnly";
 import PhoneRecord from "../observe/PhoneRecord";
-import { useKeptFor } from "../observe/keptRecording";
+import { keptFor, useKept } from "../observe/keptRecording";
+import type { KeptRecording } from "../../lib/recordingStore";
+import type { BeatContext } from "../../lib/recordingBeat";
+
+/** bd-ma9jiy — the heartbeat's context for this visit's recording. */
+const beatOf = (visit: CoachVisit): BeatContext => ({ kind: "obs", visitId: visit.id, teacherExtId: visit.teacherExtId || null });
 
 /**
  * bd-4404s7.4 — Record observation, for one scheduled visit (Blueprint: Coach_Record; it was Record live): a
@@ -72,7 +77,7 @@ function LevelMeter({ level, live }: { level: number | null; live: boolean }) {
   );
 }
 
-function Recorder({ visit, onBlocked, notesOn }: { visit: CoachVisit; onBlocked: () => void; notesOn: boolean }) {
+function Recorder({ visit, onBlocked, notesOn, kept = null }: { visit: CoachVisit; onBlocked: () => void; notesOn: boolean; kept?: KeptRecording | null }) {
   const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
   const navigate = useNavigate();
@@ -82,7 +87,11 @@ function Recorder({ visit, onBlocked, notesOn }: { visit: CoachVisit; onBlocked:
   const { recording, paused, elapsed, level, screenWentOff, micBlocked, togglePause, finish, elapsedNow } = useCoachRecording({
     onStarted: (recordingId) => rememberRecording(recordingId, {
       teacherExtId: visit.teacherExtId || "", schoolExtId: visit.schoolExtId || null, teacherName: visit.teacherName || "",
+      kind: "obs", visitId: visit.id,
     }),
+    // bd-ma9jiy: a kept recording opens paused (Resume continues it), and every save is sampled.
+    kept,
+    beat: beatOf(visit),
   });
   useRecordingBackGuard(recording, () => setAsking(true));
   useEffect(() => { if (micBlocked) onBlocked(); }, [micBlocked, onBlocked]);
@@ -187,8 +196,8 @@ function Recorder({ visit, onBlocked, notesOn }: { visit: CoachVisit; onBlocked:
  * (LessonRecorder, unchanged), and the recording is remembered as this teacher's, so a reload can still send it.
  * Switch off: the Recorder below, exactly as on production (no menu; leaving stops it, so Back asks).
  */
-function SessionRecorder({ visit, session, onBlocked, notesOn }: {
-  visit: CoachVisit; session: RecordingSession; onBlocked: () => void; notesOn: boolean;
+function SessionRecorder({ visit, session, onBlocked, notesOn, kept = null }: {
+  visit: CoachVisit; session: RecordingSession; onBlocked: () => void; notesOn: boolean; kept?: KeptRecording | null;
 }) {
   const routes = useObserveRoutes();
   const C = useCopy(OBSERVE);
@@ -212,8 +221,16 @@ function SessionRecorder({ visit, session, onBlocked, notesOn }: {
     if (asked.current) return;
     asked.current = true;
     if (session.active) return;
-    void session.start({ returnTo: here }).then((r) => { if (r === "micBlocked") onBlocked(); });
-  }, [session, here, onBlocked]);
+    // bd-ma9jiy (queue #262; the operator 25 Nov: "simulate as in the observation got paused in the middle") — a recording
+    // this phone kept for this teacher comes back as this recording, PAUSED: Resume carries on in the same recording.
+    if (kept) { session.restore({ returnTo: here, kept, beat: beatOf(visit) }); return; }
+    void session.start({ returnTo: here, beat: beatOf(visit) }).then((r) => { if (r === "micBlocked") onBlocked(); });
+  }, [session, here, onBlocked, kept, visit]);
+  const resumeOrPause = () => {
+    if (!session.paused) { session.pause(); return; }
+    const r = session.resume();
+    if (r) void r.then((x) => { if (x === "micBlocked") onBlocked(); });
+  };
 
   // Whose recording this is, the moment it has an id (a reload can still send it).
   useEffect(() => {
@@ -221,6 +238,7 @@ function SessionRecorder({ visit, session, onBlocked, notesOn }: {
     remembered.current = session.recordingId;
     rememberRecording(session.recordingId, {
       teacherExtId: visit.teacherExtId || "", schoolExtId: visit.schoolExtId || null, teacherName: visit.teacherName || "",
+      kind: "obs", visitId: visit.id,
     });
   }, [mine, session.recordingId, visit.teacherExtId, visit.schoolExtId, visit.teacherName]);
 
@@ -266,7 +284,7 @@ function SessionRecorder({ visit, session, onBlocked, notesOn }: {
     <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(visit.id)} crumb={crumb}
       dock={(
         <>
-          <button type="button" onClick={() => (session.paused ? session.resume() : session.pause())} disabled={!mine}
+          <button type="button" onClick={resumeOrPause} disabled={!mine}
             className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025] disabled:opacity-60">
             {session.paused ? <Play className="h-5 w-5 fill-current" aria-hidden="true" /> : <Pause className="h-5 w-5 fill-current" aria-hidden="true" />}{session.paused ? C.resume : C.pause}
           </button>
@@ -342,7 +360,12 @@ const CoachRecord = () => {
   // sent) is offered first (PhoneRecord "kept"): starting a new one would hide it. Asked once, on arrival, unless a
   // recording is already running (that one is the session's, not a kept copy). Start recording there sets `startNew`.
   const keptAsk = !arrivedRecording && uploadOnly === false;
-  const kept = useKeptFor(data?.visit?.teacherExtId, keptAsk);
+  // bd-ma9jiy (queue #262) — the kept recording itself: a WebM one opens as the paused recorder (Resume / Stop), not as
+  // "Send saved recording". One the code cannot continue (an MP4 from an iPhone) keeps the saved-copy screen.
+  const keptTeacher = data?.visit?.teacherExtId || "";
+  const keptRec = useKept(keptAsk && keptTeacher ? () => keptFor(keptTeacher) : null, [keptTeacher, keptAsk]);
+  const kept = keptRec === undefined ? null : !!keptRec;
+  const resumable = !!keptRec && keptRec.meta.ext === ".webm";
   const [startNew, setStartNew] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [blocked, setBlocked] = useState(false);
@@ -359,7 +382,7 @@ const CoachRecord = () => {
     return () => { live = false; };
   }, []);
 
-  if (!visit || blocked || flowRead === null || uploadOnly === null || (keptAsk && !!visit.teacherExtId && kept === null)) {
+  if (!visit || blocked || flowRead === null || uploadOnly === null || (keptAsk && !!visit.teacherExtId && keptRec === undefined)) {
     return (
       <ObservePage banner={false} title={C.recordTitle} backTo={routes.visit(id)} trouble={blocked ? "mic" : null}
         crumb={visit ? <>{visit.teacherName || C.dash}{visit.scheduledSlot && <> · <TimeStamp time={visit.scheduledSlot} size={13} /></>}</> : undefined}>
@@ -382,10 +405,11 @@ const CoachRecord = () => {
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
   if (visit.status !== "upcoming" || !visit.teacherExtId) return <Navigate to={routes.visit(id)} replace />;
   if (uploadOnly && !(v6 && session && arrivedRecording)) return <PhoneRecord visit={visit} mode="upload" />;
-  if (keptAsk && kept && !startNew) return <PhoneRecord visit={visit} mode="kept" onRecord={() => setStartNew(true)} />;
+  if (keptAsk && kept && !resumable && !startNew) return <PhoneRecord visit={visit} mode="kept" onRecord={() => setStartNew(true)} />;
+  const resumeFrom = keptAsk && resumable && !startNew ? keptRec : null;
   // bd-o15qnr.27 (v6): the recording that keeps going while she moves round the app; switch off, production's Recorder.
-  if (v6 && session) return <SessionRecorder key={attempt} visit={visit} session={session} onBlocked={block} notesOn={notesOn} />;
-  return <Recorder key={attempt} visit={visit} onBlocked={block} notesOn={notesOn} />;
+  if (v6 && session) return <SessionRecorder key={attempt} visit={visit} session={session} onBlocked={block} notesOn={notesOn} kept={resumeFrom} />;
+  return <Recorder key={attempt} visit={visit} onBlocked={block} notesOn={notesOn} kept={resumeFrom} />;
 };
 
 export default CoachRecord;

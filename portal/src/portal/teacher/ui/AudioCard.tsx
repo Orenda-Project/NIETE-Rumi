@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pause, Play, RotateCcw, RotateCw } from 'lucide-react';
+import { Download, Pause, Play, RotateCcw, RotateCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBidi } from './bidi';
 import type { TeacherUiCopy } from './copy';
@@ -8,6 +8,7 @@ import { FOCUS } from './styles';
 import { useKitCopy } from './useKitCopy';
 import { SPEEDS } from './VoiceNote';
 import { nearItsEnd, sameRecording } from './signedLink';
+import { canSave, saveRecordingToPhone, type SaveHow, type SaveKind } from '../../lib/saveRecording';
 
 /**
  * bd-4404s7.1 — AudioCard: a recording she can play (the coach's Check and send and the observation; the teacher's Digital
@@ -36,7 +37,7 @@ export interface AudioCardProps {
   lead?: ReactNode;
   /** A control beside the play button (Redo). Keep it a 56px target. */
   action?: ReactNode;
-  copy?: Partial<Pick<TeacherUiCopy, 'play' | 'pause' | 'speed' | 'back10' | 'forward10' | 'position'>>;
+  copy?: Partial<Pick<TeacherUiCopy, 'play' | 'pause' | 'speed' | 'back10' | 'forward10' | 'position' | 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed'>>;
   className?: string;
   /**
    * Queue #251 (the operator 24 Nov: "when you click on the timestamp, it should show you the recording part of it") —
@@ -46,6 +47,13 @@ export interface AudioCardProps {
   startAt?: { seconds: number; n: number } | null;
   /** Says when it starts or stops playing (a time chip shows which moment is playing). */
   onPlaying?: (playing: boolean) => void;
+  /**
+   * bd-ma9jiy (queue #262; the operator 25 Nov ~19:50: "the button to save the recording ... on the component where there's
+   * a seek bar") — with `controls`: Save to phone under the bar, the file named `filename` (lib/saveRecording
+   * recordingFilename: NIETE_OBS_3Eng_25Nov_1040.webm). Shown only where it can work (canSave: a phone-only copy needs a
+   * plain browser). The answer stays on screen 10 s.
+   */
+  save?: { filename: string; kind: SaveKind | 'dc'; recordingId?: string | null };
 }
 
 /**
@@ -70,7 +78,7 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 /** A file's own length when it says one (a recorder's webm may say Infinity until it is read to the end). */
 const lengthOf = (d: number) => (Number.isFinite(d) && d > 0 ? d : null);
 
-export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, compact = false, testId, startAt = null, onPlaying }: AudioCardProps) {
+export function AudioCard({ title, sub, src, lead, action, copy, className, controls = false, compact = false, testId, startAt = null, onPlaying, save }: AudioCardProps) {
   const words = { ...useKitCopy(), ...copy };
   const bidi = useBidi();
   const audio = useRef<HTMLAudioElement>(null);
@@ -298,6 +306,7 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
   if (!controls) return card;
 
   const SMALL = cn('flex min-h-[56px] min-w-[56px] items-center justify-center gap-1 rounded-xl px-2 text-[14px] font-semibold text-[#33374a]', FOCUS);
+  const saveShown = !!save && canSave(held ?? null);
   const rateLabel = `${rate}×`;
   return (
     <div data-testid={testId} data-open={compact ? (opened ? 'yes' : 'no') : undefined} className={cn('flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]', className)}>
@@ -320,7 +329,43 @@ export function AudioCard({ title, sub, src, lead, action, copy, className, cont
             <span aria-hidden="true">10</span><RotateCw className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+        {saveShown && save ? <SaveToPhone src={newest.current || held || ''} save={save} words={words} /> : null}
       </div>}
+    </div>
+  );
+}
+
+const SAVE_HOLD_MS = 10_000;
+
+/** bd-ma9jiy — the player's Save to phone: one press, then what came of it (held 10 s). */
+function SaveToPhone({ src, save, words }: {
+  src: string;
+  save: NonNullable<AudioCardProps['save']>;
+  words: Pick<TeacherUiCopy, 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed'>;
+}) {
+  const [state, setState] = useState<'idle' | 'saving' | SaveHow>('idle');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const press = async () => {
+    if (state === 'saving') return;
+    setState('saving');
+    const how = await saveRecordingToPhone({ src, filename: save.filename, kind: save.kind, recordingId: save.recordingId ?? null });
+    setState(how);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setState('idle'), SAVE_HOLD_MS);
+  };
+  const said = state === 'saving' ? words.saving
+    : state === 'failed' ? words.saveFailed
+      : state === 'copied' ? words.saveLinkCopied
+        : state === 'handoff' || state === 'app_browser' ? words.savedToPhone
+          : null;
+  return (
+    <div className="flex flex-col gap-1 pt-1">
+      <button type="button" onClick={() => { void press(); }} disabled={state === 'saving'} data-testid="save-to-phone"
+        className={cn('flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 text-[15px] font-semibold text-[#33374a] disabled:opacity-60', FOCUS)}>
+        <Download className="h-5 w-5" aria-hidden="true" />{words.saveToPhone}
+      </button>
+      {said ? <p role="status" className={cn('m-0 text-center text-[13px]', state === 'failed' ? 'text-[#b45309]' : 'text-[#6b7280]')}>{said}</p> : null}
     </div>
   );
 }

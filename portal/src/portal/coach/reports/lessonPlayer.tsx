@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { coach } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
 import { AudioCard } from "../../teacher/ui";
+import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { FOCUS } from "../../teacher/ui/styles";
 import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { FORM_V7, type FormV7Copy } from "../flow/copyV7form";
@@ -62,7 +63,8 @@ export function useLessonPlayer(id: string, enabled: boolean, scope: string): { 
   const shown = url && jump && jump.scope === scope ? jump : null;
   const element = shown ? (
     <AudioCard title={W.classRecording} sub={F.fromTime(shown.time)} src={url ?? undefined} controls testId="ff-player"
-      startAt={{ seconds: shown.seconds, n: shown.n }} onPlaying={setPlaying} />
+      startAt={{ seconds: shown.seconds, n: shown.n }} onPlaying={setPlaying}
+      save={url ? { kind: "obs", filename: recordingFilename({ kind: "obs", ext: extOf(url) }) } : undefined} />
   ) : null;
   return { player: url ? { active: shown && playing ? shown.key : null, play } : null, element };
 }

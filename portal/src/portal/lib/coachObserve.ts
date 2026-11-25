@@ -189,7 +189,14 @@ export async function sendTalk(
 
 const UNSENT_KEY = "niete-coach-observe-recordings";
 
-export type UnsentFor = { teacherExtId: string; schoolExtId: string | null; teacherName: string };
+/**
+ * Whose a recording kept on this phone is. bd-ma9jiy: `kind` "dbrf" is a debrief talk (with its `observationId`), never
+ * offered as a classroom observation; no kind (saved before this) is an observation, as it always was.
+ */
+export type UnsentFor = {
+  teacherExtId: string; schoolExtId: string | null; teacherName: string;
+  kind?: "obs" | "dbrf"; observationId?: string | null; visitId?: string | null;
+};
 
 function readUnsent(): Record<string, UnsentFor> {
   try {
