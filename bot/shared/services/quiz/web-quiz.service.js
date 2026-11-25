@@ -2324,7 +2324,7 @@ const EVENT_PROPS = Object.freeze({
   // M4b library: a bank video's id, a grade, a bank subject name
   vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
   // The share funnel: what the phone could share with, how the child did, and where a page's link came from (push:
-  // the child reminder opened it).
+  // the child reminder opened it; reminders c1).
   cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct|push)$/,
   // The invite ask (web-quiz-invite-ask.js): the arm (a0 today's button, a1 the panel) and the tile tapped.
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
@@ -2332,7 +2332,7 @@ const EVENT_PROPS = Object.freeze({
   class_link_code: /^[A-HJ-NP-Z2-9]{8,16}$/, round_code: /^[A-Z0-9]{4,12}$/i,
   // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
   when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
-  // and every meter row's platform (from the user agent) and display mode, so installs count by platform.
+  // reminders c1: every install meter row's platform (from the user agent) and display mode, so installs count by platform.
   platform: /^(android|ios|desktop|other)$/, display_mode: /^(browser|standalone|minimal-ui|fullscreen)$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
