@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, ListVideo, Search } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListVideo, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tray } from '../../ui/Tray';
 import { StatusChip } from '../../ui/StatusChip';
@@ -9,8 +9,8 @@ import { useCopy, useLang } from '../../i18n';
 import { useFlowV6 } from '../../../coach/flow/useCoachFlowV2';
 import { HELP } from '../copy';
 import { markHelpSeen, type HelpVideo } from '../api';
-import { useHelp, usePrefersReducedMotion } from '../useHelp';
-import { HelpPlayer } from '../HelpButton';
+import { useHelp } from '../useHelp';
+import { HelpPlayer, HelpTrigger } from '../HelpButton';
 import { HELP_LIST_PATH } from '../names';
 import { IndicatorGuideContext, type IndicatorGuide as FormGuide } from '../../../coach/reports/indicatorGuide';
 import { BANDS, INDEX, bandOfRubric, hasIndicator, manualHref, matches, useGuide, type Band, type Guide, type GuideItem } from './guides';
@@ -296,31 +296,22 @@ export function ObserveHelp({ band, children }: { band?: Band; children: ReactNo
   );
 }
 
-function HelpCircle() {
-  const H = useCopy(HELP);
+function HelpCircle({ pill = false, onDark = false }: { pill?: boolean; onDark?: boolean }) {
   const ctl = useContext(HelpCtl);
-  const reduced = usePrefersReducedMotion();
   if (!ctl) return null;
-  const { fresh } = ctl;
-  return (
-    <button type="button" aria-label={H.help} data-testid="observe-help-button" onClick={() => ctl.openAt('menu')}
-      className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full', FOCUS)}>
-      {fresh && !reduced ? <span aria-hidden="true" className="niete-help-ring pointer-events-none absolute inset-2 rounded-full border-2 border-[#47ba7d]" /> : null}
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
-        <CircleHelp className="h-[22px] w-[22px]" aria-hidden="true" />
-        {fresh && reduced ? <span aria-hidden="true" className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#47ba7d]" /> : null}
-      </span>
-    </button>
-  );
+  return <HelpTrigger testId="observe-help-button" pill={pill} onDark={onDark} fresh={ctl.fresh} onClick={() => ctl.openAt('menu')} />;
 }
 
 /**
  * The "?" in a screen's header. Inside an ObserveHelp (the two Observe frames) it opens that one's tray; on its own (a
  * principal's Observe home, My observations, Pick the teacher) it brings its own, with `band` for the tray's order.
  * Drawn only with the v6 switch on for her (coachFlowV2 / principalFlowV2: the 3 accounts).
+ *
+ * bd-sil83f (queue #269) — `pill`: "How to use ?" instead of the bare "?" (HelpTrigger), on a coach's or principal's Home
+ * band (`onDark`) and on a page header where it fits at 360 px.
  */
-export function ObserveHelpButton({ band }: { band?: Band }) {
+export function ObserveHelpButton({ band, pill = false, onDark = false }: { band?: Band; pill?: boolean; onDark?: boolean }) {
   const ctl = useContext(HelpCtl);
-  if (ctl === undefined) return <ObserveHelp band={band}><HelpCircle /></ObserveHelp>;
-  return <HelpCircle />;
+  if (ctl === undefined) return <ObserveHelp band={band}><HelpCircle pill={pill} onDark={onDark} /></ObserveHelp>;
+  return <HelpCircle pill={pill} onDark={onDark} />;
 }
