@@ -13,8 +13,16 @@
  * the "Make a quiz" tap (transcript-quiz-offer.service handleReportQuizTap: owner check, then the quiz, free-form
  * inside the window it just opened).
  *
- * THE SWITCH. `app_settings.quiz_offer_closed_window`, the same row as the trace, part `"report_page": true`. Absent,
- * false, or unreadable = off: the page carries no block and the bot never matches a code.
+ * WHO GETS A PAGE. A teacher in v10 report arm C or D gets the report's link template (report-link-button.js), whose
+ * button opens her /cr report. Everyone else (arms A/B, schools outside the draw) must not see the new report, so the
+ * report goes as `quiz_page_template` instead: the same image and body, a URL button "Make a quiz" → /cq/<token>, a
+ * page with only the quiz on it (dashboard/services/report-quiz-page.js). Either way ONE utility message, and the
+ * session's quiz row is written as held (held_path 'template') the moment it went, so the page has its block at once.
+ *
+ * THE SWITCH. `app_settings.quiz_offer_closed_window`, the same row as the trace:
+ *   { "trace": true, "report_page": true, "quiz_page_template": "share_dc_report_open_v1" }
+ * report_page alone: C/D teachers only (their link template must be on). quiz_page_template: name it only once Meta
+ * has approved it on that number. Absent, false, or unreadable = off: no page block, no code matched, today's report.
  *
  * The portal requires this file for its page half (parseSwitch, pageQuiz), so it loads nothing of the bot's at module
  * scope (the portal has no pino). The bot half requires its modules when it runs.
@@ -26,21 +34,36 @@ const REF_PREFIX = 'CR-';
 const REF_RX = /\bCR-([0-9a-f]{8})\b/i;
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** report_page from the row's value. Pure; anything unexpected is off. */
-function parseSwitch(value) {
+const OFF = Object.freeze({ reportPage: false, pageTemplate: null });
+/** Meta template names: lowercase letters, digits and underscores. */
+const NAME_RE = /^[a-z0-9_]{1,512}$/;
+
+/** { reportPage, pageTemplate } from the row's value. Pure; anything unexpected is off; no report_page = all off. */
+function parseParts(value) {
   let v = value;
   if (typeof v === 'string') {
-    try { v = JSON.parse(v); } catch (_) { return false; }
+    try { v = JSON.parse(v); } catch (_) { return { ...OFF }; }
   }
-  return !!v && typeof v === 'object' && !Array.isArray(v) && v.report_page === true;
+  if (!v || typeof v !== 'object' || Array.isArray(v) || v.report_page !== true) return { ...OFF };
+  const name = typeof v.quiz_page_template === 'string' ? v.quiz_page_template.trim() : '';
+  return { reportPage: true, pageTemplate: NAME_RE.test(name) ? name : null };
 }
 
-/** One read through the given client. Throws on a failed read (the caller decides: off). */
-async function fetchFrom(db) {
+/** report_page alone (the portal's question). */
+function parseSwitch(value) {
+  return parseParts(value).reportPage;
+}
+
+async function readParts(db) {
   const { data, error } = await db.from('app_settings').select('key,value').eq('key', SETTING);
   if (error) throw new Error(error.message || 'app_settings read failed');
   const row = (data || [])[0];
-  return parseSwitch(row ? row.value : undefined);
+  return parseParts(row ? row.value : undefined);
+}
+
+/** One read through the given client: report_page. Throws on a failed read (the caller decides: off). */
+async function fetchFrom(db) {
+  return (await readParts(db)).reportPage;
 }
 
 /** `CR-a1b2c3d4` for a session id, or null. */
@@ -75,12 +98,28 @@ async function pageQuiz({ db, sessionId, language, bot, switchOn }) {
 }
 
 let botSwitch = null;
-function botSwitchOn(now = Date.now()) {
+function botParts(now = Date.now()) {
   if (!botSwitch) {
     const { cachedSwitch } = require('../settings/switch-cache'); // eslint-disable-line global-require
-    botSwitch = cachedSwitch({ ttlMs: 30 * 1000, off: false, read: () => fetchFrom(require('../../config/supabase')) }); // eslint-disable-line global-require
+    botSwitch = cachedSwitch({ ttlMs: 30 * 1000, off: () => ({ ...OFF }), read: () => readParts(require('../../config/supabase')) }); // eslint-disable-line global-require
   }
   return botSwitch.get(now);
+}
+const botSwitchOn = async (now) => (await botParts(now)).reportPage === true;
+
+/**
+ * Asked by coaching/report-window-send.js when the window is closed: the session (when it can take a quiz) and the
+ * quiz-page template's name (null = C/D's link template only), or null when report_page is off. Never throws.
+ */
+async function pageOffer({ coachingSessionId, userId }) {
+  try {
+    const parts = await botParts();
+    if (!parts.reportPage) return null;
+    const session = await require('./transcript-quiz-offer.service').quizEligibleSession({ coachingSessionId, userId }); // eslint-disable-line global-require
+    return session ? { session, pageTemplate: parts.pageTemplate } : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -133,5 +172,6 @@ async function handleReportPageText(text, phone, deps = {}) {
 function _resetCache() { if (botSwitch) botSwitch.reset(); }
 
 module.exports = {
-  SETTING, parseSwitch, fetchFrom, refOf, matchRef, pageQuiz, sessionForRef, handleReportPageText, _resetCache,
+  SETTING, parseParts, parseSwitch, fetchFrom, refOf, matchRef, pageQuiz, pageOffer, sessionForRef, handleReportPageText,
+  _resetCache,
 };

@@ -4913,6 +4913,11 @@ const UX_STRINGS = {
     en: 'Make a quiz for my class · {ref}',
     ur: 'میری کلاس کے لیے کوئز بنائیں · ⁦{ref}⁩',
   },
+  // the quiz-only page (/cq, dashboard/services/report-quiz-page.js) once the quiz is made
+  qfix_offers_cq_send: {
+    en: 'Send it to your class on WhatsApp',
+    ur: 'واٹس ایپ پر اپنی کلاس کو بھیجیں',
+  },
 };
 
 /**

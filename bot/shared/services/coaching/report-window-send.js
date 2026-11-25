@@ -40,6 +40,8 @@ function defaultDeps() {
     quizButton: (req) => require('../quiz/transcript-quiz-offer.service').reportQuizButtonFor(req),
     holdQuiz: (req) => require('../quiz/closed-window-offer').recordHeld(req),
     linkButton: (req) => require('./report-link-button').linkButtonFor(req),
+    quizPage: (req) => require('../quiz/report-page-quiz').pageOffer(req),
+    signLink: (ids) => require('./report-link-token').signReportLink(ids),
   };
 }
 
@@ -124,6 +126,39 @@ async function sendQuizTemplate({ userId, sessionId }, d) {
   return sent;
 }
 
+/**
+ * qfix offers — "Make a quiz" on the page the report opens (quiz/report-page-quiz.js, switch
+ * quiz_offer_closed_window.report_page, off → false at once and the chain below runs as before). A C/D teacher gets
+ * the link template (sendLinkTemplate above, unchanged) and her /cr report carries the block; anyone else gets
+ * quiz_page_template (same image and body, URL button "Make a quiz" → /cq/<token>) when it is named. Either went →
+ * the session's quiz row is written as held (held_path 'template'), so the page has its block when she opens it.
+ * The link template is asked once per report: after this, the chain's own link step sees no button.
+ */
+async function sendQuizPage({ userId, sessionId }, d) {
+  let offer = null;
+  try { offer = await d.quizPage({ coachingSessionId: sessionId, userId }); } catch (_) { offer = null; }
+  if (!offer) return false;
+  let sent = await sendLinkTemplate({ userId, sessionId }, d);
+  d.linkButton = async () => null;
+  if (!sent && offer.pageTemplate) {
+    const token = d.signLink({ sessionId, userId });
+    let out = null;
+    if (token) {
+      try {
+        out = await d.sendShare({ userId, kind: 'dc', id: sessionId, clip: { template: offer.pageTemplate, token } });
+      } catch (err) {
+        out = { status: 'failed', reason: 'error', message: err && err.message };
+      }
+    }
+    sent = !!out && out.status === 'sent';
+    logOutcome(sent ? 'coaching.report.quiz_page_template_sent' : 'coaching.report.quiz_page_template_not_sent', { userId, sessionId }, out);
+  }
+  if (sent) {
+    try { await d.holdQuiz({ session: offer.session, heldPath: 'template' }); } catch (_) { /* the trace never decides */ }
+  }
+  return sent;
+}
+
 /** @returns {Promise<'template'|null>} 'template' when the report went as the share template. */
 async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId, clip }, deps) {
   if (!phone || !userId || !sessionId) return null;
@@ -132,6 +167,7 @@ async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId, cl
     const button = !!(clip && clip.template && clip.token);
     if (!(button && clip.promised) && await d.windowOpen(phone)) return null;
     if (button && await sendClipTemplate({ userId, sessionId, clip }, d)) return 'template';
+    if (!button && await sendQuizPage({ userId, sessionId }, d)) return 'template';
     if (!button && await sendLinkTemplate({ userId, sessionId }, d)) return 'template';
     if (!button && await sendQuizTemplate({ userId, sessionId }, d)) return 'template';
     const out = await d.sendShare({ userId, kind: 'dc', id: sessionId });
