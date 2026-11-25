@@ -1225,6 +1225,6 @@ module.exports = {
   ROUND_SOURCE, NO_SEND, LESSON_ITEMS, RECALL_ITEMS, tileWords,
   isEveningRound, lpTakenFor, ownLpTaken, chooseLesson, subjectCanon, gradeOfCode, classesOf,
   writeRounds, tick, afterGenerate, asWebItem, selectRoundItems, roundCanEmpty, roundSetEmpty, roundFields, noteRound, isRoundShareCode,
-  roundsForClasses, roundCandidate, roundOffers, previousSchoolDay, emptyTonight, tonightMarks, waitingKids, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection,
+  roundsForClasses, roundCandidate, roundOffers, previousSchoolDay, emptyTonight, tonightMarks, waitingKids, noteShown, viaOf, classLinkOpen, cacheKey, lockKey, forTeacherReport, reportSection, REPORT_DAYS,
   _resetCache: () => { ROUND_CODES.clear(); },
 };
