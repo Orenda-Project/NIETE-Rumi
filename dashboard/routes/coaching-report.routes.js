@@ -283,7 +283,7 @@ function createCoachingReportRouter(opts = {}) {
       : await pageQuiz({ db: db(), sessionId: v.sessionId, language, bot: botNumber(), switchOn: quizPageOn });
     log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: data.quizMessage ? 'made' : quiz ? 'held' : 'none' });
     const topic = data.session && data.session.analysis_data && data.session.analysis_data.topic;
-    return res.status(200).type('html').send(renderQuizPage({ language, topic, makeQuiz: quiz && quiz.href, quizMessage: data.quizMessage }));
+    return res.status(200).type('html').send(renderQuizPage({ language, topic, makeQuiz: quiz && quiz.href, quizMessage: data.quizMessage, bot: botNumber() }));
   };
   router.get('/cq/:token', privateHeaders, limiter, quizPage);
   return router;
