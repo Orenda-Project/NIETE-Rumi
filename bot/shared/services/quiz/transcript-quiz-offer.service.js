@@ -156,7 +156,7 @@ async function reportQuizButtonFor({ coachingSessionId, userId }) {
 }
 
 /**
- * The session when the offer job would offer it a quiz, else null: the flag, her own session, not self-coaching, a
+ * The session when the offer job would offer it a quiz, else null: the flag, the teacher's own session, not self-coaching, a
  * long enough transcript, once-per-teacher. The report template's button above and the report page's "Make a quiz"
  * (report-page-quiz.js) ask the same question, so the two never disagree.
  */

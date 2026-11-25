@@ -6,7 +6,7 @@
  *   page  the card carries a "Make a quiz" wa.me link whose prefill ends in CR-<8 hex>, only while the switch is on
  *         AND the session's quiz offer was held for a closed window. Off, or any other row: today's bytes.
  *   bot   that prefill, sent by the session's own teacher, reaches handleReportQuizTap as tqr_<session> through the
- *         real /webhook. Someone else's code, or none of hers: the /quiz door, never another teacher's quiz.
+ *         real /webhook. Someone else's code, or none of theirs: the /quiz door, never another teacher's quiz.
  * Only the network boundary is stubbed (Supabase as an in-memory table set, WhatsApp, redis).
  */
 const http = require('http');
@@ -142,7 +142,7 @@ describe('the bot: a report-page prefill through the real /webhook', () => {
     mockBoundaries(user);
   }
 
-  test('her prefill (English) → handleReportQuizTap(tqr_<her session>, from), nothing else answers', async () => {
+  test('the teacher\'s prefill (English) → handleReportQuizTap(tqr_<their session>, from), nothing else answers', async () => {
     setup();
     await send('Make a quiz for my class · CR-a1b2c3d4');
     expect(mockTap).toHaveBeenCalledTimes(1);
@@ -156,7 +156,7 @@ describe('the bot: a report-page prefill through the real /webhook', () => {
     expect(mockTap).toHaveBeenCalledWith(`tqr_${SID}`, PHONE);
   });
 
-  test('another number sending her code is never matched to her session: the /quiz door instead', async () => {
+  test('another number sending a teacher\'s code is never matched to that teacher\'s session: the /quiz door instead', async () => {
     setup({ user: STRANGER, from: OTHER });
     await send('Make a quiz for my class · CR-a1b2c3d4');
     expect(mockTap).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('the page: /cr carries "Make a quiz" only for a held offer with the swi
     });
   }
 
-  test('held + on → a "Make a quiz" link to the bot with the prefill and her code', async () => {
+  test('held + on → a "Make a quiz" link to the bot with the prefill and the session\'s code', async () => {
     const r = await page();
     expect(r.status).toBe(200);
     const hrefs = [...r.body.replace(/&amp;/g, '&').matchAll(/href="https:\/\/wa\.me\/923206281951\?text=([^"]+)"/g)]
@@ -287,7 +287,7 @@ describe('the quiz-only page: /cq/:token for a teacher outside the new report', 
     expect(r.body).not.toContain('In pairs, students solve Q1.');
   });
 
-  test('the quiz is made → the message to send to her class', async () => {
+  test('the quiz is made → the message to send to the class', async () => {
     const r = await get({ view: { ...VIEW, quizMessage: 'Class 4 quiz: https://q.example/abc' } });
     expect(r.body).toContain('Class 4 quiz: https://q.example/abc');
     expect(r.body).toContain('Send it to your class on WhatsApp');

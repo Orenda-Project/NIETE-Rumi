@@ -4,17 +4,17 @@
  *
  * WHY. With the window closed the transcript quiz offer cannot go (Meta refuses a free-form message, 131047), so
  * closed-window-offer.js writes the session's quiz row as held (status 'skipped', meta.skip_reason 'window_closed').
- * The report itself still reaches her as one UTILITY template, and its "Open my report" button opens the /cr page
+ * The report itself still reaches the teacher as one UTILITY template, and its "Open my report" button opens the /cr page
  * (coaching/report-link-button.js). That page is where the offer goes: no second message, no marketing template.
  *
  * HOW. The page shows "Make a quiz" = https://wa.me/<bot>?text=<prefill>, the prefill ending in a short code naming
- * the session (`CR-` + the session id's first 8 hex digits). Sending it is HER message, so it opens her window; the
- * bot matches the code to her own session (the sender's sessions only, one match or none) and treats it exactly as
+ * the session (`CR-` + the session id's first 8 hex digits). Sending it is the TEACHER's message, so it opens their window; the
+ * bot matches the code to their own session (the sender's sessions only, one match or none) and treats it exactly as
  * the "Make a quiz" tap (transcript-quiz-offer.service handleReportQuizTap: owner check, then the quiz, free-form
  * inside the window it just opened).
  *
  * WHO GETS A PAGE. A teacher in v10 report arm C or D gets the report's link template (report-link-button.js), whose
- * button opens her /cr report. Everyone else (arms A/B, schools outside the draw) must not see the new report, so the
+ * button opens their /cr report. Everyone else (arms A/B, schools outside the draw) must not see the new report, so the
  * report goes as `quiz_page_template` instead: the same image and body, a URL button "Make a quiz" → /cq/<token>, a
  * page with only the quiz on it (dashboard/services/report-quiz-page.js). Either way ONE utility message, and the
  * session's quiz row is written as held (held_path 'template') the moment it went, so the page has its block at once.
@@ -163,7 +163,7 @@ async function handleReportPageText(text, phone, deps = {}) {
     sessionId = null;
   }
   try { d.log('transcript_quiz.report_page_text', { ref, outcome: sessionId ? 'matched' : 'no_session' }); } catch (_) { /* never decides */ }
-  // No session of hers: she still hears something true, the /quiz door.
+  // No session of theirs: the teacher still hears something true, the /quiz door.
   if (!sessionId) await d.say(phone);
   else await d.tap(`tqr_${sessionId}`, phone);
   return true;

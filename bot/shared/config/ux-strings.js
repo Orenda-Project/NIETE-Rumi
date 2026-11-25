@@ -4687,7 +4687,7 @@ const UX_STRINGS = {
     ur: '{n} بچوں نے کھیلا',
   },
   // ─── qfix offers (append-only): "Make a quiz" on the coaching report page (/cr) when the window was closed ───
-  // quiz/report-page-quiz.js, app_settings quiz_offer_closed_window.report_page. The prefill is what she sends us
+  // quiz/report-page-quiz.js, app_settings quiz_offer_closed_window.report_page. The prefill is what the teacher sends us
   // from WhatsApp; {ref} is the session's code (CR-a1b2c3d4), isolated so it keeps its order inside Urdu.
   qfix_offers_cr_quiz_head: {
     en: 'A quiz for your class',
