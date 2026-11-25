@@ -863,7 +863,7 @@ function buildKeyBudget(reading, v, now = new Date(), cfg = DEFAULTS) {
         '🔴 *OpenRouter key has reached its limit · calls are being refused*',
         `${money(reading.usage)} of ${money(reading.limit)} used${reading.reset ? ` · resets ${reading.reset}` : ' · does not reset'}`,
         'Raise the limit or swap the key now (OpenRouter → Keys).',
-        footer,
+        `_read from OpenRouter's key-usage endpoint (no model call) · checked every ${cfg.keyTickMin} min · posted at most once a day_`,
       ].join('\n'),
     };
   }
