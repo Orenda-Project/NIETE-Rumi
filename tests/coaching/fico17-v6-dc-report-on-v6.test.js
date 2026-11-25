@@ -21,7 +21,8 @@ jest.mock('../../bot/shared/config/supabase', () => {
     update: jest.fn((patch) => { if (patch && patch.analysis_data) { global.__PERSISTED = patch.analysis_data; global.__PATCH = patch; } return builder; }),
     eq: jest.fn(() => builder), not: jest.fn(() => builder), in: jest.fn(() => builder),
     single: jest.fn(() => Promise.resolve({ data: global.__SESSION, error: null })),
-    maybeSingle: jest.fn(() => Promise.resolve({ data: { users: { preferred_language: 'en' }, region: null }, error: null })),
+    // Queue #282: a PRIMARY-only teacher, so fico_dc_rubric 'v6' reaches her recording (fico17-v6/dc-grade.js).
+    maybeSingle: jest.fn(() => Promise.resolve({ data: { users: { preferred_language: 'en' }, teacher_level: ['PRIMARY'], region: null }, error: null })),
     then: (resolve) => resolve({ data: null, error: null }),
   };
   return { from: jest.fn(() => builder) };
@@ -147,14 +148,15 @@ describe("fico_dc_rubric 'v6': the DC report is built from the v6 analysis", () 
     expect(data.scores.overall_max_marks).toBe(44); // 11 DC indicators × 4, never V3's total
   });
 
-  test("the v6 domains are what the report reads: 11 DC levels, the six combined with evidence and no level", async () => {
+  // Queue #282 (the operator, 25 Nov: "with just the 11 indicators"): a self-recording's report has the 11 DC rows only.
+  // The six combined ones were evidence-only rows here before; now they are not in it at all (no row, no evidence, no D2 count).
+  test("the v6 domains are what the report reads: the 11 DC levels and nothing for the six", async () => {
     const { data } = await runWith('v6');
     const rows = Object.values(data.domains).flatMap((d) => d.indicators);
-    expect(rows.map((r) => r.id).sort()).toEqual([...v6.DC_CODES, ...v6.COMBINED_CODES].sort());
-    for (const r of rows) {
-      if (v6.isCombined(r.id)) { expect(r.result).toBeNull(); expect(r.set_by).toBe('coach'); } else expect(r.result).toBe(3);
-    }
-    expect(data.combined_evidence.D2).toBeDefined(); // counted from the transcript, never the model's
+    expect(rows.map((r) => r.id).sort()).toEqual([...v6.DC_CODES].sort());
+    for (const r of rows) expect(r.result).toBe(3);
+    expect(data.combined_evidence).toBeUndefined();
+    expect(data.indicator_set).toBe('dc11');
   });
 
   test('V3 is kept whole beside it, and the raw v6 read is still stored', async () => {

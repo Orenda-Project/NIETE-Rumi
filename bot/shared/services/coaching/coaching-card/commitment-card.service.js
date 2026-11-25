@@ -79,6 +79,13 @@ function extractQ3(conversationState) {
  */
 function targetBlock(target) {
   if (!target || !target.indicator) return '';
+  // Queue #282: a FICO17 v6 target has no scorer-written move; the rubric's next level is what to aim the action at.
+  if (target.rubric === 'fico17_v6' && !target.try) {
+    const { v6NextLevel } = require('../target-resolver');
+    const next = v6NextLevel(target);
+    const why6 = target.rationale ? ` What was seen: ${target.rationale}` : '';
+    return `\nTHE TARGET (fixed — do NOT choose a different area): "${target.name}" (level ${target.rung} of 4).${why6}${next ? ` The next level on the rubric asks: "${next}"` : ' It is already at the top level: the action takes it further.'} Your "action" is ONE move toward that next level, in plain words, about THIS indicator only.\n`;
+  }
   const move = target.try ? ` The scorer's suggested move: "${target.try}".` : '';
   const why = target.rationale ? ` Why it is the next step: ${target.rationale}` : '';
   return `\nTHE TARGET (fixed — do NOT choose a different area): indicator ${target.indicator} "${target.name}".${why}${move} Your "action" is about THIS indicator only — ONE move, not a list of moves.\n`;
@@ -86,7 +93,15 @@ function targetBlock(target) {
 
 function buildPrompt(lang, analysis, q3, target = null) {
   const langName = LANG_NAME[lang] || 'English';
-  const strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
+  // Queue #282: a FICO17 v6 card is phrased here even when she did not answer the reflective question (the rule card
+  // has nothing v6-specific to say). That gates the COMMITMENT half only; nothing may quote or imply an answer.
+  const reflected = !!(q3 && typeof q3.answer === 'string' && q3.answer.trim());
+  let strengths = (analysis.strengths || []).map((s) => s.title || s.analysis || s).slice(0, 3);
+  // Queue #282: a v6 lesson with no reflection pass has no strengths[]; its strongest level is the one the image celebrates.
+  if (!strengths.length && target && target.rubric === 'fico17_v6') {
+    const st = require('../target-resolver').resolveStrength(analysis, target);
+    if (st) strengths = [`${st.name}${st.rationale ? ` — ${st.rationale}` : ''}`];
+  }
   const growth = (analysis.growth_opportunities || []).map((g) => ({
     area: g.area || g.title,
     observation: g.observation || '',
@@ -105,16 +120,18 @@ ${CODESWITCH_RULE[lang] || CODESWITCH_RULE.en}
 PLAIN LANGUAGE — the teacher must understand every word. Do NOT use coach-jargon she wouldn't say herself: "scaffolding", "extension", "differentiation", "formative assessment", "higher-order thinking", "metacognition", "gradual release". Describe the concrete move in plain words instead (e.g. instead of "scaffolding", write "break it into small steps"; instead of "an extension", write "a harder task for the ones who finish early").
 
 The card has TWO parts:
-1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection). Address her as "you"/"we". No honorifics, no name inside it.
-2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse her own value (from her Q3 answer + strengths) with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
+1. "commitment" — a single warm sentence (max ~18 words) in the teacher's OWN spirit, ${reflected
+  ? 'reflecting back what SHE values, drawn from her Q3 answer (her forward-looking reflection).'
+  : 'drawn from her strengths below and why THE TARGET matters in HER classroom: she did not answer the reflective question this time, so never invent, quote or imply a reflection she did not give.'} Address her as "you"/"we". No honorifics, no name inside it.
+2. "action" — ONE specific, concrete thing to try in her NEXT class. It MUST be rooted in THIS exact lesson AND fuse ${reflected ? 'her own value (from her Q3 answer + strengths)' : 'her strengths below'} with ${target ? 'THE TARGET below' : 'the single highest-leverage growth area'}. Phrase it as an implementation intention anchored to next class ("Next class, when [trigger], [do X]") — but respect the gender-neutral rule above (imperative, not a gendered "you will"). Max ~32 words. Vivid and classroom-specific — name the actual materials/concept from THIS lesson. NOT generic.
 
 Also return "highlights": an array of 2–4 short ${langName} keyword phrases that appear verbatim in "action" (concrete nouns) to visually emphasise. And "lesson_label": a 2–4 word ${langName} subject·topic label.
 
 Session (framework: ${(analysis.framework || 'oecd').toUpperCase()}):${targetBlock(target)}
 - Her strengths: ${strengths.join(' | ') || '(none captured)'}
 - Growth areas: ${growth.map((g) => `${g.area} — ${g.observation} Strategy: ${g.strategy}`).join(' || ') || '(none)'}
-- Q3 question we asked her: ${q3.question || '(n/a)'}
-- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"
+${reflected ? `- Q3 question we asked her: ${q3.question || '(n/a)'}
+- Her Q3 answer (in ${langName}): "${String(q3.answer).slice(0, 400)}"` : '- She did not answer the reflective question this time.'}
 
 Return STRICT JSON only: {"commitment":"...","action":"...","lesson_label":"...","highlights":["...","..."]}`;
 }
@@ -175,9 +192,19 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
   if (!analysis) return null;
 
   // opts.target: the report's ONE selected step (next-step.selectNextStep). Absent → choose here.
-  const target = opts.target !== undefined ? opts.target : cardTarget(analysis, null);
+  let target = opts.target !== undefined ? opts.target : cardTarget(analysis, null);
+  // Queue #282: while the v10 test is on, groups A and B pass target null ("the card chooses its own area"); a FICO17 v6
+  // card chooses its own area the v6 way (its lowest level), since the rule card's generic line knows no v6 indicator.
+  const v6Analysis = analysis.framework === 'fico17_v6' || !!(analysis.scores && analysis.scores.rubric === 'fico17_v6');
+  if (!target && v6Analysis) {
+    const own = cardTarget(analysis, null);
+    if (own && own.rubric === 'fico17_v6') target = own;
+  }
+  const v6Target = !!(target && target.rubric === 'fico17_v6' && target.indicator);
   const q3 = extractQ3(conversationState);
-  if (!q3) {
+  // Queue #282: a v6 target is phrased by the card model whether or not she reflected (the rule card would send the
+  // canned "try dedicating 5 minutes" line); its failure still falls back as before. V3 is unchanged.
+  if (!q3 && !v6Target) {
     logToFile('Commitment card: no Q3 commitment → rule-based fallback', { framework: analysis.framework });
     return finalizeCard(await fallbackCard(analysis, teacherName, priorAction, lang, target));
   }
@@ -209,6 +236,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
       action: String(parsed.action).trim(),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.filter(Boolean) : [],
       lesson_label: parsed.lesson_label ? String(parsed.lesson_label).trim() : '',
+      ...(v6Target ? { indicator: target.indicator } : {}),
       language: lang,
       _source: 'llm',
     });

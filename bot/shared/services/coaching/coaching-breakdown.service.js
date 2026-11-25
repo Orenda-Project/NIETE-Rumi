@@ -134,7 +134,13 @@ function buildBreakdown(analysisData, language = 'en') {
   // was not actually scored on — those come back as 0/0 and are noise, not
   // information. Then plus the domains it WAS scored on that the framework
   // does not list.
-  const adapted = (vm.groups || []).filter((g) => domains[g.domainKey]);
+  //
+  // Queue #282 / bd-ra8xu.64.2: a group the adapter marks outsideTotal is kept although the session has no domain under
+  // its key. That is FICO17 v6's Section B (the plan steps followed, from lp_fidelity, domainKey lesson_plan_fidelity):
+  // a v6 analysis keeps no such domain, so the plan row vanished from the portal while her WhatsApp image showed it.
+  // It never joins the sums below. A v6 section with no levelled row comes from the adapter as notAssessed (with its
+  // words) and is passed through as it is, never 0/0.
+  const adapted = (vm.groups || []).filter((g) => domains[g.domainKey] || g.outsideTotal);
   const known = new Set(adapted.map((g) => g.domainKey));
   const extra = Object.keys(domains)
     .filter((k) => !known.has(k))
@@ -151,8 +157,9 @@ function buildBreakdown(analysisData, language = 'en') {
   // A stored overall_percentage still wins: it is the bot's own recorded
   // figure and the same value that went out on her WhatsApp report.
   const storedPct = parseFloat(analysisData.scores?.overall_percentage);
-  const sumScore = groups.reduce((t, g) => t + (Number(g.score) || 0), 0);
-  const sumMax = groups.reduce((t, g) => t + (Number(g.max) || 0), 0);
+  const inTotal = groups.filter((g) => !g.outsideTotal);
+  const sumScore = inTotal.reduce((t, g) => t + (Number(g.score) || 0), 0);
+  const sumMax = inTotal.reduce((t, g) => t + (Number(g.max) || 0), 0);
   const overall = Number.isFinite(storedPct)
     ? Math.round(storedPct)
     : (sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : (vm.overall ?? null));

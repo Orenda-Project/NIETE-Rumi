@@ -167,9 +167,9 @@ describe('T2.2 a failed lookup the switch needs resolves to OFF, never to "*"', 
     global.__ROWS = coachRow('{"*":"v6","ict":"current"}');
     global.__USERS_ERR = 'connection reset';
     expect(await shadow.modeFor({ id: 's1', user_id: UUID, observation_type: 'self_recording' }, 'fico')).toBe('v3');
-    // a user whose region is genuinely empty still gets "*"
+    // a user whose region is genuinely empty still gets "*" (queue #282: for a grade 1-5 lesson; fico17-v6/dc-grade.js)
     global.__USERS_ERR = null; global.__REGION = null;
-    expect(await shadow.modeFor({ id: 's1', user_id: UUID, observation_type: 'self_recording' }, 'fico')).toBe('v6');
+    expect(await shadow.modeFor({ id: 's1', user_id: UUID, observation_type: 'self_recording' }, 'fico', { grade: '3' })).toBe('v6');
   });
 
   test('controls: registry up → the ICT override; an unknown region (no throw) → "*"; registry down but not needed → "*"', async () => {

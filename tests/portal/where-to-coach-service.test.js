@@ -372,3 +372,60 @@ describe('a FICO17 v6 field-form visit is a field-form visit (rubric fico17_v6; 
     expect(f6).toEqual(f5);
   });
 });
+
+// ── queue #282 / bd-ra8xu.64.2: a self-recording scored on FICO17 v6 (the 11) is Digital Coach use ──────────────────
+
+/** A switched-on self-recording: v6 sections under their own keys (C on 1-4), a V3-free top level, its plan read. */
+const v6 = (lp) => ({
+  framework: 'fico17_v6', indicator_set: 'dc11', grade: 4, subject: 'english',
+  scores: { overall_marks: 9, overall_max_marks: 16, overall_percentage: 56.3, counted: 4, rubric: 'fico17_v6' },
+  domains: {
+    v6_teacher: { key: 'C', name: 'What the teacher does', domain_score: 5, domain_max: 8, indicators_applicable: 2,
+      indicators: [{ id: 'C1', name: 'v6 C1', kind: 'dc', result: 2, score: 2, applicable: true }, { id: 'C2', name: 'v6 C2', kind: 'dc', result: 3, score: 3, applicable: true }] },
+    v6_children: { key: 'D', name: 'What the children do', domain_score: 0, domain_max: 0, indicators_applicable: 0,
+      indicators: [{ id: 'D1', name: 'v6 D1', kind: 'dc', result: 'IE', score: null, applicable: false }] },
+    v6_subject: { key: 'F', name: 'Subject knowledge', domain_score: 4, domain_max: 8, indicators_applicable: 2,
+      indicators: [{ id: 'F1', name: 'v6 F1', kind: 'dc', result: 1, score: 1, applicable: true }, { id: 'F2', name: 'v6 F2', kind: 'dc', result: 3, score: 3, applicable: true }] },
+  },
+  ...(lp ? { lp_fidelity: lp } : {}),
+  v3_fico: sana(1, 1, 1),
+});
+
+describe('queue #282 / bd-ra8xu.64.2: a v6 self-recording counts as Digital Coach use; its practices never meet V3 ones', () => {
+  const fresh = () => ({ ...month, memo: Card.createMemo() });
+  const withV6 = () => {
+    const t = tables();
+    // Sana's newest lesson is a v6 one; Farah (no DC this month) recorded one on the 20th.
+    t.sessions.push(
+      { id: 'v1', user_id: 'u1', created_at: pk('2026-10-28 09:00'), status: 'completed', analysis_data: v6(plan(80, [['independent', 'executed']])), prioritized_action: { action: 'ACTION-v1' } },
+      { id: 'v2', user_id: 'u3', created_at: pk('2026-10-20 09:00'), status: 'completed', analysis_data: v6() },
+    );
+    return t;
+  };
+
+  test('Where to coach: 4 DC sessions; the V3 focus, practices and framework are unchanged by the newer v6 one', async () => {
+    const before = await Where.getWhereToCoach(fakeDb(tables()).query, 'coach-1', ph(1), fresh());
+    const out = await Where.getWhereToCoach(fakeDb(withV6()).query, 'coach-1', ph(1), fresh());
+    expect(out.sessions).toEqual({ dc: 4, coach: 1 });
+    expect(out.framework).toBe('fico_v3');
+    expect(out.focus).toMatchObject({ id: 'D3', k: 3, n: 3 });
+    expect(out.weakest.map((p) => p.id)).toEqual(before.weakest.map((p) => p.id));
+    expect(out.strength).toEqual(before.strength);
+  });
+
+  test('its plan steps count (rubric-free); its row is listed with no V3 score; the check-in counts it', async () => {
+    const out = await Where.getWhereToCoach(fakeDb(withV6()).query, 'coach-1', ph(1), fresh());
+    expect(out.plan).toMatchObject({ pct: 70, measured: 3, of: 4 });
+    expect(out.reports[0]).toMatchObject({ id: 'v1', score: null });
+    expect(out.checkin.items.find((i) => i.feature === 'dc')).toMatchObject({ count: 4 });
+  });
+
+  test('who to coach first: a teacher whose only DC this month is v6 is one_dc, not no_dc', async () => {
+    const r = await Where.getCoachFirst(fakeDb(withV6()).query, 'coach-1', '901', fresh());
+    const where = Object.fromEntries(r.groups.flatMap((g) => g.rows.map((row) => [row.name, g.key])));
+    expect(where['Farah Demo']).toBe('one_dc');
+    expect(where['Sana Demo']).toBe('agree_low');
+    const farah = r.groups.flatMap((g) => g.rows).find((row) => row.name === 'Farah Demo');
+    expect(farah).toMatchObject({ lastDcDaysAgo: null, focus: null });
+  });
+});

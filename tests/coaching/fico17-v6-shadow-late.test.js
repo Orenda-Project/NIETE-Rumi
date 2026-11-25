@@ -27,6 +27,8 @@ jest.mock('../../bot/shared/services/coaching/fico-rubric-switch', () => ({
   regionOfUser: jest.fn(() => Promise.resolve('Sihala')),
   dcRubric: jest.fn(() => Promise.resolve(global.__DC)),
 }));
+// Queue #282: 'v6' reaches a recording of grades 1-5; these sessions are a primary teacher's.
+jest.mock('../../bot/shared/services/coaching/frameworks/fico17-v6/dc-grade', () => ({ allowsV6: jest.fn(() => Promise.resolve(true)) }));
 jest.mock('../../bot/shared/services/gpt5-mini.service', () => ({ analyzePedagogy: jest.fn() }));
 
 const GPT5MiniService = require('../../bot/shared/services/gpt5-mini.service');
