@@ -273,14 +273,39 @@ function shownVariant(session, row, load = phoneBattery) {
 }
 
 /**
+ * sa_r8_counts: the form the phone SERVED, from what it recorded on its result, never from how far the child got (a
+ * child cut off on the 2nd of 5 sums sends cells .01 and .02, which the 2-item form has too). served_n is the number of
+ * items the phone served (a one-at-a-time result); under sa_r28_ceiling the served list also carries the extension, so
+ * there base_n, the base it served (5 words with the counts spare, 4 without), says which form. null: an older result
+ * that recorded neither, or a number neither form has.
+ */
+function servedForm(t, c, res) {
+  // sa_r28_ceiling: the served base first (served_n counts the extension too there)
+  const base = Number(res.base_n);
+  const cBase = Number(c.base_n);
+  const tBase = Number(t.base_n);
+  if (base > 0 && cBase > 0 && tBase > 0 && cBase !== tBase) {
+    if (base === cBase) return c;
+    if (base === tBase) return t;
+  }
+  const n = Number(res.served_n);
+  if (n > 0 && n === c.items.length) return c;
+  if (n > 0 && n === t.items.length) return t;
+  return null;
+}
+
+/**
  * sa_r8_counts (round 8 item 35): the battery file is today's form and the switch is applied as it is served, so the
- * task the phone ran is the counts form when the result names an item only that form carries (a one-at-a-time cell, a
- * per-item clip, a marked answer), or reached more cells than today's form has. Else the task as it is.
+ * task the phone ran is the form its result says it served (servedForm). A result that does not say (an older phone)
+ * is the counts form when it names an item only that form carries (a one-at-a-time cell, a per-item clip, a marked
+ * answer), or reached more cells than today's form has. Else the task as it is.
  */
 function ranCounts(battery, t, row) {
   const c = countsTask(battery, t);
   if (c === t || c.items.length === t.items.length) return t;
   const res = resultOf(row) || {};
+  const served = servedForm(t, c, res);
+  if (served) return served;
   const own = new Set(t.items.map((x) => x.id));
   const seen = [].concat(
     (Array.isArray(res.cells) ? res.cells : []).map((x) => x && x.item_id),

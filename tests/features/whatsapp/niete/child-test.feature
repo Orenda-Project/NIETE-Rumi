@@ -1065,6 +1065,17 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_r8_counts is off
     Then every RDF subsection has today's practice and scored items, and a story question waits 10 seconds
 
+  @e2e @wip @draft @config-gated @P1 @CT303 @no-mock-driver
+  # No mock driver: the form is read in the scoring sweep, from what the phone recorded on the result.
+  # Asserted in bot/tests/child-test/sa-counts-served-form.test.js and dashboard/tests/sa-served-n.service.test.js.
+  Scenario: A part cut short is scored against the items the phone served, never against how far the child got
+    Given sa_r8_counts is on, so a child is served 5 addition sums
+    When the child answers the first sum correctly, moves on, answers the second, and the part is cut short on it
+    Then the addition part is scored 2 of 5, and the maths level does not reach Add
+    And a child served today's 2 sums who answers both is scored 2 of 2, as before
+    And under sa_r28_ceiling the words' served base (5 with the counts spare, 4 without) says the same
+    And a result from a phone that did not record what it served is scored as before
+
   @e2e @wip @draft @config-gated @P1 @CT150 @no-mock-driver
   # No mock driver: the mock browser has no loudspeaker or call mode. The recorder opening and closing the microphone per
   # recording is asserted in dashboard/tests/sa-r9-audio.service.test.js; the loudness itself needs a real phone.
@@ -1166,6 +1177,16 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given a child is taking RDF auto
     When the phone's ear could not listen, or the test is coach-led (RDF manual), or sa_r20_silence_stop has no row
     Then no part is counted as silent and every part runs as today
+
+  @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT302
+  # No mock driver: the level a quiet phone's microphone reads cannot be made in the mock browser.
+  # Asserted in dashboard/tests/sa-rec-stop-floor.service.test.js (the real recorder, a synthetic level series).
+  Scenario: The silence stop hears a child who answers quietly
+    Given a child is answering a recorded part on a phone that records them quietly (about -37 to -44 dBFS)
+    When the child answers within the 20 seconds
+    Then the part is not stopped as "no answer" at 20 seconds, and in RDF auto the subject is not ended by a silence stop
+    And a recording with no voice in it is still offered the reminder at 12 seconds and stopped at 20 seconds, as before
+    And the story's reading position and the one-at-a-time pacing hear a voice exactly as before
 
   @e2e @wip @draft @no-mock-driver @config-gated @P1 @CT181
   Scenario: The coach ends a section in RDF auto
@@ -1271,15 +1292,15 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @P1 @CT207 @no-mock-driver
   # No mock driver: the gate runs in the scoring sweep against a model and speech-to-text, not in the chat.
   # Asserted in bot/tests/child-test/sa-r28-letter-gate.test.js.
-  Scenario: With sa_r28_letter_gate on, a letter-sound recording is judged by whether a voice is heard, not by words heard
+  Scenario: With sa_r28_letter_gate on, a letter-sound or letter-name recording is judged by whether a voice is heard, not by words heard
     Given sa_r28_letter_gate is on and the speech gate is on
-    And a child says bare letter sounds in a letter-sound recording, with no whole word
+    And a child says bare letter sounds in a letter-sound recording, or single letter names in a letter-name recording, which speech-to-text hears as no word
     When the recording is scored
     Then speech-to-text is not asked about that recording, a voice check on the recording passes and the model marks the letters it hears
-    And the model is not shown the expected answers for the letters
+    And for letter sounds the model is not shown the expected answers; the letter-name prompt is unchanged
     And a silent recording, or one holding only steady noise, is not reached and the model is not asked
     And a recording shorter than the minimum speech length, or one the model finds holds no letters, is still not reached
-    And letter-name, word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
+    And word, passage, question and spoken-maths recordings are muted as before when speech-to-text hears no word
     And with sa_r28_letter_gate off a letter-sound recording with no word heard is not reached, exactly as before
     And word, passage and question recordings are muted as before when speech-to-text hears no word
     And with sa_r28_letter_gate off a letter recording with no word heard is not reached, exactly as before
