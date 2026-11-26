@@ -1,3 +1,4 @@
 {"ts":"2026-11-20T06:58:44Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"1d554b861db3","branch":"bd-kbo9h0.9-known-findings","user":"Mah Noor"}
 {"ts":"2026-11-20T06:58:45Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"1d554b861db3","branch":"bd-kbo9h0.9-known-findings","user":"Mah Noor"}
 {"ts":"2026-11-24T07:41:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=ci-copy engine=2.2.4","sha":"1d554b861db3","branch":"bd-kbo9h0.9-known-findings","user":"Mah Noor"}
+{"ts":"2026-11-26T05:02:29Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=ci-copy engine=2.2.6","sha":"1d554b861db3","branch":"bd-kbo9h0.9-known-findings","user":"Mah Noor"}
