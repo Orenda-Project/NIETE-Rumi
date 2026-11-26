@@ -67,7 +67,9 @@ describe('switch OFF — /observe stays FICO V3, byte-identical', () => {
     expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala', teacherUserId: 't1' })).toBe('fico17_v6');
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
-    expect(switchMod.coachRubric).toHaveBeenLastCalledWith({ userId: 'u1', region: 'Sihala' });
+    // bd-dsu5mq.2: looked up at the visit's place, never the observer's profile region ('Sihala' here).
+    expect(switchMod.coachRubric).toHaveBeenLastCalledWith(expect.objectContaining({ userId: 'u1' }));
+    expect(switchMod.coachRubric.mock.calls[switchMod.coachRubric.mock.calls.length - 1][0].region).not.toBe('Sihala');
     const was = process.env.OBSERVE_FRAMEWORK;
     process.env.OBSERVE_FRAMEWORK = 'mewaka';
     switchMod.coachRubric.mockClear();
