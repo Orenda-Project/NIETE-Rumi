@@ -116,6 +116,11 @@ async function t(name, fn) {
     const v = M.dataVerdict({ ok: false, error: 'unknown table users_x' });
     if (v.ok !== false || !/ERROR: unknown table users_x/.test(v.data)) throw new Error('got ' + JSON.stringify(v));
   });
+  await t('dataKeysOf: an engine without data checks (before 2.3.0) reads NOT CHECKED, never throws', () => {
+    assert.deepStrictEqual(M.dataKeysOf({}), { ok: false, notChecked: 'this engine has no data checks (needs 2.3.0): pull the workspace' });
+    assert.deepStrictEqual(M.dataKeysOf({ dataKeys: () => ({ ok: true, watch: { users: { owner: 'id' } } }) }), { ok: true, watch: { users: { owner: 'id' } } });
+  });
+
   console.log(`${n} test(s), ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

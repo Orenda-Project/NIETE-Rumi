@@ -132,7 +132,7 @@ function makeItu({ api, sleep }) {
     }
     made.push(me.id, other.id);
     // set-up ends here: the data checks' "before", so every save the form makes (screen by screen, then Finish) is inside it
-    const keys = api.dataKeys();
+    const keys = dataKeysOf(api);
     const before = keys.ok ? await api.snapshot(keys.watch) : keys;
     return { u, me, phone: ph.me, card, other: { id: other.id, phone: ph.other }, name, keys, before };
   }
@@ -203,6 +203,13 @@ function makeItu({ api, sleep }) {
 }
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
+
+/** The repo's data-keys through the engine, or NOT CHECKED on an engine from before the data checks (< 2.3.0): an
+ *  operator who has not pulled the workspace still runs R24–R29, with the data part unchecked, never a crash. */
+function dataKeysOf(api) {
+  return typeof api.dataKeys === 'function' ? api.dataKeys()
+    : { ok: false, notChecked: 'this engine has no data checks (needs 2.3.0): pull the workspace' };
+}
 
 /** The data part of a scenario from api.dataRules' answer: ok unless a rule is broken. Off the run's own database it is
  *  NOT CHECKED, which never fails a scenario and never passes the data part either: the evidence says which. */
@@ -317,4 +324,4 @@ async function drive({ api, rec, sleep, want }) {
   return r;
 }
 
-module.exports = { drive, deferChromeLane, dataVerdict, makeItu, phonesFor, envValue, signedFetch, cardOn, leaks, LINKED, CHECKED, ANSWER, V6_FLOW_ID };
+module.exports = { drive, deferChromeLane, dataVerdict, dataKeysOf, makeItu, phonesFor, envValue, signedFetch, cardOn, leaks, LINKED, CHECKED, ANSWER, V6_FLOW_ID };
