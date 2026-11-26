@@ -281,16 +281,39 @@ async function sessionsOf(d, visit) {
   return got && got.ok ? got.sessions : [];
 }
 
+/**
+ * What the draw is told about a visit's list (draw.todaysList), the same for dayList and for addChild's empty-list
+ * question: the coach, the visit's observed grade, the named grade (sa_all_grades) and sa_per_visit.
+ */
+function visitDrawOf(userId, v, named, perVisit) {
+  return {
+    coachUserId: userId, observedGrade: v.observedGrade,
+    ...(named.grade ? { grade: named.grade, allGrades: true } : {}),
+    ...(perVisit !== perVisitSwitch.DEFAULT ? { perVisit } : {}),
+  };
+}
+
+/**
+ * The day list could not be drawn: does "Add a child" open it (draw.addChild with the visit's draw)? At a
+ * Gilgit-Baltistan school only (region registry), when nobody is on the roster (no_class_list) or everybody is tested
+ * (frame_exhausted). The page shows "Add a child" under the message only when this says yes, so an ICT school's answer
+ * and page are exactly sandbox's.
+ */
+async function addOpens(reason, schoolId) {
+  if (reason !== 'no_class_list' && reason !== 'frame_exhausted') return false;
+  // eslint-disable-next-line global-require
+  return require('../draw/region').isGilgitBaltistan(schoolId);
+}
+
 const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId, schoolId, visitId, grade }, d) => {
   const named = await namedGrade(grade, deps);
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
   let visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
   const perVisit = await perVisitSwitch.count(deps);
+  // the draw reads the coach app's clock (d.now), the one the visit's day key was made with, never its own
   const draw = (v) => d.draw.todaysList({
-    coachUserId: userId, schoolId: v.schoolId, observedGrade: v.observedGrade, ...visitArgs(v),
-    ...(named.grade ? { grade: named.grade, allGrades: true } : {}),
-    ...(perVisit !== perVisitSwitch.DEFAULT ? { perVisit } : {}),
+    ...visitDrawOf(userId, v, named, perVisit), schoolId: v.schoolId, ...visitArgs(v), now: d.now(),
   });
   let list = await draw(visit);
   // a named grade is never answered with another grade's list: the visit's list of another grade → the graded day key
@@ -300,7 +323,9 @@ const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId
     list = await draw(visit);
   }
   if (!list || !list.ok) {
-    if (list && list.reason) return { status: 'invalid', reason: list.reason };
+    if (list && list.reason) {
+      return { status: 'invalid', reason: list.reason, ...((await addOpens(list.reason, visit.schoolId)) ? { addOpens: true } : {}) };
+    }
     throw new Error((list && list.error) || 'todaysList failed');
   }
   d.log('child_test.sa.list_opened', { userId, schoolId: visit.schoolId, reused: !!list.reused });
@@ -376,7 +401,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   }
 
   // sa_all_grades: a top-up never takes a child another of today's lists holds (RULING G-18)
-  const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit), ...(named.grade ? { allGrades: true } : {}) });
+  const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit), ...(named.grade ? { allGrades: true } : {}), now: d.now() });
   if (!res || !res.ok) {
     if (res && res.reason === 'already_marked' && outcome === 'present') {
       const existing = await d.store.getSessionByDraw(drawId);
@@ -444,8 +469,11 @@ const addChild = (args = {}, deps = {}) => guarded('sa_add_child', async ({ user
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
   const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
+  // visitDraw: an empty list asks the draw first, as dayList would draw it (draw.addChild)
+  const visitDraw = visitDrawOf(userId, visit, named, await perVisitSwitch.count(deps));
   const out = await d.draw.addChild({
     schoolId: visit.schoolId, ...visitArgs(visit), grade: g, firstName: name, section: sec ? sec.toUpperCase() : null, clientChildId, now: d.now(),
+    visitDraw,
   });
   if (!out || !out.ok) {
     if (out && out.reason) return { status: 'invalid', reason: out.reason };

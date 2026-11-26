@@ -285,8 +285,11 @@ async function createRunChildTest(a) {
   const visitKey = `sa:${drawId}:${a.day}`;
   const grade = gradeNum(a.grade);
   const now = new Date().toISOString();
+  // the school's programme, as the coach's draw stamps it ('ict' for an ICT sector, 'gilgit-baltistan' for GB; 'ict' when
+  // unknown): child-test/draw/region.js. cycle_id keeps the draw's ICT- prefix (a calendar quarter, no reader splits it).
+  const region = await require('../child-test/draw/region').regionForSchool(st.data.school_id); // eslint-disable-line global-require
   const draw = await db().from(DRAWS).insert({
-    id: drawId, cycle_id: require('../child-test/draw/cycle').cycleFor(), region: 'ict', // eslint-disable-line global-require
+    id: drawId, cycle_id: require('../child-test/draw/cycle').cycleFor(), region, // eslint-disable-line global-require
     school_id: st.data.school_id, class_id: st.data.class_id, student_id: a.studentId, grade,
     frame_size: 1, draw_rank: 1, seed_digest: 'self', algo_version: 'sa-game-v1', form: 'A', sample_role: 'self',
     status: 'tested', tested_at: now, visit_key: visitKey, history: [],

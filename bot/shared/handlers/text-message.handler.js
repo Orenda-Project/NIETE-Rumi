@@ -2760,6 +2760,20 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   }
 
   // ============================================================
+  // JUGNU: a LEADER's "jugnu" / "reading game" (the whole message, en + ur) is the children's reading game, the coach
+  // app's Learning Assessment: a leader it opens for gets its link; a Gilgit-Baltistan leader it is not on for, one line
+  // saying so. Never the chat for those (it wrote a lesson plan about fireflies). Everyone else, an ICT leader it is not
+  // on for included, goes on exactly as before. HERE, after every open conversation above (a quiz or video waiting for
+  // its topic, comprehension, a coaching reflection, a lesson-plan topic) has declined the message, so a waiting flow
+  // still takes the word as its answer. A teacher's Jugnu is NIETE's own children's games: today's path.
+  // ============================================================
+  {
+    const JugnuCommand = require('./jugnu-command');
+    if (JugnuCommand.isJugnuWord(messageBody)
+      && await JugnuCommand.handleJugnuCommand({ user, from, text: messageBody, language: responseLanguage, typingController })) return;
+  }
+
+  // ============================================================
   // CURRICULUM LP EARLY INTERCEPT
   // If the message parses as a curriculum-LP request (grade + subject + topic
   // that resolves to an AST row) we serve it BEFORE the intent classifier.

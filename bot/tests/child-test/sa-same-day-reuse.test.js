@@ -98,8 +98,9 @@ describe('a named grade where the coach has today\'s un-graded day list', () => 
   test('OFF: today\'s key, the same call as before; an outcome carries no allGrades', async () => {
     const { deps, calls } = world({ on: false });
     await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 5 }, deps);
-    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: null, visitKey: DAY_KEY });
+    // the same call as before, plus the coach app's clock (the draw no longer reads its own)
+    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: null, visitKey: DAY_KEY, now: NOW });
     await sa.dayOutcome({ userId: COACH, schoolId: SCHOOL, drawId: 'd-1', outcome: 'absent', grade: 5 }, deps);
-    expect(calls.markOutcome[0]).toEqual({ drawId: 'd-1', outcome: 'absent', note: undefined, visitKey: DAY_KEY });
+    expect(calls.markOutcome[0]).toEqual({ drawId: 'd-1', outcome: 'absent', note: undefined, visitKey: DAY_KEY, now: NOW });
   });
 });

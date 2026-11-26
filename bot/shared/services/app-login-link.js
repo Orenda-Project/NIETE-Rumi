@@ -86,6 +86,9 @@ const LEADER_LANDINGS = Object.freeze({
   leader_lessons: '/portal/teacher/lessons',
   // bd-uxzi8c.1 — a leader's paper request: the app's paper maker, the page the leader family opens (PortalAssessment).
   leader_assessment: '/portal/assessment',
+  // A leader's "jugnu" / "reading game" (handlers/jugnu-command.js): the coach app's Learning Assessment, where the child
+  // plays Jugnu on the leader's phone. The page and its API check portal_child_test_sa themselves.
+  leader_assess: '/portal/leader/assess',
 });
 
 const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
