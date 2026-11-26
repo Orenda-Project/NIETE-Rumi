@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -40,6 +42,10 @@ import { COACHING_V2_COPY as C, COACHING_V2_COPY_UR as U } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const ID = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
+// bd-ma9jiy.5: real audio, and the 110-byte header-only file the old reflection recorder uploaded.
+const AUDIO = resolve(__dirname, "../../../../../tests/fixtures/audio");
+const REAL_WEBM = new Uint8Array(readFileSync(resolve(AUDIO, "chrome-webm/one.webm")));
+const HEADER_ONLY = new Uint8Array(readFileSync(resolve(AUDIO, "reflection/header-only-110.webm")));
 
 const DETAIL = {
   id: ID, date: "2026-10-02T06:00:00Z", duration: 1680, overallScore: 30, maxScore: 52, percentage: 58,
@@ -263,25 +269,43 @@ describe("the report page — a Digital Coach lesson", () => {
  * OR by speaking, so the page offers both, and the step's line says so in both languages.
  */
 describe("the reflection answer by voice (bd-eygg2f)", () => {
+  // bd-ma9jiy.5: the shared recorder keeps only a take with audio in it, so the fake hands over real WebM audio (or, for
+  // the prod case, the 110-byte header alone) and the clock moves between Record and Stop.
   class FakeRecorder {
+    static deliver: Uint8Array = REAL_WEBM;
     static isTypeSupported = (t: string) => t.startsWith("audio/webm");
     state = "inactive";
     ondataavailable: ((e: { data: Blob }) => void) | null = null;
     onstop: (() => void) | null = null;
     constructor(public stream: unknown, public options: unknown) {}
     start() { this.state = "recording"; }
-    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) }); this.onstop?.(); }
+    pause() { this.state = "paused"; }
+    resume() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob([FakeRecorder.deliver], { type: "audio/webm" }) }); this.onstop?.(); }
   }
+  let clock = 1_000_000;
   const asking = () => {
     portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
       reflection: { questionNumber: 1, question: "Which children answered?" } });
   };
   beforeEach(() => {
+    FakeRecorder.deliver = REAL_WEBM;
+    clock = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => clock);
     vi.stubGlobal("MediaRecorder", FakeRecorder);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 })); // the heartbeat
     Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) }, configurable: true });
     URL.createObjectURL = vi.fn(() => "blob:answer");
     URL.revokeObjectURL = vi.fn();
   });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  /** Record for `ms` (by the recorder's clock), then Stop. */
+  const speak = async (ms = 5_000) => {
+    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
+    const stop = await screen.findByRole("button", { name: C.stop });
+    clock += ms;
+    fireEvent.click(stop);
+  };
 
   it("the step's line is 'write or speak', in English and Urdu", () => {
     expect(C.subReflection).toBe("Write or speak");
@@ -295,8 +319,7 @@ describe("the reflection answer by voice (bd-eygg2f)", () => {
     portal.submitCoachingVoiceReflection.mockResolvedValue({ done: true, acknowledgement: "Thank you." });
     open();
 
-    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
-    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    await speak();
     expect(await screen.findByRole("button", { name: C.removeRecording })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: C.send }));
 
@@ -320,8 +343,7 @@ describe("the reflection answer by voice (bd-eygg2f)", () => {
   it("remove throws the clip away and brings the box back", async () => {
     asking();
     open();
-    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
-    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    await speak();
     fireEvent.click(await screen.findByRole("button", { name: C.removeRecording }));
     expect(await screen.findByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
     expect(portal.presignCoachingUpload).not.toHaveBeenCalled();
@@ -334,6 +356,46 @@ describe("the reflection answer by voice (bd-eygg2f)", () => {
     fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
     expect(await screen.findByText(C.micBlocked)).toBeTruthy();
     expect(screen.getByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
+  });
+
+  // bd-ma9jiy.5 (queue #262): 29 November uploads from 17 teachers were the 110-byte WebM header and nothing else.
+  it("THE PROD CASE: a take with no audio in it says 'Nothing was recorded', uploads nothing, and gives the box back", async () => {
+    asking();
+    FakeRecorder.deliver = HEADER_ONLY;
+    open();
+    await speak(4_000);
+    expect(await screen.findByText(C.nothingRecorded)).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.removeRecording })).toBeNull();
+    expect(portal.presignCoachingUpload).not.toHaveBeenCalled();
+  });
+
+  it("the server hears no audio in it (no_audio): the same line, the clip thrown away", async () => {
+    asking();
+    portal.presignCoachingUpload.mockResolvedValue({ key: "k", uploadUrl: "https://r2/put", contentType: "audio/webm" });
+    portal.uploadToR2.mockResolvedValue(undefined);
+    portal.submitCoachingVoiceReflection.mockRejectedValue({ response: { status: 400, data: { status: "invalid", reason: "no_audio" } } });
+    open();
+    await speak();
+    fireEvent.click(await screen.findByRole("button", { name: C.send }));
+    expect(await screen.findByText(C.nothingRecorded)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.removeRecording })).toBeNull();
+    expect(screen.queryByText(C.couldNotSend)).toBeNull();
+  });
+
+  it("a failed upload keeps her answer to send again (re-send), with 'Could not send'", async () => {
+    asking();
+    portal.presignCoachingUpload.mockResolvedValue({ key: "k", uploadUrl: "https://r2/put", contentType: "audio/webm" });
+    portal.uploadToR2.mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce(undefined);
+    portal.submitCoachingVoiceReflection.mockResolvedValue({ done: true, acknowledgement: "Thank you." });
+    open();
+    await speak();
+    fireEvent.click(await screen.findByRole("button", { name: C.send }));
+    expect(await screen.findByText(C.couldNotSend)).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.removeRecording })).toBeTruthy(); // still hers
+    fireEvent.click(screen.getByRole("button", { name: C.send }));
+    expect(await screen.findByText("Thank you.")).toBeTruthy();
+    expect(portal.uploadToR2).toHaveBeenCalledTimes(2);
   });
 });
 
