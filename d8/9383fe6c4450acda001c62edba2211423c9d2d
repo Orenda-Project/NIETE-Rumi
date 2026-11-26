@@ -1,2 +1,3 @@
 {"ts":"2026-11-26T03:32:38Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d89383fe6c44","branch":"bd-ke5dtg-22697","user":""}
 {"ts":"2026-11-26T03:33:29Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (d89383f only tags the already-@obsolete T15 @no-mock-driver; spec validated OK; no teacher-visible change)","sha":"d89383fe6c44","branch":"bd-ke5dtg-22697","user":""}
+{"ts":"2026-11-26T03:33:35Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-d89383fe6c44","sha":"d89383fe6c44","branch":"bd-ke5dtg-22697","user":""}
