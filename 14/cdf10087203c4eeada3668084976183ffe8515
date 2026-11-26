@@ -1,0 +1,4 @@
+{"ts":"2026-11-26T16:19:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"14cdf1008720","branch":"bd-9nb6s0.2-09441","user":""}
+{"ts":"2026-11-26T16:19:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"14cdf1008720","branch":"bd-9nb6s0.2-09441","user":""}
+{"ts":"2026-11-26T16:20:01Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"14cdf1008720","branch":"bd-9nb6s0.2-09441","user":""}
+{"ts":"2026-11-26T16:20:09Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"ddc5d22d-9edd-4c7a-9aea-a6907a47c2df","sha":"14cdf1008720","branch":"bd-9nb6s0.2-09441","user":""}
