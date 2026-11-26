@@ -272,11 +272,14 @@
     function lbl(cls, label) { return cls.indexOf('wq-ghost') >= 0 ? '<span style="text-decoration:underline;text-underline-offset:4px">' + esc(label) + '</span>' : esc(label); }
     function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none;border-bottom:0"' : '') + '>' + lbl(cls, label) + '</button>'; }
     function link(cls, act, href, label) { return '<a class="wq-btn ' + cls + '" data-act="' + act + '" href="' + esc(href) + '">' + esc(label) + '</a>'; }
-    function draw(inner) {
-      if (!inner) { slot.innerHTML = ''; return; }
-      slot.innerHTML = '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
+    function section(inner) {
+      return '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
         + ' style="margin:16px 0 0;padding:16px;display:grid;gap:10px">' + inner + '</section>';
     }
+    // the card's own state (ask, primer, done, off...); c2's install card is a second section under it, so the
+    // reminder's answer stays on screen
+    var drawn = '';
+    function draw(inner) { drawn = inner ? section(inner) : ''; slot.innerHTML = drawn; }
     // Nastaliq room; on the landing the status lines read at 18 px with a little more air
     var lh = lang === 'ur' ? (landing ? ';line-height:2.2' : ';line-height:2') : '';
     var fs = landing ? ';font-size:18px' : '';
@@ -381,7 +384,7 @@
       if (!inst.on || inst.done || !inst.settled || !inst.offer || instSnoozed()) return;
       inst.done = true;
       istep('card_shown');
-      draw(title(c.instTitle) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      slot.innerHTML = drawn + section(title(c.instTitle) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
         + btn('wq-soft', 'inst_add', c.instAdd) + btn('wq-ghost', 'inst_later', c.remindLater) + '</div>');
     }
     function instWire(code) {
@@ -398,9 +401,18 @@
       });
       window.addEventListener('appinstalled', function () { inst.offer = null; istep('installed'); });
     }
+    // a snoozed ask: read the key only where the install card could show (an Android Chrome tab, not the installed app,
+    // not within the card's own snooze); anywhere else no network, as before
+    function instOnly() {
+      if (!code || branch() !== 'card' || !/Android/i.test(String(window.navigator.userAgent || '')) || standaloneNow() || instSnoozed()) return Promise.resolve();
+      return getKey(code).then(function (r) {
+        if (r.status === 200 && instOk(r.body)) { instWire(code); settle(); }
+        return null;
+      }).catch(function () { return null; });
+    }
     function instAdd() {
       var e = inst.offer; inst.offer = null;
-      draw('');
+      slot.innerHTML = drawn;
       istep('add');
       try {
         e.prompt();
@@ -472,10 +484,11 @@
       if (!act) return;
       if (act === 'yes') onYes();
       else if (act === 'primer_go') { primerUp = false; primed = true; ev('primer_go'); askBrowser(); }
-      else if (act === 'primer_back') { primerUp = false; lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); settle(); }
-      else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); settle(); }
+      // a Not now (to the ask or to the primer) gets no install card in that tap: it comes on the next finish page
+      else if (act === 'primer_back') { primerUp = false; lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); }
+      else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); }
       else if (act === 'inst_add') { if (inst.offer) instAdd(); }
-      else if (act === 'inst_later') { lsSet('wqp_inst_later', Date.now()); istep('later'); draw(''); }
+      else if (act === 'inst_later') { lsSet('wqp_inst_later', Date.now()); istep('later'); slot.innerHTML = drawn; }
       else if (act === 'stop') onStop();
       else if (act === 'test') onTest();
       else if (act === 'copy') { if (e.preventDefault) e.preventDefault(); onCopy(); }
@@ -487,7 +500,8 @@
       start: function () {
         if ((Number(ctx.chips) || 0) >= 4) return Promise.resolve();
         if (installOnScreen()) return Promise.resolve();
-        if (!landing && snoozed()) return Promise.resolve();
+        // the ask is snoozed (answered or Not now): no ask, but an Android Chrome tab may still get c2's install card
+        if (!landing && snoozed()) return instOnly();
         return getKey(code).then(function (r) {
           // only a real off drops the worker; a 5xx, a route miss or no network leaves it (a failed read is not OFF)
           if (r.status === 404 && r.body && r.body.off === true) return dropWorkers();
