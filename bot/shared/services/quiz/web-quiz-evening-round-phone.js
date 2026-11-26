@@ -152,23 +152,35 @@ async function hasLiveStandingLink(classId, { now = new Date() } = {}) {
 }
 
 /**
- * teacherHasLiveRound(teacherId) — for the teacher report (re-exported from web-quiz-class-link.js): true when a class
- * the teacher actively teaches (class_teachers, is_active) has a live standing link with the evening round on, i.e.
- * hasLiveStandingLink is true for one of their classes. Never writes (never mints a link): one class_teachers read and
- * one class_links read, none with either switch off. False on any failure, never throws.
+ * teacherHasLiveRound(teacherId) — the teacher home's "Evening rounds" line (re-exported from web-quiz-class-link.js):
+ * true exactly when the class tab's Evening rounds section has a round to show. It asks that section's own question
+ * (web-quiz-evening-round.js forTeacherReport, which the tab builds), cheaply: a class the teacher actively teaches
+ * (class_teachers, is_active) has a quiz_share_codes row created in the last REPORT_DAYS days whose quiz is an evening
+ * round (isEveningRound). A live class link is neither needed nor enough: the section does not read class_links.
+ * Two reads, the quiz's source embedded in the second: class_teachers 1, then quiz_share_codes with quizzes(source)
+ * 1 per IN_CHUNK classes, stopping at the first chunk with a round; none past class_teachers for a teacher with no
+ * class, and none with the switch off (only the switch's own cached app_settings read). Never writes. Any failed read
+ * (an error or a throw) is logged once and answers false; never throws.
  */
 async function teacherHasLiveRound(teacherId, { now = new Date() } = {}) {
   try {
     if (!teacherId || !(await Flags.eveningRoundOn())) return false;
     const { data: teaches, error } = await supabase.from('class_teachers').select('class_id')
       .eq('teacher_user_id', teacherId).eq('is_active', true);
-    if (error) return false;
-    const classIds = [...new Set((teaches || []).map((r) => r.class_id).filter(Boolean))].slice(0, IN_CHUNK);
+    if (error) throw new Error(`class_teachers: ${error.message}`);
+    const classIds = [...new Set((teaches || []).map((r) => r.class_id).filter(Boolean))];
     if (!classIds.length) return false;
-    const { data, error: lErr } = await supabase.from('class_links').select('code')
-      .in('class_id', classIds).is('revoked_at', null).gt('expires_at', now.toISOString()).limit(1);
-    if (lErr) return false;
-    return (data || []).length > 0;
+    const Round = require('./web-quiz-evening-round');
+    const since = new Date(now.getTime() - Round.REPORT_DAYS * 86400000).toISOString();
+    for (let i = 0; i < classIds.length; i += IN_CHUNK) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error: cErr } = await supabase.from('quiz_share_codes').select('quiz_id, quizzes(src:meta->>source)')
+        .in('class_id', classIds.slice(i, i + IN_CHUNK)).gte('created_at', since);
+      if (cErr) throw new Error(`quiz_share_codes: ${cErr.message}`);
+      // a code whose quiz is gone embeds null, as the section's quizzes read finds nothing for it
+      if ((data || []).some((r) => r.quizzes && Round.isEveningRound({ meta: { source: r.quizzes.src } }))) return true;
+    }
+    return false;
   } catch (err) {
     logToFile('⚠️ class link: teacher live round check unavailable', { error: err.message });
     return false;
