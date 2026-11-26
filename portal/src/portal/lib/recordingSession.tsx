@@ -8,6 +8,7 @@ import { pickRecordingType, type RecordingType } from './recordingSupport';
 import { withDuration } from './webmDuration';
 import { markFinished, type KeptRecording } from './recordingStore';
 import { RecordingHeart, cutOf, type BeatContext } from './recordingBeat';
+import { lastSavedAt, wasCut } from './keptOffer';
 
 /**
  * bd-5rz1v.10 — the lesson being recorded lives HERE, above the routes, not in
@@ -190,7 +191,10 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
       try {
         const heart = new RecordingHeart({ recordingId: kept.meta.id, ctx: beat, bytesSoFar: kept.blob.size });
         heartRef.current = heart;
-        heart.event('cut', { ...(cutOf(kept.beats, Date.now()) || {}), ms: kept.meta.elapsedMs, finished: kept.meta.finished, parts: kept.parts });
+        // bd-91htd2 (queue #292): `cut` only for one cut by a kill; one she had stopped is a `reopen` (every reopen of a
+        // stopped recording logged a cut: 207 of 235 on 26 Nov). ageS: from its last save (also with no heartbeats).
+        const now = Date.now();
+        heart.event(wasCut(kept) ? 'cut' : 'reopen', { ...(cutOf(kept.beats, now) || {}), ageS: Math.max(0, Math.round((now - lastSavedAt(kept)) / 1000)), ms: kept.meta.elapsedMs, finished: kept.meta.finished, parts: kept.parts });
       } catch { /* instrumentation only */ }
     }
     setLive({ active: true, paused: true, stream: null, screenWentOff: false, recordingId: kept.meta.id, returnTo });
