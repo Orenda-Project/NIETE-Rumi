@@ -21,7 +21,8 @@
 import { browserEnv, getApiBaseUrl } from "@/lib/runtime";
 import type { RecordingLink } from "./recordingStore";
 
-export type RecordingKind = "dc" | "obs" | "dbrf";
+// bd-ma9jiy.5: "reflection" — the teacher's spoken answer to the reflection question (its session as observationId).
+export type RecordingKind = "dc" | "obs" | "dbrf" | "reflection";
 
 export type BeatContext = {
   kind: RecordingKind;

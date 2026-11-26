@@ -590,13 +590,16 @@ function createAppFunnelRouter({ limiter } = {}) {
 }
 
 // bd-ma9jiy — the recorder heartbeat's kinds, events and id shape.
-const REC_KINDS = ['dc', 'obs', 'dbrf'];
-const REC_FEATURE = { dc: 'ai_coaching', obs: 'observe', dbrf: 'debrief' };
+// bd-ma9jiy.5: the teacher's spoken reflection answer is on the shared recorder too.
+const REC_KINDS = ['dc', 'obs', 'dbrf', 'reflection'];
+const REC_FEATURE = { dc: 'ai_coaching', obs: 'observe', dbrf: 'debrief', reflection: 'ai_coaching' };
 // bd-91htd2 (queue #292): 'reopen' = a recording she had stopped, reopened (a 'cut' is one cut by a kill).
 const REC_EVENTS = ['start', 'resume', 'pause', 'unpause', 'stop', 'discard', 'cut', 'reopen', 'save_failed', 'mic_blocked', 'kept_shown', 'kept_send',
   'save_to_phone', 'save_to_phone_failed', 'resend', 'send_failed', 'sent', 'join_failed',
   // bd-q261rec (queue #261): how the screen was held at the start (mode: native | wakelock | wakelock_refused | none).
-  'keep_awake'];
+  'keep_awake',
+  // bd-ma9jiy.5: a take with no audio frame, thrown away instead of being sent.
+  'empty'];
 const REC_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
 // bd-o15qnr.26 Concept 1: observe.start = the Observe screen's "Start an observation".
