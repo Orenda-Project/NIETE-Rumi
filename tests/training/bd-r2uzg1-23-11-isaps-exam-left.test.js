@@ -8,8 +8,8 @@
  *
  * Under test:
  *   1. courseExamStates (pure, isaps-module-exam.rules): course "Module N" -> its active per-module exam
- *      (source_quiz_id 900+N); 'passed' with a passed attempt, else 'left'; no exam -> no entry.
- *   2. GET /training/courses carries exam_state per course: 'left' / 'passed' for I-SAPS, null for a vendor with
+ *      (source_quiz_id 900+N); 'passed' with a passed attempt, else 'pending'; no exam -> no entry.
+ *   2. GET /training/courses carries exam_state per course: 'pending' / 'passed' for I-SAPS, null for a vendor with
  *      no per-module exams (every other vendor's payload is otherwise unchanged), null when the exam read fails.
  *
  * Route harness copied from tests/training/portal-level-unlock-logic.test.js.
@@ -192,12 +192,12 @@ describe('courseExamStates (pure)', () => {
 
   it("names each course's exam: passed, or left; a course with no exam has no entry", () => {
     expect(courseExamStates(courses, quizzes, [{ grand_quiz_id: 38, is_passed: true }]))
-      .toEqual({ 101: 'left', 102: 'passed' });
+      .toEqual({ 101: 'pending', 102: 'passed' });
   });
 
   it('a failed or open attempt leaves the exam left', () => {
     expect(courseExamStates(courses, quizzes, [{ grand_quiz_id: 37, is_passed: false }, { grand_quiz_id: 38, is_passed: null }]))
-      .toEqual({ 101: 'left', 102: 'left' });
+      .toEqual({ 101: 'pending', 102: 'pending' });
   });
 
   it('an inactive exam, or a level exam (no 900+N id), is not a course exam', () => {
@@ -260,7 +260,7 @@ describe('GET /training/courses: exam_state per course (call 13A)', () => {
     const { statusCode, payload } = await invoke('/training/courses', { userId: 'user-1', query: { level_id: '27' } });
     expect(statusCode).toBe(200);
     const byId = Object.fromEntries(payload.courses.map((c) => [c.id, c]));
-    expect(byId[101]).toMatchObject({ module_count: 2, completed_count: 2, exam_state: 'left' });
+    expect(byId[101]).toMatchObject({ module_count: 2, completed_count: 2, exam_state: 'pending' });
     expect(byId[102]).toMatchObject({ module_count: 1, completed_count: 1, exam_state: 'passed' });
   });
 

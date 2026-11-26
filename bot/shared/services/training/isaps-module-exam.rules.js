@@ -355,13 +355,13 @@ function allModuleExamsPassed(quizzes, attempts) {
  *
  * The exam is the one the certificate rule counts (allModuleExamsPassed): the ACTIVE per-module quiz at 900 + N
  * for a course titled "Module N" (the same title rule as the bot's module-exam-gate route). 'passed' once she has
- * a passed attempt on it, 'left' otherwise. A course with no such exam gets no entry, so every vendor but I-SAPS
+ * a passed attempt on it, 'pending' otherwise. A course with no such exam gets no entry, so every vendor but I-SAPS
  * reads exactly as before. Pure; bad input reads as "no exams".
  *
  * @param {Array<{id:*, title:string}>} courses
  * @param {Array<object>} quizzes   training_grand_quizzes rows of the level ({ id, source_quiz_id, is_active })
  * @param {Array<object>} attempts  her training_assessment_attempts rows ({ grand_quiz_id, is_passed })
- * @returns {Object<string, 'passed'|'left'>} by course id
+ * @returns {Object<string, 'passed'|'pending'>} by course id
  */
 const MODULE_TITLE_NO = /Module (\d+)/;
 function courseExamStates(courses, quizzes, attempts) {
@@ -380,7 +380,7 @@ function courseExamStates(courses, quizzes, attempts) {
     if (!m) continue;
     const quizId = bySource.get(moduleSourceQuizId(parseInt(m[1], 10)));
     if (quizId === undefined) continue;
-    out[c.id] = passed.has(quizId) ? 'passed' : 'left';
+    out[c.id] = passed.has(quizId) ? 'passed' : 'pending';
   }
   return out;
 }

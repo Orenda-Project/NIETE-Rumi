@@ -5574,7 +5574,7 @@ router.get('/training/courses', requirePortalAuth, async (req, res) => {
       completedSet = new Set((progress || []).map(p => p.module_id));
     }
 
-    // bd-r2uzg1.23.11 (queue #274, call 13A): each course's end-of-module exam ('passed' / 'left'), so the level
+    // bd-r2uzg1.23.11 (queue #274, call 13A): each course's end-of-module exam ('passed' / 'pending'), so the level
     // page stops calling a course Done, and Continue stops skipping it, while its exam is left. Only I-SAPS has these
     // exams; every other vendor reads exam_state null. Best effort: a failed read leaves null (the list as before).
     let examStates = {};

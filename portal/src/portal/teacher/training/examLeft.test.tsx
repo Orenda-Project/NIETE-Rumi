@@ -6,7 +6,7 @@ import { trainingGet } from "../../../test/trainingFixtures";
 /**
  * bd-r2uzg1.23.11 (queue #274, call 13A; ICT sheet Middle and High TT 63, 74): an I-SAPS course whose parts are all
  * done but whose end-of-module exam is still to pass reads "Exam to do", not Done, and the level's Continue goes to
- * that exam. GET /training/courses now says it per course (exam_state 'left' | 'passed' | null).
+ * that exam. GET /training/courses now says it per course (exam_state 'pending' | 'passed' | null).
  */
 
 configure({ asyncUtilTimeout: 5000 });
@@ -37,7 +37,7 @@ function renderLevel(courses: Course[]) {
 
 describe("courseDone / examLeft", () => {
   it("every part done and the exam left: not done, exam left", () => {
-    const c = course("c-1", 1, 6, 6, "left");
+    const c = course("c-1", 1, 6, 6, "pending");
     expect(courseDone(c)).toBe(false);
     expect(examLeft(c)).toBe(true);
   });
@@ -47,7 +47,7 @@ describe("courseDone / examLeft", () => {
     expect(examLeft(course("c-3", 3, 6, 6, null))).toBe(false);
   });
   it("parts still to do: neither done nor 'exam left'", () => {
-    const c = course("c-4", 4, 2, 6, "left");
+    const c = course("c-4", 4, 2, 6, "pending");
     expect(courseDone(c)).toBe(false);
     expect(examLeft(c)).toBe(false);
   });
@@ -55,7 +55,7 @@ describe("courseDone / examLeft", () => {
 
 describe("I-SAPS level page: a course with its exam left", () => {
   it("reads 'Exam to do', not Done; the count leaves it out", async () => {
-    renderLevel([course("c-1", 1, 6, 6, "left"), course("c-2", 2, 6, 6, "passed"), course("c-3", 3, 2, 6, "left")]);
+    renderLevel([course("c-1", 1, 6, 6, "pending"), course("c-2", 2, 6, 6, "passed"), course("c-3", 3, 2, 6, "pending")]);
     const list = await screen.findByTestId("training-level-courses");
     const rows = within(list).getAllByRole("link");
     expect(within(rows[0]).getByText("Exam to do")).toBeInTheDocument();
@@ -66,14 +66,14 @@ describe("I-SAPS level page: a course with its exam left", () => {
   });
 
   it("Continue goes to that course's exam, and says so", async () => {
-    renderLevel([course("c-1", 1, 6, 6, "left"), course("c-2", 2, 6, 6, "passed")]);
+    renderLevel([course("c-1", 1, 6, 6, "pending"), course("c-2", 2, 6, 6, "passed")]);
     const go = await screen.findByTestId("training-level-continue");
     expect(go).toHaveAttribute("href", `${TRAINING_V2_BASE}/exam/c-1`);
     expect(go).toHaveTextContent("Continue to the exam");
   });
 
   it("the next course still has parts: Continue as before, to the course", async () => {
-    renderLevel([course("c-1", 1, 6, 6, "passed"), course("c-2", 2, 2, 6, "left")]);
+    renderLevel([course("c-1", 1, 6, 6, "passed"), course("c-2", 2, 2, 6, "pending")]);
     const go = await screen.findByTestId("training-level-continue");
     expect(go).toHaveAttribute("href", `${TRAINING_V2_BASE}/provider/ISAPS/level/9/course/c-2`);
     expect(go).toHaveTextContent(/^Continue$/);

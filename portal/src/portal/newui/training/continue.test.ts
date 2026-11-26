@@ -155,8 +155,8 @@ describe("findContinue · an I-SAPS course with its exam left (bd-r2uzg1.23.11, 
   it("every part of the course she was in is done but its exam is left: Continue opens that exam", async () => {
     const { get } = fakeGet({
       "/training/courses": () => ({ courses: [
-        { id: "i-1", title: "Module 1: Philosophical Foundations", order_index: 0, module_count: 2, completed_count: 2, exam_state: "left" },
-        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "left" },
+        { id: "i-1", title: "Module 1: Philosophical Foundations", order_index: 0, module_count: 2, completed_count: 2, exam_state: "pending" },
+        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "pending" },
       ] }),
       "/training/modules": (p) => ({ modules: p.course_id === "i-1" ? [done("u-1", 1), done("u-2", 2)] : [] }),
     });
@@ -168,7 +168,7 @@ describe("findContinue · an I-SAPS course with its exam left (bd-r2uzg1.23.11, 
     const { get } = fakeGet({
       "/training/courses": () => ({ courses: [
         { id: "i-1", title: "Module 1: Philosophical Foundations", order_index: 0, module_count: 2, completed_count: 2, exam_state: "passed" },
-        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "left" },
+        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "pending" },
       ] }),
       "/training/modules": (p) => ({ modules: p.course_id === "i-1" ? [done("u-1", 1), done("u-2", 2)] : [] }),
     });
