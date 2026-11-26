@@ -7,3 +7,5 @@
 {"ts":"2026-11-23T04:05:49Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"0d40b88a19f2","branch":"bd-h8zy3q-46909","user":""}
 {"ts":"2026-11-24T01:09:36Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.1","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
 {"ts":"2026-11-25T00:44:56Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
+{"ts":"2026-11-26T01:39:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
+{"ts":"2026-11-26T01:39:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"0d40b88a19f2","branch":"bd-2oi189-39226","user":""}
