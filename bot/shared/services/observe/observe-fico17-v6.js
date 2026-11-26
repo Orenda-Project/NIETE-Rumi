@@ -72,7 +72,12 @@ async function decideVisitFramework({ userId, region, teacherUserId = null, less
   if (!isReady()) return null;
   try {
     const { coachRubric } = require('../coaching/fico-rubric-switch');
-    return (await coachRubric({ userId, region })) === 'v6' ? V6 : null;
+    // bd-dsu5mq.2: looked up at the VISIT's place (its school), never the observer's profile region. `region` is still
+    // accepted from the callers and no longer decides. A place that cannot be read names no region or organization, so
+    // only "user:" and bare role keys decide (in doubt v6, queue #282), as for an observer with no region today.
+    const FR = require('../coaching/fde-region');
+    const place = await FR.visitPlace({ observer: userId, teacherUserId, schoolExtId });
+    return (await coachRubric(FR.switchWho({ id: userId }, place))) === 'v6' ? V6 : null;
   } catch (_) {
     return null;
   }
