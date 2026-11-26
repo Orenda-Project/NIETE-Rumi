@@ -158,14 +158,13 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
     parts.push(`<section><h2>${esc(c.report)}</h2>${inner}</section>`);
   }
   if (v.voice) parts.push(`<section><h2>${esc(c.voice)}</h2><audio controls src="${esc(v.voice)}"></audio></section>`);
-  if (typeof v.quizMessage === 'string' && v.quizMessage.trim()) {
+  if (links.quizBlock) {
+    // qfix offers: the quiz made in this page (report-quiz-page.js renderQuizBlock, already escaped), for an offer held
+    // for a closed window or a quiz made here (quiz/report-page-quiz.js).
+    parts.push(links.quizBlock);
+  } else if (typeof v.quizMessage === 'string' && v.quizMessage.trim()) {
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
-  } else if (links.makeQuiz) {
-    // qfix offers: the quiz offer held for a closed window (quiz/report-page-quiz.js); the link opens WhatsApp to us.
-    const ux = (key) => esc(resolveUx(key, { language: l }));
-    parts.push(`<section class="qz">${require('./report-quiz-page').QZ_CSS}<h2>${ux('qfix_offers_cr_quiz_head')}</h2><p>${ux('qfix_offers_cr_quiz_body')}</p>`
-      + `<a class="btn" href="${esc(links.makeQuiz)}">${ux('qfix_offers_cr_quiz_button')}</a></section>`);
   }
   // Once she has sent the coach ping (C and D only), the question is answered: don't ask again.
   if (links.coach && COACH_SAID[coachState]) parts.push(coachSection(coachState, l));

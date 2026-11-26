@@ -82,6 +82,8 @@ app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'))
 app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 // A teacher sends a storybook to the class (portal /api/teacher/stories, /api/teacher/story/share), same x-api-key check.
 app.use('/api/internal/ts', require('./shared/routes/story-teacher-internal.routes'));
+// "Make a quiz" inside the page the closed-window coaching report opens (portal /cq, /cr), same x-api-key check.
+app.use('/api/internal/rq', require('./shared/routes/report-quiz-internal.routes'));
 // ── first touch: the optional mounts in shared/services/first-touch/mounts.js, one line each in name order ──
 for (const [, file, mount] of require('./shared/services/first-touch/mounts')) {
   try { require(`./shared/services/first-touch/${file}`)[mount](app); } catch (err) { require('./shared/services/first-touch/mount-failed')(file, err); } // not mounted; every other route is today's
@@ -734,16 +736,6 @@ app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', r
         if (await require('./shared/services/data-analyst/entry').maybeHandleDataAnalyst({ user, from, messageBody, correlationId, messageId: message.id })) return;
       } catch (err) {
         logError('data analyst door failed (non-fatal)', { error: err.message });
-      }
-    }
-
-    // "Make a quiz" from the coaching report page (quiz/report-page-quiz.js): the teacher's prefill ends in CR-<8 hex>, naming one
-    // of their sessions; it is the report template's "Make a quiz" tap. false (no code, switch off) → the text handler.
-    if (messageType === 'text' && messageBody && /\bCR-[0-9a-f]{8}\b/i.test(messageBody)) {
-      try {
-        if (await require('./shared/services/quiz/report-page-quiz').handleReportPageText(messageBody, from)) return;
-      } catch (err) {
-        logError('report page quiz text failed (non-fatal)', { error: err.message });
       }
     }
 

@@ -241,6 +241,10 @@ async function processOffer(coachingSessionId, payload = {}) {
   // `accepted`: the teacher tapped "Make a quiz" on the report template (handleReportQuizTap). That tap is the
   // yes, and it is the teacher writing to us, so neither the once-per-teacher rule nor the window applies.
   const accepted = payload.accepted === true;
+  // `page`: the tap was in the page the report opens (report-page-quiz.js). The teacher reads every step there, so
+  // nothing below sends them a message; a skip is logged for the page to name, and the row carries made_via 'page'.
+  const page = accepted && payload.page === true;
+  const pageMark = page ? { made_via: 'page', page_make_at: payload.tapAt || null, page_surface: payload.surface || null } : {};
   if (!accepted && !payload.force && offerMode() === 'once' && await alreadyOffered(session.user_id)) {
     return { skipped: 'already_offered_once' };
   }
@@ -271,7 +275,7 @@ async function processOffer(coachingSessionId, payload = {}) {
   if (claim.claimed) quizId = claim.quizId;
   else {
     // The row may be one a closed window held: take it back rather than refuse the offer.
-    const revived = await ClosedWindow.reviveHeld({ coachingSessionId, source });
+    const revived = await ClosedWindow.reviveHeld({ coachingSessionId, source, extra: page ? pageMark : undefined });
     if (revived) {
       quizId = revived.quizId;
       logEvent('transcript_quiz.held_revived', { coachingSessionId, quizId, held_path: revived.heldPath, accepted });
@@ -279,12 +283,18 @@ async function processOffer(coachingSessionId, payload = {}) {
   }
   if (!quizId) {
     logEvent('transcript_quiz.offer_skipped', { coachingSessionId, reason: 'already_claimed' });
-    if (accepted) return module.exports.answerTapOnExisting({ coachingSessionId, phone: payload.phone || user.phone_number });
+    if (accepted) return module.exports.answerTapOnExisting({ coachingSessionId, phone: payload.phone || user.phone_number, page });
     return { skipped: 'already_claimed' };
   }
   // A tapped teacher is never left in silence: each skip below tells them why, in the words /quiz uses.
   const tellSkip = async (reason) => {
     if (!accepted) return;
+    if (page) {
+      logEvent('transcript_quiz.page_make_failed', {
+        coachingSessionId, quizId, reason: reason === 'subject_not_allowed' ? reason : 'generate_failed', cause: reason, surface: payload.surface || null,
+      });
+      return;
+    }
     const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language });
     await WhatsAppService.sendMessage(payload.phone || user.phone_number,
       resolveUx(failureCopyKey(reason, 'transcript'), { language: lang }));
@@ -301,7 +311,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     // still make it from the same session.
     const reason = digestFailureReason(err);
     logToFile('❌ transcript quiz: digest failed', { coachingSessionId, quizId, reason, code: err.code || null, error: err.message, ...digestFailureDetail(err) }, 'error');
-    await markSkipped(quizId, reason, { error: err.message });
+    await markSkipped(quizId, reason, { error: err.message, ...pageMark });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, step: 'digest' });
     await tellSkip(reason);
     return { skipped: reason, quizId };
@@ -311,13 +321,13 @@ async function processOffer(coachingSessionId, payload = {}) {
   if (digest.confidence < MIN_CONFIDENCE || digest.slos.length < MIN_SLOS || digest.language_of_instruction === 'unknown') {
     const reason = digest.confidence < MIN_CONFIDENCE ? 'low_confidence'
       : digest.slos.length < MIN_SLOS ? 'too_few_slos' : 'language_unknown';
-    await markSkipped(quizId, reason, { digest, model, cost_usd: costUsd });
+    await markSkipped(quizId, reason, { digest, model, cost_usd: costUsd, ...pageMark });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason, confidence: digest.confidence, slos: digest.slos.length });
     await tellSkip(reason);
     return { skipped: reason, quizId };
   }
   if (!subjectAllowed(digest.subject)) {
-    await markSkipped(quizId, 'subject_not_allowed', { digest, subject: digest.subject });
+    await markSkipped(quizId, 'subject_not_allowed', { digest, subject: digest.subject, ...pageMark });
     logEvent('transcript_quiz.skipped', { coachingSessionId, quizId, reason: 'subject_not_allowed', subject: digest.subject });
     await tellSkip('subject_not_allowed');
     return { skipped: 'subject_not_allowed', quizId };
@@ -335,7 +345,7 @@ async function processOffer(coachingSessionId, payload = {}) {
     grade: grade || null,
     meta: {
       step: 'offered', source: payload.source || 'offer',
-      ...(accepted ? { via: 'report_button' } : {}),
+      ...(page ? { via: 'report_page', ...pageMark } : accepted ? { via: 'report_button' } : {}),
       ...(auto ? { via: 'auto' } : {}),
       digest, grade, grade_source: gradeSource, lp_hint: lpHint,
       ...(flnLesson ? { fln_lesson: flnLesson } : {}),
@@ -355,9 +365,9 @@ async function processOffer(coachingSessionId, payload = {}) {
     });
     logEvent('transcript_quiz.offered', {
       coachingSessionId, quizId, subject: digest.subject, language, teacherLang,
-      withVideo: false, sent: true, via: auto ? 'auto' : 'report_button',
+      withVideo: false, sent: !page, via: auto ? 'auto' : page ? 'report_page' : 'report_button',
     });
-    await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, { auto });
+    await module.exports.handleOfferButton(`${OFFER_YES}${quizId}`, phone, { auto, page });
     return auto ? { ok: true, quizId, auto: true } : { ok: true, quizId, accepted: true };
   }
 
@@ -425,7 +435,9 @@ async function teacherFor(quiz) {
 /**
  * @param {string} buttonId  tq_yes_<quizId> | tq_no_<quizId>
  * @param {string} phone
- * @param {{auto?: boolean}} [opts]  `auto` (quiz_offer_auto, no tap) skips the language ask and writes the rule language.
+ * @param {{auto?: boolean, page?: boolean}} [opts]  `auto` (quiz_offer_auto, no tap) skips the language ask and
+ *   writes the rule language; `page` (report-page-quiz.js) marks the ask on the row for the page to show as two
+ *   buttons, and sends nothing.
  */
 async function handleOfferButton(buttonId, phone, opts = {}) {
   const api = module.exports;
@@ -433,11 +445,13 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
   if (!m) return false;
   const yes = m[1] === 'yes';
   const quizId = m[2];
+  const page = opts.page === true;
 
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
+    if (page) return true;
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', { language: await api.languageByPhone(phone) }));
     return true;
   }
@@ -474,7 +488,11 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
         },
       })
       .eq('id', quizId).eq('status', 'offered').select('id');
-    if (!marked || !marked.length) return api.tellAlready(phone, quiz, lang);
+    if (!marked || !marked.length) return page ? true : api.tellAlready(phone, quiz, lang);
+    if (page) {
+      logEvent('transcript_quiz.language_asked', { quizId, userId: quiz.teacher_id, ruleLanguage, from: 'page' });
+      return true;
+    }
     await api.sendLanguageAsk(quizId, phone, lang, ruleLanguage, {
       digest: quiz.meta && quiz.meta.digest, subject: quiz.subject,
     });
@@ -482,7 +500,7 @@ async function handleOfferButton(buttonId, phone, opts = {}) {
     return true;
   }
 
-  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language: ruleLanguage, source: 'offer' });
+  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language: ruleLanguage, source: page ? 'page' : 'offer', page });
 }
 
 /**
@@ -509,15 +527,19 @@ async function handleReportQuizTap(payload, phone) {
   return true;
 }
 
-/** A tap for a session whose quiz row already exists and is not held: answer for the row's real state. */
-async function answerTapOnExisting({ coachingSessionId, phone }) {
+/**
+ * A tap for a session whose quiz row already exists and is not held: answer for the row's real state. `page`: the
+ * page shows that state itself, so nothing is sent (a live offer is still taken, silently).
+ */
+async function answerTapOnExisting({ coachingSessionId, phone, page = false }) {
   const { data: quiz } = await supabase.from('quizzes')
     .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id')
     .eq('coaching_session_id', coachingSessionId).eq('quiz_source', 'transcript').maybeSingle();
   if (quiz && quiz.status === 'offered') {
-    await module.exports.handleOfferButton(`${OFFER_YES}${quiz.id}`, phone, {});
+    await module.exports.handleOfferButton(`${OFFER_YES}${quiz.id}`, phone, page ? { page: true } : {});
     return { answered: 'offered', quizId: quiz.id };
   }
+  if (page) return { answered: (quiz && quiz.status) || 'none', quizId: quiz ? quiz.id : null };
   if (quiz && ['generating', 'ready', 'sent', 'report_sent'].includes(quiz.status)) {
     const lang = teacherLanguageFor({ preferredLanguage: (await teacherFor(quiz)).preferred_language });
     await module.exports.tellAlready(phone, quiz, lang);
@@ -550,9 +572,11 @@ async function sendLanguageAsk(quizId, phone, teacherLang, ruleLanguage, lesson 
 
 /**
  * offered → generating, once, with the language that will be written. The
- * atomic status filter is what makes a double tap a no-op.
+ * atomic status filter is what makes a double tap a no-op. `page`: made in the
+ * report's page (report-page-quiz.js), so the generate job's phone is
+ * PAGE_NO_SEND and the teacher is sent nothing; the page shows each step.
  */
-async function startGenerating({ quizId, quiz, phone, teacherLang, language, source }) {
+async function startGenerating({ quizId, quiz, phone, teacherLang, language, source, page = false }) {
   const api = module.exports;
   // The label follows the language the teacher CHOSE, not the rule language the
   // offer was written under: an Urdu-taught maths lesson quizzed in English is
@@ -569,7 +593,7 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
       meta: { ...(quiz.meta || {}), step: next, awaiting_language: false, language_choice: language, accepted_at: new Date().toISOString() },
     })
     .eq('id', quizId).eq('status', 'offered').select('id');
-  if (!flipped || !flipped.length) return api.tellAlready(phone, quiz, teacherLang);
+  if (!flipped || !flipped.length) return page ? true : api.tellAlready(phone, quiz, teacherLang);
 
   // Committed: the ONE accepted for a quiz whose yes had to wait for its
   // language (the coaching offer, /quiz, the lesson-plan offer all land here).
@@ -587,8 +611,9 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
   }
 
   const SQSQueueService = require('../queue');
-  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone, language: teacherLang }, { delaySeconds: 0 });
-  await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
+  const jobPhone = page ? require('./report-page-quiz').PAGE_NO_SEND : phone;
+  await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone: jobPhone, language: teacherLang }, { delaySeconds: 0 });
+  if (!page) await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
   logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
   return true;
 }
@@ -715,9 +740,11 @@ async function remakeLpQuiz({ quiz, phone, teacherLang, source = 'flow' }) {
 /**
  * The teacher's answer to the ask. The language they chose is written to
  * `quizzes.language` — the generate step reads that ahead of the subject
- * rule — and the same atomic flip guards a double tap.
+ * rule — and the same atomic flip guards a double tap. `opts.page`: picked on
+ * the report's page (report-page-quiz.js), so nothing is sent.
  */
-async function handleLanguageButton(buttonId, phone, user) {
+async function handleLanguageButton(buttonId, phone, user, opts = {}) {
+  const page = opts.page === true;
   const api = module.exports;
   const m = LANGUAGE_RX.exec(buttonId || '');
   if (!m) return false;
@@ -730,6 +757,7 @@ async function handleLanguageButton(buttonId, phone, user) {
     .select('id, teacher_id, status, language, subject, topic, meta, coaching_session_id, quiz_source')
     .eq('id', quizId).maybeSingle();
   if (!quiz) {
+    if (page) return true;
     await WhatsAppService.sendMessage(phone, resolveUx('tqOfferExpired', {
       language: user?.preferred_language ? teacherLanguageFor({ preferredLanguage: user.preferred_language }) : await api.languageByPhone(phone),
     }));
@@ -738,7 +766,7 @@ async function handleLanguageButton(buttonId, phone, user) {
   const teacher = await teacherFor(quiz);
   const lang = teacherLanguageFor({ preferredLanguage: teacher.preferred_language || user?.preferred_language });
   logEvent('transcript_quiz.language_chosen', { quizId, userId: quiz.teacher_id, language });
-  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language, source: 'ask' });
+  return api.startGenerating({ quizId, quiz, phone, teacherLang: lang, language, source: page ? 'page' : 'ask', page });
 }
 
 module.exports = {
