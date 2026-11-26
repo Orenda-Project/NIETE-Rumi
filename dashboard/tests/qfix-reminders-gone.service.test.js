@@ -84,7 +84,7 @@ describe('dwell_ms: the first answer after the ask is drawn', () => {
     expect(p.steps()).toEqual([
       { step: 'shown', lang: 'en', src: 'result', ps: PS },
       { step: 'yes', lang: 'en', src: 'result', ps: PS, dwell_ms: 4200 },
-      { step: 'granted', lang: 'en', src: 'result', ps: PS },
+      { step: 'granted', lang: 'en', src: 'result', ps: PS, prompt_ms: 0 }, // prompt_ms: the harness clock stands still
       { step: 'subscribed', lang: 'en', src: 'result', ps: PS },
     ]);
   });
@@ -196,7 +196,7 @@ describe('after Yes: which "no" it was, and a page that went with the prompt sti
   test.each([['denied', 'denied'], ['default', 'default']])('the browser answers %s: denied carries perm %s', async (perm, want) => {
     const p = await mounted({ perm });
     await p.tap('yes');
-    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang: 'en', src: 'result', ps: PS, perm: want }]);
+    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang: 'en', src: 'result', ps: PS, perm: want, prompt_ms: 0 }]);
   });
   test('granted: no perm anywhere, and no gone after it', async () => {
     const p = await mounted();
