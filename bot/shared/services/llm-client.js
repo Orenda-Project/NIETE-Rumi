@@ -37,6 +37,7 @@ const {
 // bd-8t362: one place to record what a call cost. No rate table: OpenRouter reports what it
 // actually charged, and the facade prices the direct lane. We record what the vendor says.
 const { recordModelCost } = require('../utils/model-cost');
+const { withBackupKey } = require('./llm-backup-key');
 
 const PROVIDER = (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
 const DEFAULT_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o';
@@ -269,8 +270,8 @@ function createLLMClient() {
   }
 
   // Default: OpenRouter — uses OpenAI-compatible API
-  const client = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
+  const openRouterConfig = (apiKey) => ({
+    apiKey,
     baseURL: OPENROUTER_BASE_URL,
     timeout: resolveRequestTimeoutMs(),
     maxRetries: resolveMaxRetries(),
@@ -279,6 +280,10 @@ function createLLMClient() {
       'X-Title': 'Rumi Teaching Assistant',
     },
   });
+  // bd-9xnyql: a key that cannot spend retries the same request on OPENROUTER_API_KEY_FALLBACK,
+  // underneath the model fallback below (a different model on an empty key cannot answer).
+  const client = withBackupKey(new OpenAI(openRouterConfig(process.env.OPENROUTER_API_KEY)),
+    (apiKey) => new OpenAI(openRouterConfig(apiKey)));
 
   // Auto-prefix model names for OpenRouter (e.g. 'gpt-4o-mini' → 'openai/gpt-4o-mini')
   const originalCreate = client.chat.completions.create.bind(client.chat.completions);
