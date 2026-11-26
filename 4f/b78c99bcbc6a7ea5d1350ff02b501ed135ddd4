@@ -1,0 +1,2 @@
+{"ts":"2026-11-26T21:38:25Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,observe spec_sync=true","sha":"4fb78c99bcbc","branch":"bd-9xnyql-sandbox","user":""}
+{"ts":"2026-11-26T21:38:32Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,observe owe their Gherkin","sha":"4fb78c99bcbc","branch":"bd-9xnyql-sandbox","user":""}
