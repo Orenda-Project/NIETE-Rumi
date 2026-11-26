@@ -62,3 +62,24 @@ describe("a paper in the lesson plan viewer", () => {
     expect(sourceKey(paper)).not.toBe(sourceKey({ lane: "g612", renderId: "p-9" }));
   });
 });
+
+// bd-zrdvmi.70 — the save link (Download PDF): ?download=1 on the lesson plan routes; a paper's /download is already one.
+describe("lessonPlanFileUrl({ download: true })", () => {
+  it("grades 1-5 and the answer key", async () => {
+    get.mockResolvedValue({ data: { available: true, url: "https://r2/y.pdf" } });
+    expect(await lessonPlanFileUrl({ lane: "k5", lessonId: "L1", assetKind: "answer_key" }, { download: true })).toBe("https://r2/y.pdf");
+    expect(get).toHaveBeenCalledWith("/curriculum/lp/L1/pdf", { params: { kind: "answer_key", download: 1 } });
+  });
+
+  it("grades 6-12 (and GB)", async () => {
+    get.mockResolvedValue({ data: { state: "ready", url: "https://r2/x.pdf" } });
+    expect(await lessonPlanFileUrl({ lane: "g612", renderId: "R1" }, { download: true })).toBe("https://r2/x.pdf");
+    expect(get).toHaveBeenCalledWith("/lp612/status/R1", { params: { open: 1, download: 1 } });
+  });
+
+  it("without it, the same asks as before", async () => {
+    get.mockResolvedValue({ data: { available: true, url: "https://r2/y.pdf" } });
+    await lessonPlanFileUrl({ lane: "k5", lessonId: "L1", assetKind: "lesson" });
+    expect(get).toHaveBeenCalledWith("/curriculum/lp/L1/pdf", { params: { kind: "lesson" } });
+  });
+});
