@@ -1,6 +1,6 @@
 'use strict';
 /**
- * c2 (app_settings web_quiz_install_android; no row = off): while it is on, GET /key also answers install_android: true,
+ * The finish-screen install card (app_settings web_quiz_install_android; no row = off): while it is on, GET /key also answers install_android: true,
  * inside the canary or outside it (the install offer is not the reminder's canary), so the finish screen may offer the
  * Android install once the reminder ask is settled. Off: the answer is exactly as before. Supabase (in-memory) is the
  * faked boundary; invented ids.

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * c2: the Android install offered on the quiz finish screen (web_quiz_install_android, decided by the bot: GET
+ * The Android install offered on the quiz finish screen (web_quiz_install_android, decided by the bot: GET
  * /api/wqpush/key answers install_android: true). The reminder card comes first; the install card shows only once the
  * reminder ask is settled (subscribed, Not now, denied, or never shown), never beside it, only in a Chrome tab (not
  * the installed app, not WhatsApp's browser, not iPhone), only once the browser offered it (beforeinstallprompt), and
