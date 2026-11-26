@@ -35,7 +35,7 @@ Feature: Teacher classes and attendance
     Then she is back on My Classes with one class fewer, and that class is not listed
     And no page error or 5xx happened
 
-  @TK04
+  @TK04 @data
   Scenario: Teacher app v2: Add students is rows, numbered from 1, and saves each name as typed
     Given the teacher app v2 is on and the coach app v2 is off
     And demo teacher 03000000911 is signed in
@@ -47,6 +47,9 @@ Feature: Teacher classes and attendance
     And she taps "Save 3 students"
     Then it says "3 students added"
     And the class roster is Ayesha, "Khan, Bilal" and Hira as rolls 1, 2 and 3, each name exactly as typed
+    And the three children are saved on that class as rolls 1, 2 and 3, active, each name exactly as typed
+    And no other class or student list is added, changed or removed
+    And no child is on the class twice
     And no page error or 5xx happened
 
   @TK05

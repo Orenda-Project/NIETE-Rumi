@@ -10,6 +10,7 @@
 //                 feature runs as n stacks side by side (e2e-web.sh E2E_WEB_SHARDS, bd-a7upa5)
 //   WEB_HEADED=1 / WEB_SLOWMO=<ms>   watch it: a visible browser, every action slowed down
 //   WEB_AUDIO=1   let a hidden run play sound (it is muted by default; a headed run always has sound)
+//   WEB_RUN_DIR   the run dir: its db/db.env names the run's own database, which ctx.rows / snapshot / dataRules read
 //   WEB_MOCK_URL  this run's mock WhatsApp (Graph API stand-in): POST /inject, GET /outbox — WhatsApp → portal scenarios
 // Exit 0 when every scenario passed, 1 otherwise; results.json is written either way.
 'use strict';
@@ -17,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { launchOptions, silenceSpeech } = require('./launch-options.cjs');
+const { dataApi } = require('./data-api.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 
@@ -43,6 +45,18 @@ function pick(scenarios, only, shard) {
 // seed every scenario may rely on. It must not live inside one scenario: a shard without that scenario never gets it.
 async function runBefore(mod, ctx) {
   if (mod && typeof mod.before === 'function') await mod.before(ctx);
+}
+
+// Data E2E reads (bd-5b3u70.16): ctx.rows / snapshot / dataRules / dataKeys on this run's own database
+// (<WEB_RUN_DIR>/db/db.env), the same calls a mock lane driver gets as api.*. data-api.cjs.
+function dataCtx(env) {
+  return dataApi({ runDir: env.WEB_RUN_DIR || '', repo: ROOT });
+}
+
+// The evidence a driver attached to a thrown error ({ data } from a failed data step): kept on the FAIL row, so the run
+// row counts that data check as failed instead of as a scenario with no data part (e2e-web.sh row_from).
+function failEvidence(e) {
+  return e && e.evidence && typeof e.evidence === 'object' ? e.evidence : null;
 }
 
 async function main() {
@@ -77,7 +91,8 @@ async function main() {
     mockUrl: (env.WEB_MOCK_URL || '').replace(/\/$/, ''), headed: env.WEB_HEADED === '1',
     // this run's bot, its internal key and its run dir (<run>/src is the bot's detached worktree): for drivers that mint
     // the bot's own tokens or call its internal API exactly as the portal does (x-api-key)
-    botUrl: (env.WEB_BOT_URL || '').replace(/\/$/, ''), internalKey: env.WEB_INTERNAL_KEY || '', runDir: env.WEB_RUN_DIR || '' };
+    botUrl: (env.WEB_BOT_URL || '').replace(/\/$/, ''), internalKey: env.WEB_INTERNAL_KEY || '', runDir: env.WEB_RUN_DIR || '',
+    ...dataCtx(env) };
 
   const started = Date.now();
   const results = [];
@@ -109,6 +124,7 @@ async function main() {
       } catch (e) {
         row.status = 'FAIL';
         row.error = String((e && e.message) || e).split('\n')[0];
+        const ev = failEvidence(e); if (ev) row.evidence = ev;
         // Playwright's call log (why a click or a wait stalled: not visible, not stable, intercepted): kept, not just line 1
         const log = String((e && e.message) || e).split('\n').slice(1).map((l) => l.replace(/\x1b\[[0-9;]*m/g, '').trim()).filter((l) => /waiting|retrying|not |intercept|stable|visible|enabled|scroll|locator/i.test(l));
         if (log.length) row.detail = [...new Set(log)].slice(0, 6).join(' | ');
@@ -138,5 +154,5 @@ async function main() {
   process.exit(results.every((r) => r.status !== 'FAIL') ? 0 : 1);
 }
 
-module.exports = { pick, runBefore };
+module.exports = { pick, runBefore, dataCtx, failEvidence };
 if (require.main === module) main().catch((e) => { console.error('web-runner: ' + ((e && e.stack) || e)); process.exit(2); });

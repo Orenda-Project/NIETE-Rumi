@@ -89,6 +89,14 @@ row = {
     "dirty": bool(dirty), "dirty_files": len(dirty),
     "scenarios": [{k: r[k] for k in ("id", "status", "error", "screenshot") if k in r} for r in rs],
 }
+# the run's data checks (data E2E, bd-5b3u70.16), summed the way a mock lane row sums them; an engine before 2.5.0 has none
+try:
+    import ledger_row
+    data = ledger_row.data_summary(rs) if hasattr(ledger_row, "data_summary") else None
+except Exception:
+    data = None
+if data:
+    row["data"] = data
 print(json.dumps(row))
 PY
 }
