@@ -1740,6 +1740,25 @@ async function runQuizFunnelWatch({ watch } = {}) {
   }
 }
 
+/**
+ * One check of the production incident watch (rule-based Slack alerts, no model): what the boot timer
+ * and the 5-minute interval call. The watch decides everything else (armed or not, whose replica speaks,
+ * what to post); this only guarantees a monitor can never take down the worker it runs in.
+ *
+ * @param {{watch?: {run: Function}}} deps the watch, injectable for the suite
+ * @returns {Promise<Object|null>} the watch's outcome, or null when it threw
+ */
+const PROD_INCIDENT_WATCH_TICK_MS = 5 * 60 * 1000;
+async function runProdIncidentWatch({ watch } = {}) {
+  try {
+    const w = watch || require('../shared/services/monitoring/prod-incident-watch.service');
+    return await w.run();
+  } catch (error) {
+    logToFile('Error in prod incident watch (non-fatal)', { error: error.message }, 'error');
+    return null;
+  }
+}
+
 async function runDebriefRetrySweep({ now = Date.now() } = {}) {
   if (process.env.OBSERVE_DEBRIEF_RETRY_OFF === '1') {
     return { off: true, scanned: 0, eligible: 0, queued: 0, skipped: 0 };
@@ -1816,7 +1835,11 @@ logToFile('🚀 Starting SQS Coaching Worker', {
   concurrency: CONCURRENCY_PER_WORKER,
   pollInterval: POLL_INTERVAL_MS,
   environment: process.env.NODE_ENV || 'development',
-  sqsQueueUrl: process.env.SQS_QUEUE_URL
+  sqsQueueUrl: process.env.SQS_QUEUE_URL,
+  // Which deploy and replica booted (Railway sets both). The incident watch tells a crash loop (one
+  // deployment's replicas booting again and again) from a deploy (each replica boots once) by these.
+  deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+  replicaId: process.env.RAILWAY_REPLICA_ID || null,
 });
 
 function resolveWorkerQueuesBootStatus() {
@@ -2278,6 +2301,23 @@ function startWorker() {
     logToFile('Quiz funnel watcher enabled (15-minute tick; set QUIZ_FUNNEL_WATCH_ENABLED=true to arm)', {
       armed: String(process.env.QUIZ_FUNNEL_WATCH_ENABLED || '').toLowerCase() === 'true',
     });
+
+    // The production incident watch: rule-based alerts to one Slack channel when something major breaks
+    // (a provider refusing calls, a job-failure or error spike, portal 5xx, a service down, a crash loop),
+    // one thread per incident and an all-clear; plus the OpenRouter key-budget early warning. No model is
+    // called anywhere. A no-op until PROD_ALERTS_ENABLED=true, so merging this changes nothing anywhere.
+    // Boot run (90 s in, so a crash-looping worker still gets a check in) plus the interval; ~10 replicas
+    // take a read-back claim per check, so exactly one queries and speaks.
+    const runIncidentWatchTick = () => {
+      if (worker.isShuttingDown) return;
+      runProdIncidentWatch();
+    };
+    setTimeout(runIncidentWatchTick, 90 * 1000);
+    setInterval(runIncidentWatchTick, PROD_INCIDENT_WATCH_TICK_MS);
+    logToFile('Prod incident watch scheduled (5-minute check; set PROD_ALERTS_ENABLED=true to arm)', {
+      armed: String(process.env.PROD_ALERTS_ENABLED || '').toLowerCase() === 'true',
+      dryRun: String(process.env.PROD_ALERTS_DRY_RUN || '').toLowerCase() === 'true',
+    });
   });
 }
 
@@ -2288,7 +2328,7 @@ if (require.main === module) {
 // Export for testing
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
-  exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
+  exitAfterFlush, runQuizFunnelWatch, runProdIncidentWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
   scheduleCoachVoiceNoteSweep,
   runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks, recoverStaleLessonPlanRequests,
 };
