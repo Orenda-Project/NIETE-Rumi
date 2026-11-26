@@ -4903,7 +4903,7 @@ const UX_STRINGS = {
   },
   qfix_offers_cr_quiz_body: {
     en: 'We can make a short quiz from this lesson for your students. It takes a few minutes; you can stay on this page.',
-    ur: 'ہم اس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنا سکتے ہیں۔ اس میں چند منٹ لگتے ہیں؛ آپ اسی صفحے پر رہ سکتے ہیں۔',
+    ur: 'اس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنایا جا سکتا ہے۔ اس میں چند منٹ لگتے ہیں؛ اس دوران آپ اسی صفحے پر رہیں۔',
   },
   qfix_offers_cr_quiz_button: {
     en: 'Make a quiz',
@@ -4930,7 +4930,7 @@ const UX_STRINGS = {
   },
   qfix_offers_cq_slow: {
     en: 'This is taking longer than usual. You can close this page and open it again later: your quiz will be here.',
-    ur: 'اس میں معمول سے زیادہ وقت لگ رہا ہے۔ آپ یہ صفحہ بند کر کے بعد میں دوبارہ کھول سکتے ہیں: آپ کا کوئز یہیں ہو گا۔',
+    ur: 'اس میں معمول سے زیادہ وقت لگ رہا ہے۔ یہ صفحہ بند کر کے بعد میں دوبارہ کھولا جا سکتا ہے: آپ کا کوئز یہیں ہو گا۔',
   },
   qfix_offers_cq_lang_q: {
     en: 'Which language should the quiz be in?',
