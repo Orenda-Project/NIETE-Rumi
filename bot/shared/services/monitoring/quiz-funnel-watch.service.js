@@ -895,13 +895,24 @@ async function confirmFromDb(ids) {
  *   color          a colour bar — the text rides as one attachment, its first line the notification text
  *   thread_ts      reply in that message's thread
  *   reply_broadcast  a thread reply that also shows in the channel
+ *   mention        '<@U…> <@U…>' — leads the message text, where Slack notifies on it (a mention inside an
+ *                  attachment does not notify); with a colour, the first line rides beside it and the rest
+ *                  goes in the bar
  */
 async function postToSlack(text, slack, opts = {}) {
   const payload = { channel: slack.channel, text, unfurl_links: false };
   if (opts.color) {
-    const fallback = String(text).split('\n')[0].replace(/[*_]/g, '').trim();
-    delete payload.text;
-    payload.attachments = [{ color: opts.color, text, fallback, mrkdwn_in: ['text'] }];
+    const [head, ...rest] = String(text).split('\n');
+    const fallback = head.replace(/[*_]/g, '').trim();
+    if (opts.mention) {
+      payload.text = `${opts.mention} ${head}`;
+      if (rest.length) payload.attachments = [{ color: opts.color, text: rest.join('\n'), fallback, mrkdwn_in: ['text'] }];
+    } else {
+      delete payload.text;
+      payload.attachments = [{ color: opts.color, text, fallback, mrkdwn_in: ['text'] }];
+    }
+  } else if (opts.mention) {
+    payload.text = `${opts.mention} ${text}`;
   }
   if (opts.thread_ts) payload.thread_ts = opts.thread_ts;
   if (opts.thread_ts && opts.reply_broadcast) payload.reply_broadcast = true;
