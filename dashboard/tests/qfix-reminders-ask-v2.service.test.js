@@ -125,7 +125,7 @@ describe('arm b: the framing words', () => {
     expect(p.steps()).toEqual([
       { step: 'shown', lang: 'en', src: 'result', ps: PS, ask_v: 'b' },
       { step: 'yes', lang: 'en', src: 'result', ps: PS, ask_v: 'b', dwell_ms: 2000 },
-      { step: 'granted', lang: 'en', src: 'result', ps: PS, ask_v: 'b' },
+      { step: 'granted', lang: 'en', src: 'result', ps: PS, ask_v: 'b', prompt_ms: 0 }, // the harness clock stands still
       { step: 'subscribed', lang: 'en', src: 'result', ps: PS, ask_v: 'b' },
     ]);
   });
@@ -160,7 +160,7 @@ describe('arm b, after Yes the prompt was CLOSED (perm default): the browser blo
     expect(h).toContain('data-act="yes"');
     expect(h).toContain(ASK_B[lang][2]);
     expect(h).not.toContain(p.ctx.WQREMIND.T[lang].remindDenied);
-    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang, src: 'result', ps: PS, ask_v: 'b', perm: 'default' }]);
+    expect(only(p, 'denied')).toEqual([{ step: 'denied', lang, src: 'result', ps: PS, ask_v: 'b', perm: 'default', prompt_ms: 0 }]);
   });
   test('Yes again, Allow this time: granted and subscribed, the done line', async () => {
     const p = await mounted({ key: { key: KEY, ask_v: 'b' }, perm: 'default' });
