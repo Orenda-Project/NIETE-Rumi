@@ -20,3 +20,4 @@
 {"ts":"2026-11-25T03:39:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"f46979b2-20a6-48e8-80b3-d976482b74a5","sha":"8d2747455a63","branch":"main","user":""}
 {"ts":"2026-11-25T04:12:41Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"8d2747455a63","branch":"main","user":""}
 {"ts":"2026-11-25T04:12:43Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py tenants_lite.py check-scenario-coverage.py","sha":"8d2747455a63","branch":"main","user":""}
+{"ts":"2026-11-26T01:39:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"8d2747455a63","branch":"main","user":""}
