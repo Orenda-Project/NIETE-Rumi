@@ -87,6 +87,48 @@ async function practiceFor(userId, d) {
   return ids.size ? ids : null;
 }
 
+/** The portal's switch for the coach app's Learning Assessment page and its API (dashboard/lib/feature-flags.js). */
+const PORTAL_SA_KEY = 'portal_child_test_sa';
+
+/**
+ * The portal's rule for portal_child_test_sa, read the way dashboard/lib/feature-flags.js isFlagEnabledForUser reads
+ * it: JSON true (or the string "true"), or a list of users.id naming this user. Any other value, no row or a failed
+ * read is off. A leader is never on through "teachers" (that value names users.role teacher only).
+ */
+async function portalSaOnFor(userId, d) {
+  const found = await rows(d.supabase.from('app_settings').select('key, value').eq('key', PORTAL_SA_KEY));
+  const row = found.find((r) => r && r.key === PORTAL_SA_KEY);
+  let value = row ? row.value : null;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { /* the raw string */ }
+  }
+  if (value === true) return true;
+  if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+  return Array.isArray(value) && value.some((id) => typeof id === 'string' && id === userId);
+}
+
+/**
+ * Does the coach app's Learning Assessment open for this user? The answer the page would give them: the bot's gate
+ * (guarded above: CHILD_TEST_ENABLED, the leader family, a child-test region, the pilot list; or practice-only with a
+ * practice school) AND the portal's own switch, portal_child_test_sa. The WhatsApp "jugnu" word sends the page's link
+ * only on yes (handlers/jugnu-command.js), so no one is sent to a page that says "not on for your account".
+ * Never throws: a failed read is no.
+ */
+async function learningAssessmentOpensFor(userId, deps) {
+  if (!userId) return false;
+  const d = withDefaults(deps);
+  try {
+    if (!(await d.enabled(userId, d))) {
+      const schools = await d.practice(userId, d);
+      if (!schools || !schools.size) return false;
+    }
+    return await portalSaOnFor(userId, d);
+  } catch (error) {
+    d.logError('child_test.app.opens_for failed', { userId, error: error && error.message });
+    return false;
+  }
+}
+
 /** The coach's linked schools that are practice (test) schools: schools.is_probable_test = true. */
 async function practiceSchoolIds(d, userId) {
   const links = await rows(d.supabase.from('leader_schools').select('school_id').eq('leader_user_id', userId));
@@ -712,5 +754,7 @@ module.exports = {
   toCoachMarks,
   envSegment,
   startOfTodayPkt,
+  // the WhatsApp "jugnu" word asks this before sending the Learning Assessment link (handlers/jugnu-command.js)
+  learningAssessmentOpensFor,
   __internals: { startScoring, withDefaults, coachReason, guarded, rows, ownVisit, ownSession, gradeOf, practiceFor },
 };

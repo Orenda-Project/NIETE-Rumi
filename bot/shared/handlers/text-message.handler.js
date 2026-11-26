@@ -1044,6 +1044,13 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     }
   }
 
+  // JUGNU: "jugnu" / "reading game" (the whole message, en + ur) is the children's reading game, the coach app's
+  // Learning Assessment: a leader it opens for gets its link, a teacher or anyone it is not on for one line saying so.
+  // Never the chat (which wrote a lesson plan about fireflies). No account / a child's handset: today's path.
+  const JugnuCommand = require('./jugnu-command');
+  if (JugnuCommand.isJugnuWord(messageBody)
+    && await JugnuCommand.handleJugnuCommand({ user, from, text: messageBody, language: responseLanguage, typingController })) return;
+
   // ============================================================
   // PORTAL COMMAND DETECTION: Check for /portal command
   // ============================================================

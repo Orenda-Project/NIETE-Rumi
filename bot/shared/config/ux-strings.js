@@ -1189,6 +1189,28 @@ const UX_STRINGS = {
     ur: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔',
   },
   appLinkButtonLeaderLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
+  // "jugnu" / "reading game" (handlers/jugnu-command.js). Jugnu is the children's reading game; on NIETE it is the coach
+  // app's Learning Assessment («تعلیمی جائزہ», the page's own title, portal lib/assess/copy.ts), where the child plays on
+  // the leader's phone. The link line names the page and what to do there; the refusal says who it is for in the
+  // roster line's reviewed words ("is for coaches and school leaders" / «کوچز اور اسکول سربراہان کے لیے ہے») and that
+  // it is not on for this account, as the page's own notAvailable line does; the no-link line names the actual state
+  // and where to find it. Imperatives and the bot's own first person (feminine, as every NIETE line), so nothing
+  // assumes the reader's gender; the child is «بچہ», as on the page. No word for a test or an exam. NIETE is isolated
+  // with U+2066..2069 inside Urdu. Button 10 en / 11 ur code points (Meta: 20). The Urdu is machine-drafted, in the
+  // page's and the roster line's reviewed words: for review by a native reader.
+  appLinkBodyJugnu: {
+    en: "Open Jugnu: the NIETE app's Learning Assessment. Pick a school and a grade, then hand the phone to each child in turn.",
+    ur: 'جگنو کھولیں: ⁦NIETE⁩ ایپ کا تعلیمی جائزہ۔ اسکول اور جماعت چنیں، پھر فون باری باری ہر بچے کو دیں۔',
+  },
+  appLinkButtonJugnu: { en: 'Open Jugnu', ur: 'جگنو کھولیں' },
+  jugnuNotOn: {
+    en: "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet.",
+    ur: 'جگنو ⁦NIETE⁩ ایپ میں کوچز اور اسکول سربراہان کے لیے ہے، اور ابھی اس اکاؤنٹ پر دستیاب نہیں۔',
+  },
+  jugnuNoLink: {
+    en: "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment.",
+    ur: 'ابھی لنک نہیں بھیج سکی۔ ⁦NIETE⁩ ایپ کھولیں اور تعلیمی جائزہ پر ٹیپ کریں۔',
+  },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
   // The screens after the first one are served by the endpoint in the language she picked on
