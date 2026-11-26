@@ -800,6 +800,13 @@ Made in the shared file and re-copied here under the header, as the rule above s
 own local pre-pass for the same case (`quiz-math.js`) was removed in the same change, so there is one
 rule. Covered by `tests/lp612/tex-mixed-number.test.js`. Push it up with the rest of §3.12.
 
+**Third shared-file change (2026-11-26): a bare caret exponent.** Authors also write exponents with no
+delimiters — `x^2`, `3^40`, `10^-5` — and `texToUnicode` left them as source because it only converted
+inside `$…$`. Outside a span, a caret attached to a letter, digit or closing bracket now becomes a
+superscript when every exponent character has one (`2x²`, `3⁴⁰`, `10⁻⁵`); otherwise the caret stays
+(`y^(1/3)`). Re-copied here under the header. Covered by `tests/lp612/caret-exponent-body.test.js`
+(bd-zrdvmi.74.1).
+
 ### 3.13 `lint_lp.js` — `overlayTargets()`: the lesson's title, and figure labels (2026-09-14)
 
 Two decisions inside `overlayTargets()` left English on an otherwise Urdu page, on the first Urdu
