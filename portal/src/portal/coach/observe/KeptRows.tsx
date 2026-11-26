@@ -4,7 +4,10 @@ import { OBSERVE } from "./copy";
 import { lengthShort } from "./format";
 import { pkTime } from "../reports/data";
 import type { ObserveRoutes } from "./observeRoutes";
-import type { KeptItem } from "./keptRecording";
+import { useKeptItems, type KeptItem } from "./keptRecording";
+import { SectionLabel } from "../ui";
+import { SCHEDULE } from "../schedule/copy";
+import { LIST_CARD } from "../../teacher/ui/styles";
 
 /**
  * bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10: "incomplete recordings aka recordings that were done but not yet
@@ -38,5 +41,21 @@ export function KeptRows({ items, routes, firstIndex = 0 }: { items: readonly Ke
         );
       })}
     </>
+  );
+}
+
+/**
+ * bd-ma9jiy.3 — Home's Needs you card (the full coach Home, the slim one every production coach has, and the principal's):
+ * one row per recording kept on this phone and not sent; nothing at all when there is none.
+ */
+export function KeptHomeCard({ routes }: { routes: ObserveRoutes }) {
+  const S = useCopy(SCHEDULE);
+  const items = useKeptItems() ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section data-testid="home-kept" className="flex flex-col gap-2">
+      <SectionLabel count={items.length} countTone="warn">{S.needsYou}</SectionLabel>
+      <div className={LIST_CARD}><KeptRows items={items} routes={routes} /></div>
+    </section>
   );
 }
