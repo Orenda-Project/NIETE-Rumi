@@ -23,8 +23,6 @@ jest.mock('bullmq', () => ({ Queue: class {}, Worker: class {}, QueueEvents: cla
 jest.mock('chartjs-node-canvas', () => ({ ChartJSNodeCanvas: class {} }), { virtual: true });
 jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true });
 
-const http = require('http');
-const express = require('express');
 const { makeDb } = require('../quiz/helpers/memory-db');
 
 let mockDb;
@@ -165,29 +163,28 @@ beforeEach(() => {
 afterAll(() => { process.env = ENV; });
 
 // ── GET /go through the real router: where the link actually lands ──
-let servers = [];
-afterEach(async () => { await Promise.all(servers.map((s) => new Promise((r) => s.close(r)))); servers = []; });
+// The router is driven in-process (router.handle with a request and a response stand-in), not over a loopback socket:
+// a test file in the same jest worker that patches net.Socket without restoring it would refuse the connection.
 async function tap(url) {
   const token = url.slice(`${PORTAL}/go/`.length);
-  const sessions = [];
-  const a = express();
-  a.use((req, _res, next) => {
-    const s = { regenerate(cb) { cb(); }, save(cb) { cb(); } };
-    req.session = s; sessions.push(s); next();
-  });
-  a.use(require('../../dashboard/routes/app-login.routes').createAppLoginRouter({
+  const router = require('../../dashboard/routes/app-login.routes').createAppLoginRouter({
     findUser: async (id) => (me && id === me.id ? { id: me.id, name: 'P' } : null),
     isTeacherV2: async () => false,
     isCoachApp: async () => false,
-  }));
-  const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
-  servers.push(srv);
-  const res = await new Promise((resolve, reject) => {
-    http.get({ host: '127.0.0.1', port: srv.address().port, path: `/go/${token}` }, (r) => {
-      r.resume(); r.on('end', () => resolve({ status: r.statusCode, location: r.headers.location }));
-    }).on('error', reject);
   });
-  return { ...res, session: sessions[0] };
+  const session = { regenerate(cb) { cb(); }, save(cb) { cb(); } };
+  return new Promise((resolve, reject) => {
+    const req = { method: 'GET', url: `/go/${token}`, originalUrl: `/go/${token}`, headers: {}, ip: '127.0.0.1', socket: {}, session };
+    const res = {
+      statusCode: 200,
+      set() { return this; },
+      status(code) { this.statusCode = code; return this; },
+      type() { return this; },
+      send() { resolve({ status: this.statusCode, location: undefined, session }); return this; },
+      redirect(code, location) { resolve({ status: code, location, session }); },
+    };
+    router.handle(req, res, (err) => (err ? reject(err) : resolve({ status: 404, location: undefined, session })));
+  });
 }
 
 const ctas = () => mockWa.sendCtaUrl.mock.calls;
