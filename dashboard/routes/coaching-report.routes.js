@@ -136,7 +136,7 @@ function createBotCaller({ fetchImpl = (...a) => fetch(...a), timeoutMs = 4000 }
 // The /cr report shows the page block for an offer held for a closed window or a quiz made in the page; a quiz made in
 // WhatsApp keeps the report's own section.
 const crShowsBlock = (quiz) => Boolean(quiz && (quiz.state === 'held' || (quiz.page && quiz.state !== 'none')));
-// E2: the ?e= line a save or a refusal left, only one the page knows
+// the ?e= line a save or a refusal left, only one the page knows
 const noticeOf = (query) => (query && typeof query.e === 'string' && Object.prototype.hasOwnProperty.call(NOTICE, query.e) ? query.e : null);
 
 function createCoachingReportRouter(opts = {}) {
@@ -157,7 +157,7 @@ function createCoachingReportRouter(opts = {}) {
   const quizPageOn = async () => { try { return (await quizSwitchCache.get()) === true; } catch (_) { return false; } };
   const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
   const reportQuiz = opts.reportQuiz || createReportQuizClient();
-  // E2: the bot's teacher-edit routes (/api/internal/wqedit, quiz-teacher-edit.routes.js; switch web_quiz_teacher_edit,
+  // The bot's quiz edit routes (/api/internal/wqedit, quiz-teacher-edit.routes.js; switch web_quiz_teacher_edit,
   // off → 404). The PDF remake renders inline, so it gets longer than a page read.
   const callBot = opts.callBot || createBotCaller();
   const callBotSlow = opts.callBotSlow || opts.callBot || createBotCaller({ timeoutMs: 25000 });
@@ -339,7 +339,7 @@ function createCoachingReportRouter(opts = {}) {
   };
   const surfaceOf = (b) => (QUIZ_SURFACES.includes(b && b.surface) ? b.surface : 'cq');
   const backTo = (token, surface) => (surface === 'cr' ? `${REPORT_PATH}/${token}#quiz` : `/cq/${token}`);
-  // E2: back to the page with the outcome's line and the question in view
+  // back to the page with the outcome's line and the question in view
   const backWith = (token, surface, code, qid) => `${surface === 'cr' ? `${REPORT_PATH}/${token}` : `/cq/${token}`}?e=${code}${qid ? `#q-${qid}` : ''}`;
   const wantsJson = (req) => /application\/json/i.test(String(req.get('accept') || ''));
   const quizEvent = (name, v, props) => log({ coachingSessionId: v.sessionId, userId: v.userId, ...props }, name);
@@ -396,7 +396,7 @@ function createCoachingReportRouter(opts = {}) {
       quizEvent('transcript_quiz.page_pdf', v, { surface });
       return res.redirect(302, r.body.url);
     }
-    // E2: no stored PDF (an edit drops it): the bot makes it again from the edited quiz, then the same 1-hour link.
+    // No stored PDF (an edit drops it): the bot makes it again from the edited quiz, then the same 1-hour link.
     const model = await quizModel(v.sessionId, v.userId);
     if (!model || model.state !== 'ready' || !model.quizId) return res.status(404).type('html').send(renderMessagePage('not_found'));
     const made = await callBotSlow('POST', '/api/internal/wqedit/pdf', { quizId: model.quizId, teacherUserId: v.userId });
@@ -414,8 +414,8 @@ function createCoachingReportRouter(opts = {}) {
   };
 
   /**
-   * E2: POST /cq/:token/edit — one question's form. The teacher is the token's (never the form's); the quiz is the
-   * session's own (the bot's state); the form is diffed against keys' view into one ops array and sent with the edit_v
+   * POST /cq/:token/edit — one question's form. The teacher is the token's (never the form's); the quiz is the
+   * session's own (the bot's state); the form is diffed against the bot's view into one ops array and sent with the edit_v
    * the page was drawn with. After the first child answer only the right answer is sent. Back to the page with the line.
    */
   const EDIT_REASONS = new Set(['locked', 'floor', 'stale', 'too_long', 'empty', 'not_text', 'not_editable']);
@@ -431,10 +431,13 @@ function createCoachingReportRouter(opts = {}) {
     if (!view) return res.status(404).type('html').send(renderMessagePage('not_found'));
     const it = view.questions.find((x) => x && x.qid === b.qid);
     if (!it) return res.status(400).type('html').send(renderMessagePage('not_found'));
+    // the page always sends the version it was drawn with; without it a save could land over a newer one
+    const drawn = Number.parseInt(String(b.v), 10);
+    if (!Number.isFinite(drawn) || drawn < 0) return res.status(400).type('html').send(renderMessagePage('not_found'));
     const ed = it.editable || {};
     const slots = new Set((it.options || []).map((o) => o.slot));
     const ops = [];
-    let held = false; // a wording change the lock keeps out
+    let held = false; // a wording change kept out: by the lock, or by what the item allows
     const changed = (x, was) => typeof x === 'string' && x.trim() !== String(was == null ? '' : was);
     if (b.do === 'remove') {
       if (view.locked || ed.remove === false) held = true;
@@ -458,11 +461,10 @@ function createCoachingReportRouter(opts = {}) {
         if (ed.key !== false) ops.push({ op: 'key', qid: it.qid, slot: key });
       }
     }
-    if (!ops.length) return res.redirect(303, backWith(token, surface, held ? 'locked' : 'none', it.qid));
-    const drawn = Number.parseInt(String(b.v), 10);
+    if (!ops.length) return res.redirect(303, backWith(token, surface, held ? (view.locked ? 'locked' : 'not_editable') : 'none', it.qid));
     // the page drew v; the bot refuses a save over a newer one (stale)
     const r = await callBotSlow('POST', '/api/internal/wqedit/save', {
-      quizId: model.quizId, teacherUserId: v.userId, v: Number.isFinite(drawn) ? drawn : view.edit_v, ops, surface,
+      quizId: model.quizId, teacherUserId: v.userId, v: drawn, ops, surface,
     });
     const why = r.body && typeof r.body.reason === 'string' ? r.body.reason : null;
     const code = r.status === 200 && r.body && r.body.ok ? 'saved' : why === 'no_change' ? 'none' : EDIT_REASONS.has(why) ? why : 'failed';
@@ -510,7 +512,7 @@ function createCoachingReportRouter(opts = {}) {
   router.get('/cq/:token/pdf', privateHeaders, limiter, quizPdf);
   router.get('/cq/:token/try', privateHeaders, limiter, quizTry);
   router.post('/cq/:token/e', privateHeaders, limiter, form, json, quizBeacon);
-  // E2: a question's text and four answers fit well inside 16 kB
+  // a question's text and four answers fit well inside 16 kB
   router.post('/cq/:token/edit', privateHeaders, limiter, express.urlencoded({ extended: false, limit: '16kb' }), quizEdit);
   return router;
 }
