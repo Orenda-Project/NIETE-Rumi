@@ -541,3 +541,64 @@ describe('the APL', () => {
     expect(apl).toMatch(/level in \('error', 'warn'\) and s contains 'Key limit exceeded'/);
   });
 });
+
+// ── 9 · who is tagged ─────────────────────────────────────────────────────────
+// Operator, 26 Nov 2026: tag the operator and Amena on every top-level incident post and on the key
+// warnings; thread updates and all-clears tag nobody (noise). Ids come from PROD_ALERTS_MENTION, never code.
+
+describe('mentions: top-level incident posts and key warnings only', () => {
+  const U1 = 'U0TESTAAA1';
+  const U2 = 'U0TESTBBB2';
+  it('reads the ids from PROD_ALERTS_MENTION, keeping only Slack user ids', () => {
+    expect(W.mentionsFrom({ PROD_ALERTS_MENTION: `${U1}, ${U2} , not-an-id, <@U0X>` })).toBe(`<@${U1}> <@${U2}>`);
+    expect(W.mentionsFrom({})).toBe('');
+  });
+  it('replaying 25 Nov: only the top-level post carries the mention', async () => {
+    const store = memStore();
+    const posts = [];
+    const post = jest.fn(async (m) => { posts.push(m); return `${posts.length}.0`; });
+    const query = fixtureQuery({ bins: FIX.outage.bins });
+    for (let t = utc('04:30').getTime(); t <= utc('06:30').getTime(); t += 5 * MIN) {
+      // eslint-disable-next-line no-await-in-loop
+      await W.tick({ now: new Date(t), cfg: W.config({}), query, store, post, env: 'production', dataset: 'niete-logs', mention: `<@${U1}> <@${U2}>` });
+    }
+    const top = posts.filter((p) => !p.thread_ts);
+    expect(top).toHaveLength(1);
+    expect(top[0].mention).toBe(`<@${U1}> <@${U2}>`);
+    const replies = posts.filter((p) => p.thread_ts);
+    expect(replies.length).toBeGreaterThanOrEqual(3);
+    for (const r of replies) expect(r.mention).toBeFalsy();
+  });
+  it('a key-budget warning carries the mention', async () => {
+    const post = jest.fn().mockResolvedValue('1.0');
+    const read = jest.fn().mockResolvedValue({ limit: 2000, usage: 1824, remaining: 176, weekly: 434, daily: 60, reset: null });
+    await W.keyBudgetCheck({ now: NOW, cfg: W.config({}), store: memStore(), post, read, mention: `<@${U1}>` });
+    expect(post.mock.calls[0][0].mention).toBe(`<@${U1}>`);
+  });
+  it('run() passes PROD_ALERTS_MENTION through to the top-level post', async () => {
+    const env = {
+      PROD_ALERTS_ENABLED: 'true', PROD_ALERTS_SLACK_TOKEN: 'xoxb-test', PROD_ALERTS_SLACK_CHANNEL: 'C1', AXIOM_TOKEN: 'ax', PROD_ALERTS_MENTION: U1,
+    };
+    const post = jest.fn().mockResolvedValue('2.0');
+    await W.run({ env, redis: memStore(), query: fixtureQuery({ bins: burst('refusal:key_limit', 3, NOW) }), post, now: NOW, checkHealth: async () => [], readKey: async () => null });
+    expect(post.mock.calls[0][0]).toMatchObject({ type: 'open', mention: `<@${U1}>` });
+  });
+});
+
+describe('postToSlack with a mention', () => {
+  const Q = require('../../bot/shared/services/monitoring/quiz-funnel-watch.service');
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+  it('the mention and the headline ride in the message text (so Slack notifies); the rest in the colour bar', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ json: async () => ({ ok: true, ts: '1.4' }) });
+    await Q.postToSlack('🔴 *Head*\nline two\nline three', { token: 't', channel: 'C' }, { color: '#d0021b', mention: '<@U0TESTAAA1>' });
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(body.text).toBe('<@U0TESTAAA1> 🔴 *Head*');
+    expect(body.attachments[0]).toMatchObject({ color: '#d0021b', text: 'line two\nline three', fallback: '🔴 Head' });
+  });
+  it('without a colour, the mention leads the text', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ json: async () => ({ ok: true, ts: '1.5' }) });
+    await Q.postToSlack('hello', { token: 't', channel: 'C' }, { mention: '<@U0TESTAAA1>' });
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).text).toBe('<@U0TESTAAA1> hello');
+  });
+});
