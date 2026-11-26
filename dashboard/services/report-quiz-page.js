@@ -23,7 +23,11 @@ const { getLanguage } = require('../../bot/shared/config/languages');
 // 48 px touch targets on every new button (the page's shared a.btn is 44 px in English); the bar stays on screen.
 const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:48px;box-sizing:border-box;padding:12px 16px}'
   + '.qz form{display:inline-block;margin:0}.qz .btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}'
-  + '.qmsg{width:100%;min-height:8em;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);resize:vertical}'
+  // the message as the class gets it: read-only, a long press selects all of it, the link never broken inside its code
+  + '.qmsg{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);margin:0 0 8px;'
+  + '-webkit-user-select:all;user-select:all;overflow-wrap:anywhere}'
+  + '.qurl{white-space:nowrap;font-size:13px;display:inline-block;max-width:100%;overflow-x:auto;vertical-align:bottom}'
+  + '.qsrc{position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;pointer-events:none}'
   + '.qq summary{min-height:48px;padding:12px 0;cursor:pointer;font-weight:600;color:var(--s3)}'
   + '.qlist{list-style:none;padding:0;margin:0}.qitem{margin:0 0 14px}.qn{font-weight:700;margin-inline-end:6px}'
   + '.qitem ul{list-style:none;padding:0}.qopt{padding:6px 10px;border-radius:8px;border:1px solid var(--line);margin:0 0 6px}'
@@ -98,7 +102,10 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       + `<input type="hidden" name="language" value="${esc(code)}"><button type="submit" class="btn">${esc(getLanguage(code).languageTitle)}</button></form>`).join(' '));
   } else if (m.state === 'ready' && typeof m.message === 'string' && m.message.trim()) {
     const share = `https://wa.me/?text=${encodeURIComponent(m.message)}`;
-    parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><textarea id="qmsg" class="qmsg" readonly dir="auto" rows="7">${esc(m.message)}</textarea>`);
+    // shown: one line per line, each link one LTR run; copied: the stored message itself (the hidden field)
+    const shown = m.message.split('\n').map((line) => esc(line).replace(/https?:\/\/[^\s<]+/g, (u) => `<bdi dir="ltr" class="qurl">${u}</bdi>`)).join('<br>');
+    parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><div class="qmsg" dir="auto">${shown}</div>`
+      + `<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">${esc(m.message)}</textarea>`);
     if (Array.isArray(m.questions) && m.questions.length) parts.push(questionsList(m.questions, l, ux));
     const links = [m.pdf ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
       m.preview ? `<a class="btn ghost" href="${esc(base)}/try">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');

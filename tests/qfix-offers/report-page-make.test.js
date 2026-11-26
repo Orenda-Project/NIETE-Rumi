@@ -394,6 +394,17 @@ describe('ready: the page\'s own taps are logged once, server-side', () => {
     expect(portalEvents('transcript_quiz.page_try')).toHaveLength(1);
   });
 
+  test('the message box: the link is one unbroken LTR run (a split quiz code reads as broken), the copy source is the exact message, nothing looks editable', async () => {
+    seed({ quizzes: [SENT], questions: QUESTIONS, language: 'ur' });
+    const { token, req } = await start();
+    const r = await req('GET', `/cq/${token()}`);
+    expect(r.body).toContain('<bdi dir="ltr" class="qurl">https://portal.example/q/ABC234</bdi>');
+    expect(r.body).toMatch(/\.qurl\{[^}]*white-space:nowrap/);
+    // what Copy reads: the stored message, whole, in a field the teacher never sees or edits
+    expect(r.body).toMatch(/<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">Class quiz on Adding tens: https:\/\/portal\.example\/q\/ABC234<\/textarea>/);
+    expect(r.body).not.toMatch(/resize:vertical/);
+  });
+
   test('Urdu: questions numbered in Urdu digits, «واٹس ایپ» held together by U+00A0', async () => {
     seed({ quizzes: [SENT], questions: QUESTIONS, language: 'ur' });
     const { token, req } = await start();
