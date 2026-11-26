@@ -75,7 +75,8 @@ const WEAK = "Weak internet? Record in your phone's Recorder app, then upload it
 const UPLOAD_ONLY = "Record in your phone's Recorder app, then upload it here.";
 
 const keep = (id: string, teacherExtId: string, startedAt: string) => {
-  rememberRecording(id, { teacherExtId, schoolExtId: null, teacherName: "x" });
+  // bd-ma9jiy (26 Nov ~15:10): a copy belongs to its visit — Ayesha's to this visit, anyone else's to their own.
+  rememberRecording(id, { teacherExtId, schoolExtId: null, teacherName: "x", kind: "obs", visitId: teacherExtId === AYESHA ? VISIT_ID : `visit-of-${teacherExtId}` });
   // bd-ma9jiy.3: last saved a minute ago (#292's rule: only a recording cut within the hour reopens paused).
   kept.list.push({ meta: { id, startedAt, elapsedMs: 1_800_000, ext: ".webm", finished: false }, blob: new Blob(["x"]), beats: [{ t: Date.now() - 60_000, st: "r" }] });
 };

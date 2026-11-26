@@ -4,7 +4,7 @@ import { keepScreenOn } from './keepAwake';
 import { LessonRecorder, type FinishedRecording } from './lessonRecorder';
 import { withDuration } from './webmDuration';
 import { markFinished, type KeptRecording } from './recordingStore';
-import { RecordingHeart, cutOf, type BeatContext } from './recordingBeat';
+import { RecordingHeart, beatLink, cutOf, type BeatContext } from './recordingBeat';
 
 /**
  * bd-o15qnr.9 — the coach's recording engine, without a screen: the same
@@ -132,7 +132,8 @@ export function useCoachRecording({ onStarted, onMicBlocked, kept = null, beat }
       let heart: RecordingHeart | undefined;
       const id = (() => { try { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined; } catch { return undefined; } })();
       if (beat && id) { try { heart = new RecordingHeart({ recordingId: id, ctx: beat }); } catch { heart = undefined; } }
-      const rec = new LessonRecorder({ stream: media, type, ...(id ? { id } : {}), ...(heart ? { heart } : {}) });
+      // bd-ma9jiy (26 Nov ~15:10): the recording's row says which visit or observation it belongs to.
+      const rec = new LessonRecorder({ stream: media, type, ...(id ? { id } : {}), ...(heart ? { heart } : {}), ...(beat ? { link: beatLink(beat) } : {}) });
       recorderRef.current = rec;
       setStream(media);
       try {
