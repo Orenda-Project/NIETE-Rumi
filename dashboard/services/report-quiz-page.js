@@ -78,11 +78,13 @@ function waQuiz(bot, ux) {
 function editForms(item, edit, { base, hidden, ux }) {
   const ed = item.editable || {};
   const wording = !edit.locked;
-  const ids = `${hidden}<input type="hidden" name="qid" value="${esc(item.id)}"><input type="hidden" name="v" value="${esc(edit.edit_v)}">`;
+  const ids = `${hidden}<input type="hidden" name="qid" value="${esc(item.qid)}"><input type="hidden" name="v" value="${esc(edit.edit_v)}">`;
+  const keys = String(item.key || '').split(',');
   const text = wording && ed.text !== false && !item.picture
     ? `<label>${ux('qfix_offers_cq_edit_text')}<textarea name="text" rows="3" dir="auto">${esc(item.text)}</textarea></label>` : '';
   const opts = (item.options || []).map((o) => {
-    const radio = `<input type="radio" name="key" value="${esc(o.slot)}"${o.slot === item.key ? ' checked' : ''}${ed.key === false ? ' disabled' : ''} aria-label="${esc(o.picture ? o.slot : o.text)}">`;
+    // one right answer: a radio; "pick all that apply": checkboxes
+    const radio = `<input type="${item.multi ? 'checkbox' : 'radio'}" name="key" value="${esc(o.slot)}"${keys.includes(o.slot) ? ' checked' : ''}${ed.key === false ? ' disabled' : ''} aria-label="${esc(o.picture ? o.slot : o.text)}">`;
     const field = wording && ed.options !== false && !o.picture
       ? `<input type="text" name="opt_${esc(o.slot)}" value="${esc(o.text)}" dir="auto">`
       : `<span dir="auto">${o.picture ? '🖼' : esc(o.text)}</span>`;
@@ -91,18 +93,21 @@ function editForms(item, edit, { base, hidden, ux }) {
   const save = `<form method="post" action="${esc(base)}/edit" class="qform">${ids}<input type="hidden" name="do" value="save">${text}`
     + `<fieldset><legend>${ux('qfix_offers_cq_edit_answers')}</legend>${opts}</fieldset>`
     + `<button type="submit" class="btn">${ux('qfix_offers_cq_save')}</button></form>`;
-  const remove = wording && Number(edit.n) > Number(edit.min)
+  const remove = wording && ed.remove !== false && Number(edit.n) > Number(edit.min)
     ? `<form method="post" action="${esc(base)}/edit">${ids}<input type="hidden" name="do" value="remove">`
       + `<button type="submit" class="btn ghost">${ux('qfix_offers_cq_remove')}</button></form>` : '';
   return `<details class="qedit"><summary>${ux('qfix_offers_cq_edit')}</summary>${save}${remove}</details>`;
 }
 
-/** keys' view → the read-only list's shape ({text, options:[{text, correct}]}), ids kept for the anchors. */
+/** The bot's edit view → the read-only list's shape ({text, options:[{text, correct}]}), ids kept for the anchors. */
 function fromEdit(edit) {
-  return (edit.items || []).map((it) => ({
-    id: it.id, text: it.text, item: it,
-    options: (it.options || []).map((o) => ({ key: o.slot, text: o.picture ? '🖼' : o.text, correct: o.slot === it.key })),
-  }));
+  return (edit.questions || []).map((it) => {
+    const keys = String(it.key || '').split(',');
+    return {
+      id: it.qid, text: it.text, item: it,
+      options: (it.options || []).map((o) => ({ key: o.slot, text: o.picture ? '🖼' : o.text, correct: keys.includes(o.slot) })),
+    };
+  });
 }
 
 function questionsList(questions, l, ux, { edit = null, base, hidden, open = false } = {}) {
@@ -159,7 +164,7 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
     const shown = m.message.split('\n').map((line) => esc(line).replace(/https?:\/\/[^\s<]+/g, (u) => `<bdi dir="ltr" class="qurl">${u}</bdi>`)).join('<br>');
     parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><div class="qmsg" dir="auto">${shown}</div>`
       + `<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">${esc(m.message)}</textarea>`);
-    const list = edit && Array.isArray(edit.items) && edit.items.length ? fromEdit(edit) : m.questions;
+    const list = edit && Array.isArray(edit.questions) && edit.questions.length ? fromEdit(edit) : m.questions;
     if (Array.isArray(list) && list.length) parts.push(questionsList(list, l, ux, { edit, base, hidden, open: Boolean(said) && notice !== 'pdf_pending' }));
     const links = [m.pdf || edit ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
       m.preview ? `<a class="btn ghost" href="${esc(base)}/try">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');

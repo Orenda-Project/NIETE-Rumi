@@ -1,9 +1,10 @@
 'use strict';
 /**
  * E2 — the teacher edits the quiz in the page the closed-window report opens (/cq, the /cr block), once it is ready.
- * The write path is keys' E1 on the bot (`/api/internal/wq/teacher/quiz/:quizId`, `/teacher/edit`, `/teacher/pdf`);
- * here it is a stub on the bot's HTTP boundary that records what the portal sent and answers as E1's contract says
- * (keys PLAN 092553). The portal side is real: the coaching-report routes, the page, and the bot's own /api/internal/rq.
+ * The write path is keys' E1 on the bot (`/api/internal/wqedit/quiz/:quizId`, `/save`, `/pdf`,
+ * quiz-teacher-edit.routes.js); here it is a stub on the bot's HTTP boundary that records what the portal sent and
+ * answers in E1's shapes (quiz-teacher-edit.js view/save/ensurePdf). The portal side is real: the coaching-report
+ * routes, the page, and the bot's own /api/internal/rq.
  *
  *   - Edit controls per question only when E1 answers (its switch on); off → #5974's read-only view.
  *   - The teacher is the signed token's, never the form's (red 092653).
@@ -42,12 +43,18 @@ const SENT = { id: QID, coaching_session_id: SID, quiz_source: 'transcript', sta
   meta: { step: 'sent', made_via: 'page', delivered_via: 'page', share_code: 'ABC234', share_code_id: 'sc-1',
     student_message: 'Class quiz on Adding tens: https://portal.example/q/ABC234', pdf_key: 'transcript_quizzes/u/q.pdf' } };
 const item = (i, extra = {}) => ({
-  id: `11111111-0000-4000-8000-00000000000${i}`, text: `Question ${i + 1}: what is ${i + 1} tens?`, picture: false,
-  editable: { text: true, options: true, key: true },
+  qid: `11111111-0000-4000-8000-00000000000${i}`, text: `Question ${i + 1}: what is ${i + 1} tens?`, multi: false,
+  editable: { text: true, options: true, key: true, remove: true },
   options: [{ slot: 'A', text: `${i + 1}0`, picture: false }, { slot: 'B', text: `${i + 1}`, picture: false }, { slot: 'C', text: `${i + 1}00`, picture: false }],
   key: 'A', ...extra,
 });
-const VIEW = (over = {}) => ({ edit_v: 3, locked: false, n: 8, min: 5, pdf: 'ready', items: Array.from({ length: 8 }, (_, i) => item(i)), ...over });
+const VIEW = (over = {}) => {
+  const locked = over.locked === true;
+  const n = over.questions ? over.questions.length : 8;
+  const questions = (over.questions || Array.from({ length: n }, (_, i) => item(i)))
+    .map((q) => (locked ? { ...q, editable: { text: false, options: false, key: q.editable.key, remove: false } } : q));
+  return { ok: true, quiz_id: QID, language: 'en', edit_v: 3, locked, editable: true, n, min: 5, pdf: 'ready', pdf_key: 'k', ...over, questions };
+};
 
 function seed({ language = 'en' } = {}) {
   mockDb = makeDb({
@@ -62,23 +69,29 @@ function seed({ language = 'en' } = {}) {
 
 /** keys' E1, as its contract says (keys PLAN 092553): what the portal sent, and the answer the test chose. */
 function fakeE1() {
-  const e1 = { calls: [], view: VIEW(), edit: { status: 200, body: { ok: true, edit_v: 4, n: 8, pdf: 'pending', locked: false } }, pdf: { status: 202, body: { pdf: 'pending' } }, off: false };
+  const e1 = { calls: [], view: VIEW(), edit: { status: 200, body: { ok: true, edit_v: 4, n: 8, answered: false, pdf: 'pending' } }, pdf: { status: 200, body: { ok: true, pdf: 'pending' } }, off: false };
   const r = express.Router();
   r.use(express.json());
   r.use((req, res, next) => (req.headers['x-api-key'] === 'k1' ? next() : res.status(401).json({ error: 'Unauthorized' })));
-  r.get('/teacher/quiz/:quizId', (req, res) => {
+  r.get('/quiz/:quizId', (req, res) => {
     e1.calls.push({ path: 'quiz', quizId: req.params.quizId, t: req.query.t });
     if (e1.off) return res.status(404).json({ off: true });
     if (req.params.quizId !== QID || req.query.t !== UID) return res.status(403).json({ reason: 'not_owner' });
     return res.json(e1.view);
   });
-  r.post('/teacher/edit', (req, res) => {
+  r.post('/save', (req, res) => {
     e1.calls.push({ path: 'edit', body: req.body });
     if (e1.off) return res.status(404).json({ off: true });
     return res.status(e1.edit.status).json(e1.edit.body);
   });
-  r.post('/teacher/pdf', (req, res) => {
+  r.post('/pdf', async (req, res) => {
     e1.calls.push({ path: 'pdf', body: req.body });
+    // ready: E1 has stored the remade PDF's key on the quiz (quiz_teacher_edit_pdf)
+    if (e1.pdf.body && e1.pdf.body.pdf === 'ready') {
+      const db = require('../../bot/shared/config/supabase');
+      const { data } = await db.from('quizzes').select('meta').eq('id', QID).maybeSingle();
+      await db.from('quizzes').update({ meta: { ...data.meta, pdf_key: 'transcript_quizzes/u/q-e4.pdf' } }).eq('id', QID);
+    }
     return res.status(e1.pdf.status).json(e1.pdf.body);
   });
   return { e1, router: r };
@@ -96,7 +109,7 @@ async function start() {
   const { e1, router } = fakeE1();
   const bot = express();
   bot.use('/api/internal/rq', require('../../bot/shared/routes/report-quiz-internal.routes'));
-  bot.use('/api/internal/wq', router);
+  bot.use('/api/internal/wqedit', router);
   process.env.MAIN_BOT_URL = `http://127.0.0.1:${await listen(bot)}`;
   const portal = express();
   portal.use(require('../../dashboard/routes/coaching-report.routes').createCoachingReportRouter({
@@ -106,7 +119,7 @@ async function start() {
   const port = await listen(portal);
   const token = (userId = UID) => require('../../bot/shared/services/coaching/report-link-token').signReportLink({ sessionId: SID, userId });
   const req = (method, path, body) => new Promise((resolve, reject) => {
-    const data = body === undefined ? null : new URLSearchParams(body).toString();
+    const data = body === undefined ? null : (typeof body === 'string' ? body : new URLSearchParams(body).toString());
     const r = http.request({ host: '127.0.0.1', port, path, method,
       headers: data ? { 'content-type': 'application/x-www-form-urlencoded', 'content-length': Buffer.byteLength(data) } : {} }, (res) => {
       let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: b }));
@@ -119,8 +132,8 @@ async function start() {
 }
 
 const edits = (e1) => e1.calls.filter((c) => c.path === 'edit').map((c) => c.body);
-const pageEdits = () => portalEvent.mock.calls.filter((c) => c[0] === 'transcript_quiz.page_edit').map((c) => c[1]);
-const Q0 = item(0).id;
+const pageEdits = () => portalEvent.mock.calls.filter((c) => c[0] === 'transcript_quiz.page_edit_result').map((c) => c[1]);
+const Q0 = item(0).qid;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -170,14 +183,15 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     expect(r.status).toBe(303);
     expect(r.headers.location).toBe(`/cq/${t}?e=saved#q-${Q0}`);
     expect(edits(e1)).toEqual([{
-      quizId: QID, teacherUserId: UID, v: 3,
+      quizId: QID, teacherUserId: UID, v: 3, surface: 'cq',
       ops: [
         { op: 'text', qid: Q0, text: 'Question 1: how many is one ten?' },
         { op: 'option', qid: Q0, slot: 'B', text: '11' },
         { op: 'key', qid: Q0, slot: 'B' },
       ],
     }]);
-    expect(pageEdits().map((p) => [p.field, p.outcome, p.locked])).toEqual([['text', 'saved', false], ['option', 'saved', false], ['key', 'saved', false]]);
+    // the bot logs page_edit per saved field; the portal logs the page's outcome once per save
+    expect(pageEdits()).toEqual([expect.objectContaining({ outcome: 'saved', fields: 'text,option,key', locked: false, surface: 'cq', quizId: QID })]);
     const page = await req('GET', `/cq/${t}?e=saved`);
     expect(page.body).toContain('Saved. Children who open the quiz now get this version.');
   });
@@ -206,8 +220,8 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     e1.edit = { status: 200, body: { ok: true, edit_v: 4, n: 8, pdf: 'pending', locked: true } };
     // a wording field smuggled into a locked save is never sent
     await req('POST', `/cq/${t}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'save', text: 'changed', key: 'C' });
-    expect(edits(e1)).toEqual([{ quizId: QID, teacherUserId: UID, v: 3, ops: [{ op: 'key', qid: Q0, slot: 'C' }] }]);
-    expect(pageEdits()).toEqual([expect.objectContaining({ field: 'key', locked: true, outcome: 'saved' })]);
+    expect(edits(e1)).toEqual([{ quizId: QID, teacherUserId: UID, v: 3, surface: 'cq', ops: [{ op: 'key', qid: Q0, slot: 'C' }] }]);
+    expect(pageEdits()).toEqual([expect.objectContaining({ fields: 'key', locked: true, outcome: 'saved' })]);
   });
 
   test.each([
@@ -217,6 +231,8 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     [400, { reason: 'too_long' }, 'too_long', 'too long'],
     [400, { reason: 'empty' }, 'empty', 'cannot be empty'],
     [400, { reason: 'not_text' }, 'not_text', 'picture'],
+    [400, { ok: false, reason: 'no_change' }, 'none', 'Nothing was changed'],
+    [502, { ok: false, reason: 'db_unavailable' }, 'failed', 'could not be saved'],
     [503, null, 'failed', 'could not be saved'],
   ])('E1 %s %j → the page names it (%s)', async (status, body, code, words) => {
     seed();
@@ -227,7 +243,7 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     expect(r.headers.location).toBe(`/cq/${t}?e=${code}#q-${Q0}`);
     const page = await req('GET', `/cq/${t}?e=${code}`);
     expect(page.body).toContain(words);
-    expect(pageEdits()).toEqual([expect.objectContaining({ field: 'text', outcome: code })]);
+    expect(pageEdits()).toEqual([expect.objectContaining({ fields: 'text', outcome: code })]);
   });
 
   test('remove → one remove op; at the floor the Remove button is not drawn', async () => {
@@ -235,8 +251,8 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     const { e1, token, req } = await start();
     const t = token();
     await req('POST', `/cq/${t}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'remove' });
-    expect(edits(e1)).toEqual([{ quizId: QID, teacherUserId: UID, v: 3, ops: [{ op: 'remove', qid: Q0 }] }]);
-    e1.view = VIEW({ n: 5, items: Array.from({ length: 5 }, (_, i) => item(i)) });
+    expect(edits(e1)).toEqual([{ quizId: QID, teacherUserId: UID, v: 3, surface: 'cq', ops: [{ op: 'remove', qid: Q0 }] }]);
+    e1.view = VIEW({ questions: Array.from({ length: 5 }, (_, i) => item(i)) });
     const r = await req('GET', `/cq/${t}`);
     expect(r.body).not.toContain('Remove this question');
   });
@@ -254,9 +270,9 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     seed();
     const { e1, token, req } = await start();
     const pic = item(0, { options: [{ slot: 'A', text: '', picture: true }, { slot: 'B', text: '1', picture: false }, { slot: 'C', text: '100', picture: false }] });
-    e1.view = VIEW({ items: [pic, ...Array.from({ length: 7 }, (_, i) => item(i + 1))] });
+    e1.view = VIEW({ questions: [pic, ...Array.from({ length: 7 }, (_, i) => item(i + 1))] });
     const r = await req('GET', `/cq/${token()}`);
-    const first = r.body.slice(r.body.indexOf(`id="q-${Q0}"`), r.body.indexOf(`id="q-${item(1).id}"`));
+    const first = r.body.slice(r.body.indexOf(`id="q-${Q0}"`), r.body.indexOf(`id="q-${item(1).qid}"`));
     expect(first).not.toMatch(/name="opt_A"/);
     expect(first).toMatch(/name="opt_B"/);
   });
@@ -274,10 +290,12 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     expect(first.headers.location).toBe(`/cq/${t}?e=pdf_pending`);
     expect(e1.calls.filter((c) => c.path === 'pdf').map((c) => c.body)).toEqual([{ quizId: QID, teacherUserId: UID }]);
     expect((await req('GET', `/cq/${t}?e=pdf_pending`)).body).toContain('The PDF is being made again with your changes');
-    e1.pdf = { status: 200, body: { pdf: 'ready', url: 'https://r2.example/edited.pdf' } };
+    // remade: the bot stored its key; the page hands the same 1-hour link as for the first PDF
+    e1.pdf = { status: 200, body: { ok: true, pdf: 'ready' } };
     const second = await req('GET', `/cq/${t}/pdf`);
     expect(second.status).toBe(302);
-    expect(second.headers.location).toBe('https://r2.example/edited.pdf');
+    expect(second.headers.location).toBe('https://r2.example/signed.pdf');
+    expect(require('../../bot/shared/storage/r2').getPresignedGetUrl).toHaveBeenLastCalledWith('transcript_quizzes/u/q-e4.pdf', 3600);
   });
 
   test('Urdu: the edit controls in Urdu, the floor in Urdu digits', async () => {
@@ -291,6 +309,23 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     await req('POST', `/cq/${t}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'remove' });
     r = await req('GET', `/cq/${t}?e=floor`);
     expect(r.body).toContain('۵');
+  });
+
+  test('"pick all that apply": checkboxes, and the right answers go as one sorted slot list ("A,C")', async () => {
+    seed();
+    const { e1, token, req } = await start();
+    e1.view = VIEW({ questions: [item(0, { multi: true, key: 'A,B' }), ...Array.from({ length: 7 }, (_, i) => item(i + 1))] });
+    const t = token();
+    const r = await req('GET', `/cq/${t}`);
+    expect(r.body).toMatch(/type="checkbox" name="key" value="A" checked/);
+    expect(r.body).toMatch(/type="checkbox" name="key" value="B" checked/);
+    expect(r.body).toMatch(/type="checkbox" name="key" value="C" aria/);
+    // two boxes ticked: the form repeats the field
+    await req('POST', `/cq/${t}/edit`, `surface=cq&qid=${Q0}&v=3&do=save&key=C&key=A`);
+    expect(edits(e1)).toEqual([{ quizId: QID, teacherUserId: UID, v: 3, surface: 'cq', ops: [{ op: 'key', qid: Q0, slot: 'A,C' }] }]);
+    // a single-answer item never sends two
+    expect((await req('POST', `/cq/${t}/edit`, `surface=cq&qid=${item(1).qid}&v=3&do=save&key=B&key=C`)).status).toBe(400);
+    expect(edits(e1)).toHaveLength(1);
   });
 
   test('/cr: the same edit forms, and a save goes back to the report', async () => {
