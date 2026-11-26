@@ -125,6 +125,10 @@ export const COACHING_V2_COPY = {
   recordingNotSent: 'Recording not sent',
   /** bd-ma9jiy.3 (queue #262) — a recording cut mid-lesson, kept on the phone: the DC page's card. */
   recordingPaused: 'Recording paused',
+  /** bd-ma9jiy (26 Nov ~15:10) — a take kept before recordings said which lesson they belong to; and the way to start a
+   * new lesson while one is paused (each its own recording). */
+  unlinkedFrom: (time: string) => `Unlinked recording from ${time}`,
+  differentLesson: 'Record a different lesson',
   /* bd-r2uzg1.23.5 (queue #274, ICT call 6A; the operator's words, 25 Nov) — the recording is empty (0 bytes) */
   recordingEmpty: "This recording didn't reach us complete. Record or upload it again.",
   planNotSent: 'Lesson plan not sent',
@@ -328,6 +332,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   notSent: 'نہیں بھیجا گیا',
   recordingNotSent: 'ریکارڈنگ نہیں بھیجی گئی',
   recordingPaused: 'ریکارڈنگ رکی ہوئی ہے',
+  // bd-ma9jiy — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  unlinkedFrom: (time: string) => `${time} کی غیر منسلک ریکارڈنگ`,
+  differentLesson: 'دوسرا سبق ریکارڈ کریں',
   // bd-r2uzg1.23.5 — MACHINE-DRAFTED: NATIVE-CHECK
   recordingEmpty: 'یہ ریکارڈنگ ہم تک مکمل نہیں پہنچی۔ دوبارہ ریکارڈ کریں یا اپ لوڈ کریں۔',
   planNotSent: 'لیسن پلان نہیں بھیجا گیا',
@@ -452,6 +459,8 @@ export const COPY_ENTRY: CopyEntry = {
   longOk: ['startObservation', 'summaryCount', 'noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked',
     // bd-fgj73x.7: the operator asked for a short line that says why a recording under 15 minutes cannot be sent.
     'tooShort',
+    // bd-ma9jiy (26 Nov): «<time> کی غیر منسلک ریکارڈنگ» — the time plus four words.
+    'unlinkedFrom',
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
     'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
     // bd-r2uzg1.18.15: why a re-sent copy stopped, and that the first copy's report will come.

@@ -24,6 +24,7 @@ vi.mock("fix-webm-duration", () => ({ default: vi.fn(async (blob: Blob) => blob)
 vi.mock("../../lib/recordingBeat", () => ({
   RecordingHeart: class { sample() { return {}; } saved() {} event() {} flush() { return Promise.resolve(); } dispose() { return Promise.resolve(); } },
   cutOf: () => null,
+  beatLink: (beat: Record<string, unknown>) => ({ ...beat }),
 }));
 // The phone's kept recordings (IndexedDB): latestUnsent honours its `accept` filter like the real store.
 const kept = vi.hoisted(() => ({ list: [] as any[] }));

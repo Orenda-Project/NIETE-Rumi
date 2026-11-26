@@ -6,8 +6,8 @@ import { newUiRemembered } from './newUiMemory';
 import { LessonRecorder, type FinishedRecording } from './lessonRecorder';
 import { pickRecordingType, type RecordingType } from './recordingSupport';
 import { withDuration } from './webmDuration';
-import { markFinished, type KeptRecording } from './recordingStore';
-import { RecordingHeart, cutOf, type BeatContext } from './recordingBeat';
+import { markFinished, type KeptRecording, type RecordingLink } from './recordingStore';
+import { RecordingHeart, beatLink, cutOf, type BeatContext } from './recordingBeat';
 import { lastSavedAt, wasCut } from './keptOffer';
 
 /**
@@ -60,7 +60,8 @@ export type RecordingSession = {
   returnTo: string | null;
   /** Time actually recorded, now (pauses excluded). */
   elapsedMs: () => number;
-  start: (opts: { returnTo: string; beat?: BeatContext }) => Promise<StartResult>;
+  /** bd-ma9jiy (26 Nov ~15:10): `linkExtra` — the class (and name) kept with the recording on the phone, beside `beat`. */
+  start: (opts: { returnTo: string; beat?: BeatContext; linkExtra?: Partial<Pick<RecordingLink, 'grade' | 'subject' | 'teacherName'>> }) => Promise<StartResult>;
   /** bd-ma9jiy: open a kept recording as this session, paused (nothing starts until Resume). */
   restore: (opts: { returnTo: string; kept: KeptRecording; beat?: BeatContext }) => void;
   pause: () => void;
@@ -147,7 +148,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
 
   const elapsedMs = useCallback(() => recorderRef.current?.elapsedMs() ?? keptRef.current?.meta.elapsedMs ?? 0, []);
 
-  const start = useCallback(async ({ returnTo, beat }: { returnTo: string; beat?: BeatContext }): Promise<StartResult> => {
+  const start = useCallback(async ({ returnTo, beat, linkExtra }: { returnTo: string; beat?: BeatContext; linkExtra?: Partial<Pick<RecordingLink, 'grade' | 'subject' | 'teacherName'>> }): Promise<StartResult> => {
     // One lesson at a time: a second start shows the one already running.
     if (recorderRef.current || keptRef.current) {
       setLive((l) => ({ ...l, returnTo }));
@@ -170,6 +171,8 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     if (beat && id) { try { heart = new RecordingHeart({ recordingId: id, ctx: beat }); } catch { heart = undefined; } }
     const rec = new LessonRecorder({
       stream: media, type, onChunk: (b, seq, ms) => chunkListener.current?.(b, seq, ms), ...(id ? { id } : {}), ...(heart ? { heart } : {}),
+      // bd-ma9jiy (26 Nov ~15:10): what this recording belongs to, written into its row on the phone.
+      ...(beat ? { link: beatLink(beat, linkExtra) } : {}),
     });
     try {
       await rec.start();

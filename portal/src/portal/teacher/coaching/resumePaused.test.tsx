@@ -36,6 +36,7 @@ vi.mock("../../lib/coachingSend", async (orig) => ({ ...(await orig<typeof impor
 const store = vi.hoisted(() => ({
   latestUnsent: vi.fn(async (): Promise<unknown> => null),
   listKept: vi.fn(async (): Promise<unknown[]> => []),
+  readKept: vi.fn(async (_id: string): Promise<unknown> => null),
   deleteRecording: vi.fn(async (_id: string) => undefined),
   createRecording: vi.fn(), appendChunk: vi.fn(), markFinished: vi.fn(),
 }));
@@ -60,13 +61,21 @@ preloadFirst(() => (preloadAll ? preloadAll({ pages: true }) : undefined), 120_0
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const REC = "rec-0f1e2d3c";
 const BYTES = new Blob(["lesson-bytes"], { type: "audio/webm" });
+// bd-ma9jiy (26 Nov ~15:10): a take saved now belongs to its attempt (made at Start); kept-link.test has the unlinked ones.
 const stored = (over: Record<string, unknown> = {}) => ({
   meta: {
     id: REC, mimeType: "audio/webm", ext: ".webm", startedAt: new Date(Date.now() - 40 * 60_000).toISOString(),
-    elapsedMs: 27 * 60_000, finished: false, ...over,
+    elapsedMs: 27 * 60_000, finished: false, link: { kind: "dc", attemptId: "att-0f1e2d3c" }, ...over,
   },
   blob: BYTES,
+  beats: [] as unknown[],
 });
+/** The phone keeps this one take: every way the screen reads the store sees it. */
+function keepOnPhone(k: ReturnType<typeof stored>) {
+  store.latestUnsent.mockImplementation(async () => k);
+  store.listKept.mockImplementation(async () => [{ meta: k.meta, beats: k.beats }]);
+  store.readKept.mockImplementation(async (id: string) => (id === k.meta.id ? k : null));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,7 +85,7 @@ beforeEach(() => {
   session.paused = false;
   session.recordingId = null;
   sw.on = false;
-  store.latestUnsent.mockImplementation(async () => stored());
+  keepOnPhone(stored());
   const answers: Record<string, () => unknown> = {
     "/me/grade-subjects": () => ({ success: true, combos: [
       { grade: 4, gradeCode: "grade_4", subject: "General Science", subjectKey: "science", featureKey: "general_science", source: "class", available: true },
@@ -139,7 +148,7 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
     const arg = session.restore.mock.calls[0][0] as { returnTo: string; kept: { meta: { id: string } }; beat: { kind: string } };
     expect(arg.returnTo).toBe(COACHING_NEW);
     expect(arg.kept.meta.id).toBe(REC);
-    expect(arg.beat).toEqual({ kind: "dc" });
+    expect(arg.beat).toEqual({ kind: "dc", attemptId: "att-0f1e2d3c" }); // bd-ma9jiy: the attempt it continues
     expect(await screen.findByTestId("dc-record-clock")).toBeInTheDocument();
     expect(screen.getAllByText(C.paused).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: C.resume })).toBeInTheDocument();
@@ -167,8 +176,10 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
   // before; Resume then joined today's lesson onto it (63 of 110 old ones that morning). Only a recent cut is resumed.
   it("switch ON, a recording she STOPPED (finished), 29 min: not reopened paused; it is her recording to send (no Resume)", async () => {
     sw.on = true;
-    store.latestUnsent.mockImplementation(async () => stored({ finished: true, elapsedMs: 29 * 60_000 }));
+    keepOnPhone(stored({ finished: true, elapsedMs: 29 * 60_000 }));
     open();
+    // bd-ma9jiy (26 Nov ~15:10): its own card first (never pulled into a new lesson); a tap makes it this screen's.
+    fireEvent.click(await screen.findByTestId("dc-kept-unsent"));
     const card = await screen.findByTestId("dc-recording");
     expect(card.textContent).toContain(C.minutes(29));
     expect(session.restore).not.toHaveBeenCalled();
@@ -178,10 +189,11 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
 
   it("switch ON, a lesson cut by a kill YESTERDAY (23 min): never resumed (it would join today's lesson); hers to send", async () => {
     sw.on = true;
-    store.latestUnsent.mockImplementation(async () => stored({
+    keepOnPhone(stored({
       startedAt: new Date(Date.now() - 24 * 3600_000).toISOString(), elapsedMs: 23 * 60_000,
     }));
     open();
+    fireEvent.click(await screen.findByTestId("dc-kept-unsent"));
     expect(await screen.findByTestId("dc-recording")).toBeTruthy();
     expect(session.restore).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: C.resume })).toBeNull();
@@ -189,7 +201,7 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
 
   it("switch ON, a stopped 6-second take (cannot be sent): nothing reopened, the screen as before", async () => {
     sw.on = true;
-    store.latestUnsent.mockImplementation(async () => stored({ finished: true, elapsedMs: 6_000 }));
+    keepOnPhone(stored({ finished: true, elapsedMs: 6_000 }));
     open();
     await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) });
     await new Promise((r) => setTimeout(r, 50));
@@ -200,7 +212,7 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
 
   it("switch ON but an MP4 kept (an iPhone): not reopened (only WebM parts can be joined)", async () => {
     sw.on = true;
-    store.latestUnsent.mockImplementation(async () => stored({ ext: ".m4a", mimeType: "audio/mp4" }));
+    keepOnPhone(stored({ ext: ".m4a", mimeType: "audio/mp4" }));
     open();
     await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) });
     await new Promise((r) => setTimeout(r, 50));
@@ -230,7 +242,7 @@ describe("the Digital Coaching page: her recordings kept on this phone and not s
     const card = await screen.findByTestId("dc-kept-paused");
     expect(card.textContent).toContain(`${C.recordingPaused} · ${C.minutes(27)}`);
     expect(card.textContent).toContain("Continue recording");
-    expect(card.closest("a") ?? card.querySelector("a") ?? card).toHaveAttribute("href", COACHING_NEW);
+    expect(card.closest("a") ?? card.querySelector("a") ?? card).toHaveAttribute("href", `${COACHING_NEW}?kept=${REC}`);
   });
 
   it("one she stopped (29 min): Recording not sent, Add details & send; a short stopped take: no card", async () => {

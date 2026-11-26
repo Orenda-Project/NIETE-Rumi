@@ -199,6 +199,13 @@ export const OBSERVE_COPY = {
   notSentChip: 'Not sent',
   /* bd-ma9jiy.3 — the word a "not sent yet" line asks her to tap (the operator: "It is not sent yet: tap Send."). */
   sendWord: 'Send',
+  /* bd-ma9jiy (26 Nov ~15:10): a copy kept before recordings said which visit they belong to — never reopened or sent as
+   * a visit's; kept for Save to phone. */
+  unlinkedChip: 'Unlinked',
+  unlinkedFrom: (time = '') => `Unlinked recording from ${time}`,
+  unlinkedLine: 'This recording is not linked to a visit. Send it as its own observation, or save it to your phone.',
+  sendAsObservation: (name = '') => `Send as ${name}’s observation`,
+  sendFailedShort: 'Not sent. Try again.',
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -362,6 +369,12 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   openingFile: 'ریکارڈنگ کھل رہی ہے…',
   notSentChip: 'نہیں بھیجی گئی',
   sendWord: 'بھیجیں',
+  // bd-ma9jiy — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  unlinkedChip: 'غیر منسلک',
+  unlinkedFrom: (time = '') => `${time} کی غیر منسلک ریکارڈنگ`,
+  unlinkedLine: 'یہ ریکارڈنگ کسی وزٹ سے منسلک نہیں۔ اسے الگ مشاہدے کے طور پر بھیجیں، یا اپنے فون میں محفوظ کریں۔',
+  sendAsObservation: (name = '') => `${name} کے مشاہدے کے طور پر بھیجیں`,
+  sendFailedShort: 'نہیں بھیجی گئی۔ دوبارہ کوشش کریں۔',
 };
 
 /** The Observe screens' words in both languages. */
@@ -373,6 +386,8 @@ export const SENTENCES = [
   'recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure',
   // bd-oe6r47 / bd-ih6cej — the recording steps' one line (weak internet / upload-only) and the kept-copy sentence.
   'weakInternet', 'uploadOnlyLine', 'savedOnPhone',
+  // bd-ma9jiy (26 Nov): what an unlinked kept recording is, and what she can do with it.
+  'unlinkedLine', 'unlinkedFrom',
 ] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;
