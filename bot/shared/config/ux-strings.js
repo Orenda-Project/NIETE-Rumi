@@ -4926,11 +4926,11 @@ const UX_STRINGS = {
   // making → (language) → ready, all on the page; the page updates itself while the quiz is made
   qfix_offers_cq_making: {
     en: 'Making your quiz… This page will update by itself.',
-    ur: 'آپ کا کوئز بن رہا ہے… یہ صفحہ خود بخود بدل جائے گا۔',
+    ur: 'آپ کا کوئز بن رہا ہے… یہ صفحہ خود بخود بدل جائے گا۔',
   },
   qfix_offers_cq_slow: {
     en: 'This is taking longer than usual. You can close this page and open it again later: your quiz will be here.',
-    ur: 'اس میں معمول سے زیادہ وقت لگ رہا ہے۔ آپ یہ صفحہ بند کر کے بعد میں دوبارہ کھول سکتے ہیں: آپ کا کوئز یہیں ہو گا۔',
+    ur: 'اس میں معمول سے زیادہ وقت لگ رہا ہے۔ آپ یہ صفحہ بند کر کے بعد میں دوبارہ کھول سکتے ہیں: آپ کا کوئز یہیں ہو گا۔',
   },
   qfix_offers_cq_lang_q: {
     en: 'Which language should the quiz be in?',
