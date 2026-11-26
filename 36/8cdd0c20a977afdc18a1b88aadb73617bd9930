@@ -1,2 +1,3 @@
 {"ts":"2026-11-26T02:10:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,portal-smoke spec_sync=true","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
 {"ts":"2026-11-26T02:10:10Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.6 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
+{"ts":"2026-11-26T02:10:18Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,language,status,observe,portal-smoke owe their Gherkin","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
