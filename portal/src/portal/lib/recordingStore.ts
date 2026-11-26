@@ -178,6 +178,31 @@ export async function latestUnsent(accept?: (meta: StoredRecording) => boolean):
   return null;
 }
 
+/** bd-ma9jiy.3 — a kept recording as a list needs it: its row and its LAST heartbeat (no audio read). */
+export type KeptSummary = { meta: StoredRecording; beats: Beat[] };
+
+/**
+ * bd-ma9jiy.3 (queue #262; the operator 26 Nov: kept recordings "should also be on the Needs You section") — every
+ * recording still on the phone (it has a piece), newest first, each with only its last piece's heartbeat: enough to say
+ * paused or not sent (lib/keptOffer) and how long, without assembling any audio.
+ */
+export async function listKept(): Promise<KeptSummary[]> {
+  const db = await open();
+  const tx = db.transaction([RECORDINGS, CHUNKS], "readonly");
+  const all = await request<StoredRecording[]>(tx.objectStore(RECORDINGS).getAll());
+  const newestFirst = [...all].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
+  const out: KeptSummary[] = [];
+  for (const meta of newestFirst) {
+    const range = IDBKeyRange.bound([meta.id, 0], [meta.id, Number.MAX_SAFE_INTEGER]);
+    // eslint-disable-next-line no-await-in-loop
+    const cursor = await request<IDBCursorWithValue | null>(tx.objectStore(CHUNKS).openCursor(range, "prev"));
+    if (!cursor) continue;
+    const last = cursor.value as ChunkRow;
+    out.push({ meta, beats: last.beat ? [last.beat] : [] });
+  }
+  return out;
+}
+
 /**
  * Off the phone (sent, or thrown away). bd-ma9jiy: the heartbeat samples kept with its pieces that never reached us go
  * first (sendLeftoverBeats, best effort, never waited on), so "with the recording" holds for a phone offline all lesson.

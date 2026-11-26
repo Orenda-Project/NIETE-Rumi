@@ -327,6 +327,11 @@ export function NewObservationPage() {
    */
   const resumeOn = useRecordingResume();
   const [restored, setRestored] = useState<string | null>(null);
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — a lesson cut mid-way is not reopened on arrival: the screen says
+  // "Your recording was paused abruptly." with ONE Continue recording on top (no Recording choices); the press reopens it
+  // PAUSED (Resume / Stop, as any paused lesson). `pausedKept`: the kept recording waiting for that press.
+  const [pausedKept, setPausedKept] = useState<KeptRecording | null>(null);
+  const recorderRef = useRef<HTMLElement | null>(null);
   // Read once, on arrival, on its own (not from the Not sent card's read): the newest recording kept on this phone.
   const triedRestore = useRef(false);
   const mounted = useRef(true);
@@ -350,11 +355,18 @@ export function NewObservationPage() {
         });
         return;
       }
-      session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
-      setRestored(k.meta.startedAt);
-      setPhase('recording');
+      setPausedKept(k);
     }).catch(() => { /* nothing to reopen: the screen as before */ });
   }, [resumeOn, session, audio, phase]);
+  const continueKept = () => {
+    const k = pausedKept;
+    if (!k || !session || session.active) return;
+    setPausedKept(null);
+    session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
+    setRestored(k.meta.startedAt);
+    setPhase('recording');
+    setTimeout(() => { try { recorderRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); } catch { /* fine */ } }, 50);
+  };
   const takeUnsent = async () => {
     const u = unsent;
     if (!u) return;
@@ -543,6 +555,7 @@ export function NewObservationPage() {
       {!after ? (
         <>
           {/* bd-r2uzg1.18.8 — first thing on the screen, before she picks anything: her recording not sent. */}
+          {pausedKept && !audio && phase === 'idle' ? <RecordUploadPair paused={{ onPress: continueKept, testId: 'dc-continue-kept' }} /> : null}
           {unsent && !audio && !checking && phase === 'idle' && unsent.meta.id !== session?.recordingId ? (
             <UnsentRecording startedAt={unsent.meta.startedAt} durationMs={unsent.meta.elapsedMs || null} onPress={() => { void takeUnsent(); }} />
           ) : null}
@@ -576,7 +589,7 @@ export function NewObservationPage() {
 
           <FlowStep n={3} state={s3} chips={[C.atLeastMinutes]}>{C.stepRecording}</FlowStep>
           {(cls || restored || session?.active) && !audio && phase === 'recording' ? (
-            <section aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
+            <section ref={recorderRef} aria-label={C.recording} className={cn(CARD, 'flex flex-col items-center gap-4 border-2 border-[#c8331f] px-4 py-5')}>
               <span className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold', session?.paused ? 'bg-[#fef3c7] text-[#b45309]' : 'bg-[#fee4e2] text-[#c8331f]')}>
                 {session?.paused ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <i aria-hidden="true" className="h-2 w-2 rounded-full bg-[#c8331f] motion-safe:animate-pulse" />}
                 {session?.paused ? C.paused : C.recording}
@@ -619,7 +632,7 @@ export function NewObservationPage() {
           {cls && !audio && !checking && phase === 'idle' ? waitingList.map((rec) => (
             <WaitingRecording key={rec.key} rec={rec} onPress={() => attachWaiting(rec)} />
           )) : null}
-          {cls && !audio && !checking && phase === 'idle' ? (
+          {cls && !audio && !checking && phase === 'idle' && !pausedKept ? (
             <>
               {/* Recording is one card that opens a tray with the two choices, as Grade and subject does (operator,
                   16 Oct). A choice closes the tray. */}
