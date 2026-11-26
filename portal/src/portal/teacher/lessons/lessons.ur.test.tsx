@@ -110,7 +110,7 @@ describe("Lesson Plans in Urdu", () => {
     });
     expect(screen.getByRole("link", { name: new RegExp(U.startDc) })).toBeTruthy();
     expect(screen.getByRole("button", { name: U.answerKey })).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.openOutside })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.downloadPdf })).toBeTruthy();
   });
 
   it("All lesson plans: the tiles' labels and the day names come in the language given", () => {
