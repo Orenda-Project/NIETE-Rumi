@@ -218,6 +218,15 @@ function convertMath(src) {
 const LOOSE_COMMAND = new RegExp(`\\\\(${[...SYMBOLS.keys()].filter((k) => /^[a-zA-Z]+$/.test(k)).join('|')})(?![a-zA-Z])`, 'g');
 
 /**
+ * A caret exponent written with no delimiters at all — `x^2`, `3^40`, `10^-5`, `x^(n+1)`
+ * (bd-zrdvmi.74.1: 12 of the 400 latest maths bodies still carried one). It must be attached to a
+ * base (a letter, digit or closing bracket) so a lone `^` in prose stays prose. The exponent is a
+ * signed number, one letter, or a short bracketed group; it is rewritten only when every character
+ * has a superscript form, otherwise the caret stays (`y^(1/3)`), per the degradation rule above.
+ */
+const BARE_CARET = /([A-Za-z0-9)\]])\^(\([^()\s]{1,12}\)|[-+]?\d+|[A-Za-z](?![A-Za-z0-9]))/g;
+
+/**
  * Rewrite every maths span in `text` as Unicode and hand back something a teacher can read.
  *
  * Non-string input and text with no maths in it come back untouched — this runs on every body,
@@ -232,9 +241,13 @@ function texToUnicode(text) {
     .replace(/\\\(([\s\S]+?)\\\)/g, (_, inner) => convertMath(inner))
     .replace(/\$([^$\n]+?)\$/g, (_, inner) => convertMath(inner));
 
-  // A command that never had delimiters around it is still unreadable. Symbols only: rewriting
-  // braces or exponents out here would reach into prose that legitimately contains them.
+  // A command that never had delimiters around it is still unreadable. Symbols, and a caret
+  // exponent fixed to a base (BARE_CARET); braces stay, as prose legitimately contains them.
   out = out.replace(LOOSE_COMMAND, (_, name) => SYMBOLS.get(name));
+  out = out.replace(BARE_CARET, (m, base, exp) => {
+    const mapped = mapAll(exp, SUPERSCRIPT);
+    return mapped !== null ? base + mapped : m;
+  });
 
   return out;
 }
