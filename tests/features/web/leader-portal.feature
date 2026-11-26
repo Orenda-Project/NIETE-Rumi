@@ -207,4 +207,15 @@ Feature: School leader (principal) portal
     Then "Add a child" is under that message, with the chosen grade already picked
     When they add a child by first name
     Then the message goes and today's list shows that child with "Present"
-    And with sa_add_child off, or when the list cannot open because every child has been tested or the school is not theirs, the page shows only its message, as before
+    And with sa_add_child off, or when the school is not theirs, the page shows only its message, as before
+
+  @LP31 @config-gated
+  # Asserted in portal/src/portal/pages/LeaderAssess.test.tsx ("frame_exhausted where the server says Add opens the
+  # list") and, on the server, tests/child-test/L3/sa-add-child-empty-roster.test.js ("the second visit").
+  Scenario: Learning assessment: on a second visit to a Gilgit-Baltistan school where every child was tested, "Add a child" opens the day's list (sa_add_child)
+    Given sa_add_child is on and every child on the Gilgit-Baltistan school's roster for the chosen grade was tested on an earlier visit
+    When they open /portal/leader/assess, pick that school and grade, and see "Every child in this grade has been tested this term."
+    Then "Add a child" is under that message
+    When they add a child by first name
+    Then the message goes and today's list shows that child with "Present"
+    And at an ICT school in the same state the page shows only the message, with no "Add a child", as before
