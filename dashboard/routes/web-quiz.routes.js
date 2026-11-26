@@ -1571,7 +1571,7 @@ function createWebQuizRouter(opts = {}) {
     next();
   };
   router.get('/j/:code', pushLanded('class_link'));
-  // reminders c2 (web_quiz_install_android; the page links this only when the bot's /api/wqpush/key says so): the finish
+  // the finish-screen install card (web_quiz_install_android; the page links this only when the bot's /api/wqpush/key says so): the finish
   // screen's install manifest. One fixed id, so every finish-screen install is the same app to Chrome (no second icon,
   // no re-offer after the next quiz); the icon reopens the finished quiz, which link_home turns into that child's hub.
   router.get('/q/:code/manifest.webmanifest', limiters.read, (req, res) => {

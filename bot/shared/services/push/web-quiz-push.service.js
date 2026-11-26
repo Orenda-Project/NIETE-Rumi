@@ -129,7 +129,7 @@ async function switches(now = Date.now()) {
     if (remind && on(KEYS.askV2)) s.askV2 = true;
     // the permission primer: one "your phone will ask next" screen between our Yes and the browser's prompt
     if (remind && on(KEYS.primer)) s.primer = true;
-    // c2: the finish screen may offer the Android install once the reminder ask is settled (not the reminder's canary)
+    // install card: the finish screen may offer the Android install once the reminder ask is settled (not the reminder's canary)
     if (on(KEYS.installAndroid)) s.installAndroid = true;
     lastGood = s;
   } catch (err) {
