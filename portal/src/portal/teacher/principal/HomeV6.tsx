@@ -24,7 +24,9 @@ import { BookedRow } from "../../coach/flow/BookedRow";
 import { groupBooked, oldestFirst, waitedDays } from "../../coach/flow/model";
 import { trackFlow } from "../../coach/flow/track";
 import { SchoolHomeCard } from "./SchoolHomeCard";
-import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalObservationPath, principalBookedTo } from "./observe";
+import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_OBSERVE_ROUTES, PRINCIPAL_PICK, principalObservationPath, principalBookedTo } from "./observe";
+import { useKeptItems } from "../../coach/observe/keptRecording";
+import { KeptRows } from "../../coach/observe/KeptRows";
 import { COACH_TRAINING } from "../../coach/coachTraining/copy";
 import { PRINCIPAL_TRAINING_PATH } from "../../coach/coachTraining/audience";
 
@@ -50,6 +52,14 @@ export function PrincipalFocus() {
   const waiting = useMemo(() => oldestFirst(reports.data?.waiting), [reports.data]);
   const g = useMemo(() => groupBooked(schedule.data, today), [schedule.data, today]);
   const big = cn("flex min-h-[56px] items-center justify-center gap-2.5 rounded-2xl bg-[#33374a] px-4 text-[16px] font-semibold leading-tight text-white rtl:leading-[1.8]", FOCUS);
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent: Needs you, first.
+  const keptItems = useKeptItems() ?? [];
+  const keptCard = keptItems.length > 0 ? (
+    <section data-testid="home-kept" className="flex flex-col gap-2">
+      <SectionLabel count={keptItems.length} countTone="warn">{S.needsYou}</SectionLabel>
+      <div className={LIST_CARD}><KeptRows items={keptItems} routes={PRINCIPAL_OBSERVE_ROUTES} /></div>
+    </section>
+  ) : null;
 
   let body: JSX.Element | null = null;
   if (waiting.length > 0) {
@@ -104,8 +114,8 @@ export function PrincipalFocus() {
       </section>
     );
   }
-  if (!body) return null;
-  return <div data-testid="focus-card" className="mt-1">{body}</div>;
+  if (!body && !keptCard) return null;
+  return <div data-testid="focus-card" className="mt-1 flex flex-col gap-2.5">{keptCard}{body}</div>;
 }
 
 /**

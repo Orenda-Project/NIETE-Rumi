@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { CalendarDays, MapPin, Play, Send, User, X } from "lucide-react";
+import { CalendarDays, MapPin, Send, User, X } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { HistoryRow, RecordUploadPair, StatStrip } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
@@ -22,7 +22,8 @@ import { REPORTS } from "../reports/copy";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { useUploadOnly } from "../observe/uploadOnly";
-import { useKeptFor } from "../observe/keptRecording";
+import { keptFor, keptState, useKept } from "../observe/keptRecording";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { SCHOOL_CARD } from "../card/copy";
 import { PRINCIPAL } from "../../teacher/principal/copy";
 import { LESSONS } from "../../teacher/lessons/copy";
@@ -80,7 +81,14 @@ const CoachVisit = () => {
   const job = useSendJob(id);
   // bd-ih6cej — the switch (upload-only for a person it names; everyone else the in-app recorder) and a kept copy.
   const uploadOnly = useUploadOnly();
-  const kept = useKeptFor(data?.visit?.status === "upcoming" ? data.visit.teacherExtId : null) === true;
+  // bd-ma9jiy.3 (queue #262): the kept copy itself, to say paused (Continue recording only) or not sent (Send saved recording).
+  const keptTeacher = data?.visit?.status === "upcoming" ? data.visit.teacherExtId || "" : "";
+  const keptRec = useKept(keptTeacher ? () => keptFor(keptTeacher) : null, [keptTeacher]);
+  const kept = !!keptRec;
+  const keptPaused = !!keptRec && uploadOnly === false && keptState(keptRec) === "paused";
+  // Nothing to press until the phone has answered (a quick read): never Start recording first, then gone.
+  const keptRead = !keptTeacher || keptRec !== undefined;
+  const K = useKitCopy();
   // bd-o15qnr.28 (v7, board m9-errors card 1): an observation that did not reach the server says so here, with the fix.
   const v7 = useFlowV6() === true;
   const E = useCopy(FLOW_V7_ERRORS);
@@ -158,26 +166,26 @@ const CoachVisit = () => {
                   <span className="flex-1">{C.sendingNow} · {job.pct}%</span>
                   <Chevron />
                 </Link>
-              ) : (
+              ) : !keptRead ? null : (
                 <div className="flex flex-col gap-3">
                 {/* bd-ih6cej (queue #278) — a recording this phone keeps for this teacher (cut or never sent) comes first,
                     then the one line with the buttons: the weak-internet advice (upload-only: how to record first). */}
-                {/* bd-ma9jiy (queue #262) — with the in-app recorder, a kept recording is continued: the record step opens it
-                    as a paused recording (Resume / Stop). Upload-only: Send saved recording, as before. */}
-                {kept && uploadOnly === false && (
-                  <Link to={routes.record(id)} data-testid="continue-kept"
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
-                    <Play className="h-5 w-5 shrink-0 fill-current rtl:-scale-x-100" aria-hidden="true" />{C.continueKept}
-                  </Link>
+                {/* bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — a kept recording cut mid-way (within the hour, the
+                    in-app recorder): "Your recording was paused abruptly." and ONE Continue recording to the record step,
+                    which opens it paused; no Start recording, no Upload recording. One she stopped, or an older one, or
+                    upload-only: "Your recording was not sent." with Send saved recording, the two buttons under it. */}
+                {kept && !keptPaused && (
+                  <>
+                    <p data-testid="not-sent-line" className="m-0 text-[16px] font-semibold leading-snug text-[#b45309]">{K.notSentLine}</p>
+                    <Link to={routes.check(id)} data-testid="send-kept"
+                      className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
+                      <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{C.sendKept}
+                    </Link>
+                  </>
                 )}
-                {kept && uploadOnly === true && (
-                  <Link to={routes.check(id)} data-testid="send-kept"
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
-                    <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{C.sendKept}
-                  </Link>
-                )}
-                {uploadOnly !== null && <p data-testid="record-tip" className="m-0 text-[15px] leading-snug text-[#4b5563]">{uploadOnly ? C.uploadOnlyLine : C.weakInternet}</p>}
+                {uploadOnly !== null && !keptPaused && <p data-testid="record-tip" className="m-0 text-[15px] leading-snug text-[#4b5563]">{uploadOnly ? C.uploadOnlyLine : C.weakInternet}</p>}
                 <RecordUploadPair
+                  paused={keptPaused ? { to: routes.record(id) } : undefined}
                   recordTo={routes.record(id)} uploadTo={routes.attach(id)}
                   copy={{ startRecording: C.startRecording, uploadRecording: C.uploadRecording }}
                   actions={routes.visitActions ? [

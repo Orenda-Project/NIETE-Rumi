@@ -35,7 +35,9 @@ import { useFlowV6 } from "../../coach/flow/useCoachFlowV2";
 import { trackFlow } from "../../coach/flow/track";
 import { PRINCIPAL } from "./copy";
 import { PRINCIPAL_V6 } from "./copyV6";
-import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_PICK, principalBookedTo, principalObservationPath } from "./observe";
+import { PRINCIPAL_MY_OBSERVATIONS, PRINCIPAL_OBSERVE_ROUTES, PRINCIPAL_PICK, principalBookedTo, principalObservationPath } from "./observe";
+import { useKeptItems } from "../../coach/observe/keptRecording";
+import { KeptRows } from "../../coach/observe/KeptRows";
 // bd-3xf7vb.1 (queue #217): the "?" (how-to film + indicator guides) on her Observe screens, behind the v6 switch.
 import { ObserveHelpButton } from "../help/observe/ObserveHelp";
 
@@ -108,6 +110,9 @@ export function PrincipalObserveV6() {
     </div>
   );
   const shownWaiting = needsOpen ? waiting : waiting.slice(0, NEEDS_SHOWN);
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent, first.
+  const keptItems = useKeptItems() ?? [];
+  const needsCount = waiting.length + keptItems.length;
 
   return (
     <TeacherPage feature="observations" title={Frame.coachNav.observe} crumb={todayLabel(new Date(), lang)} backTo={teacherPath("home")}
@@ -122,18 +127,19 @@ export function PrincipalObserveV6() {
         </section>
 
         <section data-testid="needs-you" className="flex flex-col gap-2">
-          <SectionLabel count={reports.data ? waiting.length : undefined} countTone={waiting.length ? "warn" : "info"}>{S.needsYou}</SectionLabel>
+          <SectionLabel count={reports.data ? needsCount : undefined} countTone={needsCount ? "warn" : "info"}>{S.needsYou}</SectionLabel>
           {reports.failed && <Failed onRetry={reports.reload} />}
           {!reports.data && !reports.failed && <Loading />}
-          {reports.data && waiting.length === 0 && (
+          {reports.data && needsCount === 0 && (
             <div className={cn(LIST_CARD, "flex min-h-[64px] items-center gap-3 px-4 text-[15px] font-semibold text-[#6b7280]")}>
               <Inbox className="h-5 w-5 shrink-0" aria-hidden="true" />{S.nothingWaiting}
             </div>
           )}
-          {waiting.length > 0 && (
+          {needsCount > 0 && (
             <div className={LIST_CARD}>
+              <KeptRows items={keptItems} routes={PRINCIPAL_OBSERVE_ROUTES} />
               {shownWaiting.map((r, i) => (
-                <HistoryRow key={r.id} lead="person" first={i === 0} title={r.teacherName || S.dash}
+                <HistoryRow key={r.id} lead="person" first={keptItems.length + i === 0} title={r.teacherName || S.dash}
                   extra={[S.waitingSince(waitedDays(r, today)), ...classParts(r, classWords)].join(" · ")} chip={reportChip(r, R, true)}
                   to={principalObservationPath(r.id)} />
               ))}
