@@ -129,7 +129,17 @@ export function ReportBody({ data: d, copy, className, afterTryNext }: ReportBod
                   <span className="flex-1 text-[15px] font-semibold">{s.label}</span>
                   {s.na
                     ? <span className="text-[13px] font-semibold text-[#6b7280]">{s.naWords || words.notAssessed}</span>
-                    : <span className="text-[15px] font-bold tabular-nums">{`${s.score}/${s.max}`}</span>}
+                    : percent === null ? <span className="text-[15px] font-bold tabular-nums">{`${s.score}/${s.max}`}</span>
+                    : (
+                      // bd-r2uzg1.23.11 (queue #274, call 23A; the operator 26 Nov): the section as a percentage, its
+                      // points as a small grey fraction under it, as #293's observer score card. Readers stopped adding
+                      // up fractions out of different totals; the headline above is unchanged. Only on a scored report: one
+                      // with no overall (no marks) keeps its plain fraction, and no % is invented.
+                      <span className="flex flex-col items-end leading-tight">
+                        <span data-testid="section-pct" dir="ltr" className="text-[15px] font-bold tabular-nums">{`${v}%`}</span>
+                        <span data-testid="section-fraction" dir="ltr" className="text-[12px] text-[#9ca3af] tabular-nums">{`${s.score}/${s.max}`}</span>
+                      </span>
+                    )}
                 </div>
                 {!s.na ? (
                   <div className="mb-1.5 ms-[30px] mt-[7px] h-2 overflow-hidden rounded-full bg-[#e8ece9]">
