@@ -35,6 +35,9 @@ function schedulePushTicks({
   unref(setTimeoutFn(async () => {
     await expire();
     await due();
+    // the day's funnel row too: a restart after 21:00 PKT would otherwise wait the full hour for it (or lose it past
+    // midnight PKT); the tick is time-gated and logs once per day, so an earlier boot call does nothing
+    await funnel();
     unref(setIntervalFn(due, DUE_MS));
     unref(setIntervalFn(expire, EXPIRE_MS));
     unref(setIntervalFn(funnel, FUNNEL_MS));
