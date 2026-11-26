@@ -273,7 +273,12 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     const roleOf = (r) => (/^example/.test(r) ? 'example' : 'practice');
     const namePractice = ln.practice_from
       ? at(banks, ln.practice_from).map((p, i) => ({ item: p.item, role: roleOf(p.role), src: p.src || `${ln.practice_from}[${i}]` }))
-      : (ln.practice || []).map((x) => { const p = at(banks, x.from)[x.index]; return { item: p.item, role: roleOf(p.role), src: p.src || `${x.from}[${x.index}]` }; });
+      // a practice entry either points into a bank ({ from, index }) or names its letter itself ({ item, role, src }: a
+      // content owner's own example letter, which no bank's practice list holds)
+      : (ln.practice || []).map((x) => {
+        if (x.item) return { item: x.item, role: roleOf(x.role || 'example'), src: x.src };
+        const p = at(banks, x.from)[x.index]; return { item: p.item, role: roleOf(p.role), src: p.src || `${x.from}[${x.index}]` };
+      });
     out.push(oneAtATime('letter_names', `${lang}.letter_names5`, ln, (x) => (lang === 'ur' ? UR_LETTER_NAMES[x] || x : x), namePractice,
       { subtask: 'letter_name_identification' }));
     const ls = spec.letter_sounds;

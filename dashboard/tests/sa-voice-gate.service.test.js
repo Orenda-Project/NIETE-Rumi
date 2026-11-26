@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-50'); // sa-50: the silence stop's own floor (sa-rec.js) and served_n on a one-at-a-time result (sa-core.js)
+    expect(sw.CORE).toBe('sa-core-sa-51'); // sa-51: the letter-sound picker's and the letter-names practice's reviewed items (SESSION v35)
   });
 });
 
