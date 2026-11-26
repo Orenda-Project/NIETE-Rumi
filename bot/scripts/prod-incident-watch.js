@@ -120,7 +120,7 @@ async function replay({ W, from, to, step, cfg, env, dataset, live, detail, axio
   for (let t = from; t <= to; t += step * MIN) {
     const before = posts.length;
     // eslint-disable-next-line no-await-in-loop
-    await W.tick({ now: new Date(t), cfg, query, store, post, checkHealth: null, env, dataset, axiomOrg, details: detail });
+    await W.tick({ now: new Date(t), cfg, query, store, post, checkHealth: null, env, dataset, axiomOrg });
     for (let i = before; i < posts.length; i += 1) {
       posts[i].at = t;
       if (!quiet) {
@@ -182,10 +182,10 @@ async function main(argv = process.argv.slice(2), { out = (s) => process.stdout.
     if (!slack.token || !slack.channel) { out('PROD_ALERTS_SLACK_TOKEN and PROD_ALERTS_SLACK_CHANNEL are needed for --send-test'); return 2; }
     const text = [
       '🧪 *test* · production alerts are wired to this channel',
-      'Nothing is wrong. A real alert looks like this: one post per incident with a colour bar, updates in its thread, an all-clear at the end.',
+      'Nothing is wrong. A real alert is one line per incident, updates in its thread, a one-line resolved at the end.',
       '_rule-based, no model in the path · sent once by hand from bot/scripts/prod-incident-watch.js --send-test_',
     ].join('\n');
-    const ts = await postToSlack(text, slack, { color: W.COLOR.green });
+    const ts = await postToSlack(text, slack);
     out(`posted the test message (ts ${ts})`);
     return 0;
   }
