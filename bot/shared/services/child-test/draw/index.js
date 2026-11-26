@@ -632,14 +632,14 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
  * in the logs.
  *
  * An empty list (nothing drawn for the visit yet): the draw lists first, so an empty list is `no_list`, as before,
- * unless the caller passes `visitDraw`, the visit's own draw (todaysList's coachUserId, observedGrade, grade, allGrades,
- * perVisit: the coach app's addChild passes what its dayList draws with). Then the draw is asked first, for that visit
- * and the grades it would list:
+ * with nothing drawn or written. At a Gilgit-Baltistan school only (region registry), and only when the caller passes
+ * `visitDraw`, the visit's own draw (todaysList's coachUserId, observedGrade, grade, allGrades, perVisit: the coach app's
+ * addChild passes what its dayList draws with), the draw is asked first, for that visit and the grades it would list:
  *   children listed                         the list is drawn and the child joins it (as after opening the list)
  *   nobody on the roster (no_class_list)    the first child added opens the list (every GB school on NIETE today)
- *   everybody tested (frame_exhausted)      the first child opens the list at a Gilgit-Baltistan school only (the
- *                                           coach's second visit there); anywhere else `no_list`, as before
+ *   everybody tested (frame_exhausted)      the first child opens the list (the coach's second visit)
  *   anything else                           `no_list`
+ * An ICT school is exactly sandbox: `no_list`, nothing drawn, nothing written.
  * An opened list must be the coach's own day at this school (a day key for this school and today, of this grade when
  * it names one) or an observe visit at this school.
  */
@@ -655,10 +655,10 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
   const open = await listFor(visitId);
   if (!open.ok) return open;
   if (open.empty) {
-    if (!visitDraw) return { ok: false, reason: 'no_list' };
+    if (!visitDraw || !(await isGilgitBaltistan(schoolId))) return { ok: false, reason: 'no_list' };
     const drawn = await todaysList({ ...visitDraw, schoolId, visitId: givenVisitId, visitKey, now });
     if (!drawn.ok) {
-      const nobody = drawn.reason === 'no_class_list' || (drawn.reason === 'frame_exhausted' && await isGilgitBaltistan(schoolId));
+      const nobody = drawn.reason === 'no_class_list' || drawn.reason === 'frame_exhausted';
       if (!nobody) return drawn.reason ? { ok: false, reason: 'no_list' } : drawn;
       if (!(await visitIsHere({ visitId, schoolId, grade: g, now }))) return { ok: false, reason: 'no_list' };
       logToFile('[child-test] nobody to draw: the first added child opens the list', { schoolId, visitId, grade: g, why: drawn.reason });

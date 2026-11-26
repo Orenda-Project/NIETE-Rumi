@@ -9,9 +9,11 @@
  * draw and the REAL store; only the Supabase client is replaced (the L3 in-memory tables).
  *
  * The rule is the draw's own answer for that visit: "Add a child" on an empty day list asks the draw first, with the
- * visit's own grades. Children to list → they are listed and the child joins them. Nobody to list because nobody is on
- * the roster (no_class_list) → the first child opens the list. Every child already tested (frame_exhausted) → the first
- * child opens it at a Gilgit-Baltistan school only, the coach's second visit there; an ICT school keeps today's rule.
+ * visit's own grades, at a Gilgit-Baltistan school only. Children to list → they are listed and the child joins them.
+ * Nobody to list because nobody is on the roster (no_class_list) → the first child opens the list. Every child already
+ * tested (frame_exhausted) → the first child opens it (the coach's second visit). At an ICT school every one of these is
+ * exactly sandbox: the day list's answer carries nothing new, and "Add a child" on an empty list is no_list with
+ * nothing written.
  * The draw itself, called without the visit's draw, keeps today's rule (no_list), and a day key for another school
  * or another day is still refused. The coach app's clock is the draw's clock: Date is faked, and one case moves it.
  */
@@ -43,6 +45,7 @@ function seed({ roster = [], schoolRegion = 'Gilgit-Baltistan', allGrades = true
     region_features: [
       { region: 'gilgit-baltistan', organization: 'moawin', display_name: 'Gilgit-Baltistan', is_active: true },
       { region: 'urban', organization: 'niete', display_name: 'Urban', is_active: true },
+      { region: 'sihala', organization: 'niete', display_name: 'Sihala', is_active: true },
     ],
     app_settings: [{ key: 'sa_add_child', value: true }, ...(allGrades ? [{ key: 'sa_all_grades', value: true }] : [])],
     classes: [], class_enrollments: [], students: [], observation_field_forms: [],
@@ -67,7 +70,7 @@ beforeEach(() => {
   process.env = {
     ...ENV,
     CHILD_TEST_ENABLED: 'true',
-    CHILD_TEST_REGIONS: 'niete,ict,gilgit-baltistan,urban',
+    CHILD_TEST_REGIONS: 'niete,ict,gilgit-baltistan,urban,sihala',
     CHILD_TEST_COACH_IDS: COACH,
     CHILD_TEST_DRAW_SECRET: 'test-secret',
     CHILD_TEST_FORM_POLICY: 'returning_b',
@@ -238,10 +241,62 @@ describe('the second visit: every child on the list already tested', () => {
     expect(added.list.children.map((c) => c.firstName)).toEqual(['Sana']);
   });
 
-  test('at an ICT school, unchanged: the page is told nothing new and "Add a child" is refused', async () => {
-    const { list, added } = await dayOneThenTwo('Urban');
-    expect(list).toEqual({ status: 'invalid', reason: 'frame_exhausted' });
-    expect(added).toEqual({ status: 'invalid', reason: 'no_list' });
+  test('at an ICT school, unchanged: the roster drawn and tested on day 1, day 2 tells the page nothing new and refuses the add', async () => {
+    seed({ schoolRegion: 'Urban', roster: [{ id: 'g3a', grade: 3, size: 4 }] });
+    expect((await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps)).status).toBe('ok');
+    for (const r of T().child_test_draws) { r.status = 'tested'; r.tested_at = NOW.toISOString(); }
+    jest.setSystemTime(DAY2);
+    const d2 = { now: () => new Date(DAY2) };
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, d2)).toEqual({ status: 'invalid', reason: 'frame_exhausted' });
+    const before = T().child_test_draws.length;
+    expect(await sa.addChild({ userId: COACH, schoolId: SCHOOL, grade: 3, listGrade: 3, firstName: 'Sana', clientChildId: '0a0a0a0a-0000-4000-8000-0000000000a3' }, d2))
+      .toEqual({ status: 'invalid', reason: 'no_list' });
     expect(T().students.some((st) => st.student_name === 'Sana')).toBe(false);
+    expect(T().child_test_draws).toHaveLength(before);
+  });
+});
+
+describe('an ICT school is exactly sandbox: nothing new on the page\'s answer, nothing written by "Add a child"', () => {
+  const rows = () => ({ classes: T().classes.length, students: T().students.length, enrolments: T().class_enrollments.length, draws: T().child_test_draws.length });
+
+  test('RED on the second review\'s head: no class for Grade 3: dayList is sandbox\'s answer, and addChild is no_list with 0 rows written', async () => {
+    seed({ schoolRegion: 'Sihala' });
+    const before = rows();
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
+    expect(await add()).toEqual({ status: 'invalid', reason: 'no_list' });
+    expect(rows()).toEqual(before);
+  });
+
+  test('RED on the second review\'s head: the same with every grade off', async () => {
+    seed({ schoolRegion: 'Urban', allGrades: false });
+    const before = rows();
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
+    expect(await add({ listGrade: undefined })).toEqual({ status: 'invalid', reason: 'no_list' });
+    expect(rows()).toEqual(before);
+  });
+
+  test('RED on the second review\'s head: rosters in Grades 3 and 5 but none in Grade 1: no "Grade 1 A" class is made', async () => {
+    seed({ schoolRegion: 'Sihala', roster: [{ id: 'g3a', grade: 3, size: 6 }, { id: 'g5a', grade: 5, size: 6 }] });
+    const before = rows();
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 1 }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
+    expect(await add({ grade: 1, listGrade: 1 })).toEqual({ status: 'invalid', reason: 'no_list' });
+    expect(rows()).toEqual(before);
+  });
+
+  test('RED on the second review\'s head: 12 children in Grade 5, a Grade 3 child added before any list: no_list, nothing drawn', async () => {
+    seed({ schoolRegion: 'Urban', roster: [{ id: 'g5a', grade: 5, size: 12 }], allGrades: false });
+    const before = rows();
+    expect(await add({ listGrade: undefined })).toEqual({ status: 'invalid', reason: 'no_list' });
+    expect(rows()).toEqual(before);
+  });
+
+  test('the normal order at an ICT school (list first, then add) is today\'s: the drawn list, then the child last', async () => {
+    seed({ schoolRegion: 'Sihala', roster: [{ id: 'g3a', grade: 3, size: 8 }] });
+    const list = await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps);
+    expect(list.status).toBe('ok');
+    const out = await add();
+    expect(out.status).toBe('ok');
+    expect(out.list.children.map((c) => c.drawId).slice(0, list.list.children.length)).toEqual(list.list.children.map((c) => c.drawId));
+    expect(out.list.children[out.list.children.length - 1].firstName).toBe('Zara');
   });
 });

@@ -294,14 +294,15 @@ function visitDrawOf(userId, v, named, perVisit) {
 }
 
 /**
- * The day list could not be drawn: does "Add a child" open it (draw.addChild with the visit's draw)? Nobody on the
- * roster (no_class_list), anywhere; everybody tested (frame_exhausted), at a Gilgit-Baltistan school only. The page
- * shows "Add a child" under the message when this says yes.
+ * The day list could not be drawn: does "Add a child" open it (draw.addChild with the visit's draw)? At a
+ * Gilgit-Baltistan school only (region registry), when nobody is on the roster (no_class_list) or everybody is tested
+ * (frame_exhausted). The page shows "Add a child" under the message only when this says yes, so an ICT school's answer
+ * and page are exactly sandbox's.
  */
 async function addOpens(reason, schoolId) {
-  if (reason === 'no_class_list') return true;
+  if (reason !== 'no_class_list' && reason !== 'frame_exhausted') return false;
   // eslint-disable-next-line global-require
-  return reason === 'frame_exhausted' && (await require('../draw/region').isGilgitBaltistan(schoolId));
+  return require('../draw/region').isGilgitBaltistan(schoolId);
 }
 
 const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId, schoolId, visitId, grade }, d) => {
