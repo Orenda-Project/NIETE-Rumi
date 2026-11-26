@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { Check, Compass, MessageCircle, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Compass, MessageCircle, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { leader } from "../../services/api";
 import type { TalkGuide, TalkGuideSection } from "../../services/api";
@@ -35,7 +35,9 @@ import { FLOW_V7, type FlowV7Copy } from "../flow/copyV7";
 import { coachReportPath } from "../report/api";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useUploadOnly } from "../observe/uploadOnly";
-import { keptDebriefFor, useKept } from "../observe/keptRecording";
+import { keptDebriefFor, keptState, useKept } from "../observe/keptRecording";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
+import { withDuration } from "../../lib/webmDuration";
 import { rememberRecording } from "../../lib/coachObserve";
 import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { tellSent } from "../../lib/recordingBeat";
@@ -230,13 +232,21 @@ export default function Debrief() {
     teacherExtId: "", schoolExtId: null, teacherName: name || "", kind: "dbrf", observationId: id,
   });
   const keptTalk = useKept(view && !uploadOnly ? () => keptDebriefFor(id) : null, [id, !!view, uploadOnly]);
-  const resumableTalk = keptTalk && keptTalk.meta.ext === ".webm" ? keptTalk : null;
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — a talk cut mid-way within the hour: the page says "Your
+  // recording was paused abruptly." with ONE Continue recording on top (no Record / Upload); the press opens the recorder
+  // PAUSED. One she stopped, or an older one (#292's rule): "Your recording was not sent." and Send saved recording.
+  const resumableTalk = keptTalk && keptState(keptTalk) === "paused" ? keptTalk : null;
+  const unsentTalk = keptTalk && !resumableTalk ? keptTalk : null;
+  const keptRead = uploadOnly || keptTalk !== undefined;
   const keptOpened = useRef(false);
-  useEffect(() => {
-    if (keptOpened.current || !resumableTalk || stage !== "guide" || !hers) return;
-    keptOpened.current = true;
-    setStage("recording");
-  }, [resumableTalk, stage, hers]);
+  const K = useKitCopy();
+  const openKept = () => { keptOpened.current = true; setStage("recording"); };
+  const sendKeptTalk = async () => {
+    const k = unsentTalk;
+    if (!k) return;
+    const blob = await withDuration(k.blob, k.meta.ext, k.meta.elapsedMs);
+    void send({ blob, filename: `Talk${k.meta.ext}`, recordingId: k.meta.id });
+  };
   const onFile = async (picked: File | undefined) => {
     setFileError(null);
     if (!picked) return;
@@ -262,13 +272,16 @@ export default function Debrief() {
   // bd-ih6cej — one line with the buttons: the weak-internet advice, or (upload-only) how to record before uploading.
   const tip = uploadOnly ? O.uploadOnlyLine : O.weakInternet;
   // bd-o15qnr.49 — v7: Record debrief floats at the bottom (the frame's dock), not at the end of the notes.
-  const dock = v7 && canStart ? <DebriefDock onRecord={uploadOnly ? undefined : record} onUpload={pick} tip={tip} /> : undefined;
+  const keptPausedHere = stage === "guide" && !!view && hers && !!resumableTalk && !keptOpened.current;
+  const dock = v7 && canStart && keptRead && !keptPausedHere ? <DebriefDock onRecord={uploadOnly ? undefined : record} onUpload={pick} tip={tip} /> : undefined;
 
   return (
     <ReportsFrame title={C.debriefTitle} crumb={name ? C.stepCrumb(name, SCREEN_STEP.debrief, OBSERVATION_STEPS) : C.observation} onBack={recording ? undefined : back}
       chips={recording ? undefined : chips} bare={recording} backTo={recording ? home : undefined} testId="coach-debrief"
       dock={dock}>
       <LoadState status={status === "ok" ? "ok" : status} empty={false} onRetry={reload} />
+
+      {keptPausedHere && <RecordUploadPair paused={{ onPress: openKept }} />}
 
       {stage === "guide" && view && (
         <>
@@ -321,8 +334,17 @@ export default function Debrief() {
               buttons are the dock's (bd-o15qnr.49); the file input and its error stay here. */}
           {canStart && (
             <>
-              {!dock && <p data-testid="record-tip" className="m-0 text-center text-[15px] leading-snug text-[#4b5563]">{tip}</p>}
-              {!dock && (uploadOnly
+              {unsentTalk && !uploadOnly && (
+                <>
+                  <p data-testid="not-sent-line" className="m-0 text-center text-[16px] font-semibold leading-snug text-[#b45309]">{K.notSentLine}</p>
+                  <button type="button" data-testid="send-kept" onClick={() => { void sendKeptTalk(); }}
+                    className={cn("flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>
+                    <Send className="h-5 w-5 shrink-0" aria-hidden="true" />{O.sendKept}
+                  </button>
+                </>
+              )}
+              {!dock && keptRead && !keptPausedHere && <p data-testid="record-tip" className="m-0 text-center text-[15px] leading-snug text-[#4b5563]">{tip}</p>}
+              {!dock && keptRead && !keptPausedHere && (uploadOnly
                 ? <button type="button" onClick={pick} className={cn("min-h-[56px] rounded-2xl bg-[#33374a] text-base font-semibold text-white", FOCUS)}>{C.uploadRecording}</button>
                 : <RecordUploadPair onRecord={record} onUpload={pick} />)}
               <input ref={input} data-testid="talk-input" type="file" accept={AUDIO_ACCEPT} className="hidden"

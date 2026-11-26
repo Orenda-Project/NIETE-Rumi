@@ -37,7 +37,7 @@ export interface AudioCardProps {
   lead?: ReactNode;
   /** A control beside the play button (Redo). Keep it a 56px target. */
   action?: ReactNode;
-  copy?: Partial<Pick<TeacherUiCopy, 'play' | 'pause' | 'speed' | 'back10' | 'forward10' | 'position' | 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed'>>;
+  copy?: Partial<Pick<TeacherUiCopy, 'play' | 'pause' | 'speed' | 'back10' | 'forward10' | 'position' | 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed' | 'savedNotSent'>>;
   className?: string;
   /**
    * Queue #251 (the operator 24 Nov: "when you click on the timestamp, it should show you the recording part of it") —
@@ -53,7 +53,15 @@ export interface AudioCardProps {
    * recordingFilename: NIETE_OBS_3Eng_25Nov_1040.webm). Shown only where it can work (canSave: a phone-only copy needs a
    * plain browser). The answer stays on screen 10 s.
    */
-  save?: { filename: string; kind: SaveKind | 'dc'; recordingId?: string | null };
+  save?: {
+    filename: string; kind: SaveKind | 'dc'; recordingId?: string | null;
+    /**
+     * bd-ma9jiy.3 (queue #262; #290: a principal pressed Save to phone 8 times and never Send) — the recording is NOT SENT
+     * yet and this is the word on the page's button that sends it ("Send", "Submit"): after a save the player says
+     * "Saved on your phone. It is not sent yet: tap Send." and keeps saying it.
+     */
+    unsentSend?: string;
+  };
 }
 
 /**
@@ -341,9 +349,10 @@ const SAVE_HOLD_MS = 10_000;
 function SaveToPhone({ src, save, words }: {
   src: string;
   save: NonNullable<AudioCardProps['save']>;
-  words: Pick<TeacherUiCopy, 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed'>;
+  words: Pick<TeacherUiCopy, 'saveToPhone' | 'saving' | 'savedToPhone' | 'saveLinkCopied' | 'saveFailed' | 'savedNotSent'>;
 }) {
   const [state, setState] = useState<'idle' | 'saving' | SaveHow>('idle');
+  const [savedOnce, setSavedOnce] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const press = async () => {
@@ -351,6 +360,7 @@ function SaveToPhone({ src, save, words }: {
     setState('saving');
     const how = await saveRecordingToPhone({ src, filename: save.filename, kind: save.kind, recordingId: save.recordingId ?? null });
     setState(how);
+    if (how !== 'failed' && how !== 'copied') setSavedOnce(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setState('idle'), SAVE_HOLD_MS);
   };
@@ -359,13 +369,16 @@ function SaveToPhone({ src, save, words }: {
       : state === 'copied' ? words.saveLinkCopied
         : state === 'handoff' || state === 'app_browser' ? words.savedToPhone
           : null;
+  // bd-ma9jiy.3 — secondary: the page's Send is the one primary button. Smaller, outlined, centred under the controls.
+  const notSent = savedOnce && save.unsentSend ? words.savedNotSent(save.unsentSend) : null;
   return (
-    <div className="flex flex-col gap-1 pt-1">
+    <div className="flex flex-col items-center gap-1 pt-1">
       <button type="button" onClick={() => { void press(); }} disabled={state === 'saving'} data-testid="save-to-phone"
-        className={cn('flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 text-[15px] font-semibold text-[#33374a] disabled:opacity-60', FOCUS)}>
-        <Download className="h-5 w-5" aria-hidden="true" />{words.saveToPhone}
+        className={cn('inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-full border border-[#d1d5db] bg-white px-4 text-[14px] font-medium text-[#4b5563] disabled:opacity-60', FOCUS)}>
+        <Download className="h-4 w-4" aria-hidden="true" />{words.saveToPhone}
       </button>
-      {said ? <p role="status" className={cn('m-0 text-center text-[13px]', state === 'failed' ? 'text-[#b45309]' : 'text-[#6b7280]')}>{said}</p> : null}
+      {notSent ? <p role="status" data-testid="saved-not-sent" className="m-0 text-center text-[14px] font-semibold leading-snug text-[#b45309]">{notSent}</p> : null}
+      {said && !(notSent && state !== 'failed' && state !== 'saving') ? <p role="status" className={cn('m-0 text-center text-[13px]', state === 'failed' ? 'text-[#b45309]' : 'text-[#6b7280]')}>{said}</p> : null}
     </div>
   );
 }

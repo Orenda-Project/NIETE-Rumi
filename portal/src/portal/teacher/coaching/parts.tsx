@@ -262,10 +262,16 @@ const minutesOf = (ms: number | null) => (ms != null ? Math.max(1, Math.round(ms
  * made once per recording and released with it.
  */
 export function RecordingCard({ audio, onRedo, onChangeFile, full = false }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void; full?: boolean }) {
-  const C = useCopy(COACHING);
   // bd-ma9jiy (queue #262) — with portal_recording_resume on for her: the portal's ONE recording player (AudioCard's full
   // player: bar, back / forward 10 s, 1×–4×, Save to phone as NIETE_OBS_…), as the coach's observation and debrief have.
-  if (full) return <FullRecordingCard audio={audio} onRedo={onRedo} onChangeFile={onChangeFile} />;
+  // bd-ma9jiy.3: two components, not an early return before the hooks — `full` can change once her switch is read.
+  return full
+    ? <FullRecordingCard audio={audio} onRedo={onRedo} onChangeFile={onChangeFile} />
+    : <PlainRecordingCard audio={audio} onRedo={onRedo} onChangeFile={onChangeFile} />;
+}
+
+function PlainRecordingCard({ audio, onRedo, onChangeFile }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void }) {
+  const C = useCopy(COACHING);
   const player = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -407,7 +413,8 @@ function FullRecordingCard({ audio, onRedo, onChangeFile }: { audio: DcAudio; on
         sub={minutes != null ? C.minutes(minutes) : undefined}
         src={url ?? undefined}
         controls
-        save={{ kind: 'dc', filename: name, recordingId: !saved ? audio.recordingId ?? null : null }}
+        // bd-ma9jiy.3 (queue #262): not sent until she submits — a save says so, naming Submit.
+        save={{ kind: 'dc', filename: name, recordingId: !saved ? audio.recordingId ?? null : null, unsentSend: C.submit }}
         action={(
           <button
             type="button"
