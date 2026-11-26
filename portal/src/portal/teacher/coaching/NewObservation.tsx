@@ -575,7 +575,7 @@ export function NewObservationPage() {
             <>
               <RecordUploadPair paused={{
                 onPress: () => continueKept(), testId: 'dc-continue-kept',
-                label: [classLabel(linkOf(pausedKept.meta) ?? {}), pkTime(pausedKept.meta.startedAt)].filter(Boolean).join(' · ') || undefined,
+                label: [classLabel({ grade: linkOf(pausedKept.meta)?.grade ?? null, subject: linkOf(pausedKept.meta)?.subject ?? null }), pkTime(pausedKept.meta.startedAt)].filter(Boolean).join(' · ') || undefined,
               }} />
               <button type="button" data-testid="dc-different-lesson" onClick={() => setNewLesson(true)}
                 className={cn('mx-auto flex min-h-[48px] items-center justify-center rounded-full border border-[#d1d5db] bg-white px-5 text-[15px] font-medium text-[#4b5563]', FOCUS)}>
