@@ -76,7 +76,7 @@
  *      (coach_app_link stays as it is and can be retired later). A coach who chose WhatsApp today (reply 1, or the app's
  *      "Continue on WhatsApp") gets today's flow until PKT midnight: no second nudge. Old code never reads the key, so a
  *      rollback is OFF.
- *   2g. THE PRINCIPAL APP LINK (bd-eqkr0n, queue #203 follow-up), for observe only (PRINCIPAL_LINKS): a principal the
+ *   2g. THE PRINCIPAL APP LINK (bd-eqkr0n, queue #203 follow-up), for observe, papers and /training (PRINCIPAL_LINKS): a principal the
  *      principal app is on for (app_settings portal_principal_app names her: true, "true" or a list holding her; AND
  *      users.role principal: the portal's own rule, dashboard/lib/teacher-app isPrincipalAppUser) gets ONE cta_url
  *      message, the coach nudge's line without its "reply 1" sentence and its [Open in the app] button, signed in on her
@@ -266,7 +266,19 @@ const COACH_FULL_APP_KEY = 'portal_coach_full_app';
  */
 // bd-uxzi8c (queue #205): an exam paper too. The teacher app's own paper page and words (APP_LINK_COPY), since the
 // principal app opens the teacher app's pages; before this a principal got the WhatsApp Flow and the PDF in chat.
-const PRINCIPAL_LINKS = Object.freeze({ observe: 'principal_observe', assessment_generator: 'assessment_generator' });
+// bd-l82vfe (queue #296): /training too, on the teacher Training page in the teacher link's words. The principal app's
+// own Home Training tile opens that page (principal/HomeV6.tsx); before this a principal got the WhatsApp Training Flow
+// (prod, 27 Oct-26 Nov: 18 principals, 14 of them in Gilgit-Baltistan, test accounts aside). The operator, 26 Nov:
+// "/training should go for the IAB flow, not the WhatsApp."
+const PRINCIPAL_LINKS = Object.freeze({
+  observe: 'principal_observe', assessment_generator: 'assessment_generator', teacher_training: 'teacher_training',
+});
+/**
+ * A request listed here goes to the principal app only from these doors (the `reason` the caller gives), the same doors
+ * as the coach's /training (COACH_LINK_DOORS): /certificates and the module exam and capstone buttons also reach
+ * teacher_training but are not "open training", so they keep their WhatsApp behaviour. Observe and papers: any door.
+ */
+const PRINCIPAL_LINK_DOORS = Object.freeze({ teacher_training: ['command', 'chip', 'menu', 'training_door'] });
 const PRINCIPAL_COPY = Object.freeze({ principal_observe: ['principalAppBodyObserve', 'principalAppButtonObserve'] });
 
 /**
@@ -623,8 +635,10 @@ async function sendWhatsappButton(feature, { userId, from, language, journey }) 
  * read first (no row, or one that does not name her, costs no users read); then her users row, which must say
  * principal. `account` is the caller's memoised users read. A failed read is null: today's flow, never a guess.
  */
-async function principalLink(feature, userId, now, account) {
+async function principalLink(feature, userId, now, account, reason) {
   if (!Object.prototype.hasOwnProperty.call(PRINCIPAL_LINKS, feature)) return null;
+  const doors = PRINCIPAL_LINK_DOORS[feature];
+  if (doors && !doors.includes(reason)) return null;
   const values = await settingValues(now);
   if (!namesUser(values.get(PRINCIPAL_APP_KEY), userId)) return null;
   let a;
@@ -830,7 +844,7 @@ async function decideRedirect(feature, { userId, from, language, reason = 'unspe
     let read = null;
     const account = () => { if (!read) read = loadAccount(userId); return read; };
     // bd-eqkr0n (2g) — a principal on the principal app: the app's button only, no "reply 1" offer armed.
-    const principal = await principalLink(feature, userId, now, account);
+    const principal = await principalLink(feature, userId, now, account, reason);
     if (principal) {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'leader' });
       return sendAppLink(principal, { userId, from, language, reason, journey, copy: PRINCIPAL_COPY[principal] });
