@@ -40,7 +40,7 @@ export interface RecordUploadPairProps {
   /** Two 88px buttons with the 44px art beside the words (a screen where more steps follow: Digital Coaching's one screen). */
   compact?: boolean;
   /** bd-ma9jiy.3 — a kept recording cut mid-way: only its line and Continue recording (a link or a button). */
-  paused?: { to?: string; onPress?: () => void; testId?: string };
+  paused?: { to?: string; onPress?: () => void; testId?: string; /** bd-ma9jiy: which recording (its class, its time). */ label?: string };
   className?: string;
 }
 
@@ -52,6 +52,7 @@ export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actio
       {paused ? (
         <>
           <p data-testid="paused-line" className="m-0 text-center text-[16px] font-semibold leading-snug text-[#b45309]">{words.pausedAbruptly}</p>
+          {paused.label ? <p data-testid="paused-label" className="m-0 -mt-1 text-center text-[15px] leading-snug text-[#4b5563]">{paused.label}</p> : null}
           <div className={cn(GRID, 'grid-cols-1')}>
             <Square to={paused.to} onPress={paused.onPress} name={words.continueRecording} compact={compact} testId={paused.testId ?? 'continue-kept'} className="bg-[#33374a] text-white">
               <span aria-hidden="true" className={cn('relative flex shrink-0 items-center justify-center', art)}>

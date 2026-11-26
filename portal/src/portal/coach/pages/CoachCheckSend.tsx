@@ -21,8 +21,9 @@ import { AddNote, NotesList, shownNote } from "../observe/ObservationNotes";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
 import { checkPlanFile, formatSize, OBSERVE_MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
-import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
+import { forgetRecording } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
+import { sameObservation } from "../../lib/recordingLink";
 import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { withDuration } from "../../lib/webmDuration";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
@@ -550,10 +551,9 @@ const CoachCheckSend = () => {
   useEffect(() => {
     if (audio || !visit) return undefined;
     let live = true;
-    // bd-ih6cej: THIS teacher's kept copy, even when a newer kept recording belongs to someone else.
-    latestUnsent((m) => recordingTeacher(m.id)?.teacherExtId === visit.teacherExtId).then(async (u) => {
-      const who = u ? recordingTeacher(u.meta.id) : null;
-      if (live && u && who && who.teacherExtId === visit.teacherExtId) {
+    // bd-ih6cej / bd-ma9jiy (26 Nov ~15:10): THIS visit's kept copy (its link), never another visit's of the same teacher.
+    latestUnsent((m) => sameObservation(m, { kind: "obs", visitId: visit.id })).then(async (u) => {
+      if (live && u) {
         const blob = await withDuration(u.blob, u.meta.ext, u.meta.elapsedMs);
         const found: DraftAudio = {
           blob, filename: lessonFilename(u.meta.ext, new Date(u.meta.startedAt)), durationMs: u.meta.elapsedMs || null,

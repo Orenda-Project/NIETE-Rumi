@@ -64,6 +64,8 @@ type Options = {
   resume?: ResumeFrom;
   /** bd-ma9jiy: the heartbeat (recordingBeat). None: no telemetry (the child test). */
   heart?: HeartLike;
+  /** bd-ma9jiy (26 Nov ~15:10): what this recording belongs to, kept in its row on the phone (recordingStore). */
+  link?: Store.RecordingLink;
 };
 
 function newId(): string {
@@ -76,6 +78,7 @@ function newId(): string {
 
 export class LessonRecorder {
   readonly id: string;
+  private readonly link?: Store.RecordingLink;
   private readonly stream: MediaStream;
   private readonly type: RecordingType;
   private readonly store: StoreLike;
@@ -105,6 +108,7 @@ export class LessonRecorder {
     this.onChunk = opts.onChunk;
     this.sliceMs = opts.sliceMs || SLICE_MS;
     this.heart = opts.heart;
+    this.link = opts.link;
     this.prior = opts.resume ? opts.resume.prior : null;
     this.firstOfPart = !!opts.resume;
     if (opts.resume) {
@@ -118,6 +122,7 @@ export class LessonRecorder {
       try {
         await this.store.createRecording({
           id: this.id, mimeType: this.type.mimeType, ext: this.type.ext, startedAt: this.startedAt(),
+          ...(this.link ? { link: this.link } : {}),
         });
       } catch {
         // No phone storage (private browsing): the recording still lives in memory.

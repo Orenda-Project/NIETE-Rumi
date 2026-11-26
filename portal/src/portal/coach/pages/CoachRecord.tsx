@@ -26,7 +26,7 @@ import { clockText } from "../../components/coaching/coach/CoachRecorder";
 import type { CoachVisit } from "../types";
 import { useUploadOnly } from "../observe/uploadOnly";
 import PhoneRecord from "../observe/PhoneRecord";
-import { keptFor, keptState, useKept } from "../observe/keptRecording";
+import { keptForVisit, keptState, useKept } from "../observe/keptRecording";
 import type { KeptRecording } from "../../lib/recordingStore";
 import type { BeatContext } from "../../lib/recordingBeat";
 
@@ -362,8 +362,9 @@ const CoachRecord = () => {
   const keptAsk = !arrivedRecording && uploadOnly === false;
   // bd-ma9jiy (queue #262) — the kept recording itself: a WebM one opens as the paused recorder (Resume / Stop), not as
   // "Send saved recording". One the code cannot continue (an MP4 from an iPhone) keeps the saved-copy screen.
-  const keptTeacher = data?.visit?.teacherExtId || "";
-  const keptRec = useKept(keptAsk && keptTeacher ? () => keptFor(keptTeacher) : null, [keptTeacher, keptAsk]);
+  // bd-ma9jiy (26 Nov ~15:10): THIS visit's recording only (its link); another visit of the same teacher records afresh.
+  const keptTeacher = data?.visit?.teacherExtId ? data.visit.id : "";
+  const keptRec = useKept(keptAsk && keptTeacher ? () => keptForVisit(keptTeacher) : null, [keptTeacher, keptAsk]);
   const kept = keptRec === undefined ? null : !!keptRec;
   // bd-ma9jiy.3 (#292's rule): only one cut mid-way within the hour reopens paused; a stopped or older one is sent, never
   // joined onto a new lesson (PhoneRecord "kept": Send saved recording).
