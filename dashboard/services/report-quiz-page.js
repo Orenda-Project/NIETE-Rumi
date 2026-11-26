@@ -24,7 +24,7 @@ const { getLanguage } = require('../../bot/shared/config/languages');
 const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:48px;box-sizing:border-box;padding:12px 16px}'
   + '.qz form{display:inline-block;margin:0}.qz a.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}'
   + '.qmsg{width:100%;min-height:8em;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);resize:vertical}'
-  + '.qq summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weight:600}'
+  + '.qq summary{min-height:48px;padding:12px 0;cursor:pointer;font-weight:600;color:var(--s3)}'
   + '.qlist{list-style:none;padding:0;margin:0}.qitem{margin:0 0 14px}.qn{font-weight:700;margin-inline-end:6px}'
   + '.qitem ul{list-style:none;padding:0}.qopt{padding:6px 10px;border-radius:8px;border:1px solid var(--line);margin:0 0 6px}'
   + '.qopt.ok{border:2px solid var(--green);font-weight:600}.qopt.ok strong{color:var(--green)}'
@@ -38,9 +38,10 @@ const BEACON_EVENTS = Object.freeze(['copy', 'share', 'view_questions', 'make_ti
 function script(base, surface, state) {
   const j = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
   return `<script>(function(){var b=${j(base)},s=${j(surface)},st=${j(state)};`
-    + 'function ev(e,x){try{var o={ev:e,surface:s};for(var k in (x||{}))o[k]=x[k];var d=JSON.stringify(o);'
-    + "if(navigator.sendBeacon&&navigator.sendBeacon(b+'/e',new Blob([d],{type:'application/json'})))return;"
-    + "fetch(b+'/e',{method:'POST',headers:{'content-type':'application/json'},body:d,keepalive:true}).catch(function(){})}catch(_){}}"
+    // form-encoded: a CORS-safelisted type, so sendBeacon never refuses it (a JSON Blob is refused by Chrome).
+    + 'function ev(e,x){try{var o={ev:e,surface:s};for(var k in (x||{}))o[k]=String(x[k]);var d=new URLSearchParams(o);'
+    + "if(navigator.sendBeacon&&navigator.sendBeacon(b+'/e',d))return;"
+    + "fetch(b+'/e',{method:'POST',body:d,keepalive:true}).catch(function(){})}catch(_){}}"
     + "if(st==='making'){var t0=Date.now(),slow=false;"
     + "function next(){if(!slow&&Date.now()-t0>480000){slow=true;var w=document.getElementById('qslow');if(w)w.hidden=false;ev('make_timeout')}setTimeout(poll,slow?15000:4000)}"
     + "function poll(){fetch(b+'/state',{headers:{accept:'application/json'},cache:'no-store'}).then(function(r){return r.ok?r.json():null})"

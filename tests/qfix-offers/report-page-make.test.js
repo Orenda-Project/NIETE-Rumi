@@ -370,7 +370,11 @@ describe('ready: the page\'s own taps are logged once, server-side', () => {
     expect((await req('POST', `/cq/${t}/e`, { json: true, body: { ev: 'view_questions', surface: 'cq' } })).status).toBe(204);
     expect((await req('POST', `/cq/${t}/e`, { json: true, body: { ev: 'make_timeout', surface: 'cq' } })).status).toBe(204);
     expect((await req('POST', `/cq/${t}/e`, { json: true, body: { ev: 'drop_table', surface: 'cq' } })).status).toBe(400);
-    expect(portalEvents('transcript_quiz.page_copy')).toEqual([expect.objectContaining({ surface: 'cq', fallback: true, coachingSessionId: SID })]);
+    // what the page's own beacon sends: form-encoded, a CORS-safelisted type sendBeacon never refuses
+    expect((await req('POST', `/cq/${t}/e`, { body: { ev: 'copy', surface: 'cr', fallback: 'false' } })).status).toBe(204);
+    expect(portalEvents('transcript_quiz.page_copy')).toEqual([
+      expect.objectContaining({ surface: 'cq', fallback: true, coachingSessionId: SID }),
+      expect.objectContaining({ surface: 'cr', fallback: false })]);
     expect(portalEvents('transcript_quiz.page_share')).toEqual([expect.objectContaining({ surface: 'cr' })]);
     expect(portalEvents('transcript_quiz.page_view_questions')).toHaveLength(1);
     expect(portalEvents('transcript_quiz.page_make_failed')).toEqual([expect.objectContaining({ reason: 'timeout' })]);
