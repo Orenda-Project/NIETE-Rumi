@@ -10267,12 +10267,12 @@ BEGIN
   -- Lock every question row: a child's answer insert needs FOR KEY SHARE on its row, so from here on none can land.
   PERFORM 1 FROM public.quiz_questions WHERE quiz_id = p_quiz_id ORDER BY id FOR UPDATE;
   SELECT count(*) INTO n_now FROM public.quiz_questions WHERE quiz_id = p_quiz_id;
-  -- A child's answer (a teacher's own preview sitting carries user_id and never locks the quiz).
+  -- A child's answer: any sitting but the quiz's own teacher's preview (which carries their users.id) locks the quiz.
   SELECT EXISTS (
     SELECT 1 FROM public.quiz_answers a
     JOIN public.quiz_sessions s ON s.id = a.session_id
     JOIN public.quiz_questions qq ON qq.id = a.question_id
-    WHERE qq.quiz_id = p_quiz_id AND s.user_id IS NULL
+    WHERE qq.quiz_id = p_quiz_id AND s.user_id IS DISTINCT FROM q.teacher_id
   ) INTO answered;
 
   -- Check everything before writing anything.
@@ -10330,10 +10330,10 @@ BEGIN
           SELECT count(*)::integer AS n, count(*) FILTER (WHERE upper(a.selected_option) = new_key)::integer AS right_n
             INTO cnt
             FROM public.quiz_answers a JOIN public.quiz_sessions s ON s.id = a.session_id
-            WHERE a.question_id = (c->>'id')::uuid AND s.user_id IS NULL;
+            WHERE a.question_id = (c->>'id')::uuid AND s.user_id IS DISTINCT FROM q.teacher_id;
           SELECT COALESCE(max(z.k), 0)::integer INTO top_wrong FROM (
             SELECT count(*) AS k FROM public.quiz_answers a JOIN public.quiz_sessions s ON s.id = a.session_id
-            WHERE a.question_id = (c->>'id')::uuid AND s.user_id IS NULL AND upper(a.selected_option) <> new_key
+            WHERE a.question_id = (c->>'id')::uuid AND s.user_id IS DISTINCT FROM q.teacher_id AND upper(a.selected_option) <> new_key
             GROUP BY upper(a.selected_option)) z;
           INSERT INTO public.quiz_item_reviews (question_id, reason, status, key_at_flag, answers_n, top_wrong_n, right_n,
                                                 first_flagged_on, last_seen_on, reviewed_at, reviewed_by, review_note)
