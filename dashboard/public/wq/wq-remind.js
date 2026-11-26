@@ -41,7 +41,7 @@
       primerHead: 'One more step',
       primerBody: 'Your phone will ask about reminders next. Choose Allow.',
       primerGo: 'OK',
-      // c2 (web_quiz_install_android): the finish screen's install card, after the reminder ask is settled
+      // the install card (web_quiz_install_android): the finish screen's install card, after the reminder ask is settled
       instTitle: 'Put Jugnu on your phone',
       instAdd: 'Add',
       remindWait: 'Turning reminders on…',
@@ -227,7 +227,7 @@
     var primer = false; // the permission primer (web_quiz_push_primer, from the key): our Yes shows it first
     var primerUp = false; // the primer is on screen: a second Yes tap (before it drew) counts nothing
     var primed = false; // the primer was answered OK once on this page: a later Yes (arm b's retry) asks the browser at once
-    // c2: the Android install on the finish screen (install_android from the key). It waits for the browser's offer
+    // the install card: the Android install on the finish screen (install_android from the key). It waits for the browser's offer
     // (beforeinstallprompt) AND for the reminder ask to be settled; never beside the ask, never in the installed app.
     var inst = { on: false, offer: null, settled: false, done: false, sent: {} };
     var arm = null; // the ask's arm from the key ('a' | 'b', web_quiz_push_ask_v2); null = no arm (today exactly)
@@ -276,7 +276,7 @@
       return '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
         + ' style="margin:16px 0 0;padding:16px;display:grid;gap:10px">' + inner + '</section>';
     }
-    // the card's own state (ask, primer, done, off...); c2's install card is a second section under it, so the
+    // the card's own state (ask, primer, done, off...); the install card is a second section under it, so the
     // reminder's answer stays on screen
     var drawn = '';
     function draw(inner) { drawn = inner ? section(inner) : ''; slot.innerHTML = drawn; }
@@ -363,7 +363,7 @@
         });
     }
 
-    // c2's meter, on the page relay as install_prompt{step, at:'finish'} (the hub card's event); each step once per page.
+    // the install card's meter, on the page relay as install_prompt{step, at:'finish'} (the hub card's event); each step once per page.
     function istep(step) {
       if (inst.sent[step]) return;
       inst.sent[step] = true;
@@ -375,7 +375,7 @@
     }
     // the reminder ask is settled (answered, or never shown): the card may come once the browser has offered
     function settle() { inst.settled = true; instShow(); }
-    // c2 is for Android Chrome on the result screen: not the /remind landing, not WhatsApp's browser, iPhone or desktop
+    // the install card is for Android Chrome on the result screen: not the /remind landing, not WhatsApp's browser, iPhone or desktop
     function instOk(body) {
       return !landing && Boolean(code) && Boolean(body && body.install_android === true) && branch() === 'card'
         && /Android/i.test(String(window.navigator.userAgent || ''));
@@ -500,7 +500,7 @@
       start: function () {
         if ((Number(ctx.chips) || 0) >= 4) return Promise.resolve();
         if (installOnScreen()) return Promise.resolve();
-        // the ask is snoozed (answered or Not now): no ask, but an Android Chrome tab may still get c2's install card
+        // the ask is snoozed (answered or Not now): no ask, but an Android Chrome tab may still get the install card
         if (!landing && snoozed()) return instOnly();
         return getKey(code).then(function (r) {
           // only a real off drops the worker; a 5xx, a route miss or no network leaves it (a failed read is not OFF)
@@ -513,7 +513,7 @@
           if (!landing && r.body && (r.body.ask_v === 'a' || r.body.ask_v === 'b')) arm = r.body.ask_v;
           primer = Boolean(r.body && r.body.primer === true);
           var b = branch();
-          // c2: only in a browser tab that can take it (not WhatsApp's browser, not iPhone, not a no-push browser)
+          // the install card: only in a browser tab that can take it (not WhatsApp's browser, not iPhone, not a no-push browser)
           if (instOk(r.body)) instWire(code);
           if (b === 'iab') { iab = true; askShown(); show.iab(); return null; }
           if (b === 'ios') { ev('ios'); show.ios(); return null; }

@@ -1,7 +1,7 @@
 /**
- * c2: the finish screen's install manifest. GET /q/<code>/manifest.webmanifest answers the base Jugnu manifest with one
- * fixed id (so every finish-screen install is the SAME app to Chrome: no second icon, no re-offer after the next quiz;
- * qa-design 181359), start_url /q/<code>?from=hs (reopening a finished link on that phone lands on that child's hub
+ * The finish screen's install manifest. GET /q/<code>/manifest.webmanifest answers the base Jugnu manifest with one
+ * fixed id (so every finish-screen install is the SAME app to Chrome: no second icon, no re-offer after the next quiz),
+ * start_url /q/<code>?from=hs (reopening a finished link on that phone lands on that child's hub
  * through link_home) and scope '/'. A malformed code is a 404. The bot is never asked.
  */
 const http = require('http');
