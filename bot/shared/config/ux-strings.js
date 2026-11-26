@@ -4985,6 +4985,72 @@ const UX_STRINGS = {
     en: 'We do not make quizzes for this subject yet. You can make one for another lesson on WhatsApp: send /quiz.',
     ur: 'اس مضمون کے کوئز ابھی نہیں بنتے۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
+  // E2: the teacher edits the quiz in the page (keys' write path, /api/internal/wq/teacher/edit). One line per outcome.
+  qfix_offers_cq_edit: {
+    en: 'Edit',
+    ur: 'ترمیم کریں',
+  },
+  qfix_offers_cq_edit_text: {
+    en: 'Question',
+    ur: 'سوال',
+  },
+  qfix_offers_cq_edit_answers: {
+    en: 'Answers (mark the right one)',
+    ur: 'جوابات (درست جواب پر نشان لگائیں)',
+  },
+  qfix_offers_cq_save: {
+    en: 'Save',
+    ur: 'محفوظ کریں',
+  },
+  qfix_offers_cq_remove: {
+    en: 'Remove this question',
+    ur: 'یہ سوال ہٹا دیں',
+  },
+  qfix_offers_cq_saved: {
+    en: 'Saved. Children who open the quiz now get this version.',
+    ur: 'محفوظ ہو گیا۔ اب کوئز کھولنے والے بچوں کو یہی صورت ملے گی۔',
+  },
+  qfix_offers_cq_edit_none: {
+    en: 'Nothing was changed.',
+    ur: 'کوئی تبدیلی نہیں ہوئی۔',
+  },
+  qfix_offers_cq_locked: {
+    en: 'Children have started this quiz, so its words stay as they are. You can still fix a right answer: it counts for answers from now on, and earlier answers keep their marks.',
+    ur: 'بچوں نے کوئز شروع کر دیا ہے، اس لیے اس کے الفاظ ویسے ہی رہیں گے۔ آپ درست جواب اب بھی ٹھیک کر سکتے ہیں: یہ آگے کے جوابات پر لاگو ہو گا، اور پہلے کے جوابات کے نمبر وہی رہیں گے۔',
+  },
+  // {n}: the fewest questions a quiz keeps, in the page language's digits
+  qfix_offers_cq_floor: {
+    en: 'A quiz keeps at least {n} questions, so this one cannot be removed.',
+    ur: 'کوئز میں کم از کم {n} سوال رہتے ہیں، اس لیے یہ سوال نہیں ہٹایا جا سکتا۔',
+  },
+  qfix_offers_cq_stale: {
+    en: 'This quiz changed a moment ago. Here is the latest version: please make your change again.',
+    ur: 'یہ کوئز ابھی ابھی بدلا ہے۔ یہ تازہ صورت ہے: براہِ کرم اپنی تبدیلی دوبارہ کریں۔',
+  },
+  qfix_offers_cq_too_long: {
+    en: 'That is too long for the quiz page. Please make it shorter.',
+    ur: 'یہ کوئز کے صفحے کے لیے بہت لمبا ہے۔ براہِ کرم اسے مختصر کریں۔',
+  },
+  qfix_offers_cq_empty: {
+    en: 'A question and its answers cannot be empty.',
+    ur: 'سوال اور اس کے جوابات خالی نہیں ہو سکتے۔',
+  },
+  qfix_offers_cq_not_text: {
+    en: 'An answer that is a picture cannot be changed here.',
+    ur: 'تصویر والا جواب یہاں نہیں بدلا جا سکتا۔',
+  },
+  qfix_offers_cq_not_editable: {
+    en: 'This kind of question cannot be changed here.',
+    ur: 'اس قسم کا سوال یہاں نہیں بدلا جا سکتا۔',
+  },
+  qfix_offers_cq_edit_failed: {
+    en: 'That change could not be saved. Please try again.',
+    ur: 'یہ تبدیلی محفوظ نہیں ہو سکی۔ براہِ کرم دوبارہ کوشش کریں۔',
+  },
+  qfix_offers_cq_pdf_pending: {
+    en: 'The PDF is being made again with your changes. Tap Download PDF again in a minute.',
+    ur: 'پی ڈی ایف آپ کی تبدیلیوں کے ساتھ دوبارہ بن رہی ہے۔ ایک منٹ بعد پی ڈی ایف دوبارہ ڈاؤن لوڈ کریں۔',
+  },
 };
 
 /**
