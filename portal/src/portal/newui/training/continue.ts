@@ -1,6 +1,6 @@
 import api from '../../services/api';
 import {
-  courseDone, nextPart, sortVendors, trainingPaths,
+  courseDone, examLeft, nextPart, sortVendors, trainingPaths,
   type Course, type Level, type ModuleSummary, type Vendor,
 } from './trainingApi';
 
@@ -66,6 +66,8 @@ export async function findContinue(
   const atLevel = (l: Level): ContinueTarget => ({ vendorKey: String(l.vendor_key), levelId: l.id, to: paths.level(String(l.vendor_key), l.id) });
   const atCourse = (l: Level, c: Course): ContinueTarget => ({ ...atLevel(l), to: paths.course(String(l.vendor_key), l.id, c.id) });
   const atPart = (l: Level, m: ModuleSummary): ContinueTarget => ({ ...atLevel(l), to: paths.unit(m.id) });
+  // bd-r2uzg1.23.11 (call 13A): a course whose parts are done but whose exam is still to pass goes to that exam.
+  const atCourseOrExam = (l: Level, c: Course): ContinueTarget => (examLeft(c) ? { ...atLevel(l), to: paths.exam(c.id) } : atCourse(l, c));
 
   const courses = (l: Level) => get<{ courses?: Course[] }>('/training/courses', { level_id: l.id }).then((d) => byOrder(d?.courses || []));
   const modules = (c: Course) => get<{ modules?: ModuleSummary[] }>('/training/modules', { course_id: c.id }).then((d) => d?.modules || []);
@@ -74,8 +76,9 @@ export async function findContinue(
   const resolve = (l: Level, list: Course[], inCourse: Course | null, parts: ModuleSummary[] | null): ContinueTarget => {
     const part = parts ? nextPart(parts) : null;
     if (inCourse && part) return atPart(l, part);
+    if (inCourse && examLeft(inCourse)) return atCourseOrExam(l, inCourse);
     const unfinished = list.find((c) => !courseDone(c));
-    if (unfinished) return atCourse(l, unfinished);
+    if (unfinished) return atCourseOrExam(l, unfinished);
     return atLevel(l);
   };
 
