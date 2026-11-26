@@ -40,7 +40,52 @@ test('a version that is already a revert, or has no teacher rows, is not reverte
 });
 
 test('args: --quiz is required, dry run unless --apply', () => {
-  expect(Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001'])).toEqual({ quiz: 'e1e1e1e1-0000-4000-8000-000000000001', editV: null, apply: false });
+  expect(Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001'])).toEqual({ quiz: 'e1e1e1e1-0000-4000-8000-000000000001', editV: null, toV: null, apply: false });
   expect(Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001', '--edit-v', '3', '--apply'])).toMatchObject({ editV: 3, apply: true });
   expect(() => Revert.parseArgs([])).toThrow(/--quiz/);
+});
+
+describe('--to <v>: several teacher saves undone in one go (a revert after a revert is refused, so one by one cannot)', () => {
+  const Q3 = '00000000-0000-4000-8000-000000000303';
+  const orig1 = { ...beforeRow, question_text: 'Q1 original' };
+  const first1 = { ...orig1, question_text: 'Q1 first edit' };
+  const now1 = { id: Q1, ...orig1, question_text: 'Q1 second edit' };
+  const gone3 = { id: Q3, quiz_id: 'qz', sort_order: 3, question_text: 'Q3', option_a: 'x', option_b: 'y', option_c: 'z', correct_option: 'A', media: {} };
+  const chain = [
+    { quiz_id: 'qz', question_id: Q1, field: 'text', edit_v: 1, edited_by: 'teacher', before: { value: 'Q1 original', row: orig1 }, after: { value: 'Q1 first edit' } },
+    { quiz_id: 'qz', question_id: Q3, field: 'remove', edit_v: 2, edited_by: 'teacher', before: { value: 'Q3', row: gone3 }, after: null },
+    { quiz_id: 'qz', question_id: Q1, field: 'text', edit_v: 3, edited_by: 'teacher', before: { value: 'Q1 first edit', row: first1 }, after: { value: 'Q1 second edit' } },
+  ];
+
+  test('back to version 0: each row as it was before its FIRST save in the range, the removed row re-inserted', () => {
+    const r = Revert.revertChanges({ audit: chain, editV: 3, toV: 0, currentEditV: 3, rowsById: new Map([[Q1, now1]]) });
+    expect(r.ok).toBe(true);
+    const byId = new Map(r.changes.map((c) => [c.id, c]));
+    expect(byId.get(Q1)).toMatchObject({ remove: false, before: Edit.editCols(now1), after: orig1 });
+    expect(byId.get(Q1).fields).toEqual([{ field: 'text', before: { value: 'Q1 second edit' }, after: { value: 'Q1 original' } }]);
+    expect(byId.get(Q3)).toEqual({ id: Q3, insert: gone3, fields: [{ field: 'remove', before: null, after: { value: 'restored' } }] });
+  });
+
+  test('a row edited and then removed in the range comes back whole, with its pre-range text', () => {
+    const edited3 = { ...Edit.editCols(gone3), question_text: 'Q3 original' };
+    const audit3 = [
+      { quiz_id: 'qz', question_id: Q3, field: 'text', edit_v: 1, edited_by: 'teacher', before: { value: 'Q3 original', row: edited3 }, after: { value: 'Q3' } },
+      { quiz_id: 'qz', question_id: Q3, field: 'remove', edit_v: 2, edited_by: 'teacher', before: { value: 'Q3', row: gone3 }, after: null },
+    ];
+    const r = Revert.revertChanges({ audit: audit3, editV: 2, toV: 0, currentEditV: 2, rowsById: new Map() });
+    expect(r.changes).toEqual([{ id: Q3, insert: { ...gone3, ...edited3 }, fields: [{ field: 'remove', before: null, after: { value: 'restored' } }] }]);
+    expect(r.changes[0].insert).toMatchObject({ id: Q3, quiz_id: 'qz', sort_order: 3, question_text: 'Q3 original' });
+  });
+
+  test('a revert inside the range is refused (it would be undone blind)', () => {
+    const mixed = chain.map((a) => (a.edit_v === 2 ? { ...a, edited_by: 'revert' } : a));
+    expect(Revert.revertChanges({ audit: mixed, editV: 3, toV: 0, currentEditV: 3, rowsById: new Map([[Q1, now1]]) }))
+      .toEqual({ ok: false, reason: 'revert_in_range', editV: 2 });
+  });
+
+  test('args: --to takes a version below the current one', () => {
+    expect(Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001', '--to', '0'])).toMatchObject({ toV: 0, apply: false });
+    expect(() => Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001', '--to', '-1'])).toThrow(/--to/);
+    expect(() => Revert.parseArgs(['--quiz', 'e1e1e1e1-0000-4000-8000-000000000001', '--to', '0', '--edit-v', '2'])).toThrow(/--to/);
+  });
 });
