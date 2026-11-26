@@ -46,7 +46,12 @@ describe("coaching: copy", () => {
         // bd-bmc9a0.4 — ICT IAB row 36: the line Close ends her DC session with, in ICT's words.
         "sessionComplete",
         // bd-bmc9a0.2 — ICT IAB row 31: "Recording saved. Come back here later…", ICT's mockup sentence.
-        "recordingSaved"].includes(c.path))
+        "recordingSaved",
+        // bd-ma9jiy.5 — a spoken answer with no sound in it: what happened and what to do.
+        "nothingRecorded",
+        // Sentences on purpose that this list missed (this check was red on sandbox at cd5e1d76ae):
+        // bd-r2uzg1.23.5 a recording that did not arrive whole; bd-r2uzg1.18.15 why a re-sent copy stopped.
+        "recordingEmpty", "duplicateInFlightNote"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);

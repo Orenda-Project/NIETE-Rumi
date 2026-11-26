@@ -76,6 +76,20 @@ describe('POST /funnel/recording — the recorder heartbeat', () => {
     expect(rows.every((x) => x.d.attemptId === 'att-0f1e2d3c-4b5a' && x.d.recordingId === 'a3f1c2d4-1111-4222-8333-944455556666')).toBe(true);
   });
 
+  // bd-ma9jiy.5 (26 Nov ~22:20, the operator: "It should work similar to the main coaching recorder"): the spoken
+  // reflection answer is on the shared recorder now; its rows say kind reflection and the session they answer.
+  test('a reflection answer: kind reflection, the session as observationId, on every row', async () => {
+    const res = await post(await app(), {
+      v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'reflection', observationId: 'b1c2d3e4-1111-4222-8333-944455556666',
+      b: 'native', t0: Date.now() - 2000, cols: COLS, rows: [row(0)], ev: [{ k: 'empty', dt: 0, ms: 400, bytes: 110 }],
+    });
+    expect(res.status).toBe(204);
+    const rows = emitted.filter((x) => x.e === 'recording.beats' || x.e === 'recording.event');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((x) => x.d.kind === 'reflection' && x.d.observationId === 'b1c2d3e4-1111-4222-8333-944455556666')).toBe(true);
+    expect(rows.find((x) => x.e === 'recording.event').d.recEvent).toBe('empty');
+  });
+
   test('each event is a recording.event row (a cut carries its gap)', async () => {
     const res = await post(await app(), {
       v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', t0: Date.now(), cols: COLS, rows: [],
