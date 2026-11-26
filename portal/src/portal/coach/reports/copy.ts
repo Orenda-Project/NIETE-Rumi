@@ -147,6 +147,8 @@ export const REPORTS_EN = {
     clear: "Clear",
     subs: { plan: "Development plan", second: "Second area, optional", feedback: "Feedback for the teacher" },
     scoreSoFar: "Score so far",
+    // Queue #293 (the operator 26 Nov): the card says the percentage big and its points in a small line under it.
+    scorePoints: (total: number, max: number) => `${total} of ${max} points`,
     rating: "Rating",
     notScored: "Not scored",
     /** The bot's check, by code (obs612/form-model.js checkScreen): what each refused field needs. */
@@ -375,6 +377,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
     clear: "ہٹائیں",
     subs: { plan: "ترقیاتی منصوبہ", second: "دوسرا شعبہ، اختیاری", feedback: "استاد کے لیے فیڈبیک" },
     scoreSoFar: "اب تک کا اسکور",
+    scorePoints: (total: number, max: number) => `${max} میں سے ${total} نمبر`,
     rating: "درجہ",
     notScored: "اسکور نہیں دیا",
     errors: {
@@ -485,5 +488,6 @@ export const COPY_ENTRY = {
   /** Sentences that mirror a screen's name word for word. */
   /** bd-ra8xu.60 — notesHeading: «آپ کے مشاہدے کے نوٹس» is five Urdu words for the operator's four English ones. */
   /** bd-k8uh1r — stoppedDuplicateLine: the stopped card's one plain line (board m9-errors), why it stopped and what to do. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading", "stoppedDuplicateLine", "analysisStoppedLine"],
+  /** Queue #293 — fde.scorePoints: the score card's points line; Urdu needs five words for "44 of 88 points" (N میں سے M نمبر). */
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder", "notesHeading", "stoppedDuplicateLine", "analysisStoppedLine", "fde.scorePoints"],
 };

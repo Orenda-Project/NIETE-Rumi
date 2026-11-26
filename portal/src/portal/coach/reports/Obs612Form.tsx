@@ -84,6 +84,9 @@ type FsInd = { code: string; name: string; item: Obs612Field; ev: Obs612Field | 
 type FsGroup = { key: string; short: string; title: string; kind: "indicators" | "checklist" | "feedback"; inds: FsInd[]; parts: Obs612Part[] };
 type FsAt = { at: "sections" } | { at: "section"; key: string } | { at: "indicator"; key: string; code: string };
 const fsDepth = (a: FsAt) => (a.at === "indicator" ? 2 : a.at === "section" ? 1 : 0);
+/** Queue #293: a score card's whole percentage: the bot's own (one decimal) rounded, else worked out from its points. */
+const pctOf = (p: { total: number; max: number; pct: number | null }) =>
+  Math.round(Number.isFinite(p.pct) ? (p.pct as number) : p.max ? (p.total * 100) / p.max : 0);
 type FsSlot = { key: string; code: string | null; label: string };
 /** FICO-S's own minimums (the bot's EVIDENCE_MIN and its change-reason rule). */
 const FS_EVIDENCE_MIN = 20;
@@ -612,7 +615,16 @@ export default function Obs612Form({ id, draft: first, name, home }: { id: strin
       return (
         <section key={i} data-testid="fde-score" className={cn(LIST_CARD, "flex flex-col gap-1 p-3.5")}>
           <span className="text-[13px] font-semibold text-[#6b7280]">{W.scoreSoFar}</span>
-          <b className="text-[20px] font-bold tabular-nums" dir="ltr">{v7 ? `${p.total} / ${p.max}` : `${p.total} / ${p.max} (${p.pct}%)`}</b>
+          {v7 ? (
+            // Queue #293 (the operator 26 Nov, replacing 20 Nov's count-only card): the percentage big, rounded, and the
+            // points in a small line under it, so a total that moves with N/A (88 here, 92 there) reads as one scale.
+            <>
+              <b data-testid="fde-score-pct" className="text-[20px] font-bold tabular-nums" dir="ltr">{`${pctOf(p)}%`}</b>
+              <span data-testid="fde-score-points" className="text-[13px] text-[#6b7280] tabular-nums" dir="auto">{W.scorePoints(p.total, p.max)}</span>
+            </>
+          ) : (
+            <b className="text-[20px] font-bold tabular-nums" dir="ltr">{`${p.total} / ${p.max} (${p.pct}%)`}</b>
+          )}
           {p.band ? (
             <span className="flex items-baseline gap-2 text-[14px]">
               <span className="text-[#6b7280]">{W.rating}</span>
