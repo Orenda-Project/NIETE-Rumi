@@ -431,6 +431,10 @@ export const SENTENCES = [
   'weakInternet', 'uploadOnlyLine', 'savedOnPhone',
   // bd-ma9jiy (26 Nov): what an unlinked kept recording is, and what she can do with it.
   'unlinkedLine', 'unlinkedFrom',
+  // bd-ma9jiy (26 Nov, #6045): a kept recording that failed to send says so and what to do (missed here then).
+  'sendFailedShort',
+  // and the button on it: four words in English, «<name> کے مشاہدے کے طور پر بھیجیں» in Urdu (the name plus six).
+  'sendAsObservation',
 ] as const;
 /** Paths that are rightly the same in both languages. */
 export const SAME = ['dash', 'kindPdf'] as const;
