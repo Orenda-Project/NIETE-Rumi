@@ -184,6 +184,12 @@ describe('dayList', () => {
     deps.draw.todaysList.mockResolvedValueOnce({ ok: false, reason: 'no_class_list' });
     expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
   });
+
+  test('any other draw refusal at a school outside Gilgit-Baltistan carries no addOpens either', async () => {
+    const deps = makeDeps();
+    deps.draw.todaysList.mockResolvedValueOnce({ ok: false, reason: 'bad_visit_key' });
+    expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps)).toEqual({ status: 'invalid', reason: 'bad_visit_key' });
+  });
 });
 
 describe('dayOutcome', () => {

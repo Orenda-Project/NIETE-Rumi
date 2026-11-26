@@ -107,13 +107,15 @@ describe('a named grade at a school with today\'s observe visit', () => {
   test('OFF: the grade is ignored and the visit\'s list serves (byte-identical call)', async () => {
     const { deps, calls } = world({ on: false });
     const out = await sa.dayList({ userId: COACH, schoolId: SCHOOL, visitId: VISIT, grade: 1 }, deps);
-    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: 3, visitId: VISIT });
+    // the same call as before, plus the coach app's clock (the draw no longer reads its own)
+    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: 3, visitId: VISIT, now: NOW });
     expect(out.list.grade).toBe(3);
   });
 
   test('ON, no grade named: the visit\'s list as before', async () => {
     const { deps, calls } = world();
     await sa.dayList({ userId: COACH, schoolId: SCHOOL, visitId: VISIT }, deps);
-    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: 3, visitId: VISIT });
+    // the same call as before, plus the coach app's clock (the draw no longer reads its own)
+    expect(calls.todaysList[0]).toEqual({ coachUserId: COACH, schoolId: SCHOOL, observedGrade: 3, visitId: VISIT, now: NOW });
   });
 });

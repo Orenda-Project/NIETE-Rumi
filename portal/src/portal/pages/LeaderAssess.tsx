@@ -152,6 +152,9 @@ export default function LeaderAssess() {
   const [schoolFilter, setSchoolFilter] = useState('');
   const [list, setList] = useState<SaList | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
+  // the server's word that "Add a child" opens the list the draw could not (a Gilgit-Baltistan school's no class list or
+  // every-child-tested)
+  const [problemAddOpens, setProblemAddOpens] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -223,6 +226,7 @@ export default function LeaderAssess() {
   const loadList = useCallback(async (s: SaSchool, key: string) => {
     setLoadFailed(false);
     setProblem(null);
+    setProblemAddOpens(false);
     setOffline(false);
     const grade = s.grade ?? null;
     const read = { t0: Date.now(), slow: false, timer: 0 };
@@ -248,7 +252,12 @@ export default function LeaderAssess() {
       const failed = (shown: 'problem' | 'failed' | 'saved_list') => safely(() => reportSaOffline({
         k: 'list_failed', reason, shown, network, status, elapsedMs: Date.now() - read.t0, grade,
       }));
-      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { failed('problem'); setProblem(reason); return; }
+      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') {
+        failed('problem');
+        setProblem(reason);
+        setProblemAddOpens((err as { response?: { data?: { addOpens?: boolean } } })?.response?.data?.addOpens === true);
+        return;
+      }
       // sa_r8_offline_prep: a list kept by "Get ready for offline" when today's visit has none on this phone
       const saved = readVisit(key).list || (r8Ref.current.offlinePrep ? readPreparedList(s.schoolId, s.grade) : null);
       if (network && saved) { failed('saved_list'); setList(saved); setOffline(true); } else { failed('failed'); setLoadFailed(true); }
@@ -639,7 +648,8 @@ export default function LeaderAssess() {
         schoolId: s.schoolId, visitId: s.visitId, grade: adding.grade, firstName: adding.name.trim(),
         section: adding.section.trim() || null, clientChildId: addingId.current, ...(s.grade ? { listGrade: s.grade } : {}),
       });
-      if (out?.list) keepList(out.list);
+      // the list the server sends back is the visit's list, the first one too (no class list until this child)
+      if (out?.list) { keepList(out.list); setProblem(null); setProblemAddOpens(false); }
       setAdding(null);
       addingId.current = mintId();
     } catch {
@@ -815,7 +825,47 @@ export default function LeaderAssess() {
     );
   } else if (step.kind === 'list') {
     const message = problem === 'no_class_list' ? copy.noClassList : problem === 'frame_exhausted' ? copy.frameExhausted : problem === 'not_found' ? copy.notFound : null;
-    content = message ? <p className="text-slate-700">{message}</p>
+    // sa_add_child: a first name, the grade and a section seat a child on the open list. Under "no class list" (nobody on
+    // the school's roster in the grade) or "every child tested" the button shows only when the server says the first
+    // child added opens the list there (addOpens: a Gilgit-Baltistan school), so an ICT school's page is exactly as
+    // before. Never after not_found.
+    const addChildUi = !switches.addChild ? null : !adding ? (
+      <button type="button" data-testid="assess-add-child" onClick={() => { setAddFailed(false); setAdding({ name: '', grade: step.school.grade || list?.grade || 3, section: '' }); }}
+        className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.addChild}</button>
+    ) : (
+      <form data-testid="assess-add-child-form" className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
+        onSubmit={(e) => { e.preventDefault(); void addChild(); }}>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-800">{copy.firstName}</span>
+          <input type="text" maxLength={40} autoComplete="off" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })}
+            className="min-h-[48px] w-full rounded-xl border border-slate-300 px-3" />
+        </label>
+        <div className="flex gap-2">
+          <label className="block flex-1">
+            <span className="mb-1 block text-sm font-medium text-slate-800">{copy.gradeLabel}</span>
+            <select value={adding.grade} onChange={(e) => setAdding({ ...adding, grade: Number(e.target.value) })}
+              className="min-h-[48px] w-full rounded-xl border border-slate-300 bg-white px-3">
+              {(switches.allGrades ? GRADE_CHOICES : [3, 5]).map((g) => <option key={g} value={g}>{copy.grade(g)}</option>)}
+            </select>
+          </label>
+          <label className="block flex-1">
+            <span className="mb-1 block text-sm font-medium text-slate-800">{copy.sectionOptional}</span>
+            <input type="text" maxLength={2} autoComplete="off" value={adding.section} onChange={(e) => setAdding({ ...adding, section: e.target.value })}
+              className="min-h-[48px] w-full rounded-xl border border-slate-300 px-3" />
+          </label>
+        </div>
+        {addFailed && <p role="alert" className="text-sm text-amber-900">{copy.addFailed}</p>}
+        <div className="flex gap-2">
+          <button type="submit" disabled={busy} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-60">{copy.addToList}</button>
+          <button type="button" onClick={() => setAdding(null)} className="min-h-[48px] rounded-xl border border-slate-300 bg-white px-4">{copy.cancel}</button>
+        </div>
+      </form>
+    );
+    content = message ? (
+      (problem === 'no_class_list' || problem === 'frame_exhausted') && problemAddOpens && addChildUi
+        ? <div className="space-y-4"><p className="text-slate-700">{message}</p>{addChildUi}</div>
+        : <p className="text-slate-700">{message}</p>
+    )
       : !list ? <p className="text-slate-600">{copy.loading}</p>
         : (
           <div className="space-y-4">
@@ -917,39 +967,7 @@ export default function LeaderAssess() {
                 </ul>
               </div>
             )}
-            {switches.addChild && !adding && (
-              <button type="button" data-testid="assess-add-child" onClick={() => { setAddFailed(false); setAdding({ name: '', grade: step.school.grade || list.grade || 3, section: '' }); }}
-                className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.addChild}</button>
-            )}
-            {switches.addChild && adding && (
-              <form data-testid="assess-add-child-form" className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
-                onSubmit={(e) => { e.preventDefault(); void addChild(); }}>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-slate-800">{copy.firstName}</span>
-                  <input type="text" maxLength={40} autoComplete="off" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })}
-                    className="min-h-[48px] w-full rounded-xl border border-slate-300 px-3" />
-                </label>
-                <div className="flex gap-2">
-                  <label className="block flex-1">
-                    <span className="mb-1 block text-sm font-medium text-slate-800">{copy.gradeLabel}</span>
-                    <select value={adding.grade} onChange={(e) => setAdding({ ...adding, grade: Number(e.target.value) })}
-                      className="min-h-[48px] w-full rounded-xl border border-slate-300 bg-white px-3">
-                      {(switches.allGrades ? GRADE_CHOICES : [3, 5]).map((g) => <option key={g} value={g}>{copy.grade(g)}</option>)}
-                    </select>
-                  </label>
-                  <label className="block flex-1">
-                    <span className="mb-1 block text-sm font-medium text-slate-800">{copy.sectionOptional}</span>
-                    <input type="text" maxLength={2} autoComplete="off" value={adding.section} onChange={(e) => setAdding({ ...adding, section: e.target.value })}
-                      className="min-h-[48px] w-full rounded-xl border border-slate-300 px-3" />
-                  </label>
-                </div>
-                {addFailed && <p role="alert" className="text-sm text-amber-900">{copy.addFailed}</p>}
-                <div className="flex gap-2">
-                  <button type="submit" disabled={busy} className="min-h-[48px] flex-1 rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-60">{copy.addToList}</button>
-                  <button type="button" onClick={() => setAdding(null)} className="min-h-[48px] rounded-xl border border-slate-300 bg-white px-4">{copy.cancel}</button>
-                </div>
-              </form>
-            )}
+            {addChildUi}
             <button type="button" data-testid="assess-end-visit" onClick={() => { setStep({ kind: 'summary', school: step.school }); maybeDrain(true); }}
               className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.endVisit}</button>
           </div>
