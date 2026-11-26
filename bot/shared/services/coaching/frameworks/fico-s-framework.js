@@ -40,6 +40,14 @@ const TIME_RE = /^\d{1,3}:\d{2}$/;
 const NEAR_SECONDS = 30;
 // The pre-filled Evidence box (the form's textarea takes more; the observer edits it).
 const PREFILL_CAP = 600;
+// Queue #293: C2's N/A says no student answer was wrong, so it needs the students heard. Fewer student lines than this
+// in the transcript (a recording whose speakers were merged, or one with no speaker labels) and a C2 N/A is read as
+// "Couldn't tell", leaving C2 to the observer. On production every C2 the Digital Coach scored had 26+ student lines;
+// every transcript under 15 got an N/A.
+const MIN_STUDENT_LINES_FOR_C2_NA = 20;
+const STUDENT_LINE_RE = /^\[(?:\d{1,2}:)?\d{1,3}:\d{2}\]\s*Student\b/;
+const studentLines = (transcript) => String(transcript || '').split('\n').filter((l) => STUDENT_LINE_RE.test(l.trim())).length;
+
 
 const cp = (s) => Array.from(String(s || '')).length;
 function clip(s, max) {
@@ -208,6 +216,15 @@ function validate(analysis, transcript) {
     row.evidence = kept.slice(0, 3);
     if (!kept.length && (row.result === 3 || row.result === 4)) warnings.push(`${code}: level ${row.result} with no evidence left`);
   }
+  // Queue #293: an N/A on C2 ("no answer was wrong") from a transcript in which the students cannot be heard.
+  const c2 = levels && levels.C2;
+  if (c2 && c2.result === 'NA') {
+    const heard = studentLines(transcript);
+    if (heard < MIN_STUDENT_LINES_FOR_C2_NA) {
+      levels.C2 = { result: 'IE', because: `The students can hardly be heard in this recording (${heard} student lines), so whether any answer was wrong cannot be told.`, evidence: [] };
+      warnings.push(`C2: N/A read as Couldn't tell (${heard} student lines, under ${MIN_STUDENT_LINES_FOR_C2_NA})`);
+    }
+  }
   return { ok: errors.length === 0, errors, dropped, warnings };
 }
 
@@ -279,4 +296,5 @@ module.exports = {
   RETRY_NOTE,
   PREFILL_CAP,
   RUBRIC_SHA8,
+  MIN_STUDENT_LINES_FOR_C2_NA,
 };
