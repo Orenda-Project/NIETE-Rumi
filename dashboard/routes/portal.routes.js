@@ -5574,12 +5574,40 @@ router.get('/training/courses', requirePortalAuth, async (req, res) => {
       completedSet = new Set((progress || []).map(p => p.module_id));
     }
 
+    // bd-r2uzg1.23.11 (queue #274, call 13A): each course's end-of-module exam ('passed' / 'pending'), so the level
+    // page stops calling a course Done, and Continue stops skipping it, while its exam is left. Only I-SAPS has these
+    // exams; every other vendor reads exam_state null. Best effort: a failed read leaves null (the list as before).
+    let examStates = {};
+    try {
+      const { courseExamStates, isPerModuleQuiz } = require('../../bot/shared/services/training/isaps-module-exam.rules');
+      const { data: quizzes, error: qe } = await supabase
+        .from('training_grand_quizzes')
+        .select('id, level_id, source_quiz_id, quiz_type, is_active')
+        .eq('level_id', levelId);
+      if (qe) throw qe;
+      const own = (quizzes || []).filter(q => q.level_id == null || Number(q.level_id) === levelId);
+      const examIds = own.filter(q => q.is_active === true && isPerModuleQuiz(q.source_quiz_id)).map(q => q.id);
+      if (examIds.length && userId) {
+        const { data: attempts, error: ae } = await supabase
+          .from('training_assessment_attempts')
+          .select('grand_quiz_id, is_passed')
+          .eq('user_id', userId)
+          .eq('quiz_kind', 'grand')
+          .in('grand_quiz_id', examIds);
+        if (ae) throw ae;
+        examStates = courseExamStates(courses || [], own, attempts || []);
+      }
+    } catch (_) {
+      examStates = {};
+    }
+
     const enriched = (courses || []).map(c => {
       const mIds = moduleIdsByCourse.get(c.id) || [];
       return {
         id: c.id, title: c.title, course_type: c.course_type, order_index: c.order_index,
         module_count: mIds.length,
         completed_count: mIds.filter(id => completedSet.has(id)).length,
+        exam_state: examStates[c.id] || null,
       };
     });
     res.json({ success: true, courses: enriched });

@@ -168,8 +168,9 @@ describe('generateHeroReport on an FDE visit (the real generator, the page captu
     expect(r.text).toContain('Proficient');
     expect(r.text).toContain('109/148');
     expect(r.text).toContain("79.5 of 108 on FDE's scale");
-    expect(r.text).toMatch(/3D\. Interest & Motivation 8\/8/);
-    expect(r.text).toMatch(/4C\. Reading Skills 4\/8/);
+    // bd-r2uzg1.23.11 (call 23A): a scored report's sections read as a % with the fraction small under it.
+    expect(r.text).toMatch(/3D\. Interest & Motivation 100% 8\/8/);
+    expect(r.text).toMatch(/4C\. Reading Skills 50% 4\/8/);
     expect(r.text).toContain('4D. Writing Skills');
     expect(r.text).toContain('5. Assessment & Feedback');
     expect(r.text).toContain('Ask two why-questions after each paragraph.');

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { CapstoneRow, hoursLeft, LevelCertificate } from '../../newui/training/TrainingLevel';
 import {
   courseName,
-  courseDone, isExamless, isLadder, lockedBehind, providerLabel, providerShort, statusOf, trainingPaths, useGet,
+  courseDone, examLeft, isExamless, isLadder, lockedBehind, providerLabel, providerShort, statusOf, trainingPaths, useGet,
   type Course, type GrandQuizGate, type Level, type Vendor,
 } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, type ChipData } from '../ui';
@@ -76,7 +76,9 @@ export function TrainingLevelPage() {
           <div className="flex flex-col gap-2.5" data-testid="training-level-courses">
             {list.map((c, i) => {
               const done = courseDone(c);
-              const chip: ChipData | null = done ? { text: C.done, tone: 'done' } : null;
+              // bd-r2uzg1.23.11 (call 13A): parts done but the course exam still to pass is not Done.
+              const chip: ChipData | null = done ? { text: C.done, tone: 'done' }
+                : examLeft(c) ? { text: C.examLeft, tone: 'waiting' } : null;
               return (
                 <ListRow
                   key={c.id}
@@ -97,12 +99,12 @@ export function TrainingLevelPage() {
 
       {next && open ? (
         <Link
-          to={paths.course(vendorKey, levelId, next.id)}
+          to={examLeft(next) ? paths.exam(next.id) : paths.course(vendorKey, levelId, next.id)}
           data-testid="training-level-continue"
           className={cn('mt-2 flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}
         >
           <Play className="h-[18px] w-[18px] rtl:rotate-180" fill="currentColor" aria-hidden="true" />
-          {C.continue}
+          {examLeft(next) ? C.continueExam : C.continue}
         </Link>
       ) : null}
     </TrainingPageV2>

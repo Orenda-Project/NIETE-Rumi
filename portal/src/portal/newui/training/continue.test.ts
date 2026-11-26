@@ -147,3 +147,32 @@ describe("findContinue", () => {
     expect(t?.to).toBe("/portal/training/v2/unit/m-4");
   });
 });
+
+describe("findContinue · an I-SAPS course with its exam left (bd-r2uzg1.23.11, queue #274 call 13A)", () => {
+  const isaps = [level({ id: 9, name: "Effective Teaching", vendor_key: "ISAPS", order_index: 0, state: "in_progress", unlock_logic: "all_modules", courses_total: 9, courses_completed: 0, completed_count: 6 })];
+  const done = (id: string, i: number): ModuleSummary => ({ id, title: `Part ${i}`, order_index: i, duration_seconds: 300, has_video: true, has_audio: false, has_pdf: false, completed_at: `2026-10-21T0${i}:00:00Z` } as ModuleSummary);
+
+  it("every part of the course she was in is done but its exam is left: Continue opens that exam", async () => {
+    const { get } = fakeGet({
+      "/training/courses": () => ({ courses: [
+        { id: "i-1", title: "Module 1: Philosophical Foundations", order_index: 0, module_count: 2, completed_count: 2, exam_state: "pending" },
+        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "pending" },
+      ] }),
+      "/training/modules": (p) => ({ modules: p.course_id === "i-1" ? [done("u-1", 1), done("u-2", 2)] : [] }),
+    });
+    const t = await findContinue(VENDORS, isaps, "/portal/training", get);
+    expect(t).toEqual({ vendorKey: "ISAPS", levelId: 9, to: "/portal/training/exam/i-1" });
+  });
+
+  it("its exam passed: on to the next course, as before", async () => {
+    const { get } = fakeGet({
+      "/training/courses": () => ({ courses: [
+        { id: "i-1", title: "Module 1: Philosophical Foundations", order_index: 0, module_count: 2, completed_count: 2, exam_state: "passed" },
+        { id: "i-2", title: "Module 2: Learners", order_index: 1, module_count: 3, completed_count: 0, exam_state: "pending" },
+      ] }),
+      "/training/modules": (p) => ({ modules: p.course_id === "i-1" ? [done("u-1", 1), done("u-2", 2)] : [] }),
+    });
+    const t = await findContinue(VENDORS, isaps, "/portal/training", get);
+    expect(t).toEqual({ vendorKey: "ISAPS", levelId: 9, to: "/portal/training/provider/ISAPS/level/9/course/i-2" });
+  });
+});
