@@ -37,7 +37,7 @@ function db(rows, error = null) {
 
 const arm = (group, plan) => ({ group, plan, report: 'today' });
 
-beforeEach(() => { jest.clearAllMocks(); Card._resetServedLog(); mockArms.groupFor.mockResolvedValue(null); });
+beforeEach(() => { jest.clearAllMocks(); Card._resetServedLog(); Card._resetCardForAll(); mockArms.groupFor.mockResolvedValue(null); });
 
 describe('pickServed (pure)', () => {
   test('plan v10 with a card → the card', () => {
@@ -57,11 +57,11 @@ describe('pickServed (pure)', () => {
 });
 
 describe('servedFor', () => {
-  test('not in the draw: the lesson, no card read, nothing logged', async () => {
+  test('not in the draw (lp_card_for_all off): the lesson, no card read, nothing logged', async () => {
     db([LESSON, CARD]);
     const out = await Card.servedFor({ userId: 'u', lessonId: 'L1', lesson: LESSON, channel: 'whatsapp' });
     expect(out).toBe(LESSON);
-    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('niete_lp_assets'); // bd-zrdvmi.71: only the switch is read
     expect(mockLog.logEvent).not.toHaveBeenCalled();
   });
 
