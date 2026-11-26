@@ -1443,7 +1443,8 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const LpV8Lifecycle = require('../services/lp-v8-lifecycle.service');
   let hit;
   try {
-    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null, { reader });
+    // bd-zrdvmi.70 — `download: true`: the app's Download PDF, a link that saves the plan on her phone.
+    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null, { reader, ...(body.download === true ? { download: true } : {}) });
   } catch (error) {
     // Her ask ended in a failure we caused: recorded (switch on only), then the 500 she always got.
     if (!reader) await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
@@ -2667,7 +2668,11 @@ router.post('/lp612/status', requireInternalKey, lp612Route('status', async (Bro
     return res.json({
       success: true,
       state: 'ready',
-      url: await getPresignedUrl(buildR2PublicUrl(row.r2_key)),
+      // bd-zrdvmi.70 — `download: true` (the app's Download PDF): an attachment the phone saves, named for the plan.
+      url: body.download === true
+        ? await getPresignedUrl(buildR2PublicUrl(row.r2_key), 3600,
+          { disposition: 'attachment', filename: `${row.segment_id || 'lesson-plan'}.pdf` })
+        : await getPresignedUrl(buildR2PublicUrl(row.r2_key)),
       oneScreen: row.one_screen || null,
       segmentId: row.segment_id,
       // bd-5rz1v.15 — the document's language: with segmentId, the plan the portal records an
