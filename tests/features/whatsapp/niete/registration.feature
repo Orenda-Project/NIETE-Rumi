@@ -370,7 +370,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     Then the next screen asks "Is this you?" with my first name, the school and the digits 47
     And it shows nothing else about that account
 
-  @e2e @wip @draft @flow @P1 @destructive @R25
+  @e2e @wip @draft @flow @P1 @destructive @R25 @data
   Scenario: Yes on an unused account links my number to it
     Given I was asked "Is this you?" about an unused account at my school
     When I answer "Yes, it's mine" and finish the Flow
@@ -380,7 +380,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     And no other teacher's account is added, changed or removed
     And no number has two accounts
 
-  @e2e @wip @draft @flow @P2 @R26
+  @e2e @wip @draft @flow @P2 @R26 @data
   Scenario Outline: An answer that cannot be acted on safely asks for a check and moves nothing
     Given I was asked "Is this you?" about <the account> at my school
     When I answer "<answer>" and finish the Flow
@@ -394,7 +394,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
       | an unused account                        | I'm not sure   |
       | an account that holds a training record  | Yes, it's mine |
 
-  @e2e @wip @draft @flow @P2 @R27
+  @e2e @wip @draft @flow @P2 @R27 @data
   Scenario: No keeps both accounts
     Given I was asked "Is this you?" about an unused account at my school
     When I answer "No, it's someone else's" and finish the Flow
@@ -410,7 +410,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     When I open the registration Flow, type my name and pick that school
     Then the next screen is the classes screen, with no "Is this you?" question
 
-  @e2e @wip @draft @flow @edge @P3 @R29
+  @e2e @wip @draft @flow @edge @P3 @R29 @data
   Scenario: A session opened on the previous form finishes without the question
     Given I opened the registration Flow before v6 was published, and my school has an unused account in my name
     When I pick that school and finish the Flow
