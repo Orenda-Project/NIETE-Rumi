@@ -12,6 +12,10 @@
  * lesson. The card never stands alone: no v9 lesson, nothing. The v9 lesson stays the plan of record
  * (the caller records the download against it, so grading and the quiz key off it); every send to a
  * drawn teacher is logged as lp.v10.plan_served so a card send is told apart from a v9 send.
+ *
+ * bd-zrdvmi.71 (long plans, 82+ feedback-sheet rows; decision bd-jrarr): app_settings.lp_card_for_all gives the card
+ * first to every teacher the test does not cover; its "Full details ›" links lead into the full v9 plan. Off by default,
+ * fail closed. A drawn school keeps its arm while the test runs; once ab_v10_enabled is off, the switch reaches everyone.
  */
 
 const supabase = require('../config/supabase');
@@ -20,6 +24,32 @@ const { logEvent } = require('../utils/structured-logger');
 const { groupFor } = require('./coaching/ab-v10-arms');
 
 const EVENT = 'lp.v10.plan_served';
+const CARD_FOR_ALL_KEY = 'lp_card_for_all';
+const FLAG_TTL_MS = 30 * 1000;
+let cardForAllCache = null; // { at, on }
+
+function isOn(value) {
+  let v = value;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch (_) { /* keep the raw string */ }
+  }
+  return v === true || (typeof v === 'string' && v.trim().toLowerCase() === 'true');
+}
+
+/** app_settings.lp_card_for_all. Fail closed: no row, not true, or a read error is off (a failure is not cached). */
+async function cardForAll(now = Date.now()) {
+  if (cardForAllCache && now - cardForAllCache.at < FLAG_TTL_MS) return cardForAllCache.on;
+  try {
+    const { data, error } = await supabase
+      .from('app_settings').select('key,value').eq('key', CARD_FOR_ALL_KEY).maybeSingle();
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    cardForAllCache = { at: now, on: Boolean(data && isOn(data.value)) };
+    return cardForAllCache.on;
+  } catch (err) {
+    logToFile('lp_card_for_all: switch lookup failed — full plan sent', { error: err.message });
+    return false;
+  }
+}
 
 // bd-5l1dnw: the portal asks for one open's PDF two to nine times, so the event is logged once per
 // teacher + lesson + channel inside this window. The teacher still gets the plan on every ask.
@@ -62,7 +92,10 @@ async function servedFor({ userId, lessonId, lesson, channel, reader = null }) {
   if (!lesson) return null;
   try {
     const arms = await groupFor(userId);
-    if (!arms) return lesson;
+    if (!arms) {
+      if (!(await cardForAll())) return lesson;
+      return pickServed({ plan: 'v10', lesson, card: await currentCard(lessonId) }).asset;
+    }
     const card = arms.plan === 'v10' ? await currentCard(lessonId) : null;
     const { asset, served } = pickServed({ plan: arms.plan, lesson, card });
     if (reader !== 'leader' && firstServeInWindow(`${userId}|${lessonId}|${channel}`, Date.now())) {
@@ -79,7 +112,8 @@ async function servedFor({ userId, lessonId, lesson, channel, reader = null }) {
 }
 
 module.exports = {
-  EVENT, SERVED_WINDOW_MS, pickServed, servedFor,
+  EVENT, SERVED_WINDOW_MS, CARD_FOR_ALL_KEY, pickServed, servedFor, cardForAll,
+  _resetCardForAll: () => { cardForAllCache = null; },
   _resetServedLog: () => lastServed.clear(),
   _servedLogSize: () => lastServed.size,
 };
