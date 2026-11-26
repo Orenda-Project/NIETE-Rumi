@@ -51,6 +51,24 @@ print(r['surface'],r['method'],r['env'],r['status'],s['total'],s['passed'],s['fa
 chk "W3b surface/method/env/status/counts/commit" "$fields" "web browser local CRITICAL 3 1 1 1 abc123"
 rm -f "$res"
 
+# W3c — the row carries the run's data checks (data E2E, bd-5b3u70.16), summed by the engine's ledger_row.py the same
+#       way as a mock lane row, so the QA dashboard counts portal data checks too. No data part: no `data` field.
+res=$(mktemp); cat >"$res" <<'JSON'
+{"feature":"teacher-classes","duration_ms":4200,"results":[
+ {"id":"TK04","status":"PASS","evidence":{"data":{"ok":true,"data":"checked"}}},
+ {"id":"TK06","status":"FAIL","error":"x","evidence":{"data":{"ok":false,"data":"checked"}}},
+ {"id":"TK07","status":"PASS","evidence":{"data":{"ok":true,"data":"NOT CHECKED: shared"}}},
+ {"id":"TK03","status":"PASS","evidence":{"classId":"c"}}]}
+JSON
+chk "W3c the row's data summary" \
+    "$(bash "$SH" --row-from "$res" --run-id 20261126-0000-teacher-classes --commit abc123 2>&1 | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('data'), sort_keys=True))")" \
+    '{"checked": 1, "error": 0, "failed": 1, "not_checked": 1, "scenarios": 3}'
+printf '%s' '{"feature":"portal-login","duration_ms":1,"results":[{"id":"PL01","status":"PASS"}]}' >"$res"
+chk "W3d a run with no data part has no data field" \
+    "$(bash "$SH" --row-from "$res" --run-id 20261126-0001-portal-login --commit abc123 2>&1 | python3 -c "import json,sys; print('data' in json.load(sys.stdin))")" "False"
+rm -f "$res"
+# W3e (a failed scenario keeps its data part) is in .claude/qa/web/test_data_api.js.
+
 # W4 — spec ↔ code parity: every scenario ID in the .feature has code, and no code drives an ID the spec lacks.
 ids_spec=$(grep -oE '@PL[0-9]+' "$ROOT/tests/features/web/portal-login.feature" 2>/dev/null | tr -d @ | sort -u | tr '\n' ' ')
 ids_code=$(node -e "console.log(require('$ROOT/.claude/qa/web/features/portal-login.cjs').scenarios.map(s=>s.id).sort().join(' ')+' ')" 2>/dev/null)

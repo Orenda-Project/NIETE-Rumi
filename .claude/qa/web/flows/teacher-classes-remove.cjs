@@ -8,6 +8,7 @@
 // If the scenario stops part-way, the clean-up removes that class through the same route the button calls.
 'use strict';
 const { expect, asRole, visit, watch } = require('../lib.cjs');
+const { dataBefore, rosterVerdict } = require('../data-steps.cjs');   // data E2E (bd-5b3u70.16)
 
 const HOME = '/portal/teacher/classes';
 const classPath = (id) => HOME + '/class/' + encodeURIComponent(id);
@@ -122,6 +123,7 @@ module.exports = [
       await row(2).fill(names[1]);
       await page.getByRole('button', { name: /^(Add student|طالب علم شامل کریں)$/ }).click();
       await row(3).fill(names[2]);
+      const before = await dataBefore(ctx);   // the watched tables as the set-up left them
       await page.getByRole('button', { name: /^(Save 3 students|3 طلبہ محفوظ کریں)$/ }).click();
       await page.getByText(/^(3 students added|3 طلبہ شامل)$/).waitFor({ state: 'visible', timeout: 15000 });
 
@@ -129,9 +131,12 @@ module.exports = [
       const got = (r.json && r.json.students || []).map((s) => [s.rollNumber, s.studentName]).sort((a, b) => a[0] - b[0]);
       expect(JSON.stringify(got) === JSON.stringify(names.map((n, i) => [i + 1, n])),
         'saved roster is not the three names as typed with rolls 1-3: ' + JSON.stringify(got));
+      // What the save wrote in the database itself, not what the portal reads back (NOT CHECKED off the run's own DB)
+      const data = await rosterVerdict(ctx, before, classId, names);
+      if (!data.ok) throw Object.assign(new Error('the saved data is wrong: ' + JSON.stringify(data)), { evidence: { data } });
       expect(!w.errors.length, 'uncaught page error — ' + w.errors[0]);
       expect(!w.fivexx.length, 'API returned ' + [...new Set(w.fivexx)].join(', '));
-      return { classId, saved: got.length };
+      return { classId, saved: got.length, data };
     } finally {
       const r = await api(page, ctx, 'GET', '/classes/' + encodeURIComponent(classId) + '/students');
       for (const s of (r.json && r.json.students) || []) {
