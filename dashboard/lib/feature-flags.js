@@ -647,6 +647,35 @@ function isAnalyticsOnlyUser(supabase, userId) {
 }
 
 /**
+ * app_settings key: principals who also TEACH a class, counted as teachers on the schools analytics roster
+ * (dashboard/services/schools-analytics.service.js). In some schools the head teacher is the school's principal
+ * and teaches too; they stay role 'principal' (so they keep /observe), and this list is how the analytics page
+ * counts them, with their own Digital Coach recordings, lesson plans and training.
+ *
+ * A JSON array of users.id and nothing else: LIST-ONLY, read like portal_analytics_only, so true, "true",
+ * "teachers", an object or bad JSON is nobody. No row is nobody, which leaves every analytics read as it was.
+ */
+const ANALYTICS_TEACHING_PRINCIPALS_KEY = 'analytics_teaching_principals';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The users.id list of analytics_teaching_principals. Fail-closed to the empty list: a failed read does not
+ * throw, because this only widens a count and must never take the analytics page down. Only well-formed ids
+ * come back, so one typo cannot break the uuid[] cast of the whole read.
+ *
+ * @param {object} supabase
+ * @returns {Promise<string[]>}
+ */
+async function readTeachingPrincipals(supabase) {
+  try {
+    return (await readUserListFlag(supabase, ANALYTICS_TEACHING_PRINCIPALS_KEY)).filter((id) => UUID_RE.test(id));
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * bd-tacnwy — app_settings key: the internal staff (our own testers) who may switch their OWN users.role from the
  * portal's profile pages (POST /api/portal/me/role, routes/portal-role-switch.routes.js). A JSON array of users.id and
  * nothing else: it is LIST-ONLY, read like portal_analytics_only, so true, "true", "teachers", an object or bad JSON
@@ -708,6 +737,8 @@ module.exports = {
   isLoginIntlNumbersEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
+  ANALYTICS_TEACHING_PRINCIPALS_KEY,
+  readTeachingPrincipals,
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,

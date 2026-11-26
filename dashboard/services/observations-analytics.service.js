@@ -242,10 +242,12 @@ const SCHOOLS_SQL = `
 async function loadObservationsAnalyticsRows(query, range = {}, opts = {}) {
   const r = { from: range.from || null, to: range.to || null };
   const regions = opts.regions || null;
+  // Principals who also teach (analytics_teaching_principals): their own recordings count, as on the schools page.
+  const teachingPrincipals = opts.teachingPrincipals || [];
   const [schoolRes, counted] = await Promise.all([
     regions ? query(`${SCHOOLS_SQL}
    WHERE region = ANY($1::text[])`, [regions]) : query(SCHOOLS_SQL, []),
-    loadCountedSessions(query, r, { ...(opts.memo ? { memo: opts.memo } : {}), regions }),
+    loadCountedSessions(query, r, { ...(opts.memo ? { memo: opts.memo } : {}), regions, teachingPrincipals }),
   ]);
   return {
     schools: schoolRes.rows || [],

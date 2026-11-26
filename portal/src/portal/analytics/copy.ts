@@ -128,6 +128,8 @@ const EN = {
   overviewLabel: 'Overview',
   xOfN: (x: string, n: string) => `${x} of ${n} teachers`,
   xOfNShort: (x: string, n: string) => `${x} of ${n}`,
+  /** Under Total teachers: how many of them are head teachers (a school's principal who also teaches a class). */
+  inclHeadTeachers: (n: string) => `incl. ${n} ${n === '1' ? 'head teacher' : 'head teachers'}`,
   /** Under a count already shown big: "of 442 teachers", "of 6 regions", "of 16 schools". */
   ofTeachers: (n: string) => `of ${n} teachers`,
   ofRegions: (n: string) => `of ${n} ${n === '1' ? 'region' : 'regions'}`,
