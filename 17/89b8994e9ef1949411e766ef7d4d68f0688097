@@ -1,3 +1,5 @@
 {"ts":"2026-11-24T19:05:51Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"1789b8994e9e","branch":"bd-97daxo.34.7-43316","user":""}
 {"ts":"2026-11-25T00:45:34Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"1789b8994e9e","branch":"bd-97daxo.34.7-43316","user":""}
 {"ts":"2026-11-25T00:45:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,ci-copy engine=2.2.4","sha":"1789b8994e9e","branch":"bd-97daxo.34.7-43316","user":""}
+{"ts":"2026-11-26T01:39:46Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"1789b8994e9e","branch":"bd-97daxo.34.7-43316","user":""}
+{"ts":"2026-11-26T01:39:46Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"1789b8994e9e","branch":"bd-97daxo.34.7-43316","user":""}
