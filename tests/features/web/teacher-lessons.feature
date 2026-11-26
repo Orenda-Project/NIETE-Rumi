@@ -194,7 +194,7 @@ Feature: Teacher lesson plans
     Then /portal/teacher/lessons opens with New lesson plan and no Recent Lesson Plans, and it has no Back
     When they tap New lesson plan and pick Grade 4, a subject, a chapter and a lesson
     Then the plan opens in the viewer at /portal/teacher/lessons/plan, not on the Training Library
-    And the viewer has the answer key and Open in another app
+    And the viewer has the answer key and Download PDF
     And the viewer has no Start DC observation, no Thing to try and no Send on WhatsApp
     And Lesson Plans is the current menu item on each of these pages
 
@@ -216,7 +216,7 @@ Feature: Teacher lesson plans
     When they open /portal/teacher/lessons
     Then it shows "Recent Lesson Plans" under Home, as before
     When they open a grade 1–5 plan
-    Then the viewer has Start DC observation and Open in another app, as before, and no Send on WhatsApp (bd-ain69z)
+    Then the viewer has Start DC observation and Download PDF (bd-zrdvmi.70), and no Send on WhatsApp (bd-ain69z)
     And All Lesson Plans opens for them and is still turned away for a coach
 
   @LDR04 @draft
@@ -313,7 +313,7 @@ Feature: Teacher lesson plans
     Given the teacher app v2 is on
     And a GB teacher is signed in
     When she opens a ready GB grade 1 Urdu plan from Lesson Plans
-    Then the plan screen offers Open in another app
+    Then the plan screen offers Download PDF
     And there is no "Send on WhatsApp" and no "Not available yet" anywhere on it
     And the same holds for an ICT teacher opening a grade 1-5 plan
 
@@ -627,3 +627,17 @@ Feature: Teacher lesson plans
     When the Preparing page learns it failed with OWN_NEEDS_BOARD
     Then she sees "The lesson plan kept using a board. If you have one, tick Board in your answers. Or select another teaching way."
     And the same page in Urdu shows the Urdu line, and a failure with any other code shows the old message
+
+  # bd-zrdvmi.70 (25 Nov) — ICT feedback sheet rows 986 and 984: no copy of a plan to read without internet once
+  # WhatsApp PDFs were switched off for ICT and GB (21 Nov). The plan screen's button saves the PDF on her phone.
+  # Component proof: ViewerPage.download.test.tsx, lessonPlanOpen.test.ts; server: tests/portal/bd-zrdvmi.70-download-pdf.test.js.
+  @OFF01 @draft
+  Scenario: Download PDF keeps a plan on her phone to open without internet
+    Given the teacher app v2 is on
+    And demo teacher 03000000911 is signed in
+    When she opens a grade 1-5 plan, its answer key, or a grades 6-12 or GB plan
+    Then the plan screen's button reads "Download PDF" ("PDF ڈاؤن لوڈ کریں" in Urdu)
+    When she taps it
+    Then the phone saves the plan as a PDF file named for the lesson, rather than only showing it
+    And with the internet off she can open that file from her phone's downloads
+    And while a lesson is recording there is no Download PDF

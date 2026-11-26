@@ -125,8 +125,9 @@ async function requestLesson(segmentId, userId, lang = 'en', { reader } = {}) {
 }
 
 /** Poll one request. A `ready` state carries a freshly presigned URL. */
-async function requestStatus(renderId, userId) {
-  return ask('status', { renderId, userId });
+async function requestStatus(renderId, userId, { download } = {}) {
+  // bd-zrdvmi.70 — `download`: the app's Download PDF (a saved copy); sent only when asked.
+  return ask('status', { renderId, userId, ...(download === true ? { download: true } : {}) });
 }
 
 /**
