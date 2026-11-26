@@ -2,15 +2,12 @@
 /**
  * bd-dsu5mq (queue #291) — a person's home: the region and organization their SCHOOL says they belong to.
  *
- * Many accounts carry no users.region (FDE's July import left it blank on hundreds of teachers). That was harmless
- * until a coach made such a teacher a Principal: the region-scoped switch keys ("role:principal@ict" in fico_s_coach
- * and fico_s_dc) never reached him, and his grade 6-12 visit fell to FDE's hand-scored form with no Digital Coach
- * (Muhammad Ayyaz Nawaz, IMCB I-8/3, 26 Nov). Two uses, one answer:
+ * Many accounts carry no users.region (FDE's July import left it blank on hundreds of teachers). A coach's role edit
+ * (teacher-edit-commit.service writeRoleChange) fills it, and users.organization, from the person's school where they are
+ * blank, as data hygiene. Nothing decides from it: since bd-dsu5mq.2 every observe switch and rubric decides ICT vs GB
+ * from the VISIT's school (coaching/fde-region.js), never from the observer's profile region.
  *
- *   homePatch(userId, schoolExtId)  the role edit (teacher-edit-commit.service writeRoleChange): what to fill on the
- *                                   users row, ONLY where region / organization are blank. Never overwrites.
- *   fallbackFor(who)                the switches (fico-s-switch, obs612-switch) when users.region is blank: the
- *                                   school's region, else the organization users.organization names, else nothing.
+ *   homePatch(userId, schoolExtId)  what to fill on the users row, ONLY where region / organization are blank.
  *
  * Where the school comes from, in order: users.school_id; the school the coach picked the person from (schoolExtId
  * through leader_schools, role edit only); for a coach with neither, the schools she holds (leader_schools), when
@@ -28,8 +25,6 @@ const db = () => require('../config/supabase');
 function tkOf(userId) {
   try { return require('./quiz/web-quiz-kid').tk(userId); } catch (_) { return null; }
 }
-const TTL_MS = 60 * 1000;
-let _cache = new Map(); // userId -> { at, value } for fallbackFor
 
 const blank = (v) => v === null || v === undefined || (typeof v === 'string' && !v.trim());
 
@@ -108,36 +103,5 @@ async function homePatch(userId, schoolExtId, client = db()) {
   }
 }
 
-/**
- * For the switches: when the caller's region is blank, the school's region ({region}), else the organization
- * users.organization names ({organization}), else {}. A region already held (or a failed-read Symbol) is left alone.
- * Never throws; cached 60 s per user.
- */
-async function fallbackFor(who, now = Date.now()) {
-  const w = who || {};
-  if (!w.userId || !blank(w.region)) return {};
-  const hit = _cache.get(w.userId);
-  if (hit && now - hit.at < TTL_MS) return hit.value;
-  let value = {};
-  try {
-    const client = db();
-    const row = await readUser(client, w.userId);
-    if (row) {
-      if (!blank(row.region)) value = { region: String(row.region).trim() };
-      else {
-        const home = await homeOf(client, row, null);
-        if (home.region) value = { region: home.region };
-        else if (home.organization) value = { organization: home.organization };
-      }
-    }
-  } catch (e) {
-    logToFile('observer home: switch fallback failed - deciding as before', { tk: tkOf(w.userId), error: e && e.message }, 'warn');
-    return {}; // not cached: the next read may succeed
-  }
-  _cache.set(w.userId, { at: now, value });
-  return value;
-}
 
-function _resetCache() { _cache = new Map(); }
-
-module.exports = { homePatch, fallbackFor, orgFromText, blank, tkOf, _resetCache };
+module.exports = { homePatch, orgFromText, blank, tkOf };
