@@ -24,6 +24,9 @@ import { trackFlow } from "../flow/track";
 import { FLOW_V6 } from "../flow/copy";
 import { BookedRow } from "../flow/BookedRow";
 import { groupBooked, oldestFirst, waitedDays } from "../flow/model";
+import { useKeptItems } from "../observe/keptRecording";
+import { KeptRows } from "../observe/KeptRows";
+import { useObserveRoutes } from "../observe/observeRoutes";
 
 /**
  * bd-o15qnr.27 (queue #204, v6; the operator 20 Nov ~13:30: "ok v6 looks good. Lets get this built.") — the coach's ONE
@@ -123,6 +126,11 @@ const CoachObserveToday = () => {
   );
 
   const shownWaiting = needsOpen ? waiting : waiting.slice(0, NEEDS_SHOWN);
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — every recording this phone keeps and has not sent is a Needs
+  // you row too, first (it is the one most at risk): Paused opens the recorder paused, Not sent its visit.
+  const keptItems = useKeptItems() ?? [];
+  const routes = useObserveRoutes();
+  const needsCount = waiting.length + keptItems.length;
 
   return (
     <ObservePage title={O.observe} crumb={todayLabel(new Date(), lang)} backTo="/portal/coach" feature="observations" banner={false} whatsapp={false}>
@@ -138,18 +146,19 @@ const CoachObserveToday = () => {
 
         {/* Needs you: oldest first, two, then all of them here */}
         <section data-testid="needs-you" className="flex flex-col gap-2">
-          <SectionLabel count={reports.data ? waiting.length : undefined} countTone={waiting.length ? "warn" : "info"}>{S.needsYou}</SectionLabel>
+          <SectionLabel count={reports.data ? needsCount : undefined} countTone={needsCount ? "warn" : "info"}>{S.needsYou}</SectionLabel>
           {reports.failed && <Failed onRetry={reports.reload} />}
           {!reports.data && !reports.failed && <Loading />}
-          {reports.data && waiting.length === 0 && (
+          {reports.data && needsCount === 0 && (
             <div className={cn(LIST_CARD, "flex min-h-[64px] items-center gap-3 px-4 text-[15px] font-semibold text-[#6b7280]")}>
               <Inbox className="h-5 w-5 shrink-0" aria-hidden="true" />{S.nothingWaiting}
             </div>
           )}
-          {waiting.length > 0 && (
+          {needsCount > 0 && (
             <div className={LIST_CARD}>
+              <KeptRows items={keptItems} routes={routes} />
               {shownWaiting.map((r: CoachReport, i) => (
-                <HistoryRow key={r.id} lead="person" first={i === 0} title={r.teacherName || S.dash}
+                <HistoryRow key={r.id} lead="person" first={keptItems.length + i === 0} title={r.teacherName || S.dash}
                   extra={[S.waitingSince(waitedDays(r, today)), ...classParts(r, classWords)].join(" · ")} chip={reportChip(r, R, true)} to={reportHref(r)} />
               ))}
               {waiting.length > NEEDS_SHOWN && (

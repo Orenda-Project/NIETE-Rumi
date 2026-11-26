@@ -70,7 +70,10 @@ const VISIT = {
 
 const keep = (id: string, who: Parameters<typeof rememberRecording>[1], elapsedMs = 1_234_000) => {
   rememberRecording(id, who);
-  kept.list.push({ meta: { id, mimeType: "audio/webm;codecs=opus", startedAt: "2026-11-25T04:38:00Z", elapsedMs, ext: ".webm", finished: false }, blob: new Blob(["kept"], { type: "audio/webm" }), nextSeq: 1234, parts: 1, beats: [] });
+  // bd-ma9jiy.3: cut a minute ago (#292's rule: only a recording cut within the hour reopens paused; keptNeedsYou.test
+  // has the stopped and the old ones).
+  const last = Date.now() - 60_000;
+  kept.list.push({ meta: { id, mimeType: "audio/webm;codecs=opus", startedAt: new Date(last - elapsedMs).toISOString(), elapsedMs, ext: ".webm", finished: false }, blob: new Blob(["kept"], { type: "audio/webm" }), nextSeq: 1234, parts: 1, beats: [{ t: last, st: "r" }] });
 };
 
 class FakeMR {
@@ -174,6 +177,8 @@ describe("a kept debrief talk reopens Debrief's recorder PAUSED", () => {
     L.getTalkGuide.mockResolvedValue({ guide: { intro: "Open with what worked.", steps: [], reflection_question: "What will you try?" } });
     keep("talk-1", { teacherExtId: "", schoolExtId: null, teacherName: "Ayesha Bibi", kind: "dbrf", observationId: "cs-1" }, 245_000);
     renderAt("/portal/coach/observation/cs-1/debrief");
+    // bd-ma9jiy.3: first the line and Continue recording; the press opens the recorder paused.
+    fireEvent.click(await screen.findByRole("button", { name: "Continue recording" }));
     expect(await screen.findByText("Paused")).toBeInTheDocument();
     expect(screen.getByText("04:05")).toBeInTheDocument();
     expect(gum).not.toHaveBeenCalled();

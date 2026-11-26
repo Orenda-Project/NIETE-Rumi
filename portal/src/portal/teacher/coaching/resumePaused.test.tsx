@@ -35,6 +35,7 @@ const sendLesson = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => ({ coachin
 vi.mock("../../lib/coachingSend", async (orig) => ({ ...(await orig<typeof import("../../lib/coachingSend")>()), sendLesson }));
 const store = vi.hoisted(() => ({
   latestUnsent: vi.fn(async (): Promise<unknown> => null),
+  listKept: vi.fn(async (): Promise<unknown[]> => []),
   deleteRecording: vi.fn(async (_id: string) => undefined),
   createRecording: vi.fn(), appendChunk: vi.fn(), markFinished: vi.fn(),
 }));
@@ -46,7 +47,7 @@ import "../routes";
 import api from "../../services/api";
 import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
 import coachingRoutes from "./routes";
-import { COACHING_NEW } from "./paths";
+import { COACHING_HOME, COACHING_NEW } from "./paths";
 import { clearDraft, holdDraft } from "./draft";
 import { COACHING_V2_COPY as C } from "./copy";
 import { beforeAll as preloadFirst } from "vitest";
@@ -115,9 +116,25 @@ async function pickClass() {
 }
 
 describe("portal_recording_resume: a kept DC recording reopens as the PAUSED recording", () => {
-  it("switch ON: the session restores it paused (same id); the screen shows Paused with Resume and Stop; no Not sent card", async () => {
+  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10): on arrival the screen says "Your recording was paused abruptly."
+  // with ONE Continue recording (no Recording choices, nothing reopened yet); the press reopens it paused.
+  it("switch ON, on arrival: the line and ONE Continue recording; nothing restored yet; no Start / Upload", async () => {
     sw.on = true;
     open();
+    expect(await screen.findByText("Your recording was paused abruptly.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue recording" })).toBeInTheDocument();
+    expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dc-record-clock")).toBeNull();
+    await pickClass();
+    expect(screen.queryByRole("button", { name: new RegExp(`^${C.recording}$`) })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start recording" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Upload recording" })).toBeNull();
+  });
+
+  it("switch ON, Continue recording: the session restores it paused (same id); Paused with Resume and Stop; no Not sent card", async () => {
+    sw.on = true;
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: "Continue recording" }));
     await waitFor(() => expect(session.restore).toHaveBeenCalledTimes(1));
     const arg = session.restore.mock.calls[0][0] as { returnTo: string; kept: { meta: { id: string } }; beat: { kind: string } };
     expect(arg.returnTo).toBe(COACHING_NEW);
@@ -133,6 +150,7 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
   it("switch ON, Resume: the session carries on (session.resume)", async () => {
     sw.on = true;
     open();
+    fireEvent.click(await screen.findByRole("button", { name: "Continue recording" }));
     fireEvent.click(await screen.findByRole("button", { name: C.resume }));
     expect(session.resume).toHaveBeenCalledTimes(1);
   });
@@ -188,5 +206,42 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
     await new Promise((r) => setTimeout(r, 50));
     expect(session.restore).not.toHaveBeenCalled();
     expect(screen.queryByTestId("dc-record-clock")).toBeNull();
+  });
+});
+
+/**
+ * bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10: kept recordings "should also be on the Needs You section") — the
+ * Digital Coaching page has no Needs you: its waiting block gets her kept recordings, by #292's rule.
+ */
+describe("the Digital Coaching page: her recordings kept on this phone and not sent", () => {
+  const openHome = () => render(
+    <MemoryRouter initialEntries={[COACHING_HOME]}>
+      <Routes>
+        {coachingRoutes.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}
+        <Route path="*" element={null} />
+      </Routes>
+    </MemoryRouter>,
+  );
+  const kept = (over: Record<string, unknown>, beat: Record<string, unknown> | null) => ({ ...stored(over), beats: beat ? [beat] : [] });
+
+  it("a lesson cut minutes ago: Recording paused · 27 min, Continue recording, to the one screen", async () => {
+    store.listKept.mockImplementation(async () => [kept({}, { t: Date.now() - 2 * 60_000, st: "r" })]);
+    openHome();
+    const card = await screen.findByTestId("dc-kept-paused");
+    expect(card.textContent).toContain(`${C.recordingPaused} · ${C.minutes(27)}`);
+    expect(card.textContent).toContain("Continue recording");
+    expect(card.closest("a") ?? card.querySelector("a") ?? card).toHaveAttribute("href", COACHING_NEW);
+  });
+
+  it("one she stopped (29 min): Recording not sent, Add details & send; a short stopped take: no card", async () => {
+    store.listKept.mockImplementation(async () => [
+      kept({ finished: true, elapsedMs: 29 * 60_000 }, { t: Date.now() - 30 * 60_000, st: "i" }),
+      kept({ id: "short-1", finished: true, elapsedMs: 6_000 }, { t: Date.now() - 60_000, st: "i" }),
+    ]);
+    openHome();
+    const card = await screen.findByTestId("dc-kept-unsent");
+    expect(card.textContent).toContain(C.recordingNotSent);
+    expect(screen.getAllByTestId("dc-kept-unsent")).toHaveLength(1);
+    expect(screen.queryByTestId("dc-kept-paused")).toBeNull();
   });
 });
