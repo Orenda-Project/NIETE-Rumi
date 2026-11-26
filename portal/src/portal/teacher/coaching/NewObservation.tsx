@@ -370,8 +370,8 @@ export function NewObservationPage() {
       if (mounted.current) setKeptCards(mine.filter((it) => it.id !== pick?.id));
     }).catch(() => { /* nothing kept: the screen as before */ });
   }, [resumeOn, session, audio, phase]);
-  const continueKept = () => {
-    const k = pausedKept;
+  const continueKept = (chosen?: KeptRecording) => {
+    const k = chosen ?? pausedKept;
     if (!k || !session || session.active) return;
     setPausedKept(null);
     setNewLesson(false);
@@ -381,6 +381,21 @@ export function NewObservationPage() {
     setRestored(k.meta.startedAt);
     setPhase('recording');
     setTimeout(() => { try { recorderRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); } catch { /* fine */ } }, 50);
+  };
+  /** bd-ma9jiy: another paused lesson's card — read that file and continue IT (the one on the block stays kept). */
+  const continueById = async (id: string) => {
+    const k = await readKept(id);
+    if (!k || !mounted.current) return;
+    if (k.meta.ext !== '.webm') { await attachKept(id); return; }
+    setKeptCards((cards) => {
+      const rest = cards.filter((c) => c.id !== id);
+      const prev = pausedKept;
+      if (!prev || prev.meta.id === id) return rest;
+      const l = linkOf(prev.meta);
+      return [{ id: prev.meta.id, offer: 'resume', unlinked: false, attemptId: l?.attemptId ?? null, grade: l?.grade ?? null,
+        subject: l?.subject ?? null, startedAt: prev.meta.startedAt, elapsedMs: prev.meta.elapsedMs }, ...rest];
+    });
+    continueKept(k);
   };
   const redo = async () => {
     const id = isSavedAudio(audio) ? null : audio?.recordingId;
@@ -559,7 +574,7 @@ export function NewObservationPage() {
           {pausedKept && !newLesson && !audio && phase === 'idle' ? (
             <>
               <RecordUploadPair paused={{
-                onPress: continueKept, testId: 'dc-continue-kept',
+                onPress: () => continueKept(), testId: 'dc-continue-kept',
                 label: [classLabel(linkOf(pausedKept.meta) ?? {}), pkTime(pausedKept.meta.startedAt)].filter(Boolean).join(' · ') || undefined,
               }} />
               <button type="button" data-testid="dc-different-lesson" onClick={() => setNewLesson(true)}
@@ -574,9 +589,14 @@ export function NewObservationPage() {
               {pausedKept && newLesson ? (
                 <KeptRecordingCard item={{ id: pausedKept.meta.id, offer: 'resume', unlinked: false, attemptId: linkOf(pausedKept.meta)?.attemptId ?? null,
                   grade: linkOf(pausedKept.meta)?.grade ?? null, subject: linkOf(pausedKept.meta)?.subject ?? null,
-                  startedAt: pausedKept.meta.startedAt, elapsedMs: pausedKept.meta.elapsedMs }} onPress={continueKept} />
+                  startedAt: pausedKept.meta.startedAt, elapsedMs: pausedKept.meta.elapsedMs }} onPress={() => continueKept()} />
               ) : null}
-              {keptCards.map((it) => <KeptRecordingCard key={it.id} item={it} onPress={() => { void attachKept(it.id); }} />)}
+              {keptCards.map((it) => (
+                <KeptRecordingCard key={it.id} item={it} onPress={() => {
+                  // A paused lesson's own card reopens THAT one (never as a finished take); any other attaches on its own.
+                  if (it.offer === 'resume' && !it.unlinked) void continueById(it.id); else void attachKept(it.id);
+                }} />
+              ))}
             </>
           ) : null}
           <FlowStep n={1} state={s1}>{C.gradeAndSubject}</FlowStep>
