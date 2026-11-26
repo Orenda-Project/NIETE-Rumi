@@ -1809,9 +1809,15 @@ async function handle(userId, action, screen, screenData = {}, flowToken = '', u
           `${person.name || 'They'} ${plan.role === 'principal' ? 'is already recorded as a Principal' : 'is already recorded as a Teacher'}.`);
       }
 
-      const supabase = require('../config/supabase');
-      const { error } = await supabase.from('users').update(plan.patch).eq('id', pickedUserId);
-      if (error) return _refuse('failed');
+      // bd-dsu5mq: the one role write (teacher-edit-commit.service writeRoleChange), shared with the portal's Edit
+      // teacher. It also fills a blank users.region / organization from the school, so a teacher made Principal here
+      // gets the Digital Coach's pre-fill like any principal, and logs the coach AND the person changed.
+      const { writeRoleChange } = require('../services/observe/teacher-edit-commit.service');
+      const wrote = await writeRoleChange({
+        actorUserId: userId, targetUserId: pickedUserId, schoolExtId,
+        from: (person.row && person.row.role) || null, plan, via: 'observe_flow',
+      });
+      if (!wrote.ok) return _refuse('failed');
       // from/to both recorded: this write changes what the person MAY DO, so
       // "it used to say teacher" is the fact an unpick would need.
       await _editAudit(userId, person, 'edit_role', {
