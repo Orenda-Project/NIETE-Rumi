@@ -38,6 +38,28 @@ function dayFor(topic, book) {
   return teaching.find((l) => nums(l.pages).some((p) => pages.has(p))) || teaching[0];
 }
 
+// bd-snkn32.58.9 — a topic can span days that teach different SLOs (Survival Haiku days 6–7: a haiku, then a formal
+// letter). A goal is written over the topic's day whose title shares its words; no shared word → dayFor, as before.
+const WORDS = (s) => (String(s || '').toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []);
+const near = (a, b) => a === b || (a.length >= 5 && b.length >= 5 && (a.startsWith(b) || b.startsWith(a)));
+
+/** The day (a catalogue lesson) one goal of a topic is written over, or null. */
+function dayForGoal(topic, book, text) {
+  const first = dayFor(topic, book);
+  if (!first) return first;
+  const chapter = book.chapters.find((c) => Number(c.number) === Number(topic.chapter_number));
+  const all = book.chapters.flatMap((c) => c.lessons || []);
+  const teaching = (chapter.lessons || []).filter((l) => l.lp_type === 'content');
+  const days = [...new Set(nums(topic.days).map((d) => all[d - 1]).filter((l) => l && teaching.includes(l)))];
+  const want = WORDS(text);
+  let best = first; let score = 0;
+  for (const l of days) {
+    const s = WORDS(`${l.topic || ''} ${l.section || ''}`).filter((w) => want.some((x) => near(w, x))).length;
+    if (s > score) { best = l; score = s; }
+  }
+  return best;
+}
+
 /** An outcome as she reads it: no matrix working note ("[DERIVED …]"), no "I can" lead-in. */
 function tidy(text) {
   const t = String(text || '').replace(/\s*\[[^\]]*\]/g, '').replace(/^\s*I can\s+/i, '').trim();
@@ -72,8 +94,9 @@ function k5GoalLines(goal) {
     `START FROM HER GOAL: teach this day towards her ${what}: "${text}". Every part works towards it.`,
     'Her class has NO TEXTBOOK. Never send the children to a book page or say "open your book". Write into the plan the letters, words, sentences, short passage or sums the children read, say or solve, short enough for her to say aloud, show with objects or write on the board if she has one.',
     'Wherever these rules say the children work or hold up "the book", they use their copies instead.',
-    'Use only facts the day\'s plan supports; if her goal goes beyond it, teach the part it supports and say nothing you cannot check.',
+    // bd-snkn32.58.9 — "teach the part it supports" kept a haiku day teaching haiku under a letter-writing goal.
+    'The day\'s plan gives you the layout (its sections, timings and routines), not the topic: replace every example, activity, exit ticket and homework that is not about her goal with one that is. Keep facts simple and certain; say nothing you cannot check.',
   ];
 }
 
-module.exports = { MATRIX_SUBJECTS, matrixSubject, dayFor, k5GoalRows, k5GoalLines };
+module.exports = { MATRIX_SUBJECTS, matrixSubject, dayFor, dayForGoal, k5GoalRows, k5GoalLines };
