@@ -26,7 +26,10 @@ beforeEach(async () => {
   await resetAll();
   window.localStorage.clear();
   kept.list = [];
-  net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: false, coachFullApp: true } });
+  net.answers.set("/config", { success: true, features: { coachV2: true, schoolCard: true, coachip: false, coachFullApp: true, coachFlowV2: true } });
+  // The Focus card's reads (flow v2): one observation waiting on her, nothing booked.
+  net.answers.set("/coach/reports", { success: true, waiting: [{ id: "w1", createdAt: "2026-11-05T05:00:00Z", teacherName: "Imran Baig", teacherPhone: null, teacherExtId: null, schoolName: "IMSG", schoolExtId: null, status: "x", step: "draft", stage: "draft", score: null, portal: true, obs612: null, listening: false, grade: null, subject: null }], inProgress: [], all: { total: 1 } });
+  net.answers.set("/coach/schedule", { success: true, from: "2026-11-26", to: "2026-11-26", overdue: [], visits: [] });
   net.answers.set("/coach/people", { success: true, schools: [{ emis: EMIS, name: "Model School Nine", teachers: 12, visits: 1, daysSinceVisit: 1, avgHitl: 60 }], teachers: [] });
   net.answers.set(`/coach/school/${EMIS}/card`, schoolCard());
   net.answers.set("/coach/home", { success: true, home: { today: [], next: null, counts: { week: 1, overdue: 0, waiting: 0, inProgress: 0, teachers: 24, schools: 7 } } });
@@ -44,6 +47,11 @@ describe("the slim Coach Home (School card on, as on production): Needs you for 
     const row = within(card).getByRole("link", { name: /Ayesha Bibi/ });
     expect(row).toHaveTextContent("Paused");
     expect(row).toHaveAttribute("href", `/portal/coach/visit/${VISIT}/record`);
+    // first on the Home, before the Focus card and the tiles (the audio is only on this phone)
+    const tiles = screen.getByTestId("feature-tiles");
+    expect(card.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const focus = await screen.findByTestId("focus-card");
+    expect(card.compareDocumentPosition(focus) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("nothing kept: no card", async () => {

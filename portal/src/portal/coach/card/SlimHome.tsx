@@ -104,10 +104,11 @@ export default function SlimHome() {
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard skipWeek={flowV2 && isPkMonday()} />
         {/* bd-o15qnr.27 (v6): the Focus card, the one most important thing (flow/FocusCard.tsx) */}
-        {flowV2 && <FocusCard />}
-        {/* bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent: Needs you.
+        {/* bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent: Needs you,
+            FIRST (the audio is only on this phone; sandbox 13:18 showed it under the Focus card, off the first screen).
             Production's coaches all land here (portal_coach_school_card = true), not on the full coach Home. */}
         <KeptHomeCard routes={COACH_OBSERVE_ROUTES} />
+        {flowV2 && <FocusCard />}
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className={`mt-2 ${tileGrid(true)}`}>
             {fullApp && (
