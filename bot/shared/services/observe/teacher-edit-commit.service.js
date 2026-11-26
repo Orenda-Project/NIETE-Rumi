@@ -266,27 +266,28 @@ async function editLevel({ actorLeaderUserId, schoolExtId, userId, bands }) {
  * users.organization from the person's school where they are blank (observer-home.homePatch): a teacher a coach makes
  * Principal is then reached by region-scoped switches ("role:principal@ict": FICO-S + the Digital Coach) like any
  * other principal. Ayyaz (IMCB I-8/3, 26 Nov) was made Principal with region blank and got FDE's hand-scored form.
- * One log line names the coach AND the person (the Flow's own line named only the coach). The audit row stays the
- * caller's. If the write with the filled columns is refused, the role alone is written: the region never blocks it.
+ * One log line names the coach AND the person, as keyed references (tk; the Flow's own line named only the coach); the
+ * leader_roster_audit row the caller writes holds the raw ids. If the write with the filled columns is refused, the role alone is written: the region never blocks it.
  *
  * @returns {Promise<{ok: boolean, filled: string[]}>}
  */
 async function writeRoleChange({ actorUserId, targetUserId, schoolExtId, from, plan, via }) {
   const supabase = _db();
-  const home = await require('../observer-home').homePatch(targetUserId, schoolExtId, supabase);
+  const { homePatch, tkOf } = require('../observer-home');
+  const home = await homePatch(targetUserId, schoolExtId, supabase);
   let filled = Object.keys(home);
   const write = (patch) => supabase.from('users').update(patch).eq('id', targetUserId);
   let { error } = (await write({ ...plan.patch, ...home })) || {};
   if (error && filled.length) {
     logToFile('role change: write with region refused - writing the role alone', {
-      targetUserId, filled, error: error.message,
+      targetTk: tkOf(targetUserId), filled, error: error.message,
     }, 'warn');
     filled = [];
     ({ error } = (await write(plan.patch)) || {});
   }
   if (error) return { ok: false, filled: [] };
   logToFile('👤 role changed by a coach', {
-    event: 'observe.role_changed', actorUserId, targetUserId, from: from || null, to: plan.role,
+    event: 'observe.role_changed', actorTk: tkOf(actorUserId), targetTk: tkOf(targetUserId), fromRole: from || null, toRole: plan.role,
     via: via || VIA, schoolExtId: schoolExtId || null, filled,
   });
   return { ok: true, filled };

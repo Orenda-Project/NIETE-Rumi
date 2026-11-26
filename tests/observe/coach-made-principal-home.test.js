@@ -88,7 +88,7 @@ beforeEach(() => {
     ],
     users: [
       // Ayyaz, as prod held him on 26 Nov: a teacher at I-8/3, region and organization blank.
-      { id: 'u-ayyaz', phone_number: '923000000910', name: 'Muhammad Ayyaz Nawaz', role: 'teacher', school_id: 'sch-910',
+      { id: 'u-ayyaz', phone_number: '+92300FIXTURE1', name: 'Muhammad Ayyaz Nawaz', role: 'teacher', school_id: 'sch-910',
         region: null, organization: null, teacher_level: ['HIGH'], teacher_level_updated_at: null },
     ],
     app_settings: [],
@@ -126,7 +126,7 @@ describe('(a) a coach makes a teacher a Principal: the new Principal\'s region c
     user('u-ayyaz').school_id = null;
     // patch-resolver lists her roster from the school's teachers; keep Ayyaz on it through school_ext_id.
     jest.doMock('../../bot/shared/services/observe/patch-resolver.service', () => ({
-      listPatchViaSupabase: jest.fn(async () => [{ userId: 'u-ayyaz', name: 'Muhammad Ayyaz Nawaz', phone: '923000000910' }]),
+      listPatchViaSupabase: jest.fn(async () => [{ userId: 'u-ayyaz', name: 'Muhammad Ayyaz Nawaz', phone: '+92300FIXTURE1' }]),
     }));
     await makePrincipal();
     expect(user('u-ayyaz')).toMatchObject({ role: 'principal', region: 'Urban-II', organization: 'niete' });
@@ -140,17 +140,25 @@ describe('(a) a coach makes a teacher a Principal: the new Principal\'s region c
   });
 
   test('the log line names the coach AND the person changed, the roles, and what was filled', async () => {
+    process.env.WEB_QUIZ_KID_KEY = 'test-key-bd-dsu5mq-0123456789abcdef-0123';
+    try {
     await makePrincipal();
     const line = logs.find((l) => l.data && l.data.event === 'observe.role_changed');
     expect(line).toBeTruthy();
+    // Keyed references (quiz/web-quiz-kid tk), never the raw ids (tests/setup/log-raw-ids): the same id always keys the
+    // same way, so the line still joins to the audit row below, which holds the raw ids.
+    const { tk } = require('../../bot/shared/services/quiz/web-quiz-kid');
     expect(line.data).toMatchObject({
-      actorUserId: ME, targetUserId: 'u-ayyaz', from: 'teacher', to: 'principal', filled: ['region', 'organization'],
+      actorTk: tk(ME), targetTk: tk('u-ayyaz'), fromRole: 'teacher', toRole: 'principal', filled: ['region', 'organization'],
     });
+    expect(line.data.actorTk).toEqual(expect.any(String));
+    expect(JSON.stringify(line.data)).not.toMatch(/coach-misbah|u-ayyaz/);
     // The audit row stays as it was: actor, the person, from/to.
     expect(tables.leader_roster_audit).toEqual([expect.objectContaining({
       action: 'edit_role', actor_user_id: ME, teacher_ext_id: 'u-ayyaz',
       detail: expect.objectContaining({ from: 'teacher', to: 'principal' }),
     })]);
+    } finally { delete process.env.WEB_QUIZ_KID_KEY; }
   });
 
   test('the WhatsApp Flow commit (where Misbah did it) writes through the same function', () => {

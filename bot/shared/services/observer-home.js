@@ -23,12 +23,17 @@
 const { logToFile } = require('../utils/logger');
 
 const db = () => require('../config/supabase');
+
+/** A person's keyed reference for a log line (quiz/web-quiz-kid tk), never the raw users.id; null without a key. */
+function tkOf(userId) {
+  try { return require('./quiz/web-quiz-kid').tk(userId); } catch (_) { return null; }
+}
 const TTL_MS = 60 * 1000;
 let _cache = new Map(); // userId -> { at, value } for fallbackFor
 
 const blank = (v) => v === null || v === undefined || (typeof v === 'string' && !v.trim());
 
-/** users.organization is free text ('niete', 'Taleemabad/niete', 'moawin'...): the registry's spelling, or null. */
+/** users.organization is free text ('niete', 'moawin', or a longer name holding one): the registry's spelling, or null. */
 function orgFromText(org) {
   const s = String(org || '').toLowerCase();
   if (s.includes('moawin')) return 'moawin';
@@ -98,7 +103,7 @@ async function homePatch(userId, schoolExtId, client = db()) {
     if (blank(row.organization) && home.organization) patch.organization = home.organization;
     return patch;
   } catch (e) {
-    logToFile('observer home: lookup failed - the role edit stands without a region', { userId, error: e && e.message }, 'warn');
+    logToFile('observer home: lookup failed - the role edit stands without a region', { tk: tkOf(userId), error: e && e.message }, 'warn');
     return {};
   }
 }
@@ -126,7 +131,7 @@ async function fallbackFor(who, now = Date.now()) {
       }
     }
   } catch (e) {
-    logToFile('observer home: switch fallback failed - deciding as before', { userId: w.userId, error: e && e.message }, 'warn');
+    logToFile('observer home: switch fallback failed - deciding as before', { tk: tkOf(w.userId), error: e && e.message }, 'warn');
     return {}; // not cached: the next read may succeed
   }
   _cache.set(w.userId, { at: now, value });
@@ -135,4 +140,4 @@ async function fallbackFor(who, now = Date.now()) {
 
 function _resetCache() { _cache = new Map(); }
 
-module.exports = { homePatch, fallbackFor, orgFromText, blank, _resetCache };
+module.exports = { homePatch, fallbackFor, orgFromText, blank, tkOf, _resetCache };
