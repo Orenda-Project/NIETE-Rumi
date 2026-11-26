@@ -1,0 +1,2 @@
+{"ts":"2026-11-26T01:39:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"d9c40d04d49a","branch":"bd-cu8noh.2.6-28263","user":""}
+{"ts":"2026-11-26T01:39:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"d9c40d04d49a","branch":"bd-cu8noh.2.6-28263","user":""}
