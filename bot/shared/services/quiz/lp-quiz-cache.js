@@ -113,6 +113,8 @@ function eligibleDonor(row, key, { now = new Date() } = {}) {
   if (!['sent', 'report_sent'].includes(row.status)) return false;
   if (cacheKey(row, row.language) !== key) return false;
   if (m.cache_donor) return false;
+  // A quiz its teacher edited is that teacher's own: never handed to another teacher (quiz-teacher-edit.js).
+  if (m.teacher_edited) return false;
   if (Array.isArray(m.soft_faults) && m.soft_faults.length) return false;
   if (!m.key_verify || !PASSED_KEY_VERIFY.has(m.key_verify.status)) return false;
   if (row.quiz_source === LP_V8 && (!m.key_check || FAILED_CHECK.has(m.key_check.status))) return false;
