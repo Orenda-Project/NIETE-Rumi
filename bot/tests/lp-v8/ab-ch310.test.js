@@ -237,9 +237,9 @@ describe('the portal download follows the same group', () => {
     expect(read('dashboard/routes/portal.routes.js'))
       .toMatch(/const userId = req\.session\.portalUserId;[\s\S]{0,600}?LpCatalogue\.lessonPdf\(lessonId, kind, userId\)/);
     expect(read('dashboard/services/lp-catalogue.service.js'))
-      .toMatch(/ask\('pdf', \{ lessonId, assetKind: kind, userId,/);
+      .toMatch(/ask\('pdf', \{\s*lessonId, assetKind: kind, userId,/);
     expect(read('bot/shared/routes/internal-api.routes.js'))
-      .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null, \{ reader \}\)/);
+      .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null, \{ reader[ ,}]/);
   });
 });
 

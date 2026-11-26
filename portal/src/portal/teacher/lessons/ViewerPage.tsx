@@ -36,7 +36,7 @@ import { useLpFeedbackBar } from './feedbackApi';
  *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else).
  *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
  *   Quiz this lesson      the Home card's switch on and a quiz home for her: the signed quiz home (home/LessonQuizButton)
- *   ShareActions          the dock: Open in another app (the plan's presigned PDF link, opened the way her browser
+ *   ShareActions          the dock: Download PDF (bd-zrdvmi.70: the plan's SAVE link, an attachment, handed out the way her browser
  *                         allows). No Send on WhatsApp, for ICT or GB (bd-ain69z: the operator removed it, 22 Nov).
  *
  * While a lesson records, neither Start DC observation (one is running) nor Open in another app
@@ -102,7 +102,8 @@ export function ViewerPage() {
   // A plan opens at its top, wherever the page before was scrolled to.
   const key = view ? JSON.stringify(view.source) : '';
   // Download on the slim row: Open in another app's logic (not while a lesson records).
-  const download = useOpenTarget(view && !recording ? { fileUrl: () => lessonPlanFileUrl(view.source) } : undefined);
+  // bd-zrdvmi.70 — both layouts ask for the SAVE link: the phone keeps the PDF, so it opens with no internet.
+  const download = useOpenTarget(view && !recording ? { fileUrl: () => lessonPlanFileUrl(view.source, { download: true }) } : undefined);
   useEffect(() => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -190,10 +191,12 @@ export function ViewerPage() {
       title={view.title}
       onBack={close}
       dock={usePlanDock ?? (
-        // bd-ain69z — Open in another app only: no Send on WhatsApp, grey or green (removed for ICT and GB, 22 Nov).
+        // bd-ain69z — no Send on WhatsApp, grey or green (removed for ICT and GB, 22 Nov).
+        // bd-zrdvmi.70 — the one button is Download PDF: the save link, handed out the way her browser allows.
         <ShareActions
-          // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
-          open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
+          // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Download then.
+          open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source, { download: true }) }}
+          copy={{ open: C.downloadPdf }}
         />
       )}
     >

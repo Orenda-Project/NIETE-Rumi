@@ -94,7 +94,7 @@ describe("the viewer, for a leader", () => {
     expect(screen.getByRole("heading", { name: "Place value" })).toBeTruthy();
     expect(screen.getByTestId("viewer").textContent).toBe("Place value");
     expect(screen.getByRole("button", { name: C.answerKey })).toBeTruthy();
-    expect(screen.getByRole("button", { name: C.openOutside })).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.downloadPdf })).toBeTruthy();
     await flush();
     expect(screen.queryByRole("link", { name: new RegExp(C.startDc) })).toBeNull();
     expect(screen.queryByText("Ask why twice")).toBeNull();
@@ -122,7 +122,7 @@ describe("the viewer, for a teacher: exactly today (golden)", () => {
       await waitFor(() => expect(screen.getByRole("link", { name: new RegExp(C.startDc) })).toBeTruthy());
       expect(await screen.findByText("Ask why twice")).toBeTruthy();
       expect(screen.getByRole("button", { name: C.answerKey })).toBeTruthy();
-      expect(screen.getByRole("button", { name: C.openOutside })).toBeTruthy();
+      expect(screen.getByRole("button", { name: C.downloadPdf })).toBeTruthy();
       expect(screen.queryByTestId("share-send")).toBeNull();
     },
   );

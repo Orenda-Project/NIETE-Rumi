@@ -173,7 +173,7 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null, book
  * ("not rendered yet"), which the caller renders rather than treating as an
  * error. Unknown lesson ids also return null; the portal never invents one.
  */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { reader = null } = {}) {
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { reader = null, download = false } = {}) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) return null;
 
@@ -191,12 +191,21 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { rea
     : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'app', reader })) || asset;
 
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
-  const url = await getPresignedUrl(buildR2PublicUrl(sent.r2_key));
+  // bd-zrdvmi.70 — the app's Download PDF: signed as an attachment, so the phone SAVES the plan and she can open it
+  // with no internet (sheet rows 986, 984). Every other caller: today's bare signing.
+  const url = download
+    ? await getPresignedUrl(buildR2PublicUrl(sent.r2_key), 3600, { disposition: 'attachment', filename: downloadName(lessonId, assetKind) })
+    : await getPresignedUrl(buildR2PublicUrl(sent.r2_key));
   return {
     url,
     asset_kind: assetKind,
     version_stamp: asset.version_stamp || null,
   };
+}
+
+/** bd-zrdvmi.70 — the saved file's name: the lesson id (ASCII, unique), the answer key marked as such. */
+function downloadName(lessonId, assetKind) {
+  return `${lessonId}${assetKind === 'answer_key' ? '-answer-key' : ''}.pdf`;
 }
 
 function countAvailable(book, available) {

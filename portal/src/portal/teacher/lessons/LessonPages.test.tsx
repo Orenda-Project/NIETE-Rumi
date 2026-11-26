@@ -211,7 +211,7 @@ describe("viewer", () => {
     expect(url.pathname).toBe("/portal/teacher/coaching");
     expect(Object.fromEntries(url.searchParams)).toEqual({ grade: "4", subject: "maths", plan: "k5:g4m2" });
     expect(screen.getByRole("button", { name: C.answerKey })).toBeTruthy();
-    expect(screen.getByRole("button", { name: C.openOutside })).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.downloadPdf })).toBeTruthy();
   });
 
   it("grades 6–12: the plan's language rides along; no answer key", () => {
@@ -228,7 +228,7 @@ describe("viewer", () => {
     resetShareAvailability();
     http.get.mockImplementation(async (url: string) => (url === "/share/availability" ? { data: { kinds: { lesson: true } } } : { data: {} }));
     renderAt(LESSONS_VIEWER, <ViewerPage />, { lessonPlan: { source: { lane: "g612", renderId: "R9" }, title: "Speed" } });
-    expect(await screen.findByRole("button", { name: C.openOutside })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: C.downloadPdf })).toBeInTheDocument();
     expect(screen.queryByTestId("share-send")).toBeNull();
     expect(http.post).not.toHaveBeenCalled();
   });
@@ -237,7 +237,7 @@ describe("viewer", () => {
     recording.active = true;
     renderAt(LESSONS_VIEWER, <ViewerPage />, { lessonPlan: VIEW, dc: DC });
     expect(screen.queryByRole("link", { name: new RegExp(C.startDc) })).toBeNull();
-    expect(screen.queryByRole("button", { name: C.openOutside })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.downloadPdf })).toBeNull();
     expect(screen.getByTestId("viewer")).toBeTruthy();
   });
 
