@@ -1,2 +1,3 @@
 {"ts":"2026-11-26T03:33:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"16fb25d68152","branch":"bd-zrdvmi.70-stg","user":""}
 {"ts":"2026-11-26T03:34:44Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.6 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"16fb25d68152","branch":"bd-zrdvmi.70-stg","user":""}
+{"ts":"2026-11-26T03:38:44Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"16fb25d68152","branch":"bd-zrdvmi.70-stg","user":""}
