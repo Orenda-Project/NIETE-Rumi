@@ -119,3 +119,43 @@ describe("AudioCard: Save to phone sits under the seek bar, ±10 s and the speed
     click.mockRestore();
   });
 });
+
+/**
+ * bd-ma9jiy.3 (queue #262; from #290, 26 Nov: a principal recorded 33 min, pressed Save to phone 8 times and never Send —
+ * the recording stayed on her phone only). The operator: Send is the ONE primary button; Save to phone is secondary,
+ * smaller and outlined, under the player; after a save on a recording NOT SENT, the line "Saved on your phone. It is not
+ * sent yet: tap Send." stays (naming the page's own button).
+ */
+describe("Save to phone is secondary, and a save says the recording is not sent", () => {
+  it("never a full-width button: smaller, outlined", () => {
+    render(<AudioCard title="Class recording" src={SIGNED} controls save={{ kind: "obs", filename: "NIETE_OBS_x.webm" }} testId="p" />);
+    const b = screen.getByRole("button", { name: "Save to phone" });
+    expect(b.className).not.toMatch(/\bw-full\b/);
+    expect(b.className).toMatch(/\bborder\b/);
+    expect(b.className).toMatch(/text-\[14px\]/);
+  });
+
+  it("an unsent recording saved: the line says it is not sent and names the button to tap; it stays", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<AudioCard title="Your recording" src="blob:https://portal/1" controls save={{ kind: "obs", filename: "NIETE_OBS_x.webm", unsentSend: "Send" }} testId="p" />);
+    fireEvent.click(screen.getByRole("button", { name: "Save to phone" }));
+    expect(await screen.findByText("Saved on your phone. It is not sent yet: tap Send.")).toBeInTheDocument();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(screen.getByText("Saved on your phone. It is not sent yet: tap Send.")).toBeInTheDocument();
+    click.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it("a recording already sent: no such line", async () => {
+    (globalThis.fetch as any).mockImplementation(async (url: string) => (String(url).includes("/recording-file/link")
+      ? { ok: true, status: 200, json: async () => ({ url: ATTACH, filename: "NIETE_OBS_x.webm" }) }
+      : { ok: true, status: 204 }));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<AudioCard title="Class recording" src={SIGNED} controls save={{ kind: "obs", filename: "NIETE_OBS_x.webm" }} testId="p" />);
+    fireEvent.click(screen.getByRole("button", { name: "Save to phone" }));
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(screen.queryByText(/It is not sent yet/)).toBeNull();
+    click.mockRestore();
+  });
+});

@@ -195,6 +195,10 @@ export const OBSERVE_COPY = {
   /* bd-ma9jiy (queue #262) — a kept recording opens as a paused recording: the visit page's way back to it. */
   continueKept: 'Continue recording',
   openingFile: 'Opening the recording…',
+  /* bd-ma9jiy.3 (queue #262, the operator 26 Nov) — a kept recording as a Needs you row: its chip (Paused is `paused`). */
+  notSentChip: 'Not sent',
+  /* bd-ma9jiy.3 — the word a "not sent yet" line asks her to tap (the operator: "It is not sent yet: tap Send."). */
+  sendWord: 'Send',
 };
 
 export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
@@ -356,6 +360,8 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   sendKept: 'محفوظ ریکارڈنگ بھیجیں',
   continueKept: 'ریکارڈنگ جاری رکھیں',
   openingFile: 'ریکارڈنگ کھل رہی ہے…',
+  notSentChip: 'نہیں بھیجی گئی',
+  sendWord: 'بھیجیں',
 };
 
 /** The Observe screens' words in both languages. */

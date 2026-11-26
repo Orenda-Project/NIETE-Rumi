@@ -52,7 +52,8 @@ describe("teacher kit: copy", () => {
   it("every default word is a label: at most 4 words, never a sentence", () => {
     // The one exception, with its reason: the hero report PNG's footer, word for word ("Made just for you, Ayesha"
     // is 5 words with her name) — report-v2/hero-report.template.js.
-    const ALLOWED = [/^report\.madeFor\(/];
+    // bd-ma9jiy.3 (queue #262): the operator's own sentences for a kept recording, word for word.
+    const ALLOWED = [/^report\.madeFor\(/, /^pausedAbruptly$/, /^notSentLine$/, /^savedNotSent\(/];
     const bad = collectCopy(TEACHER_UI_COPY)
       .filter((c) => copyProblem(c.text) && !ALLOWED.some((a) => a.test(c.path)))
       .map((c) => `${c.path}: ${c.text}`);

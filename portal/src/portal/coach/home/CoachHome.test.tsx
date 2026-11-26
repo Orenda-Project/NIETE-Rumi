@@ -84,6 +84,7 @@ describe("CoachHome (kit)", () => {
   it("six kit tiles: Schedule rose, Observe, Schools teal, Training, Coach Training (wide), Analytics (wide, bd-fmf24g.33); chips from the counts only", async () => {
     renderHome();
     const tiles = within(await screen.findByTestId("feature-tiles"));
+    await tiles.findByText("6 this week"); // bd-ma9jiy.3: the chips once /coach/home has answered
     const art = (a: HTMLElement) => a.querySelector("svg[data-feature-art]")?.getAttribute("data-feature-art");
     const links = tiles.getAllByRole("link");
     expect(links.map(art)).toEqual(["schedule", "observations", "schools", "training", "coachTraining", "reports"]);
@@ -126,8 +127,9 @@ describe("CoachHome (kit)", () => {
     (coach as any).getHome.mockResolvedValue({ success: true, home: { ...HOME, today: [] } });
     renderHome();
     expect(await screen.findByTestId("feature-tiles")).toBeInTheDocument();
+    // bd-ma9jiy.3: the tiles show at once; today's list once /coach/home has answered (Home now also asks the phone).
+    expect(await screen.findByText("No visits")).toBeInTheDocument();
     expect(screen.getByTestId("todays-visits")).toHaveTextContent("0");
-    expect(screen.getByText("No visits")).toBeInTheDocument();
   });
 
   it("Urdu: the band, banner, headings, tiles and chips follow the language", async () => {

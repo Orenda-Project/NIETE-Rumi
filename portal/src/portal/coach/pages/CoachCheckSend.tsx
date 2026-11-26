@@ -359,7 +359,8 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       {/* bd-o15qnr.40.2 (queue #229): with the switch on, #204's full player (bar, back / forward 10 s, speed), as on the
           visit and the debrief; off, the card as on production. */}
       <AudioCard title={audio.label} sub={audio.sub} src={src} controls={v7} testId="check-recording"
-        save={{ kind: "obs", recordingId: audio.recordingId ?? null, filename: recordingFilename({ kind: "obs", ext: extOf(audio.filename, audio.blob?.type) }) }}
+        // bd-ma9jiy.3 (queue #262; #290: Save to phone 8 times, never Send) — not sent yet: a save says "tap Send".
+        save={{ kind: "obs", recordingId: audio.recordingId ?? null, filename: recordingFilename({ kind: "obs", ext: extOf(audio.filename, audio.blob?.type) }), unsentSend: C.sendWord }}
         action={(
           <button type="button" onClick={redo}
             className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">

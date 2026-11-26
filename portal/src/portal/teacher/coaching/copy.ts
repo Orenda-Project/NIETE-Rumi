@@ -123,6 +123,8 @@ export const COACHING_V2_COPY = {
   /* bd-bmc9a0.1 — ICT IAB rows 28–29: a send that failed with the phone online names the part that did not go. */
   notSent: 'Not sent',
   recordingNotSent: 'Recording not sent',
+  /** bd-ma9jiy.3 (queue #262) — a recording cut mid-lesson, kept on the phone: the DC page's card. */
+  recordingPaused: 'Recording paused',
   /* bd-r2uzg1.23.5 (queue #274, ICT call 6A; the operator's words, 25 Nov) — the recording is empty (0 bytes) */
   recordingEmpty: "This recording didn't reach us complete. Record or upload it again.",
   planNotSent: 'Lesson plan not sent',
@@ -325,6 +327,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   noInternet: 'انٹرنیٹ نہیں',
   notSent: 'نہیں بھیجا گیا',
   recordingNotSent: 'ریکارڈنگ نہیں بھیجی گئی',
+  recordingPaused: 'ریکارڈنگ رکی ہوئی ہے',
   // bd-r2uzg1.23.5 — MACHINE-DRAFTED: NATIVE-CHECK
   recordingEmpty: 'یہ ریکارڈنگ ہم تک مکمل نہیں پہنچی۔ دوبارہ ریکارڈ کریں یا اپ لوڈ کریں۔',
   planNotSent: 'لیسن پلان نہیں بھیجا گیا',
