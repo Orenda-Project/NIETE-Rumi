@@ -5016,7 +5016,7 @@ const UX_STRINGS = {
   },
   qfix_offers_cq_locked: {
     en: 'Children have started this quiz, so its words stay as they are. You can still fix a right answer: it counts for answers from now on, and earlier answers keep their marks.',
-    ur: 'بچوں نے کوئز شروع کر دیا ہے، اس لیے اس کے الفاظ ویسے ہی رہیں گے۔ آپ درست جواب اب بھی ٹھیک کر سکتے ہیں: یہ آگے کے جوابات پر لاگو ہو گا، اور پہلے کے جوابات کے نمبر وہی رہیں گے۔',
+    ur: 'بچوں نے کوئز شروع کر دیا ہے، اس لیے اس کے الفاظ ویسے ہی رہیں گے۔ درست جواب اب بھی ٹھیک کیا جا سکتا ہے: یہ آگے کے جوابات پر لاگو ہو گا، اور پہلے کے جوابات کے نمبر وہی رہیں گے۔',
   },
   // {n}: the fewest questions a quiz keeps, in the page language's digits
   qfix_offers_cq_floor: {
