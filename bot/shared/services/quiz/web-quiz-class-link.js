@@ -226,7 +226,7 @@ function serveArgs(w, opts = {}) {
 // ── events (lazily through the event key module) ────────────────────────────────────────────────
 
 let warnedNoKid = false;
-// `bare`: the event is another lane's, logged under its own name (quiz_forward_tap, as quiz-forward.js logs it), not
+// `bare`: the event belongs to another module, logged under its own name (quiz_forward_tap, as quiz-forward.js logs it), not
 // under this module's web_quiz. prefix.
 function emit(name, fields, { classId = null, studentId, bare = false } = {}) {
   let Kid;
@@ -611,7 +611,7 @@ async function forTeacher(teacherId) {
 }
 
 /**
- * The card's Forward and Copy (no JS): both log the forward lane's quiz_forward_tap{share_code_id: null, surface
+ * The card's Forward and Copy (no JS): both log quiz-forward.js's quiz_forward_tap{share_code_id: null, surface
  * 'class_link', method 'wa_me' | 'copy', origin 'class_link', stale false, cls}. Forward → wa.me with the URL ONLY
  * (no count, no name), marked ?f=1 so the landing counts the open as via 'forward'; Copy → back to the report's class tab with this class's card open (the link as selectable
  * text). Null when the class is not this teacher's or the switch is off.
@@ -674,9 +674,9 @@ module.exports = {
   markSent, wasSent, sentKey,
   termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
   resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl, signRenewNonce, verifyRenewNonce,
-  // The evening round's reminder payload (the reminders lane requires it from here); web-quiz-evening-round-phone.js.
+  // The evening round's reminder payload (the push reminder service requires it from here); web-quiz-evening-round-phone.js.
   roundsReadyForPhone: (...args) => require('./web-quiz-evening-round-phone').roundsReadyForPhone(...args),
-  // Does this class have a live standing link with the evening round on (the offers lane requires it from here)?
+  // Does this class have a live standing link with the evening round on (for the quiz offer to require from here)?
   hasLiveStandingLink: (...args) => require('./web-quiz-evening-round-phone').hasLiveStandingLink(...args),
   // Does one of this teacher's classes have one (the teacher report requires it from here; no write, never mints)?
   teacherHasLiveRound: (...args) => require('./web-quiz-evening-round-phone').teacherHasLiveRound(...args),

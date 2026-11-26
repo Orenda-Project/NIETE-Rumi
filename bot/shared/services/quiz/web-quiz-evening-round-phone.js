@@ -1,7 +1,7 @@
 'use strict';
 /**
  * roundsReadyForPhone(device_ref, dayPkt) — the reminder's payload (switch `web_quiz_evening_round`).
- * Re-exported from web-quiz-class-link.js, where the reminders lane requires it (as are hasLiveStandingLink and
+ * Re-exported from web-quiz-class-link.js, where the push reminder service requires it (as are hasLiveStandingLink and
  * teacherHasLiveRound, below).
  *
  *   -> [{ class_link_code, class_id, teacher_ref, class_label_en, class_label_ur, round_code, ready_at
@@ -61,7 +61,7 @@ async function finishedOn(shareCodeIds, studentIds) {
   return out;
 }
 
-/** app_settings web_quiz_push_name_children (read as the reminders lane reads it: JSON true only; missing = off). */
+/** app_settings web_quiz_push_name_children (read as the push reminder service reads it: JSON true only; missing = off). */
 async function namesOn() {
   const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', NAMES_KEY);
   if (error) return false;
@@ -132,7 +132,7 @@ async function roundsReadyForPhone(deviceRef, dayPkt, { withKids = false } = {})
 }
 
 /**
- * hasLiveStandingLink(classId) — for the offers lane (re-exported from web-quiz-class-link.js): true only when
+ * hasLiveStandingLink(classId) — for the quiz offer to read (re-exported from web-quiz-class-link.js): true only when
  * web_quiz_class_link (with its parents) AND web_quiz_evening_round are on (both cached 30 s), the class has a live
  * class_links row (not revoked, not expired), AND the class is inside web_quiz_class_link_canary
  * (web-quiz-class-link-canary.js allowedClasses, cached 30 s), as the evening round's writer requires: outside the canary
