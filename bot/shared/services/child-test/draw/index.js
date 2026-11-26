@@ -45,7 +45,7 @@ const { classLabels, shiftOf } = require('./class-label');
 const { formPolicy, termSet } = require('./term-set');
 const { isVisitKey, parseVisitKey, pktDate, oneVisit } = require('./visit-key');
 // child_test_draws.region: the school's programme ('ict' for an ICT sector, as before; 'gilgit-baltistan' for GB)
-const { regionForSchool } = require('./region');
+const { regionForSchool, isGilgitBaltistan } = require('./region');
 
 const PER_VISIT = 5;
 // switch sa_per_visit: a whole number is clamped to 1–5; anything else is PER_VISIT
@@ -631,13 +631,19 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
  * the phone's id for them (clientChildId), is enrolled, and is seated as a main row of this visit's list. Ids only
  * in the logs.
  *
- * An empty list (nothing drawn for the visit yet) is opened by the first child added only when the draw has nobody to
- * list: the school has no child on its roster in that grade (todaysList's `no_class_list`; every Gilgit-Baltistan
- * school on NIETE today). The visit must be the coach's own day at this school (a day key for this school and today,
- * of this grade when it names one) or an observe visit at this school. A school with children in that grade keeps
- * the rule that the draw lists first: an empty list there is `no_list`, as before.
+ * An empty list (nothing drawn for the visit yet): the draw lists first, so an empty list is `no_list`, as before,
+ * unless the caller passes `visitDraw`, the visit's own draw (todaysList's coachUserId, observedGrade, grade, allGrades,
+ * perVisit: the coach app's addChild passes what its dayList draws with). Then the draw is asked first, for that visit
+ * and the grades it would list:
+ *   children listed                         the list is drawn and the child joins it (as after opening the list)
+ *   nobody on the roster (no_class_list)    the first child added opens the list (every GB school on NIETE today)
+ *   everybody tested (frame_exhausted)      the first child opens the list at a Gilgit-Baltistan school only (the
+ *                                           coach's second visit there); anywhere else `no_list`, as before
+ *   anything else                           `no_list`
+ * An opened list must be the coach's own day at this school (a day key for this school and today, of this grade when
+ * it names one) or an observe visit at this school.
  */
-async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firstName, section = null, clientChildId, now = new Date() } = {}) {
+async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firstName, section = null, clientChildId, now = new Date(), visitDraw = null } = {}) {
   const named = oneVisit(givenVisitId, visitKey);
   if (!named.ok) return named;
   const visitId = named.visit;
@@ -648,17 +654,21 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
   if (!name || !clientChildId) return { ok: false, reason: 'bad_child' };
   const open = await listFor(visitId);
   if (!open.ok) return open;
+  if (open.empty) {
+    if (!visitDraw) return { ok: false, reason: 'no_list' };
+    const drawn = await todaysList({ ...visitDraw, schoolId, visitId: givenVisitId, visitKey, now });
+    if (!drawn.ok) {
+      const nobody = drawn.reason === 'no_class_list' || (drawn.reason === 'frame_exhausted' && await isGilgitBaltistan(schoolId));
+      if (!nobody) return drawn.reason ? { ok: false, reason: 'no_list' } : drawn;
+      if (!(await visitIsHere({ visitId, schoolId, grade: g, now }))) return { ok: false, reason: 'no_list' };
+      logToFile('[child-test] nobody to draw: the first added child opens the list', { schoolId, visitId, grade: g, why: drawn.reason });
+    }
+  }
 
   const cycleId = cycleFor(now);
   const sessionCode = sessionCodeFor(now);
   const cls = await store.listGradeClasses(schoolId, sessionCode, [g]);
   if (!cls.ok) return cls;
-  if (open.empty) {
-    const may = await emptyListOpens({ visitId, schoolId, grade: g, classes: cls.classes, now });
-    if (!may.ok) return may;
-    if (!may.open) return { ok: false, reason: 'no_list' };
-    logToFile('[child-test] empty roster: the first added child opens the list', { schoolId, visitId, grade: g });
-  }
   const sec = section ? String(section).trim().toUpperCase() : null;
   let room = sec ? cls.classes.find((c) => String(c.section || '').toUpperCase() === sec) : oneShift(cls.classes).sort(bySectionThenId)[0];
   if (!room) {
@@ -702,24 +712,18 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
 }
 
 /**
- * Whether the first added child may open an empty list (addChild above): the visit is this school's (the coach's own
- * day key for this school and today, of this grade when the key names one; or an observe visit at this school; never a
- * classic cs: key), and nobody is on the school's roster in that grade. { ok, open } | a store error.
+ * Whether an empty list the first added child opens is this school's (addChild above): the coach's own day key for this
+ * school and today, of this grade when the key names one; or an observe visit at this school; never a classic cs: key.
+ * A failed read is no.
  */
-async function emptyListOpens({ visitId, schoolId, grade, classes, now }) {
+async function visitIsHere({ visitId, schoolId, grade, now }) {
   const key = parseVisitKey(visitId);
   if (key) {
-    const ours = key.kind === 'day' && key.schoolId === schoolId && key.date === pktDate(now)
+    return key.kind === 'day' && key.schoolId === schoolId && key.date === pktDate(now)
       && (key.grade === undefined || key.grade === grade);
-    if (!ours) return { ok: true, open: false };
-  } else {
-    const at = await resolveVisitSchool({ visitId });
-    if (!at.ok) return at.reason ? { ok: true, open: false } : at;
-    if (at.schoolId !== schoolId) return { ok: true, open: false };
   }
-  const enr = await store.listActiveEnrollments(classes.map((c) => c.id));
-  if (!enr.ok) return enr;
-  return { ok: true, open: enr.enrollments.length === 0 };
+  const at = await resolveVisitSchool({ visitId });
+  return Boolean(at && at.ok && at.schoolId === schoolId);
 }
 
 // ── markOutcome ────────────────────────────────────────────────────────────────────────────────

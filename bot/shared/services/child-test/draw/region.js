@@ -19,6 +19,8 @@ const { logToFile } = require('../../../utils/logger');
 
 const ICT = 'ict';
 const ICT_ORGANIZATION = 'niete';
+// Gilgit-Baltistan's registry key (region_features.region, organization moawin)
+const GB = 'gilgit-baltistan';
 
 /**
  * @param {string} schoolId
@@ -43,4 +45,9 @@ async function regionForSchool(schoolId) {
   }
 }
 
-module.exports = { regionForSchool, ICT };
+/** Is this a Gilgit-Baltistan school (regionForSchool, so an unreadable region is no)? Never throws. */
+async function isGilgitBaltistan(schoolId) {
+  return (await regionForSchool(schoolId)) === GB;
+}
+
+module.exports = { regionForSchool, isGilgitBaltistan, ICT, GB };

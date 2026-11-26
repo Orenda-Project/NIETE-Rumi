@@ -182,7 +182,14 @@ describe('dayList', () => {
   test('a draw refusal is passed on as invalid with its reason', async () => {
     const deps = makeDeps();
     deps.draw.todaysList.mockResolvedValueOnce({ ok: false, reason: 'no_class_list' });
-    expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
+    // no_class_list also tells the page that "Add a child" opens the list there (draw.addChild with the visit's draw)
+    expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list', addOpens: true });
+  });
+
+  test('any other draw refusal is passed on with its reason and no addOpens', async () => {
+    const deps = makeDeps();
+    deps.draw.todaysList.mockResolvedValueOnce({ ok: false, reason: 'bad_visit_key' });
+    expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps)).toEqual({ status: 'invalid', reason: 'bad_visit_key' });
   });
 });
 

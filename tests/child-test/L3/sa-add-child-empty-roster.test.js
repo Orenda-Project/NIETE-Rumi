@@ -8,9 +8,12 @@
  * Driven through the coach app's own API (sa-api.service addChild / dayList / dayOutcome) with the REAL gate, the REAL
  * draw and the REAL store; only the Supabase client is replaced (the L3 in-memory tables).
  *
- * The rule is narrow on purpose: an empty day list opens from "Add a child" only when the school has no child on its
- * roster in that grade, the draw's own "nothing to list" case. A school WITH a roster keeps today's rule (the draw
- * lists first, then the coach adds), and a day key for another school or another day is still refused.
+ * The rule is the draw's own answer for that visit: "Add a child" on an empty day list asks the draw first, with the
+ * visit's own grades. Children to list → they are listed and the child joins them. Nobody to list because nobody is on
+ * the roster (no_class_list) → the first child opens the list. Every child already tested (frame_exhausted) → the first
+ * child opens it at a Gilgit-Baltistan school only, the coach's second visit there; an ICT school keeps today's rule.
+ * The draw itself, called without the visit's draw, keeps today's rule (no_list), and a day key for another school
+ * or another day is still refused. The coach app's clock is the draw's clock: Date is faked, and one case moves it.
  */
 const { createFakeSupabase, CHILD_TEST_UNIQUE } = require('./helpers/fake-supabase');
 
@@ -25,10 +28,13 @@ const KID = '0a0a0a0a-0000-4000-8000-0000000000a1';
 const KID2 = '0a0a0a0a-0000-4000-8000-0000000000a2';
 const NOW = new Date('2026-11-26T05:00:00Z'); // 10:00 PKT
 const ENV = { ...process.env };
+// Date only: the draw's timers, promises and setImmediate stay real.
+const FAKE_DATE = { doNotFake: ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] };
 
-function seed({ roster = [], schoolRegion = 'Gilgit-Baltistan' } = {}) {
+function seed({ roster = [], schoolRegion = 'Gilgit-Baltistan', allGrades = true } = {}) {
   const tables = {
-    users: [{ id: COACH, role: 'coach', region: 'Gilgit-Baltistan' }],
+    users: [{ id: COACH, role: 'coach', region: schoolRegion }],
     schools: [
       { id: SCHOOL, name: 'GB School', region: schoolRegion, is_active: true, is_probable_test: false },
       { id: OTHER, name: 'Other School', region: schoolRegion, is_active: true, is_probable_test: false },
@@ -38,7 +44,7 @@ function seed({ roster = [], schoolRegion = 'Gilgit-Baltistan' } = {}) {
       { region: 'gilgit-baltistan', organization: 'moawin', display_name: 'Gilgit-Baltistan', is_active: true },
       { region: 'urban', organization: 'niete', display_name: 'Urban', is_active: true },
     ],
-    app_settings: [{ key: 'sa_add_child', value: true }, { key: 'sa_all_grades', value: true }],
+    app_settings: [{ key: 'sa_add_child', value: true }, ...(allGrades ? [{ key: 'sa_all_grades', value: true }] : [])],
     classes: [], class_enrollments: [], students: [], observation_field_forms: [],
     child_test_draws: [], child_test_sessions: [], child_test_blocks: [],
   };
@@ -56,17 +62,19 @@ function seed({ roster = [], schoolRegion = 'Gilgit-Baltistan' } = {}) {
 
 let sa;
 beforeEach(() => {
+  jest.useFakeTimers({ now: NOW, ...FAKE_DATE });
   jest.resetModules();
   process.env = {
     ...ENV,
     CHILD_TEST_ENABLED: 'true',
-    CHILD_TEST_REGIONS: 'niete,ict,gilgit-baltistan',
+    CHILD_TEST_REGIONS: 'niete,ict,gilgit-baltistan,urban',
     CHILD_TEST_COACH_IDS: COACH,
     CHILD_TEST_DRAW_SECRET: 'test-secret',
     CHILD_TEST_FORM_POLICY: 'returning_b',
   };
   sa = require('../../../bot/shared/services/child-test/app/sa-api.service');
 });
+afterEach(() => { jest.useRealTimers(); });
 afterAll(() => { process.env = ENV; });
 
 const T = () => mockFake.__tables;
@@ -78,7 +86,18 @@ const add = (extra = {}) => sa.addChild({
 describe('a school with no children on its roster', () => {
   test('the day list itself cannot be drawn (today, unchanged): no_class_list', async () => {
     seed();
-    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list' });
+    // the answer also tells the page that "Add a child" opens the list here
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps)).toEqual({ status: 'invalid', reason: 'no_class_list', addOpens: true });
+  });
+
+  test('RED on the head before this fix: the coach app\'s clock is the draw\'s clock (a wall clock on another day does not refuse the list)', async () => {
+    seed();
+    jest.setSystemTime(new Date('2026-11-27T05:00:00Z')); // the server's own clock, a day on from the coach's day
+    // the day list is the coach's day (deps.now), so the draw answers for that day: nobody to list, not a bad key
+    expect(await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps)).toMatchObject({ status: 'invalid', reason: 'no_class_list' });
+    expect((await add()).status).toBe('ok');
+    const again = await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, deps);
+    expect(again).toMatchObject({ status: 'ok', list: { reused: true } });
   });
 
   test('RED on the base: "Add a child" opens the day list with that child, on the roster, in a new Grade 3 class', async () => {
@@ -121,10 +140,13 @@ describe('a school with no children on its roster', () => {
 });
 
 describe('everything else keeps today\'s rule', () => {
-  test('a school WITH children in that grade: an empty list is still refused (the draw lists first)', async () => {
+  test('a school WITH children in that grade: the draw lists them first, and the added child joins that list, last', async () => {
     seed({ roster: [{ id: 'g3a', grade: 3, size: 8 }] });
-    expect(await add()).toEqual({ status: 'invalid', reason: 'no_list' });
-    expect(T().students.some((s) => s.id === KID)).toBe(false);
+    const out = await add();
+    expect(out.status).toBe('ok');
+    expect(out.list.children).toHaveLength(6);
+    expect(out.list.children[5]).toMatchObject({ firstName: 'Zara' });
+    expect(out.list.children.slice(0, 5).every((c) => c.role === 'new' && c.firstName !== 'Zara')).toBe(true);
   });
 
   test('a roster in another grade only: the grade with nobody opens from "Add a child"', async () => {
@@ -138,10 +160,13 @@ describe('everything else keeps today\'s rule', () => {
     expect(T().students).toHaveLength(0);
   });
 
+  // These call the draw as the coach app does: with the visit's own draw (visitDraw), so an empty list asks it first.
+  const visitDraw = { coachUserId: COACH, grade: 3, allGrades: true };
+
   test('the draw refuses a day key for another school or another day', async () => {
     seed();
     const draw = require('../../../bot/shared/services/child-test/draw');
-    const base = { schoolId: SCHOOL, grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW };
+    const base = { schoolId: SCHOOL, grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW, visitDraw };
     expect(await draw.addChild({ ...base, visitKey: `day:${COACH}:${OTHER}:2026-11-26:g3` })).toEqual({ ok: false, reason: 'no_list' });
     expect(await draw.addChild({ ...base, visitKey: `day:${COACH}:${SCHOOL}:2026-11-25:g3` })).toEqual({ ok: false, reason: 'no_list' });
     expect(T().students).toHaveLength(0);
@@ -151,15 +176,72 @@ describe('everything else keeps today\'s rule', () => {
     seed();
     const draw = require('../../../bot/shared/services/child-test/draw');
     const g3 = `day:${COACH}:${SCHOOL}:2026-11-26:g3`;
-    expect(await draw.addChild({ schoolId: SCHOOL, visitKey: g3, grade: 1, firstName: 'Zara', clientChildId: KID, now: NOW })).toEqual({ ok: false, reason: 'no_list' });
-    expect((await draw.addChild({ schoolId: SCHOOL, visitKey: g3, grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW })).ok).toBe(true);
+    expect(await draw.addChild({ schoolId: SCHOOL, visitKey: g3, grade: 1, firstName: 'Zara', clientChildId: KID, now: NOW, visitDraw })).toEqual({ ok: false, reason: 'no_list' });
+    expect((await draw.addChild({ schoolId: SCHOOL, visitKey: g3, grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW, visitDraw })).ok).toBe(true);
   });
 
   test('an observe visit at another school does not open an empty list here', async () => {
     seed();
     T().observation_field_forms.push({ id: 'visit-x', observer_user_id: COACH, visit_context: { school_ext_id: 'niete:999' } });
     const draw = require('../../../bot/shared/services/child-test/draw');
-    expect(await draw.addChild({ schoolId: SCHOOL, visitId: 'visit-x', grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW })).toEqual({ ok: false, reason: 'no_list' });
+    expect(await draw.addChild({ schoolId: SCHOOL, visitId: 'visit-x', grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW, visitDraw: { coachUserId: COACH } })).toEqual({ ok: false, reason: 'no_list' });
     expect(T().students).toHaveLength(0);
+  });
+});
+
+describe('the draw decides whether anybody is listed, across the grades it would list', () => {
+  test('RED on the head before this fix: the draw itself, with nobody listed yet, keeps today\'s rule; the visit then draws its Grade 5 list', async () => {
+    // the reviewer's probe: 12 children in Grade 5, none in Grade 3, an observe visit whose list is not drawn yet
+    const { buildRoster } = require('./helpers/roster');
+    const tables = buildRoster({ classes: [{ id: 'g5a', grade: 5, section: 'A', size: 12 }] });
+    tables.schools[0].region = 'Urban';
+    tables.region_features = [{ region: 'urban', organization: 'niete', display_name: 'Urban', is_active: true }];
+    mockFake = createFakeSupabase(tables, { unique: CHILD_TEST_UNIQUE });
+    const draw = require('../../../bot/shared/services/child-test/draw');
+    const added = await draw.addChild({ schoolId: 'school-1', visitId: 'visit-1', grade: 3, firstName: 'Zara', clientChildId: KID, now: NOW });
+    expect(added).toEqual({ ok: false, reason: 'no_list' });
+    const list = await draw.todaysList({ coachUserId: 'coach-1', schoolId: 'school-1', visitId: 'visit-1', observedGrade: 5, now: NOW });
+    expect(list).toMatchObject({ ok: true, grade: 5 });
+    expect(list.children).toHaveLength(5);
+    expect(T().child_test_draws.some((d) => d.student_id === KID)).toBe(false);
+  });
+
+  test('RED on the head before this fix: without every grade, a Grade 3 child added before the list is drawn joins the Grade 5 list the draw makes', async () => {
+    seed({ roster: [{ id: 'g5a', grade: 5, size: 12 }], allGrades: false });
+    const out = await add({ listGrade: undefined });
+    expect(out.status).toBe('ok');
+    expect(out.list.grade).toBe(5);
+    expect(out.list.children.filter((c) => c.grade === 5)).toHaveLength(5);
+    expect(out.list.children.map((c) => c.firstName)).toContain('Zara');
+  });
+});
+
+describe('the second visit: every child on the list already tested', () => {
+  // Day 1: two children added and tested. Day 2: the draw has nobody left (frame_exhausted).
+  const DAY2 = new Date('2026-11-27T05:00:00Z');
+  async function dayOneThenTwo(schoolRegion) {
+    seed({ schoolRegion });
+    await add();
+    await add({ firstName: 'Bilal', clientChildId: KID2 });
+    for (const r of T().child_test_draws) { r.status = 'tested'; r.tested_at = NOW.toISOString(); }
+    jest.setSystemTime(DAY2);
+    const d2 = { now: () => new Date(DAY2) };
+    const list = await sa.dayList({ userId: COACH, schoolId: SCHOOL, grade: 3 }, d2);
+    const added = await sa.addChild({ userId: COACH, schoolId: SCHOOL, grade: 3, listGrade: 3, firstName: 'Sana', clientChildId: '0a0a0a0a-0000-4000-8000-0000000000a3' }, d2);
+    return { list, added };
+  }
+
+  test('RED on the head before this fix: at a Gilgit-Baltistan school, "Add a child" opens day 2\'s list', async () => {
+    const { list, added } = await dayOneThenTwo('Gilgit-Baltistan');
+    expect(list).toEqual({ status: 'invalid', reason: 'frame_exhausted', addOpens: true });
+    expect(added.status).toBe('ok');
+    expect(added.list.children.map((c) => c.firstName)).toEqual(['Sana']);
+  });
+
+  test('at an ICT school, unchanged: the page is told nothing new and "Add a child" is refused', async () => {
+    const { list, added } = await dayOneThenTwo('Urban');
+    expect(list).toEqual({ status: 'invalid', reason: 'frame_exhausted' });
+    expect(added).toEqual({ status: 'invalid', reason: 'no_list' });
+    expect(T().students.some((st) => st.student_name === 'Sana')).toBe(false);
   });
 });
