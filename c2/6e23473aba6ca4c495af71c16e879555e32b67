@@ -1,1 +1,2 @@
 {"ts":"2026-11-26T16:59:49Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.4.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"c26e23473aba","branch":"bd-snkn32.58.9-goalcheck","user":""}
+{"ts":"2026-11-26T16:59:57Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.4.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"c26e23473aba","branch":"bd-snkn32.58.9-goalcheck","user":""}
