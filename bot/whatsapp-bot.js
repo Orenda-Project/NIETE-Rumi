@@ -75,6 +75,9 @@ const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
 const WebhookSignature = require('./shared/services/webhook-signature');
 // Create Express app. `verify` keeps the raw bytes Meta signed (req.rawBody); req.body is parsed exactly as before.
 const app = express();
+// bd-2z5fuc: an internal route whose body is bigger than 100kb (the coaching breakdown's analysis_data) gets its own
+// limit, for the internal key only; mounted first so the global 100kb parser below passes the parsed body by.
+require('./shared/routes/internal-json-limits').mountInternalJsonLimits(app, { verify: WebhookSignature.captureRawBody });
 app.use(express.json({ verify: WebhookSignature.captureRawBody }));
 
 // Mount routes (Flow encryption endpoints). Meta signs these too; enforce answers 432, its code for a bad signature.
