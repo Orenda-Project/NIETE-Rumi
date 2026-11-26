@@ -41,6 +41,9 @@
       primerHead: 'One more step',
       primerBody: 'Your phone will ask about reminders next. Choose Allow.',
       primerGo: 'OK',
+      // the install card (web_quiz_install_android): the finish screen's install card, after the reminder ask is settled
+      instTitle: 'Put Jugnu on your phone',
+      instAdd: 'Add',
       remindWait: 'Turning reminders on…',
       remindHint: 'Now tap Allow below',
       remindDone: 'Done. Jugnu will remind you tomorrow evening.',
@@ -73,6 +76,8 @@
       primerHead: 'بس ایک قدم اور',
       primerBody: 'اب آپ کا فون یاد دہانی کے بارے میں پوچھے گا۔ وہاں اجازت دیں۔',
       primerGo: 'ٹھیک ہے',
+      instTitle: 'جگنو کو اپنے فون پر رکھیں',
+      instAdd: 'شامل کریں',
       remindWait: 'یاد دہانی آن ہو رہی ہے…',
       // names no button: Chrome's permission dialog follows the phone's language, not the page's
       remindHint: 'اب نیچے والے بٹن سے اجازت دیں',
@@ -222,6 +227,9 @@
     var primer = false; // the permission primer (web_quiz_push_primer, from the key): our Yes shows it first
     var primerUp = false; // the primer is on screen: a second Yes tap (before it drew) counts nothing
     var primed = false; // the primer was answered OK once on this page: a later Yes (arm b's retry) asks the browser at once
+    // the install card: the Android install on the finish screen (install_android from the key). It waits for the browser's offer
+    // (beforeinstallprompt) AND for the reminder ask to be settled; never beside the ask, never in the installed app.
+    var inst = { on: false, offer: null, settled: false, done: false, sent: {} };
     var arm = null; // the ask's arm from the key ('a' | 'b', web_quiz_push_ask_v2); null = no arm (today exactly)
     var watching = false;
 
@@ -264,11 +272,14 @@
     function lbl(cls, label) { return cls.indexOf('wq-ghost') >= 0 ? '<span style="text-decoration:underline;text-underline-offset:4px">' + esc(label) + '</span>' : esc(label); }
     function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none;border-bottom:0"' : '') + '>' + lbl(cls, label) + '</button>'; }
     function link(cls, act, href, label) { return '<a class="wq-btn ' + cls + '" data-act="' + act + '" href="' + esc(href) + '">' + esc(label) + '</a>'; }
-    function draw(inner) {
-      if (!inner) { slot.innerHTML = ''; return; }
-      slot.innerHTML = '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
+    function section(inner) {
+      return '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
         + ' style="margin:16px 0 0;padding:16px;display:grid;gap:10px">' + inner + '</section>';
     }
+    // the card's own state (ask, primer, done, off...); the install card is a second section under it, so the
+    // reminder's answer stays on screen
+    var drawn = '';
+    function draw(inner) { drawn = inner ? section(inner) : ''; slot.innerHTML = drawn; }
     // Nastaliq room; on the landing the status lines read at 18 px with a little more air
     var lh = lang === 'ur' ? (landing ? ';line-height:2.2' : ';line-height:2') : '';
     var fs = landing ? ';font-size:18px' : '';
@@ -352,6 +363,63 @@
         });
     }
 
+    // the install card's meter, on the page relay as install_prompt{step, at:'finish'} (the hub card's event); each step once per page.
+    function istep(step) {
+      if (inst.sent[step]) return;
+      inst.sent[step] = true;
+      try { if (window.WQT && window.WQT.on === true) window.WQT.push({ n: 'install_prompt', step: step, src: 'browser', at: 'finish' }); } catch (_) { /* no meter */ }
+    }
+    function instSnoozed() { var t = Number(lsGet('wqp_inst_later')); return isFinite(t) && t > 0 && Date.now() - t < 7 * 864e5; }
+    function standaloneNow() {
+      try { return Boolean((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone === true)); } catch (_) { return false; }
+    }
+    // the reminder ask is settled (answered, or never shown): the card may come once the browser has offered
+    function settle() { inst.settled = true; instShow(); }
+    // the install card is for Android Chrome on the result screen: not the /remind landing, not WhatsApp's browser, iPhone or desktop
+    function instOk(body) {
+      return !landing && Boolean(code) && Boolean(body && body.install_android === true) && branch() === 'card'
+        && /Android/i.test(String(window.navigator.userAgent || ''));
+    }
+    function instShow() {
+      if (!inst.on || inst.done || !inst.settled || !inst.offer || instSnoozed()) return;
+      inst.done = true;
+      istep('card_shown');
+      slot.innerHTML = drawn + section(title(c.instTitle) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+        + btn('wq-soft', 'inst_add', c.instAdd) + btn('wq-ghost', 'inst_later', c.remindLater) + '</div>');
+    }
+    function instWire(code) {
+      if (standaloneNow()) return;
+      inst.on = true;
+      try {
+        var l = window.document.createElement('link');
+        l.rel = 'manifest'; l.href = '/q/' + encodeURIComponent(code) + '/manifest.webmanifest';
+        window.document.head.appendChild(l);
+      } catch (_) { inst.on = false; return; }
+      window.addEventListener('beforeinstallprompt', function (e) {
+        try { if (e && e.preventDefault) e.preventDefault(); } catch (_) { /* the browser's own banner then */ }
+        inst.offer = e; istep('bip_fired'); instShow();
+      });
+      window.addEventListener('appinstalled', function () { inst.offer = null; istep('installed'); });
+    }
+    // a snoozed ask: read the key only where the install card could show (an Android Chrome tab, not the installed app,
+    // not within the card's own snooze); anywhere else no network, as before
+    function instOnly() {
+      if (!code || branch() !== 'card' || !/Android/i.test(String(window.navigator.userAgent || '')) || standaloneNow() || instSnoozed()) return Promise.resolve();
+      return getKey(code).then(function (r) {
+        if (r.status === 200 && instOk(r.body)) { instWire(code); settle(); }
+        return null;
+      }).catch(function () { return null; });
+    }
+    function instAdd() {
+      var e = inst.offer; inst.offer = null;
+      slot.innerHTML = drawn;
+      istep('add');
+      try {
+        e.prompt();
+        if (e.userChoice && e.userChoice.then) e.userChoice.then(function (ch) { istep(ch && ch.outcome === 'accepted' ? 'accepted' : 'dismissed'); });
+      } catch (_) { istep('prompt_failed'); }
+    }
+
     // The Yes tap: the ONLY place the browser's permission is asked, first thing inside the gesture.
     function onYes() {
       if (busy || primerUp) return;
@@ -376,13 +444,13 @@
         if (perm !== 'granted') {
           lsSet('wq_rm_asked', Date.now());
           ev('denied', { perm: perm === 'denied' ? 'denied' : 'default', prompt_ms: tookMs() });
-          if (arm === 'b' && perm !== 'denied') show.retry(); else show.denied();
+          if (arm === 'b' && perm !== 'denied') show.retry(); else { show.denied(); settle(); }
           return null;
         }
         ev('granted', { prompt_ms: tookMs() });
         show.wait();
         return subscribe().then(function (out) {
-          if (out === 'ok') { ev('subscribed'); show.done(); } else if (out === 'class') { ev('failed', { ok: false }); draw(''); } else { ev('failed', { ok: false }); show.ask(); }
+          if (out === 'ok') { ev('subscribed'); show.done(); settle(); } else if (out === 'class') { ev('failed', { ok: false }); draw(''); } else { ev('failed', { ok: false }); show.ask(); }
         });
       }).catch(function () { ev('failed', { ok: false }); show.ask(); }).then(function () { busy = false; });
     }
@@ -416,8 +484,11 @@
       if (!act) return;
       if (act === 'yes') onYes();
       else if (act === 'primer_go') { primerUp = false; primed = true; ev('primer_go'); askBrowser(); }
+      // a Not now (to the ask or to the primer) gets no install card in that tap: it comes on the next finish page
       else if (act === 'primer_back') { primerUp = false; lsSet('wq_rm_later', Date.now()); ev('primer_back'); draw(''); }
       else if (act === 'later') { lsSet('wq_rm_later', Date.now()); ev('later', dwell()); draw(''); }
+      else if (act === 'inst_add') { if (inst.offer) instAdd(); }
+      else if (act === 'inst_later') { lsSet('wqp_inst_later', Date.now()); istep('later'); slot.innerHTML = drawn; }
       else if (act === 'stop') onStop();
       else if (act === 'test') onTest();
       else if (act === 'copy') { if (e.preventDefault) e.preventDefault(); onCopy(); }
@@ -429,26 +500,29 @@
       start: function () {
         if ((Number(ctx.chips) || 0) >= 4) return Promise.resolve();
         if (installOnScreen()) return Promise.resolve();
-        if (!landing && snoozed()) return Promise.resolve();
+        // the ask is snoozed (answered or Not now): no ask, but an Android Chrome tab may still get the install card
+        if (!landing && snoozed()) return instOnly();
         return getKey(code).then(function (r) {
           // only a real off drops the worker; a 5xx, a route miss or no network leaves it (a failed read is not OFF)
           if (r.status === 404 && r.body && r.body.off === true) return dropWorkers();
           if (r.status !== 200) return null;
           // outside the canary: no card, no step, and any worker this phone already has stays
-          if (r.body && r.body.ask === false) return null;
+          if (r.body && r.body.ask === false) { if (instOk(r.body)) { instWire(code); settle(); } return null; }
           key = r.body && typeof r.body.key === 'string' ? r.body.key : null;
           // the landing keeps its own question: no arm there
           if (!landing && r.body && (r.body.ask_v === 'a' || r.body.ask_v === 'b')) arm = r.body.ask_v;
           primer = Boolean(r.body && r.body.primer === true);
           var b = branch();
+          // the install card: only in a browser tab that can take it (not WhatsApp's browser, not iPhone, not a no-push browser)
+          if (instOk(r.body)) instWire(code);
           if (b === 'iab') { iab = true; askShown(); show.iab(); return null; }
           if (b === 'ios') { ev('ios'); show.ios(); return null; }
           if (b === 'nopush') { ev('nopush'); show.nopush(); return null; }
           if (!key) return null;
           var perm = window.Notification.permission;
-          if (perm === 'denied') { if (landing) show.denied(); return null; }
+          if (perm === 'denied') { if (landing) show.denied(); settle(); return null; }
           return (perm === 'granted' ? currentSub() : Promise.resolve(null)).then(function (sub) {
-            if (sub) { if (landing) show.done(); return; }
+            if (sub) { if (landing) show.done(); settle(); return; }
             askShown();
             show.ask();
           });

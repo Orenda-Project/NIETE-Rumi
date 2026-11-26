@@ -1558,6 +1558,17 @@ function createWebQuizRouter(opts = {}) {
     next();
   };
   router.get('/j/:code', pushLanded('class_link'));
+  // the finish-screen install card (web_quiz_install_android; the page links this only when the bot's /api/wqpush/key says so): the finish
+  // screen's install manifest. One fixed id, so every finish-screen install is the same app to Chrome (no second icon,
+  // no re-offer after the next quiz); the icon reopens the finished quiz, which link_home turns into that child's hub.
+  router.get('/q/:code/manifest.webmanifest', limiters.read, (req, res) => {
+    const code = String(req.params.code || '');
+    if (!/^[A-Za-z0-9]{4,16}$/.test(code)) return res.status(404).end();
+    let base = {};
+    try { base = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.webmanifest'), 'utf8')); } catch (_) { base = { name: 'Jugnu' }; }
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, id: '/wq/jugnu', start_url: `/q/${code}?from=hs`, scope: '/' }));
+  });
   // ── standing class link /j/<code> (web_quiz_class_link, decided by the bot): web-quiz-class-link.js ──
   let clV = null;
   const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
