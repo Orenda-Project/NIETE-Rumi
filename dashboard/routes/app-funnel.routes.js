@@ -550,7 +550,8 @@ function createAppFunnelRouter({ limiter } = {}) {
 // bd-ma9jiy — the recorder heartbeat's kinds, events and id shape.
 const REC_KINDS = ['dc', 'obs', 'dbrf'];
 const REC_FEATURE = { dc: 'ai_coaching', obs: 'observe', dbrf: 'debrief' };
-const REC_EVENTS = ['start', 'resume', 'pause', 'unpause', 'stop', 'discard', 'cut', 'save_failed', 'mic_blocked', 'kept_shown', 'kept_send',
+// bd-91htd2 (queue #292): 'reopen' = a recording she had stopped, reopened (a 'cut' is one cut by a kill).
+const REC_EVENTS = ['start', 'resume', 'pause', 'unpause', 'stop', 'discard', 'cut', 'reopen', 'save_failed', 'mic_blocked', 'kept_shown', 'kept_send',
   'save_to_phone', 'save_to_phone_failed', 'resend', 'send_failed', 'sent', 'join_failed'];
 const REC_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
