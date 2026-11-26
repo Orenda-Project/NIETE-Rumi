@@ -223,7 +223,9 @@ A second check, every 30 minutes, reads the OpenRouter key's usage (`GET /api/v1
 and warns once a day when under 10% is left or under 3 days at the 7-day burn rate; again at 3% or 1 day.
 
 Switch it on with `PROD_ALERTS_ENABLED=true` plus `PROD_ALERTS_SLACK_TOKEN` / `PROD_ALERTS_SLACK_CHANNEL`
-(see `.env.template` for the rest; `PROD_ALERTS_DRY_RUN=true` logs what it would post instead). The
+(see `.env.template` for the rest; `PROD_ALERTS_DRY_RUN=true` logs what it would post instead).
+`PROD_ALERTS_MENTION` (Slack user ids) tags people on each top-level incident post and key warning, never
+on thread updates or all-clears. The
 owner replica logs `prod_incident_watch.tick` every check, so an outside monitor can tell when the watch
 itself has gone quiet. Before changing a threshold, replay history and count the posts:
 

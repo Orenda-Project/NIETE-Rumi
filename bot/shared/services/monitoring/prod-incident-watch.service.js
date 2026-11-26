@@ -46,6 +46,8 @@
  *   PROD_ALERTS_HEALTH_URLS      "portal=https://…/health,bot=https://…/health"; 'off' = none. Default: the
  *                                Railway-provided RAILWAY_SERVICE_PORTAL_URL / RAILWAY_SERVICE_BOT_URL + /health
  *   PROD_ALERTS_KEY_BUDGET_OFF   '1' skips the key-usage read (it uses the worker's own OPENROUTER_API_KEY)
+ *   PROD_ALERTS_MENTION          Slack user ids, comma-separated, tagged on every top-level incident post and
+ *                                key warning (thread updates and all-clears tag nobody)
  *   AXIOM_TOKEN / AXIOM_API_TOKEN, AXIOM_ORG_ID — already on the worker
  */
 
@@ -101,6 +103,13 @@ function config(env = process.env) {
 }
 
 const on = (v) => String(v || '').toLowerCase() === 'true';
+
+/** '<@U…> <@U…>' from PROD_ALERTS_MENTION (comma- or space-separated user ids); anything else is dropped. */
+function mentionsFrom(env = process.env) {
+  return String(env.PROD_ALERTS_MENTION || '').split(/[\s,]+/)
+    .filter((id) => /^[UW][A-Z0-9]{6,}$/.test(id))
+    .map((id) => `<@${id}>`).join(' ');
+}
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const iso = (ms) => new Date(ms).toISOString();
 const floorMin = (d) => Math.floor(d.getTime() / MIN) * MIN;
@@ -683,6 +692,7 @@ function linkAplFor(rule, { env, dataset, sub = null }) {
 async function tick({
   now = new Date(), cfg = DEFAULTS, query, store, post, checkHealth = null,
   env = 'production', dataset = 'niete-logs', stateKey = STATE_KEY, axiomOrg = null, details: wantDetails = true,
+  mention = '',
 }) {
   const apl = aplFor({ env, dataset });
   const failed = [];
@@ -767,7 +777,7 @@ async function tick({
 
     if (a.type === 'open') {
       try {
-        incident.ts = await post({ ...msg, type: 'open', rule: a.rule });
+        incident.ts = await post({ ...msg, type: 'open', rule: a.rule, ...(mention ? { mention } : {}) });
         posted += 1;
       } catch (err) {
         // Nothing opened: the next check tries again with the same rules.
@@ -885,7 +895,9 @@ function buildKeyBudget(reading, v, now = new Date(), cfg = DEFAULTS) {
 }
 
 /** One key-budget check: read, log the reading, post a warning at most once a day per level. */
-async function keyBudgetCheck({ now = new Date(), cfg = DEFAULTS, store, post, read, warnedKey = KEY_WARNED_KEY }) {
+async function keyBudgetCheck({
+  now = new Date(), cfg = DEFAULTS, store, post, read, warnedKey = KEY_WARNED_KEY, mention = '',
+}) {
   let reading;
   try {
     reading = await read();
@@ -905,7 +917,7 @@ async function keyBudgetCheck({ now = new Date(), cfg = DEFAULTS, store, post, r
   const key = `${warnedKey}:${v.level}:${pktDayKey(now)}`;
   if (await safeGet(store, key)) return { level: v.level, already: true };
   try {
-    await post({ ...buildKeyBudget(reading, v, now, cfg), type: 'key_budget', rule: `key_budget_${v.level}` });
+    await post({ ...buildKeyBudget(reading, v, now, cfg), type: 'key_budget', rule: `key_budget_${v.level}`, ...(mention ? { mention } : {}) });
   } catch (err) {
     logToFile('❌ prod incident watch: key budget post failed', { error: err.message }, 'error');
     return { level: v.level, failed: true };
@@ -971,11 +983,15 @@ async function run({
   const send = dry
     ? async (m) => {
       n += 1;
-      logEvent('prod_incident_watch.would_post', { type: m.type, rule: m.rule || null, thread: Boolean(m.thread_ts), text: m.text });
+      logEvent('prod_incident_watch.would_post', {
+        type: m.type, rule: m.rule || null, thread: Boolean(m.thread_ts), tagged: Boolean(m.mention), text: m.text,
+      });
       return `dry.${now.getTime()}.${n}`;
     }
     : async (m) => {
-      const ts = await (post ? post(m) : postToSlack(m.text, slack, { color: m.color, thread_ts: m.thread_ts, reply_broadcast: m.broadcast }));
+      const ts = await (post ? post(m) : postToSlack(m.text, slack, {
+        color: m.color, thread_ts: m.thread_ts, reply_broadcast: m.broadcast, mention: m.mention,
+      }));
       posts += 1;
       return ts;
     };
@@ -993,6 +1009,7 @@ async function run({
     dataset,
     stateKey: dry ? `${STATE_KEY}:dry` : STATE_KEY,
     axiomOrg: env.AXIOM_ORG_ID || null,
+    mention: mentionsFrom(env),
   });
 
   let budget = null;
@@ -1000,7 +1017,9 @@ async function run({
     : (env.OPENROUTER_API_KEY && env.PROD_ALERTS_KEY_BUDGET_OFF !== '1'
       ? () => readKeyBudget({ key: env.OPENROUTER_API_KEY, fetchImpl }) : null);
   if (read && (await claimTick(store, { tickMin: cfg.keyTickMin }, KEY_TICK_KEY)) === 'owner') {
-    budget = await keyBudgetCheck({ now, cfg, store, post: send, read, warnedKey: dry ? `${KEY_WARNED_KEY}:dry` : KEY_WARNED_KEY });
+    budget = await keyBudgetCheck({
+      now, cfg, store, post: send, read, warnedKey: dry ? `${KEY_WARNED_KEY}:dry` : KEY_WARNED_KEY, mention: mentionsFrom(env),
+    });
   }
 
   logEvent('prod_incident_watch.tick', {
@@ -1017,7 +1036,7 @@ async function run({
 
 module.exports = {
   DEFAULTS, RULES, COLOR, TICK_KEY, STATE_KEY, BASELINE_KEY, KEY_TICK_KEY,
-  config, aplFor, buildBaseline, evaluate, step, tick, run,
+  config, mentionsFrom, aplFor, buildBaseline, evaluate, step, tick, run,
   headline, buildOpen, buildReopen, buildAlso, buildUpdate, buildClear,
   readKeyBudget, keyBudgetVerdict, buildKeyBudget, keyBudgetCheck,
   healthTargets, makeHealthCheck, scrubLine, normPath, refusalFacts,
