@@ -76,6 +76,18 @@ describe('POST /funnel/recording — the recorder heartbeat', () => {
     expect(ev[0].d).toEqual(expect.objectContaining({ userId: USER, recordingId: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', gapS: 312, lastVis: 0, lastBattery: 12 }));
   });
 
+  // bd-91htd2 (queue #292) — a stopped recording reopened is a `reopen`, not a `cut` (207 of 235 "cuts" on 26 Nov were
+  // stopped ones reopened); it must reach the log, with its age.
+  test('reopen is a recording.event row with its age', async () => {
+    await post(await app(), {
+      v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', t0: Date.now(), cols: COLS, rows: [],
+      ev: [{ k: 'reopen', dt: 0, ageS: 5400, finished: true, ms: 1740000 }],
+    });
+    const ev = emitted.filter((x) => x.e === 'recording.event');
+    expect(ev.map((x) => x.d.recEvent)).toEqual(['reopen']);
+    expect(ev[0].d).toEqual(expect.objectContaining({ ageS: 5400, finished: true }));
+  });
+
   test('no session: 401, nothing logged; a bad kind or a malformed id: 400, nothing logged', async () => {
     expect((await post(await app({}), { v: 1, rid: 'x', kind: 'dc', cols: COLS, rows: [] })).status).toBe(401);
     const srv = await app();
