@@ -348,7 +348,45 @@ function allModuleExamsPassed(quizzes, attempts) {
   return exams.every(q => passed.has(q.id));
 }
 
+/**
+ * bd-r2uzg1.23.11 (queue #274, call 13A; ICT sheet Middle and High TT 63, 74): each course's end-of-module exam,
+ * for the level page's course list, so a course whose parts are all done stops reading "Done" while its exam is
+ * still to pass. 180 teachers at Level 1 (prod, 25 Nov) had every part done, an exam left and no certificate.
+ *
+ * The exam is the one the certificate rule counts (allModuleExamsPassed): the ACTIVE per-module quiz at 900 + N
+ * for a course titled "Module N" (the same title rule as the bot's module-exam-gate route). 'passed' once she has
+ * a passed attempt on it, 'left' otherwise. A course with no such exam gets no entry, so every vendor but I-SAPS
+ * reads exactly as before. Pure; bad input reads as "no exams".
+ *
+ * @param {Array<{id:*, title:string}>} courses
+ * @param {Array<object>} quizzes   training_grand_quizzes rows of the level ({ id, source_quiz_id, is_active })
+ * @param {Array<object>} attempts  her training_assessment_attempts rows ({ grand_quiz_id, is_passed })
+ * @returns {Object<string, 'passed'|'left'>} by course id
+ */
+const MODULE_TITLE_NO = /Module (\d+)/;
+function courseExamStates(courses, quizzes, attempts) {
+  const bySource = new Map();
+  [...(Array.isArray(quizzes) ? quizzes : [])]
+    .filter(q => q && q.is_active === true && isPerModuleQuiz(q.source_quiz_id))
+    .sort((a, b) => Number(a.id) - Number(b.id))
+    .forEach((q) => { if (!bySource.has(Number(q.source_quiz_id))) bySource.set(Number(q.source_quiz_id), q.id); });
+  if (bySource.size === 0) return {};
+  const passed = new Set((Array.isArray(attempts) ? attempts : [])
+    .filter(a => a && a.is_passed === true && a.grand_quiz_id !== null && a.grand_quiz_id !== undefined)
+    .map(a => a.grand_quiz_id));
+  const out = {};
+  for (const c of Array.isArray(courses) ? courses : []) {
+    const m = MODULE_TITLE_NO.exec((c && c.title) || '');
+    if (!m) continue;
+    const quizId = bySource.get(moduleSourceQuizId(parseInt(m[1], 10)));
+    if (quizId === undefined) continue;
+    out[c.id] = passed.has(quizId) ? 'passed' : 'left';
+  }
+  return out;
+}
+
 module.exports = {
+  courseExamStates,
   PER_MODULE_SOURCE_BASE,
   moduleSourceQuizId,
   moduleFromSourceQuizId,

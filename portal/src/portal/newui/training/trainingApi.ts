@@ -48,6 +48,11 @@ export type Course = {
   order_index: number;
   module_count: number;
   completed_count: number;
+  /**
+   * bd-r2uzg1.23.11 (queue #274, call 13A): the course's end-of-module exam, from GET /training/courses. 'left' while
+   * it is still to pass, 'passed' once passed; null or absent for a course with no such exam (every vendor but I-SAPS).
+   */
+  exam_state?: 'passed' | 'left' | null;
 };
 
 export type ModuleSummary = {
@@ -165,7 +170,16 @@ export function courseName(title: string | null | undefined): string {
   return stripped || t;
 }
 
-export const courseDone = (c: Course) => c.module_count > 0 && c.completed_count >= c.module_count;
+const partsDone = (c: Course) => c.module_count > 0 && c.completed_count >= c.module_count;
+
+/**
+ * A course is Done when its parts are done AND, where it has an end-of-module exam, that exam is passed
+ * (bd-r2uzg1.23.11, call 13A: 180 I-SAPS teachers read every course Done with an exam still open, and no certificate).
+ */
+export const courseDone = (c: Course) => partsDone(c) && c.exam_state !== 'left';
+
+/** Every part done and only the course's exam left: the row reads "Exam left", and Continue goes to the exam. */
+export const examLeft = (c: Course) => partsDone(c) && c.exam_state === 'left';
 
 /** The quick check's best attempt (PortalTrainingV2's bestAttempt). */
 export function bestAttempt(attempts: QuizAttempt[] | null | undefined): QuizAttempt | null {
