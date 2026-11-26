@@ -69,8 +69,10 @@ describe('/observe2: the switch on v6 stamps only grades 1-5 visits', () => {
   });
 });
 
-describe('/observe: the switch on v6 (and the readiness flag) stamps only grades 1-5 visits', () => {
-  test.each([['prim', 'fico17_v6'], ['high', 'fico17_v6'], ['primhigh', 'fico17_v6'], ['mixed', null], ['midhigh', null], ['none', null], [null, null]])(
+// bd-ra8xu.64.8 (queue #282, operator 26 Nov ~12:30 "Everywhere. All regions."): /observe no longer keeps a grade gate;
+// a visit the coach switch puts on v6 is v6 whatever the teacher's band (FDE / FICO-S are decided at the class question).
+describe('/observe: the switch on v6 (and the readiness flag) stamps every visit v6, any band', () => {
+  test.each([['prim', 'fico17_v6'], ['high', 'fico17_v6'], ['primhigh', 'fico17_v6'], ['mixed', 'fico17_v6'], ['midhigh', 'fico17_v6'], ['none', 'fico17_v6'], [null, 'fico17_v6']])(
     'teacher %s → %s', async (teacher, want) => {
       expect(await O6.decideVisitFramework({ userId: 'coach-1', region: 'Sihala', teacherUserId: teacher })).toBe(want);
     },
