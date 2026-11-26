@@ -954,6 +954,91 @@ describe("LeaderAssess", () => {
       expect(screen.queryByTestId("assess-add-child")).toBeNull();
     });
 
+    // A Gilgit-Baltistan school with nobody on its roster for the grade: the server cannot draw a list (no_class_list),
+    // says the first child added opens it (addOpens), and the page shows Add a child under the message.
+    it("RED on the base: ON at a GB school with no class list: the message stays and Add a child seats the first child", async () => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list", addOpens: true } } });
+      const added = child(1, { firstName: "Zara", name: "Zara Testwala", nameUr: null, firstNameUr: null, childNo: 1 });
+      api.addChild.mockResolvedValue({ list: { ...LIST, children: [added], alternates: [] } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/no class list/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      expect((within(form).getByLabelText("Grade") as HTMLSelectElement).value).toBe("3");
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Zara" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      expect(await screen.findByText("Zara Testwala")).toBeInTheDocument();
+      expect(screen.queryByText(/no class list/i)).toBeNull();
+      expect(api.addChild.mock.calls[0][0]).toMatchObject({ schoolId: "s2", visitId: "v2", grade: 3, firstName: "Zara" });
+      // the child is on the list like any other: Present is there
+      expect(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" })).toBeInTheDocument();
+    });
+
+    it("RED on the base: ON with every grade, at a GB school with no class list: the picked grade is the child's and the list's", async () => {
+      withAdd({ allGrades: true });
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list", addOpens: true } } });
+      api.addChild.mockResolvedValue({ list: { ...LIST, grade: 4, children: [child(1, { grade: 4 })], alternates: [] } });
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(within(await screen.findByTestId("assess-grade-choice")).getByRole("button", { name: "Grade 4" }));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      await screen.findByText(/no class list/i);
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      expect((within(form).getByLabelText("Grade") as HTMLSelectElement).value).toBe("4");
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Zara" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      await waitFor(() => expect(api.addChild).toHaveBeenCalled());
+      expect(api.addChild.mock.calls[0][0]).toMatchObject({ grade: 4, listGrade: 4 });
+    });
+
+    // An ICT school: the server's answer carries no addOpens, so the page is sandbox's, the message and nothing else.
+    it("RED on the second review's head: ON at an ICT school with no class list (no addOpens): the message only, as on sandbox", async () => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 400, data: { reason: "no_class_list" } } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/no class list/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("assess-add-child")).toBeNull();
+    });
+
+    it("OFF at a school with no class list: the message only, no Add a child", async () => {
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list" } } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/no class list/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("assess-add-child")).toBeNull();
+    });
+
+    // A Gilgit-Baltistan school on the coach's second visit: every child on the roster was tested on the first, so the
+    // draw has nobody left (frame_exhausted), and the server says that "Add a child" opens the list there (addOpens).
+    it("RED on the head before this fix: ON, frame_exhausted where the server says Add opens the list: Add a child seats the first child", async () => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 400, data: { reason: "frame_exhausted", addOpens: true } } });
+      const added = child(1, { firstName: "Sana", name: "Sana Testwala", nameUr: null, firstNameUr: null, childNo: 1 });
+      api.addChild.mockResolvedValue({ list: { ...LIST, children: [added], alternates: [] } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/has been tested/)).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Sana" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      expect(await screen.findByText("Sana Testwala")).toBeInTheDocument();
+      expect(screen.queryByText(/has been tested/)).toBeNull();
+    });
+
+    it.each(["frame_exhausted", "not_found"])("ON, %s: the message only (the server lists first there), no Add a child", async (reason) => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason } } });
+      renderPage();
+      await chooseSchool();
+      await screen.findByText(reason === "frame_exhausted" ? /has been tested/ : /not on your list/);
+      expect(screen.queryByTestId("assess-add-child")).toBeNull();
+    });
+
     it("ON: first name, grade (the list's, 3 or 5), section; Add puts the child on the list the server sends back", async () => {
       withAdd();
       const added = child(8, { firstName: "Zara", name: "Zara Testwala" });

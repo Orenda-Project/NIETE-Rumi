@@ -284,6 +284,7 @@ features:
     - bot/shared/services/child-test/**                 # item bank, render, draw, conversation, scoring, check-flow, store
     - bot/shared/data/child-test/**                     # item-bank.v1.json — the words and sums a child reads
     - bot/shared/handlers/child-test.handler.js
+    - bot/shared/handlers/jugnu-command.js              # "jugnu" / "reading game": the Learning Assessment link, or one line
     - bot/shared/routes/child-test-check-endpoint.js
     - bot/scripts/generate-child-test-check-flow-json.js  # re-claimed from ignore: it writes the check Flow JSON
     - docs/flows/child-test-check.json

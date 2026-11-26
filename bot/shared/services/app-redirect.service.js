@@ -158,6 +158,7 @@ const APP_LINK_COPY = Object.freeze({
   'coach_school:*': ['appLinkBodyCoachSchoolCard', 'appLinkButtonCoachSchoolCard'],
   coach_schools: ['appLinkBodyCoachSchools', 'appLinkButtonCoachSchools'],
   leader_lessons: ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx, bd-a73p5m — the tab
+  leader_assess: ['appLinkBodyJugnu', 'appLinkButtonJugnu'], // a leader's "jugnu": the Learning Assessment
   leader_assessment: ['appLinkBodyAssessment', 'appLinkButtonAssessment'], // bd-uxzi8c.1 — the teacher's paper words
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
@@ -956,6 +957,17 @@ async function sendCoachingLink({ userId, from, language, reason = 'media_after_
   return sendAppLink('ai_coaching', { userId, from, language, reason, journey, copy });
 }
 
+/**
+ * A leader's "jugnu" / "reading game" (handlers/jugnu-command.js): the coach app's Learning Assessment, signed in
+ * (landing leader_assess, /portal/leader/assess). The caller has already asked whether it opens for them
+ * (child-test app-api learningAssessmentOpensFor). true when the link went; false = nothing sent (the caller says so).
+ */
+async function sendLearningAssessmentLink({ userId, from, language, reason = 'jugnu_word' } = {}) {
+  if (!userId || !from) return false;
+  const journey = startJourney({ userId, feature: 'learning_assessment', door: reason, verdict: 'link', audience: 'leader' });
+  return sendAppLink('leader_assess', { userId, from, language, reason, journey });
+}
+
 function _resetForTests() { flagCache = null; }
 
 module.exports = {
@@ -970,5 +982,6 @@ module.exports = {
   openSchoolCard,
   sendLessonPlanLink,
   sendCoachingLink,
+  sendLearningAssessmentLink,
   _resetForTests,
 };
