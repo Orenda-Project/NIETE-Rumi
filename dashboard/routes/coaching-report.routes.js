@@ -37,7 +37,7 @@ const pageTime = require('../services/report-page-time');
 const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
 const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
 const { fetchFrom: pageQuizSwitch, LANGS: QUIZ_LANGS, SURFACES: QUIZ_SURFACES } = require('../../bot/shared/services/quiz/report-page-quiz');
-const { renderQuizPage, renderQuizBlock, BEACON_EVENTS } = require('../services/report-quiz-page');
+const { renderQuizPage, renderQuizBlock, BEACON_EVENTS, NOTICE } = require('../services/report-quiz-page');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -105,17 +105,23 @@ async function loadReport(supabase, sessionId, userId) {
  * qfix offers: the bot's /api/internal/rq (report-quiz-internal.routes.js), reached as every portal → bot call is
  * (MAIN_BOT_URL + INTERNAL_API_KEY, read per call). Resolves { status, body }; never throws past a refusal or a timeout.
  */
-function createReportQuizClient({ fetchImpl = (...a) => fetch(...a), timeoutMs = 4000 } = {}) {
-  return async (op, body) => {
+function createReportQuizClient(options = {}) {
+  const call = createBotCaller(options);
+  return (op, body) => call('POST', `/api/internal/rq/${op}`, body);
+}
+
+/** One portal → bot call (method, path, JSON body). Resolves { status, body }; a refusal or a timeout is { 503 }. */
+function createBotCaller({ fetchImpl = (...a) => fetch(...a), timeoutMs = 4000 } = {}) {
+  return async (method, pathname, body) => {
     const base = String(process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
     const key = process.env.INTERNAL_API_KEY || '';
     if (!base || !key) return { status: 503, body: null };
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(`${base}/api/internal/rq/${op}`, {
-        method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'x-api-key': key },
-        body: JSON.stringify(body || {}), signal: ctl.signal,
+      const res = await fetchImpl(`${base}${pathname}`, {
+        method, headers: { 'content-type': 'application/json', accept: 'application/json', 'x-api-key': key },
+        ...(method === 'GET' ? {} : { body: JSON.stringify(body || {}) }), signal: ctl.signal,
       });
       let json = null;
       try { json = await res.json(); } catch (_) { json = null; }
@@ -130,6 +136,8 @@ function createReportQuizClient({ fetchImpl = (...a) => fetch(...a), timeoutMs =
 // The /cr report shows the page block for an offer held for a closed window or a quiz made in the page; a quiz made in
 // WhatsApp keeps the report's own section.
 const crShowsBlock = (quiz) => Boolean(quiz && (quiz.state === 'held' || (quiz.page && quiz.state !== 'none')));
+// E2: the ?e= line a save or a refusal left, only one the page knows
+const noticeOf = (query) => (query && typeof query.e === 'string' && Object.prototype.hasOwnProperty.call(NOTICE, query.e) ? query.e : null);
 
 function createCoachingReportRouter(opts = {}) {
   const db = () => require('../config/supabase');
@@ -149,6 +157,14 @@ function createCoachingReportRouter(opts = {}) {
   const quizPageOn = async () => { try { return (await quizSwitchCache.get()) === true; } catch (_) { return false; } };
   const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
   const reportQuiz = opts.reportQuiz || createReportQuizClient();
+  // E2: keys' teacher-edit routes on the bot (/api/internal/wq/teacher/*, switch web_quiz_teacher_edit; off → 404).
+  const callBot = opts.callBot || createBotCaller();
+  /** keys' view of the quiz for its teacher (items with ids, the key, locked, edit_v, pdf), or null (off, not theirs). */
+  const editView = async (model, userId) => {
+    if (!model || model.state !== 'ready' || !model.quizId) return null;
+    const r = await callBot('GET', `/api/internal/wq/teacher/quiz/${encodeURIComponent(model.quizId)}?t=${encodeURIComponent(userId)}`);
+    return r.status === 200 && r.body && Array.isArray(r.body.items) ? r.body : null;
+  };
   /** The bot's state for the quiz block, or null (switch off, the bot unreachable, not this teacher's). */
   const quizModel = async (sessionId, userId) => {
     if (!(await quizPageOn())) return null;
@@ -208,7 +224,10 @@ function createCoachingReportRouter(opts = {}) {
     if (COACH_GROUPS.has(group)) links.coach = `${REPORT_PATH}/${token}/coach`;
     const quiz = await quizModel(sessionId, userId);
     if (crShowsBlock(quiz)) {
-      links.quizBlock = renderQuizBlock(quiz, { language: view.language, base: `/cq/${token}`, surface: 'cr', bot: botNumber(), heading: true });
+      const edit = await editView(quiz, userId);
+      links.quizBlock = renderQuizBlock(quiz, {
+        language: view.language, base: `/cq/${token}`, surface: 'cr', bot: botNumber(), heading: true, edit, notice: noticeOf(req.query),
+      });
     }
     const coachState = COACH_STATES.has(req.query.coach) ? req.query.coach : undefined;
     if (!state) log({ coachingSessionId: sessionId, userId, group, channel: 'page' }, 'coaching.useful.asked');
@@ -318,6 +337,8 @@ function createCoachingReportRouter(opts = {}) {
   };
   const surfaceOf = (b) => (QUIZ_SURFACES.includes(b && b.surface) ? b.surface : 'cq');
   const backTo = (token, surface) => (surface === 'cr' ? `${REPORT_PATH}/${token}#quiz` : `/cq/${token}`);
+  // E2: back to the page with the outcome's line and the question in view
+  const backWith = (token, surface, code, qid) => `${surface === 'cr' ? `${REPORT_PATH}/${token}` : `/cq/${token}`}?e=${code}${qid ? `#q-${qid}` : ''}`;
   const wantsJson = (req) => /application\/json/i.test(String(req.get('accept') || ''));
   const quizEvent = (name, v, props) => log({ coachingSessionId: v.sessionId, userId: v.userId, ...props }, name);
 
@@ -339,7 +360,8 @@ function createCoachingReportRouter(opts = {}) {
     log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: model.state });
     const topic = data.session && data.session.analysis_data && data.session.analysis_data.topic;
     const token = String(req.params.token);
-    return res.status(200).type('html').send(renderQuizPage({ language, topic, model, base: `/cq/${token}`, bot: botNumber() }));
+    const edit = await editView(model, v.userId);
+    return res.status(200).type('html').send(renderQuizPage({ language, topic, model, base: `/cq/${token}`, bot: botNumber(), edit, notice: noticeOf(req.query) }));
   };
 
   /** make / lang: the bot's answer, then 303 back to the page the form was on (or the state as JSON). */
@@ -366,10 +388,76 @@ function createCoachingReportRouter(opts = {}) {
   const quizPdf = async (req, res) => {
     const v = await quizGate(req, res);
     if (!v) return undefined;
+    const surface = surfaceOf(req.query);
     const r = await reportQuiz('pdf', { sessionId: v.sessionId, userId: v.userId });
-    if (r.status !== 200 || !r.body || typeof r.body.url !== 'string') return res.status(404).type('html').send(renderMessagePage('not_found'));
-    quizEvent('transcript_quiz.page_pdf', v, { surface: surfaceOf(req.query) });
-    return res.redirect(302, r.body.url);
+    if (r.status === 200 && r.body && typeof r.body.url === 'string') {
+      quizEvent('transcript_quiz.page_pdf', v, { surface });
+      return res.redirect(302, r.body.url);
+    }
+    // E2: no stored PDF (an edit drops it): keys' route makes it again from the edited quiz.
+    const model = await quizModel(v.sessionId, v.userId);
+    if (!model || model.state !== 'ready' || !model.quizId) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const made = await callBot('POST', '/api/internal/wq/teacher/pdf', { quizId: model.quizId, teacherUserId: v.userId });
+    if (made.status === 200 && made.body && typeof made.body.url === 'string') {
+      quizEvent('transcript_quiz.page_pdf', v, { surface, remade: true });
+      return res.redirect(302, made.body.url);
+    }
+    if (made.status === 202) {
+      quizEvent('transcript_quiz.page_pdf', v, { surface, remade: 'pending' });
+      return res.redirect(303, backWith(String(req.params.token), surface, 'pdf_pending'));
+    }
+    return res.status(404).type('html').send(renderMessagePage('not_found'));
+  };
+
+  /**
+   * E2: POST /cq/:token/edit — one question's form. The teacher is the token's (never the form's); the quiz is the
+   * session's own (the bot's state); the form is diffed against keys' view into one ops array and sent with the edit_v
+   * the page was drawn with. After the first child answer only the right answer is sent. Back to the page with the line.
+   */
+  const EDIT_REASONS = new Set(['locked', 'floor', 'stale', 'too_long', 'empty', 'not_text', 'not_editable']);
+  const quizEdit = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const b = req.body || {};
+    const surface = surfaceOf(b);
+    const token = String(req.params.token);
+    const model = await quizModel(v.sessionId, v.userId);
+    const view = await editView(model, v.userId);
+    if (!view) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const it = view.items.find((x) => x && x.id === b.qid);
+    if (!it) return res.status(400).type('html').send(renderMessagePage('not_found'));
+    const ed = it.editable || {};
+    const slots = new Set((it.options || []).map((o) => o.slot));
+    const ops = [];
+    let held = false; // a wording change the lock keeps out
+    const changed = (x, was) => typeof x === 'string' && x.trim() !== String(was == null ? '' : was);
+    if (b.do === 'remove') {
+      if (view.locked) held = true;
+      else ops.push({ op: 'remove', qid: it.id });
+    } else {
+      if (changed(b.text, it.text)) {
+        if (view.locked || ed.text === false || it.picture) held = true;
+        else ops.push({ op: 'text', qid: it.id, text: b.text.trim() });
+      }
+      for (const o of it.options || []) {
+        if (!changed(b[`opt_${o.slot}`], o.text)) continue;
+        if (view.locked || ed.options === false || o.picture) held = true;
+        else ops.push({ op: 'option', qid: it.id, slot: o.slot, text: b[`opt_${o.slot}`].trim() });
+      }
+      if (typeof b.key === 'string' && b.key !== it.key) {
+        if (!slots.has(b.key)) return res.status(400).type('html').send(renderMessagePage('not_found'));
+        if (ed.key !== false) ops.push({ op: 'key', qid: it.id, slot: b.key });
+      }
+    }
+    if (!ops.length) return res.redirect(303, backWith(token, surface, held ? 'locked' : 'none', it.id));
+    const drawn = Number.parseInt(String(b.v), 10);
+    const r = await callBot('POST', '/api/internal/wq/teacher/edit', {
+      quizId: model.quizId, teacherUserId: v.userId, v: Number.isFinite(drawn) ? drawn : view.edit_v, ops,
+    });
+    const why = r.body && typeof r.body.reason === 'string' ? r.body.reason : null;
+    const code = r.status === 200 && r.body && r.body.ok ? 'saved' : EDIT_REASONS.has(why) ? why : 'failed';
+    for (const o of ops) quizEvent('transcript_quiz.page_edit', v, { quizId: model.quizId, field: o.op, locked: Boolean(view.locked), outcome: code, surface });
+    return res.redirect(303, backWith(token, surface, code, it.id));
   };
 
   const quizTry = async (req, res) => {
@@ -409,6 +497,8 @@ function createCoachingReportRouter(opts = {}) {
   router.get('/cq/:token/pdf', privateHeaders, limiter, quizPdf);
   router.get('/cq/:token/try', privateHeaders, limiter, quizTry);
   router.post('/cq/:token/e', privateHeaders, limiter, form, json, quizBeacon);
+  // E2: a question's text and four answers fit well inside 16 kB
+  router.post('/cq/:token/edit', privateHeaders, limiter, express.urlencoded({ extended: false, limit: '16kb' }), quizEdit);
   return router;
 }
 

@@ -34,7 +34,13 @@ const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:
   + '.qopt.ok{border:2px solid var(--green);font-weight:600}.qopt.ok strong{color:var(--green)}'
   + '.qbar{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:8px;padding:10px 0 4px;background:var(--card);border-top:1px solid var(--line);z-index:5}'
   + '.qbar .btn{flex:1 1 150px;text-align:center;margin:0}.qbar p{flex:1 1 100%;margin:0}'
-  + '.qnote{color:var(--muted);font-size:15px}</style>';
+  + '.qnote{color:var(--muted);font-size:15px}'
+  // E2: the edit form, every field and button a 48 px target
+  + '.qedit summary{min-height:48px;padding:12px 0;cursor:pointer;color:var(--s3);font-weight:600}'
+  + '.qform label,.qform legend{display:block;font-weight:600;margin:6px 0}.qform fieldset{border:0;padding:0;margin:0 0 8px}'
+  + '.qform textarea,.qform input[type=text]{width:100%;min-height:48px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}'
+  + '.qeopt{display:flex;gap:10px;align-items:center;min-height:48px;margin:0 0 6px}.qeopt input[type=radio]{width:24px;height:24px;flex:0 0 24px;margin:12px}'
+  + '.qsay{font-weight:600}</style>';
 
 const BEACON_EVENTS = Object.freeze(['copy', 'share', 'view_questions', 'make_timeout']);
 
@@ -65,23 +71,67 @@ function waQuiz(bot, ux) {
   return bot ? `<a class="btn" href="${esc(`https://wa.me/${bot}?text=${encodeURIComponent('/quiz')}`)}">${ux('qfix_offers_cq_open_wa')}</a>` : '';
 }
 
-function questionsList(questions, l, ux) {
+/**
+ * E2: one question's edit forms, from keys' view (`edit`): wording fields while nothing is locked and the item allows
+ * them (never a picture option), the right answer as radio buttons, Remove above the floor. `hidden` = the surface.
+ */
+function editForms(item, edit, { base, hidden, ux }) {
+  const ed = item.editable || {};
+  const wording = !edit.locked;
+  const ids = `${hidden}<input type="hidden" name="qid" value="${esc(item.id)}"><input type="hidden" name="v" value="${esc(edit.edit_v)}">`;
+  const text = wording && ed.text !== false && !item.picture
+    ? `<label>${ux('qfix_offers_cq_edit_text')}<textarea name="text" rows="3" dir="auto">${esc(item.text)}</textarea></label>` : '';
+  const opts = (item.options || []).map((o) => {
+    const radio = `<input type="radio" name="key" value="${esc(o.slot)}"${o.slot === item.key ? ' checked' : ''}${ed.key === false ? ' disabled' : ''} aria-label="${esc(o.picture ? o.slot : o.text)}">`;
+    const field = wording && ed.options !== false && !o.picture
+      ? `<input type="text" name="opt_${esc(o.slot)}" value="${esc(o.text)}" dir="auto">`
+      : `<span dir="auto">${o.picture ? '🖼' : esc(o.text)}</span>`;
+    return `<div class="qeopt">${radio}${field}</div>`;
+  }).join('');
+  const save = `<form method="post" action="${esc(base)}/edit" class="qform">${ids}<input type="hidden" name="do" value="save">${text}`
+    + `<fieldset><legend>${ux('qfix_offers_cq_edit_answers')}</legend>${opts}</fieldset>`
+    + `<button type="submit" class="btn">${ux('qfix_offers_cq_save')}</button></form>`;
+  const remove = wording && Number(edit.n) > Number(edit.min)
+    ? `<form method="post" action="${esc(base)}/edit">${ids}<input type="hidden" name="do" value="remove">`
+      + `<button type="submit" class="btn ghost">${ux('qfix_offers_cq_remove')}</button></form>` : '';
+  return `<details class="qedit"><summary>${ux('qfix_offers_cq_edit')}</summary>${save}${remove}</details>`;
+}
+
+/** keys' view → the read-only list's shape ({text, options:[{text, correct}]}), ids kept for the anchors. */
+function fromEdit(edit) {
+  return (edit.items || []).map((it) => ({
+    id: it.id, text: it.text, item: it,
+    options: (it.options || []).map((o) => ({ key: o.slot, text: o.picture ? '🖼' : o.text, correct: o.slot === it.key })),
+  }));
+}
+
+function questionsList(questions, l, ux, { edit = null, base, hidden, open = false } = {}) {
   const items = questions.map((q, i) => {
     const opts = (q.options || []).map((o) => (o.correct
       ? `<li class="qopt ok"><span dir="auto">${esc(o.text)}</span> <strong>✓ ${ux('qfix_offers_cq_correct')}</strong></li>`
       : `<li class="qopt"><span dir="auto">${esc(o.text)}</span></li>`)).join('');
-    return `<li class="qitem"><p><span class="qn">${esc(digitsFor(i + 1, l))}.</span> <span dir="auto">${esc(q.text)}</span></p><ul>${opts}</ul></li>`;
+    const anchor = q.id ? ` id="q-${esc(q.id)}"` : '';
+    const forms = edit && q.item ? editForms(q.item, edit, { base, hidden, ux }) : '';
+    return `<li class="qitem"${anchor}><p><span class="qn">${esc(digitsFor(i + 1, l))}.</span> <span dir="auto">${esc(q.text)}</span></p><ul>${opts}</ul>${forms}</li>`;
   }).join('');
   const n = esc(resolveUx('qfix_offers_cq_questions', { language: l, params: { n: digitsFor(questions.length, l) } }));
-  return `<details class="qq"><summary>${n}</summary><ol class="qlist">${items}</ol></details>`;
+  const locked = edit && edit.locked ? `<p class="qnote">${ux('qfix_offers_cq_locked')}</p>` : '';
+  return `<details class="qq"${open ? ' open' : ''}><summary>${n}</summary>${locked}<ol class="qlist">${items}</ol></details>`;
 }
+
+// E2: the line a save, a refusal or a PDF remake leaves on the page (?e=<code>).
+const NOTICE = Object.freeze({
+  saved: 'qfix_offers_cq_saved', none: 'qfix_offers_cq_edit_none', locked: 'qfix_offers_cq_locked', floor: 'qfix_offers_cq_floor',
+  stale: 'qfix_offers_cq_stale', too_long: 'qfix_offers_cq_too_long', empty: 'qfix_offers_cq_empty', not_text: 'qfix_offers_cq_not_text',
+  not_editable: 'qfix_offers_cq_not_editable', failed: 'qfix_offers_cq_edit_failed', pdf_pending: 'qfix_offers_cq_pdf_pending',
+});
 
 /**
  * The quiz block for the bot's state `model`. `base` = /cq/<token> (every action posts there, whichever page shows
  * the block); `surface` = 'cq' | 'cr' (logged, and where a form goes back to); `heading` draws the block's own title.
  * '' when there is nothing to show.
  */
-function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading = false } = {}) {
+function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading = false, edit = null, notice = null } = {}) {
   const l = language === 'ur' ? 'ur' : 'en';
   const ux = (key) => esc(resolveUx(key, { language: l }));
   const m = model || { state: 'none' };
@@ -102,12 +152,16 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       + `<input type="hidden" name="language" value="${esc(code)}"><button type="submit" class="btn">${esc(getLanguage(code).languageTitle)}</button></form>`).join(' '));
   } else if (m.state === 'ready' && typeof m.message === 'string' && m.message.trim()) {
     const share = `https://wa.me/?text=${encodeURIComponent(m.message)}`;
+    const said = Object.prototype.hasOwnProperty.call(NOTICE, notice)
+      ? esc(resolveUx(NOTICE[notice], { language: l, params: { n: digitsFor((edit && edit.min) || '', l) } })) : '';
+    if (said) parts.push(`<p class="qsay" role="status">${said}</p>`);
     // shown: one line per line, each link one LTR run; copied: the stored message itself (the hidden field)
     const shown = m.message.split('\n').map((line) => esc(line).replace(/https?:\/\/[^\s<]+/g, (u) => `<bdi dir="ltr" class="qurl">${u}</bdi>`)).join('<br>');
     parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><div class="qmsg" dir="auto">${shown}</div>`
       + `<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">${esc(m.message)}</textarea>`);
-    if (Array.isArray(m.questions) && m.questions.length) parts.push(questionsList(m.questions, l, ux));
-    const links = [m.pdf ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
+    const list = edit && Array.isArray(edit.items) && edit.items.length ? fromEdit(edit) : m.questions;
+    if (Array.isArray(list) && list.length) parts.push(questionsList(list, l, ux, { edit, base, hidden, open: Boolean(said) && notice !== 'pdf_pending' }));
+    const links = [m.pdf || edit ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
       m.preview ? `<a class="btn ghost" href="${esc(base)}/try">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');
     if (links) parts.push(`<p>${links}</p>`);
     parts.push(`<div class="qbar"><button type="button" class="btn" data-copy>${ux('qfix_offers_cq_copy')}</button>`
@@ -125,10 +179,10 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
 }
 
 /** /cq/:token: the lesson, then the block. */
-function renderQuizPage({ language, topic, model, base, bot } = {}) {
+function renderQuizPage({ language, topic, model, base, bot, edit = null, notice = null } = {}) {
   const l = language === 'ur' ? 'ur' : 'en';
   const head = `<header><section><h1>${esc(resolveUx('qfix_offers_cr_quiz_head', { language: l }))}</h1>${topic ? `<p class="muted">${esc(topic)}</p>` : ''}</section></header>`;
-  return shell(l, resolveUx('qfix_offers_cr_quiz_head', { language: l }), `${head}\n${renderQuizBlock(model, { language: l, base, surface: 'cq', bot })}`);
+  return shell(l, resolveUx('qfix_offers_cr_quiz_head', { language: l }), `${head}\n${renderQuizBlock(model, { language: l, base, surface: 'cq', bot, edit, notice })}`);
 }
 
-module.exports = { renderQuizPage, renderQuizBlock, QZ_CSS, BEACON_EVENTS };
+module.exports = { renderQuizPage, renderQuizBlock, QZ_CSS, BEACON_EVENTS, NOTICE };
