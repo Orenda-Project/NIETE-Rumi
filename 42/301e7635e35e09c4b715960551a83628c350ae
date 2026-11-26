@@ -5,3 +5,5 @@
 {"ts":"2026-11-25T02:08:44Z","hook":"pre-push","event":"switch-soft","switch":"QA_HOOKS_SOFT","detail":"origin","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
 {"ts":"2026-11-25T02:08:46Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-6jaq0i-29715: portal-login web lane spec: NOT UPDATED e2e: missing;teacher-home web lane spec: NOT UPDATED e2e: missing;coach-portal web lane spec: NOT UPDATED e2e: missing","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
 {"ts":"2026-11-25T02:08:47Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.4 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
+{"ts":"2026-11-26T01:39:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
+{"ts":"2026-11-26T01:39:35Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"42301e7635e3","branch":"bd-6jaq0i-29715","user":""}
