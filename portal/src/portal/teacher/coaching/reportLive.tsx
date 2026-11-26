@@ -56,6 +56,30 @@ export function Reflection({ r }: { r: DcReport }) {
                   <Square className="h-[20px] w-[20px] fill-current" aria-hidden="true" />
                 </button>
               </div>
+            ) : voice.state === 'paused' ? (
+              // bd-ma9jiy.5 — her answer was cut mid-way (the page closed, the phone locked): what she said is kept;
+              // Resume carries on in the same recording (then Stop and Send, as ever); Remove throws it away.
+              <div className="flex items-center gap-3 bg-white p-2.5">
+                <span className="h-3 w-3 shrink-0 rounded-full bg-[#9ca3af]" aria-hidden="true" />
+                <span className="flex-1 text-[16px] font-semibold">{C.paused}</span>
+                <span className="text-[16px] tabular-nums text-[#6b7280]" dir="ltr">{clock(voice.elapsedMs)}</span>
+                <button
+                  type="button"
+                  aria-label={C.resume}
+                  onClick={() => { void voice.start(); }}
+                  className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white', FOCUS)}
+                >
+                  <Mic className="h-[22px] w-[22px]" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={C.removeRecording}
+                  onClick={voice.discard}
+                  className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]', FOCUS)}
+                >
+                  <Trash2 className="h-[22px] w-[22px]" aria-hidden="true" />
+                </button>
+              </div>
             ) : voice.state === 'recorded' && clipUrl ? (
               <div className="flex items-center gap-2 bg-white p-2.5">
                 <div className="min-w-0 flex-1"><AudioPlayer src={clipUrl} label={C.yourAnswer} copy={C.audio} /></div>
@@ -112,6 +136,7 @@ export function Reflection({ r }: { r: DcReport }) {
               </div>
             )}
             {voice.state === 'blocked' ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.micBlocked}</p> : null}
+            {voice.empty ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.nothingRecorded}</p> : null}
             {sendError ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.couldNotSend}</p> : null}
           </section>
         </>

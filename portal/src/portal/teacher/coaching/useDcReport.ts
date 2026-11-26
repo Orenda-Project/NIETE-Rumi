@@ -77,7 +77,9 @@ export function useDcReport(id: string | null) {
     }
   };
   // bd-eygg2f — or her spoken answer: recorded here, uploaded to R2, transcribed by the bot.
-  const voice = useVoiceAnswer();
+  // bd-ma9jiy.5 (queue #262) — on the shared recorder, kept on the phone against THIS session: a failed send is sent again,
+  // a cut one comes back paused, and a take with no audio in it is never sent ("Nothing was recorded").
+  const voice = useVoiceAnswer({ sessionId: id });
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!voice.clip) { setClipUrl(null); return undefined; }
@@ -95,8 +97,12 @@ export function useDcReport(id: string | null) {
       setSentAudio(r?.acknowledgementAudioUrl || null);
       voice.discard();
       recheck();
-    } catch {
-      setSendError(true);
+    } catch (err) {
+      // No audio in it (here, or the server heard none): thrown away with "Nothing was recorded". Anything else: her
+      // answer stays, to send again.
+      const e = err as { name?: string; response?: { data?: { reason?: string } } };
+      if (e?.name === 'NoAudio' || e?.response?.data?.reason === 'no_audio') voice.markEmpty();
+      else setSendError(true);
     } finally {
       setSending(false);
     }

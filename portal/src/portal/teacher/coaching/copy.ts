@@ -169,6 +169,9 @@ export const COACHING_V2_COPY = {
   yourAnswer: 'Your answer',
   answerSent: 'Answer sent',
   couldNotSend: 'Could not send',
+  /* bd-ma9jiy.5 (queue #262) — her spoken answer had no sound in it (the 110-byte files): nothing is sent, and she is told
+     why and what to do. A sentence on purpose (longOk + the checks' exemption). */
+  nothingRecorded: 'Nothing was recorded. Tap the mic and try again.',
   download: 'Download',
   /* bd-bmc9a0.4 — ICT IAB row 36: the report's Open said "another app"; it opens the report in another tab. And Close, which
      ends her DC session with one line (a sentence on purpose: ICT's words). */
@@ -368,6 +371,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   yourAnswer: 'آپ کا جواب',
   answerSent: 'جواب بھیجا گیا',
   couldNotSend: 'بھیجا نہیں جا سکا',
+  // bd-ma9jiy.5 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  nothingRecorded: 'کچھ ریکارڈ نہیں ہوا۔ مائیک دبائیں اور دوبارہ کوشش کریں۔',
   download: 'ڈاؤن لوڈ',
   openInTab: 'دوسرے ٹیب میں کھولیں',
   close: 'بند کریں',
@@ -461,6 +466,8 @@ export const COPY_ENTRY: CopyEntry = {
     'tooShort',
     // bd-ma9jiy (26 Nov): «<time> کی غیر منسلک ریکارڈنگ» — the time plus four words.
     'unlinkedFrom',
+    // bd-ma9jiy.5: a spoken answer with no sound in it — what happened and what to do.
+    'nothingRecorded',
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
     'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
     // bd-r2uzg1.18.15: why a re-sent copy stopped, and that the first copy's report will come.

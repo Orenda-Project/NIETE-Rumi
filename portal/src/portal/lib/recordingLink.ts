@@ -36,7 +36,7 @@ export function linkOf(meta: Pick<StoredRecording, "id" | "link">): RecordingLin
 /** "obs:<visit>", "dbrf:<observation>", "dc:<attempt>"; null when it names no observation (unlinked). */
 export function linkKey(link: RecordingLink | null | undefined): string | null {
   if (!link) return null;
-  const id = link.kind === "obs" ? link.visitId : link.kind === "dbrf" ? link.observationId : link.kind === "dc" ? link.attemptId : null;
+  const id = link.kind === "obs" ? link.visitId : link.kind === "dbrf" || link.kind === "reflection" ? link.observationId : link.kind === "dc" ? link.attemptId : null;
   return id ? `${link.kind}:${id}` : null;
 }
 

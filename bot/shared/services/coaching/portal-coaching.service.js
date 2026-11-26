@@ -552,6 +552,9 @@ async function submitReflection({ userId, coachingSessionId, answer, audioKey },
     const missing = await checkUploaded(d, [{ key, kind: 'reflection_audio' }]);
     if (missing) return missing;
     const heard = await d.transcribe(key, language);
+    // bd-ma9jiy.5: a file with no audio frame (a WebM header alone — 29 November uploads, 110 bytes) is not sent to the
+    // transcribers; she is told nothing was recorded.
+    if (heard && heard.noAudio) return { status: 'invalid', reason: 'no_audio' };
     text = String((heard && heard.text) || '').trim();
     if (!text) return { status: 'invalid', reason: 'empty_transcript' };
     format = 'voice';
@@ -569,6 +572,19 @@ async function submitReflection({ userId, coachingSessionId, answer, audioKey },
  * AudioService.transcribeWithLanguagePreference, exactly as voice-message.handler does a WhatsApp voice
  * reply. Soniox takes webm/ogg/m4a as they are. Required lazily: signing an upload must not load ASR.
  */
+/**
+ * bd-ma9jiy.5 (queue #262; prod 24-26 Nov) — does this file hold any audio at all? A WebM with no Cluster element is a
+ * header and nothing else: what a MediaRecorder hands over when it is stopped before its first audio frame. Soniox v5,
+ * Soniox v4 and Whisper all refuse one as "invalid audio file / may be corrupt" (29 November reflection uploads from 17
+ * teachers were exactly 110 bytes). Another container: under 1 KB is no speech.
+ */
+function audioHasFrames(buffer, ext) {
+  if (!buffer || !buffer.length) return false;
+  const e = String(ext || '').toLowerCase();
+  if (e === '.webm' || e === '.weba' || e === '') return buffer.indexOf(Buffer.from([0x1f, 0x43, 0xb6, 0x75])) >= 0;
+  return buffer.length >= 1024;
+}
+
 async function transcribeFromR2(key, language) {
   const fs = require('fs');
   const { TEMP_DIR } = require('../../utils/constants');
@@ -576,6 +592,10 @@ async function transcribeFromR2(key, language) {
   const AudioService = require('../audio.service');
   const { downloadFromR2 } = require('../../storage/r2');
   const buffer = await downloadFromR2(key);
+  if (!audioHasFrames(buffer, extOf(key))) {
+    try { require('../../utils/logger').logToFile('reflection.no_audio', { bytes: buffer ? buffer.length : 0, ext: extOf(key) || null }, 'warn'); } catch { /* logging only */ }
+    return { text: '', language, noAudio: true, bytes: buffer ? buffer.length : 0 };
+  }
   const tmp = privateTempPath(TEMP_DIR, `reflection${extOf(key) || '.webm'}`, 'voice-');
   try {
     fs.writeFileSync(tmp.filePath, buffer);
@@ -634,5 +654,9 @@ module.exports = {
   startPortalSession,
   afterTranscription,
   submitReflection,
+  // bd-ma9jiy.5: a file with no audio frame is never transcribed (its test calls transcribeFromR2, exported on
+  // sandbox by bd-x1tl95 for the app's Send feedback).
+  transcribeFromR2,
+  audioHasFrames,
   recentLessonPlans,
 };
