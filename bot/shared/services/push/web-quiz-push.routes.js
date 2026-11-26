@@ -5,7 +5,7 @@
  * phone's wq_dv cookie arrives as x-wq-device, its user agent as user-agent. The logic is web-quiz-push.service.js.
  *
  *   GET  /state        {remind, test, portal}: the edge's /remind/:code page and the portal's teacher card ask before they draw
- *   GET  /key?code=    {key, ask, ask_v?, primer?}: the VAPID public key; ask false outside the canary (web_quiz_push_canary);
+ *   GET  /key?code=    {key, ask, ask_v?, primer?, install_android?}: the VAPID public key; ask false outside the canary (web_quiz_push_canary);
  *                      ask_v 'a' | 'b' (web_quiz_push_ask_v2 on): the arm, by the phone's x-wq-device
  *   POST /subscribe    {sub, code, lang, chips, chip?, rotate_from?, ps?} → {ok:1} | 409 {err:'class_phone'} | 400 {err:'bad_sub'}
  *   POST /unsubscribe  {endpoint, by?}  POST /opened {endpoint, ps?}   → {ok:1}

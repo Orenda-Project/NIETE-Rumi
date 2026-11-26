@@ -2291,6 +2291,8 @@ const EVENT_PROPS = Object.freeze({
   cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct)$/,
   // The invite ask (web-quiz-invite-ask.js): the arm (a0 today's button, a1 the panel) and the tile tapped.
   v: /^a[01]$/, who: /^(home|cousin|street)$/,
+  // the finish-screen install card: where an install meter row came from (the finish screen's card; the hub's rows carry none).
+  at: /^(hub|finish)$/,
   // reminders: the hub install card's one outcome per view (hub-play.js): when it was decided, and what held the card first.
   when: /^(render|offer|tour_end|hide)$/, held: /^tour$/,
   // class-link: round_done_for_tonight (wq.js, "Done for tonight!" shown): the round's two codes the start's reply named.
