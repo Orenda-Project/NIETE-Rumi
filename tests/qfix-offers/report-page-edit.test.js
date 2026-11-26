@@ -1,17 +1,17 @@
 'use strict';
 /**
- * E2 — the teacher edits the quiz in the page the closed-window report opens (/cq, the /cr block), once it is ready.
- * The write path is keys' E1 on the bot (`/api/internal/wqedit/quiz/:quizId`, `/save`, `/pdf`,
- * quiz-teacher-edit.routes.js); here it is a stub on the bot's HTTP boundary that records what the portal sent and
- * answers in E1's shapes (quiz-teacher-edit.js view/save/ensurePdf). The portal side is real: the coaching-report
- * routes, the page, and the bot's own /api/internal/rq.
+ * The teacher edits the quiz in the page the closed-window report opens (/cq, the /cr block), once it is ready.
+ * The write path is the bot's quiz edit routes (`/api/internal/wqedit/quiz/:quizId`, `/save`, `/pdf`,
+ * quiz-teacher-edit.routes.js); here they are a stub on the bot's HTTP boundary that records what the portal sent and
+ * answers in the shapes quiz-teacher-edit.js returns (view / save / ensurePdf). The portal side is real: the
+ * coaching-report routes, the page, and the bot's own /api/internal/rq.
  *
- *   - Edit controls per question only when E1 answers (its switch on); off → #5974's read-only view.
- *   - The teacher is the signed token's, never the form's (red 092653).
- *   - The form is diffed against E1's view: one ops array (text / option per changed slot / key / remove), v = the
+ *   - Edit controls per question only when the edit routes answer (their switch on); off → the read-only view.
+ *   - The teacher is the signed token's, never the form's.
+ *   - The form is diffed against the bot's view: one ops array (text / option per changed slot / key / remove), v = the
  *     edit_v the page was drawn with.
- *   - After the first child answer: wording locked, the right answer still fixable (lead 092630).
- *   - Each refusal (locked, floor, stale, too_long, …) is its own line on the page; each op is logged.
+ *   - After the first child answer: wording locked, the right answer still fixable.
+ *   - Each refusal (locked, floor, stale, too_long, …) is its own line on the page; each save's outcome is logged.
  */
 process.env.TRANSCRIPT_QUIZ_ENABLED = 'true';
 
@@ -67,8 +67,8 @@ function seed({ language = 'en' } = {}) {
   });
 }
 
-/** keys' E1, as its contract says (keys PLAN 092553): what the portal sent, and the answer the test chose. */
-function fakeE1() {
+/** The bot's quiz edit routes, in their real shapes: what the portal sent, and the answer the test chose. */
+function fakeEditRoutes() {
   const e1 = { calls: [], view: VIEW(), edit: { status: 200, body: { ok: true, edit_v: 4, n: 8, answered: false, pdf: 'pending' } }, pdf: { status: 200, body: { ok: true, pdf: 'pending' } }, off: false };
   const r = express.Router();
   r.use(express.json());
@@ -86,7 +86,7 @@ function fakeE1() {
   });
   r.post('/pdf', async (req, res) => {
     e1.calls.push({ path: 'pdf', body: req.body });
-    // ready: E1 has stored the remade PDF's key on the quiz (quiz_teacher_edit_pdf)
+    // ready: the bot has stored the remade PDF's key on the quiz (quiz_teacher_edit_pdf)
     if (e1.pdf.body && e1.pdf.body.pdf === 'ready') {
       const db = require('../../bot/shared/config/supabase');
       const { data } = await db.from('quizzes').select('meta').eq('id', QID).maybeSingle();
@@ -106,7 +106,7 @@ async function listen(app) {
 
 async function start() {
   require('../../bot/shared/services/quiz/report-page-quiz')._resetCache();
-  const { e1, router } = fakeE1();
+  const { e1, router } = fakeEditRoutes();
   const bot = express();
   bot.use('/api/internal/rq', require('../../bot/shared/routes/report-quiz-internal.routes'));
   bot.use('/api/internal/wqedit', router);
@@ -143,8 +143,8 @@ beforeEach(() => {
 afterEach(async () => { await Promise.all(servers.map((s) => new Promise((r) => s.close(r)))); servers = []; });
 afterAll(() => { process.env = ENV; });
 
-describe('edit in the page (E2 over keys\' E1)', () => {
-  test('ready + E1 on → every question has an Edit form posting to the page, with its id and the edit_v drawn', async () => {
+describe('edit in the page, over the bot\'s quiz edit routes', () => {
+  test('ready + edit routes on → every question has an Edit form posting to the page, with its id and the edit_v drawn', async () => {
     seed();
     const { token, req } = await start();
     const t = token();
@@ -161,7 +161,7 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     expect(r.body).toMatch(/class="qbar"/);
   });
 
-  test('E1 off → #5974\'s read-only view, no Edit', async () => {
+  test('edit routes off → the read-only view, no Edit', async () => {
     seed();
     const { e1, token, req } = await start();
     e1.off = true;
@@ -234,7 +234,7 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     [400, { ok: false, reason: 'no_change' }, 'none', 'Nothing was changed'],
     [502, { ok: false, reason: 'db_unavailable' }, 'failed', 'could not be saved'],
     [503, null, 'failed', 'could not be saved'],
-  ])('E1 %s %j → the page names it (%s)', async (status, body, code, words) => {
+  ])('the bot answers %s %j → the page names it (%s)', async (status, body, code, words) => {
     seed();
     const { e1, token, req } = await start();
     e1.edit = { status, body };
@@ -277,7 +277,7 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     expect(first).toMatch(/name="opt_B"/);
   });
 
-  test('Download PDF after an edit (no stored PDF yet) → E1 remakes it: being remade, then the link', async () => {
+  test('Download PDF after an edit (no stored PDF yet) → the bot remakes it: being remade, then the link', async () => {
     seed();
     const { e1, token, req } = await start();
     await require('../../bot/shared/config/supabase').from('quizzes').update({ meta: { ...SENT.meta, pdf_key: null } }).eq('id', QID);
@@ -326,6 +326,36 @@ describe('edit in the page (E2 over keys\' E1)', () => {
     // a single-answer item never sends two
     expect((await req('POST', `/cq/${t}/edit`, `surface=cq&qid=${item(1).qid}&v=3&do=save&key=B&key=C`)).status).toBe(400);
     expect(edits(e1)).toHaveLength(1);
+  });
+
+  test('either switch off → an edit post is 404 and nothing is sent', async () => {
+    seed();
+    const { e1, token, req } = await start();
+    const t = token();
+    e1.off = true; // the bot's edit routes off
+    expect((await req('POST', `/cq/${t}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'remove' })).status).toBe(404);
+    e1.off = false;
+    await require('../../bot/shared/config/supabase').from('app_settings').update({ value: { trace: true } }).eq('key', 'quiz_offer_closed_window');
+    const { token: t2, req: req2 } = await start(); // a fresh portal: its switch read is not cached
+    expect((await req2('POST', `/cq/${t2()}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'remove' })).status).toBe(404);
+    expect(edits(e1)).toHaveLength(0);
+  });
+
+  test('a wording change the item does not allow (not locked) names that, not the lock', async () => {
+    seed();
+    const { e1, token, req } = await start();
+    e1.view = VIEW({ questions: [item(0, { editable: { text: false, options: false, key: true, remove: true } }), ...Array.from({ length: 7 }, (_, i) => item(i + 1))] });
+    const t = token();
+    const r = await req('POST', `/cq/${t}/edit`, { surface: 'cq', qid: Q0, v: '3', do: 'save', text: 'new words', key: 'A' });
+    expect(r.headers.location).toBe(`/cq/${t}?e=not_editable#q-${Q0}`);
+    expect(edits(e1)).toHaveLength(0);
+  });
+
+  test('a form without the version it was drawn with → 400, nothing sent', async () => {
+    seed();
+    const { e1, token, req } = await start();
+    expect((await req('POST', `/cq/${token()}/edit`, { surface: 'cq', qid: Q0, do: 'remove' })).status).toBe(400);
+    expect(edits(e1)).toHaveLength(0);
   });
 
   test('/cr: the same edit forms, and a save goes back to the report', async () => {

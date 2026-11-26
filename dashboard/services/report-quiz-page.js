@@ -35,7 +35,7 @@ const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:
   + '.qbar{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:8px;padding:10px 0 4px;background:var(--card);border-top:1px solid var(--line);z-index:5}'
   + '.qbar .btn{flex:1 1 150px;text-align:center;margin:0}.qbar p{flex:1 1 100%;margin:0}'
   + '.qnote{color:var(--muted);font-size:15px}'
-  // E2: the edit form, every field and button a 48 px target
+  // the edit form: every field and button a 48 px target
   + '.qedit summary{min-height:48px;padding:12px 0;cursor:pointer;color:var(--s3);font-weight:600}'
   + '.qform label,.qform legend{display:block;font-weight:600;margin:6px 0}.qform fieldset{border:0;padding:0;margin:0 0 8px}'
   + '.qform textarea,.qform input[type=text]{width:100%;min-height:48px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}'
@@ -72,7 +72,7 @@ function waQuiz(bot, ux) {
 }
 
 /**
- * E2: one question's edit forms, from keys' view (`edit`): wording fields while nothing is locked and the item allows
+ * One question's edit forms, from the bot's edit view (`edit`): wording fields while nothing is locked and the item allows
  * them (never a picture option), the right answer as radio buttons, Remove above the floor. `hidden` = the surface.
  */
 function editForms(item, edit, { base, hidden, ux }) {
@@ -124,7 +124,7 @@ function questionsList(questions, l, ux, { edit = null, base, hidden, open = fal
   return `<details class="qq"${open ? ' open' : ''}><summary>${n}</summary>${locked}<ol class="qlist">${items}</ol></details>`;
 }
 
-// E2: the line a save, a refusal or a PDF remake leaves on the page (?e=<code>).
+// The line a save, a refusal or a PDF remake leaves on the page (?e=<code>).
 const NOTICE = Object.freeze({
   saved: 'qfix_offers_cq_saved', none: 'qfix_offers_cq_edit_none', locked: 'qfix_offers_cq_locked', floor: 'qfix_offers_cq_floor',
   stale: 'qfix_offers_cq_stale', too_long: 'qfix_offers_cq_too_long', empty: 'qfix_offers_cq_empty', not_text: 'qfix_offers_cq_not_text',

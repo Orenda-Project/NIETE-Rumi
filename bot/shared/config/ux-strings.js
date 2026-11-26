@@ -4801,7 +4801,7 @@ const UX_STRINGS = {
     en: 'We do not make quizzes for this subject yet. You can make one for another lesson on WhatsApp: send /quiz.',
     ur: 'اس مضمون کے کوئز ابھی نہیں بنتے۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
-  // E2: the teacher edits the quiz in the page (keys' write path, /api/internal/wq/teacher/edit). One line per outcome.
+  // The teacher edits the quiz in the page (the bot's quiz edit routes, /api/internal/wqedit). One line per outcome.
   qfix_offers_cq_edit: {
     en: 'Edit',
     ur: 'ترمیم کریں',
