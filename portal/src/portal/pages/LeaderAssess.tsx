@@ -152,6 +152,8 @@ export default function LeaderAssess() {
   const [schoolFilter, setSchoolFilter] = useState('');
   const [list, setList] = useState<SaList | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
+  // the server's word that "Add a child" opens the list the draw could not (frame_exhausted at a Gilgit-Baltistan school)
+  const [problemAddOpens, setProblemAddOpens] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -223,6 +225,7 @@ export default function LeaderAssess() {
   const loadList = useCallback(async (s: SaSchool, key: string) => {
     setLoadFailed(false);
     setProblem(null);
+    setProblemAddOpens(false);
     setOffline(false);
     const grade = s.grade ?? null;
     const read = { t0: Date.now(), slow: false, timer: 0 };
@@ -248,7 +251,12 @@ export default function LeaderAssess() {
       const failed = (shown: 'problem' | 'failed' | 'saved_list') => safely(() => reportSaOffline({
         k: 'list_failed', reason, shown, network, status, elapsedMs: Date.now() - read.t0, grade,
       }));
-      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { failed('problem'); setProblem(reason); return; }
+      if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') {
+        failed('problem');
+        setProblem(reason);
+        setProblemAddOpens((err as { response?: { data?: { addOpens?: boolean } } })?.response?.data?.addOpens === true);
+        return;
+      }
       // sa_r8_offline_prep: a list kept by "Get ready for offline" when today's visit has none on this phone
       const saved = readVisit(key).list || (r8Ref.current.offlinePrep ? readPreparedList(s.schoolId, s.grade) : null);
       if (network && saved) { failed('saved_list'); setList(saved); setOffline(true); } else { failed('failed'); setLoadFailed(true); }
@@ -640,7 +648,7 @@ export default function LeaderAssess() {
         section: adding.section.trim() || null, clientChildId: addingId.current, ...(s.grade ? { listGrade: s.grade } : {}),
       });
       // the list the server sends back is the visit's list, the first one too (no class list until this child)
-      if (out?.list) { keepList(out.list); setProblem(null); }
+      if (out?.list) { keepList(out.list); setProblem(null); setProblemAddOpens(false); }
       setAdding(null);
       addingId.current = mintId();
     } catch {
@@ -818,8 +826,8 @@ export default function LeaderAssess() {
     const message = problem === 'no_class_list' ? copy.noClassList : problem === 'frame_exhausted' ? copy.frameExhausted : problem === 'not_found' ? copy.notFound : null;
     // sa_add_child: a first name, the grade and a section seat a child on the open list. With no class list for the
     // grade (nobody on the school's roster in it: every Gilgit-Baltistan school today) the server cannot draw a list,
-    // and the first child added opens it, so the button sits under that message too. Not after frame_exhausted or
-    // not_found: the server keeps its rule there (the draw lists first).
+    // and the first child added opens it, so the button sits under that message too; and under frame_exhausted when the
+    // server says so (addOpens: a Gilgit-Baltistan school's second visit). Never after not_found.
     const addChildUi = !switches.addChild ? null : !adding ? (
       <button type="button" data-testid="assess-add-child" onClick={() => { setAddFailed(false); setAdding({ name: '', grade: step.school.grade || list?.grade || 3, section: '' }); }}
         className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.addChild}</button>
@@ -853,7 +861,7 @@ export default function LeaderAssess() {
       </form>
     );
     content = message ? (
-      problem === 'no_class_list' && addChildUi
+      (problem === 'no_class_list' || (problem === 'frame_exhausted' && problemAddOpens)) && addChildUi
         ? <div className="space-y-4"><p className="text-slate-700">{message}</p>{addChildUi}</div>
         : <p className="text-slate-700">{message}</p>
     )

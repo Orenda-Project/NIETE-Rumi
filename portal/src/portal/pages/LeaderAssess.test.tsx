@@ -1002,6 +1002,24 @@ describe("LeaderAssess", () => {
       expect(screen.queryByTestId("assess-add-child")).toBeNull();
     });
 
+    // A Gilgit-Baltistan school on the coach's second visit: every child on the roster was tested on the first, so the
+    // draw has nobody left (frame_exhausted), and the server says that "Add a child" opens the list there (addOpens).
+    it("RED on the head before this fix: ON, frame_exhausted where the server says Add opens the list: Add a child seats the first child", async () => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 400, data: { reason: "frame_exhausted", addOpens: true } } });
+      const added = child(1, { firstName: "Sana", name: "Sana Testwala", nameUr: null, firstNameUr: null, childNo: 1 });
+      api.addChild.mockResolvedValue({ list: { ...LIST, children: [added], alternates: [] } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/has been tested/)).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Sana" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      expect(await screen.findByText("Sana Testwala")).toBeInTheDocument();
+      expect(screen.queryByText(/has been tested/)).toBeNull();
+    });
+
     it.each(["frame_exhausted", "not_found"])("ON, %s: the message only (the server lists first there), no Add a child", async (reason) => {
       withAdd();
       api.getList.mockRejectedValue({ response: { status: 409, data: { reason } } });
