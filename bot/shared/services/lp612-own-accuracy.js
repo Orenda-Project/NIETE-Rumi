@@ -59,14 +59,18 @@ function goalCheckMessages({ plan, goal, grade }) {
     + `1) FACTUAL accuracy for ${grade ? `Grade ${grade}` : 'its grade'}: the class has no textbook, so every fact, `
     + 'definition, example answer, number, spelling and worked answer reaches the children as written; list each one that '
     + 'is wrong or misleading (a simplification that is still true is fine). 2) Whether each section serves the goal: '
-    + 'name any section whose activity does not work towards the teacher\'s goal. Do not judge method, length, style or '
-    + 'language. Answer JSON only: {"accurate": true|false, "errors": ["<the wrong statement> -> <why>"], '
+    + 'name any section whose activity does not work towards the teacher\'s goal. Do not judge method, length, style, '
+    + 'language, or labels and titles. Never list a statement you find correct, acceptable or fine. Answer JSON only: {"accurate": true|false, "errors": ["<the wrong statement> -> <why>"], '
     + '"on_goal": true|false, "off_goal": ["<section>: <why it does not serve the goal>"]}.';
   const user = `The teacher's goal: "${String((goal && goal.text) || '').slice(0, 200)}"\n\nTHE PLAN:\n${String(plan || '').slice(0, PLAN_MAX)}`;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
 const lines = (v) => (Array.isArray(v) ? v : []).filter((e) => typeof e === 'string' && e.trim()).map((e) => e.trim().slice(0, 300));
+
+// bd-snkn32.58.9 — live re-runs: the checker listed lines it dismissed itself ("acceptable rounding, not an error",
+// "which is stated, so this is fine"), and any listed line refused the plan. A line that says so is not an error.
+const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b/i;
 
 /** { accurate, errors, onGoal, offGoal } from the reply, or null when it cannot be read. */
 function parseGoalCheck(content) {
@@ -78,9 +82,11 @@ function parseGoalCheck(content) {
     return null;
   }
   if (!obj || typeof obj.accurate !== 'boolean' || typeof obj.on_goal !== 'boolean') return null;
-  const errors = lines(obj.errors);
+  const listed = lines(obj.errors);
+  const errors = listed.filter((e) => !DISMISSED.test(e));
   const offGoal = lines(obj.off_goal);
-  return { accurate: obj.accurate && !errors.length, errors, onGoal: obj.on_goal && !offGoal.length, offGoal };
+  const allDismissed = listed.length > 0 && !errors.length;
+  return { accurate: (obj.accurate || allDismissed) && !errors.length, errors, onGoal: obj.on_goal && !offGoal.length, offGoal };
 }
 
 /** One model call; never throws: a failure is null (the caller asks once more, then refuses). */
