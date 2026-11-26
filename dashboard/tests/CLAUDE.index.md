@@ -64,6 +64,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `push-remind-edge.service.test.js` | Tests the /remind/:code edge (push-remind.routes): bot switch off falls through; junk code or bot down falls through |
 | `qfix-class-link-round-page.service.test.js` | (unmapped) |
 | `qfix-forward-edge.service.test.js` | (unmapped) |
+| `qfix-reminders-ask-v2.service.test.js` | (unmapped) |
 | `qfix-reminders-ask.service.test.js` | (unmapped) |
 | `qfix-reminders-gone.service.test.js` | (unmapped) |
 | `qfix-reminders-hub-ready.service.test.js` | (unmapped) |
@@ -222,8 +223,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r9-switches.service.test.js` | (unmapped) |
 | `sa-rdf-w3-forms.service.test.js` | Tests RDF auto/manual W3 forms on the battery route: off gives no W3 list; on gives 17 W3 tasks and coach line |
 | `sa-rec-mercy.service.test.js` | Tests sa-rec silent-mic mercy at 12 s and early_stop_silence at 20 s; a voice at 8 s triggers neither |
+| `sa-rec-stop-floor.service.test.js` | (unmapped) |
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
 | `sa-release-pick-map.service.test.js` | (unmapped) |
+| `sa-served-n.service.test.js` | (unmapped) |
 | `sa-sink-coach.service.test.js` | Tests sink-coach.js: batch, presign, register go to the relay with cookie; signed-out coach throws so sync retries |
 | `sa-store.service.test.js` | Tests sa-store: events/results/chunks pending until synced, IndexedDB failure falls back to memory |
 | `sa-sw-carry.service.test.js` | (unmapped) |
@@ -578,6 +581,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-wait-ux.service.test.js` | Tests web_quiz_wait_ux: the designed wait on child pages; off matches wait-ux-off-hub-golden.json |
 | `web-quiz-way-back.service.test.js` | Tests web_quiz_closed_way_back: an expired, forged or closed link is never a dead end; off matches golden |
 | `web-quiz-who-played-page.service.test.js` | Tests wq.js Who played? on the teacher's own preview link (M4) |
+| `web-quiz-word-help.service.test.js` | (unmapped) |
 | `web-quiz-zero-read-card.service.test.js` | Tests a counted live read on the Trail with the finish card on (card_v3) shows the right card for a zero read |
 | `wq-keyframes-unique.service.test.js` | Tests no @keyframes name is defined in two child-page stylesheets, since they share one document |
 | `wq-list-states-screens.js` | Helper rendering door screens (wq-doors.js with wq-home.js in a vm) for the list-states test and its golden |

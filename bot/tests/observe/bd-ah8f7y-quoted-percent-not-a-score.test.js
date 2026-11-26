@@ -23,6 +23,8 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
 process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
 
+const { fixturePhone } = require('../quiz/web-quiz/fixture-phone');
+
 const RUBRIC = {
   opened_with_specific_praise: true, anchored_in_real_moment: true,
   asked_and_waited: false, one_improvement_only: true, moves_not_teacher: true,
@@ -131,8 +133,8 @@ describe('bd-ah8f7y · coachFeedbackWithRepair gives the guard the transcript', 
 
 describe('bd-ah8f7y · the debrief job passes the stored transcript to the guard', () => {
   const SID = 'obs-pct-1';
-  const COACH = { id: 'coach-en', phone_number: '923000000001', preferred_language: 'en' };
-  const TEACHER = { id: 'teacher-en', phone_number: '923000000008', preferred_language: 'en' };
+  const COACH = { id: 'coach-en', phone_number: fixturePhone(1), preferred_language: 'en' };
+  const TEACHER = { id: 'teacher-en', phone_number: fixturePhone(8), preferred_language: 'en' };
   const session = {
     id: SID,
     status: 'observer_review_complete',

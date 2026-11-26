@@ -1,7 +1,7 @@
 # lessons — New-UI Lesson Plans, grades 1-12, behind one client over two services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/lessons kg=6f6638b68fd1 gen=c3a6489d7dc4 overflow=39 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/lessons kg=cb17ddad6703 gen=1a634ffe51b9 overflow=40 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `NewLessonPlans.tsx` — main page and flow router; `RecentPlans.tsx` shows the last 10
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` (NewLessonPlans.tsx, lessonPlansApi.ts)
 - `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` (lessonPlansApi.ts)
-- … 34 more → `CLAUDE.index.md`
+- … 35 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/newui/DESIGN.md`?

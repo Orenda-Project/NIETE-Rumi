@@ -277,5 +277,19 @@ describe('change 5 — the options name only labels that are drawn; a drawn coun
   test('"how many counters?" over the same frame is counting, not a leak', () => {
     expect(Gates.drawnCountIsKey(FRAME.figure, 'How many counters are there?', ['6', '7', '8'], 1)).toBeNull();
   });
+  // bd-ke5dtg (T54): a grade 1 "identify numbers 0-9 and count" lesson asks the child to match a numeral to a drawn
+  // group — the generate prompt's own example is "What number do the sticks show?". Every such picture was refused,
+  // so the counting quiz shipped with two pictures where the lesson needs three.
+  test.each([
+    ['What numeral matches these petals?', { type: 'count_objects', picto: 'flower', count: 5 }, ['5', '6', '7'], 0],
+    ['What numeral matches the number of leaves shown?', { type: 'count_objects', picto: 'leaf', count: 6 }, ['6', '7', '5'], 0],
+    ['Which numeral matches the number of leaves in the picture?', { type: 'count_objects', picto: 'leaf', count: 6 }, ['6', '7', '5'], 0],
+    ['What number do the sticks show?', { type: 'count_objects', picto: 'stick', count: 4 }, ['3', '4', '5'], 1],
+  ])('"%s" reads a numeral off a drawn group: counting, not a leak', (stem, fig, opts, ci) => {
+    expect(Gates.drawnCountIsKey(fig, stem, opts, ci)).toBeNull();
+  });
+  test('the odd/even stem over a frame of exactly the key is still refused', () => {
+    expect(Gates.drawnCountIsKey(FRAME.figure, FRAME.question, FRAME.options, 1)).toMatch(/draws exactly 7/);
+  });
 });
 

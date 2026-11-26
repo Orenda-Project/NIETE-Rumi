@@ -1,7 +1,7 @@
 # sa — Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=ae9c3546fd88 gen=82031c39d408 overflow=76 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=a5561504b922 gen=27c27daa3e99 overflow=77 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `build.js` — builds the SA bank and runtime batteries from official banks
@@ -15,9 +15,9 @@ Full index: `CLAUDE.index.md`
 | `score.js` | Scores self-administered spoken tasks in the bot (CHILD_TEST_SA_SCORER): scoreRow plus a sweep claiming parked rows |
 | `voice*` | 3 files; most used `voice-manifest.js`: Lists every line Jugnu speaks once with key, language and ear_check flag, so one clip serves all tasks using it |
 | `build.js` | Builds the self-administered battery bank and per-form runtime files from item-bank.v3 with source paths on every item |
+| `level.js` | (unmapped) |
 | `scripts.js` | Jugnu's spoken instruction lines for the SA battery in English and Urdu, adapted from EGRA/EGMA scripts, gender-neutral |
 | `counts.js` | Round 8 switch sa_r8_counts: per-subsection practice trims and extra items for RDF forms |
-| `level.js` | (unmapped) |
 | … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/child-test/sa-rdf-w3.test.js` (build-w3.js, build.js, reviewed-lines.js, voice-manifest.js)
 - `bot/tests/child-test/sa-r28-bank.test.js` (build.js, counts.js, score.js)
-- … 57 more → `CLAUDE.index.md`
+- … 58 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - (none)

@@ -1,7 +1,7 @@
 # pages — Teacher frame pages: Home, More and My profile
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/pages kg=0f63c34737f0 gen=21392d0cd87d overflow=13 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/pages kg=b16057101a27 gen=f78f92eb4bdd overflow=13 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — Home at /portal/teacher, More at /more, My profile at /profile
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `routes.tsx` | Registers lazy Home (/portal/teacher), More and My profile via TeacherGate; the frame's own pages |
 
 ## Who reads this (generated)
-- `More.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:10:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` (+2)
+- `More.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:11:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` (+2)
 - `Home.tsx` ← imported by `portal/src/App.tsx:57:c88a91a7` · `portal/src/portal/teacher/pages/routes.tsx:6:f24d299d`
 - `Profile.tsx` ← imported by `portal/src/portal/coach/profile/CoachProfile.tsx:8:0572f196` · `portal/src/portal/teacher/pages/routes.tsx:8:591421e5`
 

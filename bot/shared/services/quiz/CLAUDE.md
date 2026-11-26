@@ -1,7 +1,7 @@
 # quiz — Class quizzes, video quizzes, storybooks and the child web quiz (Jugnu) services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz kg=e220519593d5 gen=5f530aa773e4 overflow=1540 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz kg=4bf2fd06bae6 gen=0cb6fa51c1ba overflow=1567 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-orchestrator.service.js` — /quiz command, class selection, LP-anchored offers
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `pictures/` | Colour picture bank (Fluent Emoji glyphs) the web quiz draws nouns with → `pictures/CLAUDE.md` |
 | `providers/` | Lesson providers for /quiz that make a quiz from a Grades 6-12 lesson plan → `providers/CLAUDE.md` |
 | `web-quiz-token.js` | Pure signing and verification of web quiz tokens: session, preview, challenge, hub, guest, handset, device ref |
-| … | 308 more → `CLAUDE.index.md` |
+| … | 317 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `quizzes` (written by `closed-window-offer.js` (+20)) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+69)
-- `web-quiz-token.js` ← imported by `bot/shared/routes/web-quiz-internal.routes.js:228:a3b52a32` · `bot/shared/services/child-test/app/sa-api.service.js:1150:f6c99c9e` (+56)
-- … 452 more → `CLAUDE.index.md`
+- table `quizzes` (written by `closed-window-offer.js` (+20)) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+71)
+- `web-quiz-kid.js` ← imported by `bot/shared/handlers/observe-visit-flow.handler.js:987:5e4f4f4e` · `bot/shared/handlers/text-message.handler.js:24:f195e827` (+56)
+- … 462 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Treat an app_settings switch as on only for JSON true; strings and failed reads are off (report-fold-flag.js:5)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
-- … 871 more → `CLAUDE.index.md`
+- … 882 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/features/quiz.md`? · `docs/features/video-quiz.md`? · `docs/lesson-plan-data-model-debt.md`? · `docs/migration/05-exam-generator.md`? (+1)

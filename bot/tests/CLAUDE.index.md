@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `assessment/` | → (no door; 3 tests) |
+| `assessment/` | → (no door; 4 tests) |
 | `calls/` | → (no door; 30 files: 29 test + 1 support) |
 | `child-test/` | Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules → `child-test/CLAUDE.md` |
 | `coaching/` | Jest suites for coaching: guards, report sending, language, subject resolution → `coaching/CLAUDE.md` |
@@ -29,7 +29,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `qfix-class-link/` | → (no door; 31 tests) |
 | `qfix-forward/` | → (no door; 9 tests) |
 | `qfix-keys/` | → (no door; 4 tests) |
-| `qfix-reminders/` | → (no door; 12 tests) |
+| `qfix-reminders/` | → (no door; 13 tests) |
 | `qfix-report/` | → (no door; 15 files: 13 test + 2 support) |
 | `qfix-shuffle/` | → (no door; 3 tests) |
 | `qfix-voice/` | → (no door; 6 tests) |
@@ -60,6 +60,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `model-settings-backoff.test.js` | Pins model-settings back-off: a failing app_settings read is retried on a timer, not on every request (bd-dsr9l) |
 | `model-settings-no-db.test.js` | Pins that loading the model-settings reader without Supabase env does not exit the process (bd-5rd2f) |
 | `model-settings.test.js` | Tests model-settings reader: kill switch, JSON-string values and synchronous last-good-config accessor (bd-5rd2f) |
+| `objective-writer-model.test.js` | (unmapped) |
 | `r2-download-miss-level.test.js` | (unmapped) |
 | `secondary-writer-model.test.js` | (unmapped) |
 | `setup-loopback.js` | Jest setupFile that loopbacks service endpoints, dummies credentials and blocks live DB/Redis/LLM/WhatsApp in tests |

@@ -1,7 +1,7 @@
 # remark — Principal's Supervisor Remark (/remark): rubric walk, scores, teacher narrative
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=ab5d820d7cc8 gen=75baefb1ae95 overflow=22 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=27eb068b184c gen=f69cb56fc6f2 overflow=22 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `remark-rubric.js` — single source of truth for indicators and scoring
@@ -16,8 +16,8 @@ Full index: `CLAUDE.index.md`
 
 ## Who reads this (generated)
 - `remark-rubric.js` ← imported by `bot/shared/routes/remark-endpoint.js:35:3c373bd4` · `dashboard/services/steps-remarks.service.js:26:db2203b6` (+6)
-- table `supervisor_remarks` (written by `remark-delivery.deps.js` (+1)) ← read by `dashboard/routes/portal.routes.js:1656:dec350bb`? · `bot/workers/remark-narrative-retry.worker.js:44:e4257554`? (+3)
-- table `supervisor_remark_scores` (written by `remark-write.repository.js`) ← read by `dashboard/routes/portal.routes.js:1657:28d18640`? · `bot/workers/remark-narrative-retry.worker.js:57:18d79377`? (+2)
+- table `supervisor_remarks` (written by `remark-delivery.deps.js` (+1)) ← read by `dashboard/routes/portal.routes.js:1660:dec350bb`? · `bot/workers/remark-narrative-retry.worker.js:44:e4257554`? (+3)
+- table `supervisor_remark_scores` (written by `remark-write.repository.js`) ← read by `dashboard/routes/portal.routes.js:1661:28d18640`? · `bot/workers/remark-narrative-retry.worker.js:57:18d79377`? (+2)
 - column `supervisor_remark_scores.indicator_ordinal` (written by `remark-write.repository.js`) ← read by `bot/workers/remark-narrative-retry.worker.js:58:23ef2f9d` · `bot/shared/services/remark/remark-cycle.repository.js:132:79d071b0` (+1)
 - column `supervisor_remark_scores.remark_id` (written by `remark-write.repository.js`) ← read by `bot/workers/remark-narrative-retry.worker.js:59:958d8356` · `bot/shared/services/remark/remark-cycle.repository.js:132:79d071b0` (+1)
 - … 10 more → `CLAUDE.index.md`

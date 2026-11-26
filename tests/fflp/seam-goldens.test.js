@@ -28,13 +28,19 @@ jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true 
 // that slips past the fakes at once (as an aborted request, which no client retries, so a missed
 // boundary fails the test instead of hanging it) and the afterEach names the caller.
 const mockEgress = [];
+// net is a core module: every suite in this Jest worker shares its prototype, so the guard is put back after this
+// file (tests/setup/socket-guard-restored.test.js); left in place it refused the sockets of later suites (bd-ke5dtg).
+const net = require('net');
+const realConnect = net.Socket.prototype.connect;
+afterAll(() => { net.Socket.prototype.connect = realConnect; });
 {
-  const net = require('net');
   const where = () => new Error().stack.split('\n').slice(3)
     .find((l) => l.includes('/bot/') && !l.includes('node_modules')) || '(no bot frame)';
   const rel = (l) => l.trim().replace(`${process.cwd()}/`, '');
   net.Socket.prototype.connect = function guardedConnect(...a) {
-    const o = (a[0] && typeof a[0] === 'object') ? a[0] : { port: a[0], host: a[1] };
+    // http/net call connect with Node's normalised [options, cb] array as the first argument.
+    const first = Array.isArray(a[0]) ? a[0][0] : a[0];
+    const o = (first && typeof first === 'object') ? first : { port: first, host: a[1] };
     mockEgress.push(`socket ${o.host || o.path}:${o.port} from ${rel(where())}`);
     this.destroy(new Error('egress refused by the test'));
     return this;

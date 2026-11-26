@@ -211,6 +211,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `free-secondary-rewrite.js` | (unmapped) |
 | `free-secondary-rules.js` | (unmapped) |
 | `free-secondary-scheme.js` | (unmapped) |
+| `free-secondary-target.js` | (unmapped) |
 | `free-secondary-tidy.js` | (unmapped) |
 | `free-secondary.service.js` | (unmapped) |
 | `gk-sst-en-prompts.json` | (unmapped) |
@@ -219,6 +220,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `marking-scheme.js` | Normalises a model-written marking scheme to the pattern slot: point sums, kinds, code-point caps |
 | `maths-check.js` | Recomputes plain arithmetic in a maths marking scheme with exact BigInt fractions to catch wrong keys |
 | `mcq-answer-check.js` | (unmapped) |
+| `objective-writer-model.js` | (unmapped) |
 | `paper-diagram.js` | (unmapped) |
 | `paper-reuse.js` | (unmapped) |
 | `prompts-6-12.js` | (unmapped) |
@@ -245,11 +247,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `assessment-feedback.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:366:95c8879a` · `bot/whatsapp-bot.js:950:e2c49386` · `bot/shared/services/assessment/assessment-orchestrator.service.js:971:77279d94`
 - `assessment-format.js` ← imported by `bot/scripts/assessment/backfill-paper-versions.js:104:bb283576` · `bot/shared/routes/assessment-gen-endpoint.js:1830:5ff2c133` · `bot/shared/services/assessment/assessment-orchestrator.service.js:39:02db64e0` · `bot/shared/services/assessment/assessment-revision.service.js:24:02db64e0`
 - `assessment-generation.service.js` ← imported by `scripts/assessment/eval-per-type-counts.js:38:cdaf4880` · `scripts/assessment/eval-run.js:43:cdaf4880` · `bot/shared/services/assessment/assessment-orchestrator.service.js:32:c19e5a2e` · `bot/shared/services/assessment/free-secondary.service.js:41:da50c4cc`
-- `assessment-json.util.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:24:25a8c06a` · `bot/shared/services/assessment/book-exercises.service.js:110:25a8c06a` · `bot/shared/services/assessment/free-secondary.service.js:38:25a8c06a`
-- `assessment-orchestrator.service.js` ← imported by `bot/workers/sqs-worker.js:654:9e887360` · `bot/shared/services/assessment/assessment-revision.service.js:147:68277ac4`
+- `assessment-json.util.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:25:25a8c06a` · `bot/shared/services/assessment/book-exercises.service.js:110:25a8c06a` · `bot/shared/services/assessment/free-secondary.service.js:38:25a8c06a`
+- `assessment-orchestrator.service.js` ← imported by `bot/workers/sqs-worker.js:717:9e887360` · `bot/shared/services/assessment/assessment-revision.service.js:147:68277ac4`
 - `assessment-order.js` ← imported by `bot/shared/services/assessment/assessment-paper.renderer.js:23:00501364` · `bot/shared/services/assessment/assessment-selection.js:2:f7a5fb90`
 - `assessment-paper-board.renderer.js` ← imported by `bot/shared/services/assessment/assessment-paper.renderer.js:350:029998fa`
-- `assessment-paper-fde.renderer.js` ← imported by `bot/shared/services/assessment/assessment-editor.service.js:19:2af0ac15` · `bot/shared/services/assessment/assessment-generation.service.js:1780:1f701a06` · `bot/shared/services/assessment/assessment-orchestrator.service.js:35:2af0ac15` · `bot/shared/services/assessment/assessment-paper-view.service.js:70:2af0ac15` (+2: `python3 kg/kg.py who-reads assessment-paper-fde.renderer.js`)
+- `assessment-paper-fde.renderer.js` ← imported by `bot/shared/services/assessment/assessment-editor.service.js:19:2af0ac15` · `bot/shared/services/assessment/assessment-generation.service.js:1786:1f701a06` · `bot/shared/services/assessment/assessment-orchestrator.service.js:35:2af0ac15` · `bot/shared/services/assessment/assessment-paper-view.service.js:70:2af0ac15` (+2: `python3 kg/kg.py who-reads assessment-paper-fde.renderer.js`)
 - `assessment-paper-view.service.js` ← imported by `bot/shared/routes/internal-assessment-view.routes.js:20:0107c1d0`
 - `assessment-paper.renderer.js` ← imported by `bot/scripts/assessment/backfill-paper-versions.js:103:10ace4e3` · `bot/shared/routes/assessment-gen-endpoint.js:810:7568e5aa` · `scripts/assessment/eval-run.js:44:50489814` · `bot/shared/services/assessment/assessment-changes.js:61:0fc01171` (+8: `python3 kg/kg.py who-reads assessment-paper.renderer.js`)
 - `assessment-request.service.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:2151:9f9f0555` · `bot/shared/routes/internal-api.routes.js:1950:9f9f0555`
@@ -257,18 +259,18 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `assessment-scheme-board.renderer.js` ← imported by `bot/shared/services/assessment/assessment-paper.renderer.js:476:a13cc5e1`
 - `assessment-selection.js` ← imported by `bot/scripts/assessment/backfill-paper-versions.js:42:3ca84ad0` · `bot/shared/routes/assessment-gen-endpoint.js:283:d0d392e8` · `bot/shared/services/assessment/assessment-changes.js:14:c8c747c7` · `bot/shared/services/assessment/assessment-editor.service.js:13:c8c747c7` (+2: `python3 kg/kg.py who-reads assessment-selection.js`)
 - `assessment-vocabulary.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:36:0bbbf370` · `bot/shared/services/portal-ready-whatsapp.service.js:50:ac2a62e8` · `bot/shared/services/share-send.service.js:146:ac2a62e8` · `dashboard/services/coach-school-card.service.js:55:41b16ae0` (+7: `python3 kg/kg.py who-reads assessment-vocabulary.js`)
-- `bloom-ceiling.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:30:8e9d7e4a` · `bot/shared/services/assessment/free-secondary.service.js:40:8e9d7e4a` · `bot/shared/services/assessment/repeat-guard.js:12:f2f45e82`
-- `blueprint-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:815:2919ed2d` · `bot/shared/services/assessment/fde-early-writer.js:23:6eac933d`
+- `bloom-ceiling.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:31:8e9d7e4a` · `bot/shared/services/assessment/free-secondary.service.js:40:8e9d7e4a` · `bot/shared/services/assessment/repeat-guard.js:12:f2f45e82`
+- `blueprint-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:821:2919ed2d` · `bot/shared/services/assessment/fde-early-writer.js:23:6eac933d`
 - `board-layout.js` ← imported by `bot/shared/services/assessment/board-writer.js:14:38ee8d98`
-- `board-writer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:821:27a9aa34`
+- `board-writer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:827:27a9aa34`
 - `book-content.service.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:25:f17a4a91` · `bot/shared/services/lp-own-book.js:44:d840d659` · `scripts/assessment/eval-per-type-counts.js:37:f6eb81ab` · `scripts/assessment/eval-run.js:42:f6eb81ab` (+4: `python3 kg/kg.py who-reads book-content.service.js`)
 - `book-exercises.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1795:8d5eb967`
 - `compact-print.js` ← imported by `bot/shared/services/assessment/assessment-paper.renderer.js:24:95f82b04`
 - `composition-criteria.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:1300:4fa69c72` · `bot/shared/services/assessment/fde-g5-key-fixes.js:15:7777e707` · `bot/shared/services/assessment/fde-picture-word-count.js:11:7777e707`
 - `english-check.js` ← imported by `bot/shared/services/assessment/fde-layout.js:631:ff9c711c`
-- `fde-accept-alternatives.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:835:f6a4f752` · `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79` · `bot/shared/services/assessment/fde-key-checks.js:15:e6405b14`
+- `fde-accept-alternatives.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:841:f6a4f752` · `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79` · `bot/shared/services/assessment/fde-key-checks.js:15:e6405b14`
 - `fde-accept-line.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:48:2c177a07`
-- `fde-answer-repeats.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:811:a24b183f` · `bot/shared/services/assessment/fde-early-writer.js:28:534385ed` · `bot/shared/services/assessment/fde-oral-fresh-words.js:13:a1c69ffd`
+- `fde-answer-repeats.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:817:a24b183f` · `bot/shared/services/assessment/fde-early-writer.js:28:534385ed` · `bot/shared/services/assessment/fde-oral-fresh-words.js:13:a1c69ffd`
 - `fde-answer-sheet-wording.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes.js:20:4caa27d1`
 - `fde-banned-words.js` ← imported by `bot/shared/services/assessment/fde-early-prompt.js:15:16d27e9b`
 - `fde-circuit-frame.js` ← imported by `bot/shared/services/assessment/fde-pictures.js:27:ed48c9c0`
@@ -279,9 +281,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-concept-count.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:8:49457773`
 - `fde-concept-repeats.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:43:dbd22d17`
 - `fde-cross-item-answers.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:15:ec066ebd`
-- `fde-directed-tasks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:826:e80e08e0`
+- `fde-directed-tasks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:832:e80e08e0`
 - `fde-division-steps.js` ← imported by `bot/shared/services/assessment/fde-maths-slips.js:16:8eb9eaaa` · `bot/shared/services/assessment/fde-mid-key-fixes.js:14:238cf801`
-- `fde-early-blueprint-retry.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:819:be765b35`
+- `fde-early-blueprint-retry.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:825:be765b35`
 - `fde-early-dupes.js` ← imported by `bot/shared/services/assessment/fde-key-checks.js:14:63791c54`
 - `fde-early-english-accepts.js` ← imported by `bot/shared/services/assessment/fde-early-english-fixes-2.js:16:31ad06e6`
 - `fde-early-english-fixes-2.js` ← imported by `bot/shared/services/assessment/fde-early-english-fixes.js:14:1bbeebb2`
@@ -301,7 +303,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-early-urdu-verbs.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-fixes.js:17:961cafbf`
 - `fde-early-urdu-walk.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-marking.js:10:5f57bb35` · `bot/shared/services/assessment/fde-early-urdu-repeat.js:10:5f57bb35` · `bot/shared/services/assessment/fde-early-urdu-topic.js:13:5f57bb35` · `bot/shared/services/assessment/fde-early-urdu-verbs.js:13:5f57bb35` (+3: `python3 kg/kg.py who-reads fde-early-urdu-walk.js`)
 - `fde-early-urdu-wordbox.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-fixes.js:16:1232e0f8` · `bot/shared/services/assessment/fde-key-checks.js:11:be73c6e7`
-- `fde-early-writer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:818:c2c60a6e` · `bot/shared/services/assessment/topics/topic-oral.js:10:85bcb75c`
+- `fde-early-writer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:824:c2c60a6e` · `bot/shared/services/assessment/topics/topic-oral.js:10:85bcb75c`
 - `fde-english-r3-mends.js` ← imported by `bot/shared/services/assessment/fde-early-english-fixes-2.js:15:12c58782` · `bot/shared/services/assessment/fde-g5-lang-fixes.js:14:dfe6b5c8`
 - `fde-fraction-giveaway.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:9:9a2f888d`
 - `fde-frame-bank.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:47:4b13be55`
@@ -310,48 +312,48 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-g5-criteria-2.js` ← imported by `bot/shared/services/assessment/fde-g5-criteria.js:15:e829b01c`
 - `fde-g5-criteria.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:45:6b57be4f`
 - `fde-g5-key-fixes-2.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes.js:16:9785acba`
-- `fde-g5-key-fixes.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:814:80c66852`
+- `fde-g5-key-fixes.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:820:80c66852`
 - `fde-g5-lang-checks.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-giveaways.js:14:ee0025a6`
 - `fde-g5-lang-fixes.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes.js:17:9e630b6b`
 - `fde-g5-lang-giveaways.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:13:02997a8b`
 - `fde-g5-lang-key-mends.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-fixes.js:12:d750b29c`
 - `fde-g5-lang-repeats.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-giveaways.js:16:23608ff8`
 - `fde-g5-paper-giveaways.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:46:bdee19a5`
-- `fde-g5-urdu-mends.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:844:ce953de9`
-- `fde-glyph-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:839:5c8cbba8`
+- `fde-g5-urdu-mends.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:850:ce953de9`
+- `fde-glyph-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:845:5c8cbba8`
 - `fde-keep-missing.js` ← imported by `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79`
 - `fde-key-checks.js` ← imported by `bot/shared/services/assessment/fde-early-writer.js:30:f9377eeb`
 - `fde-key-pattern.js` ← imported by `bot/shared/services/assessment/fde-layout.js:372:10468b6e`
 - `fde-key-term-giveaway.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:12:faebbeb8`
-- `fde-key-truth.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:828:c7ed36f2` · `bot/shared/services/assessment/fde-mid-key-fixes.js:15:67c8aed0` · `bot/shared/services/assessment/fde-scheme-shape.js:17:7b82497a`
+- `fde-key-truth.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:834:c7ed36f2` · `bot/shared/services/assessment/fde-mid-key-fixes.js:15:67c8aed0` · `bot/shared/services/assessment/fde-scheme-shape.js:17:7b82497a`
 - `fde-lang-cross-asks.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-giveaways.js:12:ffbd23be` · `bot/shared/services/assessment/fde-g5-lang-repeats.js:13:17c894b2` · `bot/shared/services/assessment/fde-tense-count.js:12:17c894b2`
-- `fde-layout.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:809:bc88b652` · `bot/shared/services/assessment/fde-early-writer.js:20:bb20a8b5`
+- `fde-layout.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:815:bc88b652` · `bot/shared/services/assessment/fde-early-writer.js:20:bb20a8b5`
 - `fde-lcm-ladder.js` ← imported by `bot/shared/services/assessment/maths-check.js:21:bc7f1e44`
-- `fde-level-target.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:32:34d9b891`
+- `fde-level-target.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:33:34d9b891`
 - `fde-listening-asks.js` ← imported by `bot/shared/services/assessment/fde-early-prompt.js:101:37e97e39`
 - `fde-listening-check.js` ← imported by `bot/shared/services/assessment/fde-early-prompt.js:16:a88355ce`
 - `fde-marks-line.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:46:c760ca0d`
 - `fde-match-block.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:35:b8607cb6` · `bot/shared/services/assessment/fde-match-rows.js:13:c4b3c7b6` · `bot/shared/services/assessment/fde-mid-match.js:9:4a27b46f` · `bot/shared/services/assessment/patterns/early/g1-gk.js:10:5690ba0f` (+1: `python3 kg/kg.py who-reads fde-match-block.js`)
-- `fde-match-rows.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:833:4f4a4788`
+- `fde-match-rows.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:839:4f4a4788`
 - `fde-maths-keys.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes-2.js:16:07d17017`
 - `fde-maths-marking.js` ← imported by `bot/shared/services/assessment/fde-early-key-fixes.js:22:f1ada694` · `bot/shared/services/assessment/fde-maths-keys.js:17:e0907623`
 - `fde-maths-name-giveaway.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:17:a22861fc`
 - `fde-maths-repeats.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:11:c5ffba06`
 - `fde-maths-skill-twice.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:14:4117cf7c`
-- `fde-maths-slips.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:827:830bf0bb` · `bot/shared/services/assessment/fde-answer-repeats.js:41:852da23b` · `bot/shared/services/assessment/fde-mid-key-fixes.js:17:7fa6a219`
-- `fde-mcq-arithmetic.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:825:06e6cac8`
+- `fde-maths-slips.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:833:830bf0bb` · `bot/shared/services/assessment/fde-answer-repeats.js:41:852da23b` · `bot/shared/services/assessment/fde-mid-key-fixes.js:17:7fa6a219`
+- `fde-mcq-arithmetic.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:831:06e6cac8`
 - `fde-mcq-giveaway.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:7:358ea885`
 - `fde-mcq-key-tells.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-giveaways.js:11:15a0b7d7`
-- `fde-mcq-stem.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:830:9a5fec4f`
+- `fde-mcq-stem.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:836:9a5fec4f`
 - `fde-mcq-truth.js` ← imported by `bot/shared/services/assessment/fde-g5-lang-giveaways.js:10:78dda5cb`
-- `fde-meaning-key.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:829:13c70489`
-- `fde-mid-key-fixes.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:837:b6025623`
+- `fde-meaning-key.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:835:13c70489`
+- `fde-mid-key-fixes.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:843:b6025623`
 - `fde-mid-legend.js` ← imported by `bot/shared/services/assessment/patterns/mid/chrome.js:13:f55083fd`
 - `fde-mid-match.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:36:9bfe89a5`
 - `fde-mid-maths-repeats.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:40:fc9f5bc5`
-- `fde-mid-steer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:824:d271b2b7`
+- `fde-mid-steer.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:830:d271b2b7`
 - `fde-near-repeats.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:39:cc246831` · `bot/shared/services/assessment/fde-concept-caps.js:16:3a65e219` · `bot/shared/services/assessment/fde-concept-count.js:14:3a65e219` · `bot/shared/services/assessment/fde-concept-repeats.js:24:84732600` (+24: `python3 kg/kg.py who-reads fde-near-repeats.js`)
-- `fde-no-arrows.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:823:236e10eb` · `bot/shared/services/assessment/fde-early-writer.js:27:236e10eb`
+- `fde-no-arrows.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:829:236e10eb` · `bot/shared/services/assessment/fde-early-writer.js:27:236e10eb`
 - `fde-oral-fresh-words.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-oral.js:12:7e70469e` · `bot/shared/services/assessment/fde-early-writer.js:31:dd6c4ae1`
 - `fde-oral-numbers.js` ← imported by `bot/shared/services/assessment/fde-early-prompt.js:100:52238705`
 - `fde-oral-prep.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:38:100445d4`
@@ -369,36 +371,36 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-picture-scene.js` ← imported by `bot/shared/services/assessment/fde-pictures.js:268:c02928fb` · `bot/shared/services/assessment/fde-urdu-g5-checks.js:10:9678db11`
 - `fde-picture-svg.js` ← imported by `bot/shared/services/assessment/fde-circuit-frame.js:10:b1d0cf72` · `bot/shared/services/assessment/fde-pictures.js:24:aff3165e` · `bot/shared/services/assessment/paper-diagram.js:20:63f7c7aa`
 - `fde-picture-word-count.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes.js:19:ec2766d5`
-- `fde-pictures.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:3185:bb0952f4` · `bot/shared/services/assessment/fde-early-writer.js:39:2b0fc696`
-- `fde-place-digit.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:846:b9e99df9`
-- `fde-placeholder-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:838:7d3764c0`
+- `fde-pictures.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:3191:bb0952f4` · `bot/shared/services/assessment/fde-early-writer.js:39:2b0fc696`
+- `fde-place-digit.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:852:b9e99df9`
+- `fde-placeholder-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:844:7d3764c0`
 - `fde-poem-title-giveaway.js` ← imported by `bot/shared/services/assessment/fde-g5-urdu-mends.js:12:8facdee8`
 - `fde-printed-letter-note.js` ← imported by `bot/shared/services/assessment/marking-scheme.js:25:c7db78d2`
-- `fde-punctuate-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:840:8a307e4c`
+- `fde-punctuate-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:846:8a307e4c`
 - `fde-read-aloud-antecedent.js` ← imported by `bot/shared/services/assessment/fde-early-prompt.js:102:14428951`
 - `fde-read-aloud-grammar.js` ← imported by `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79`
-- `fde-reader.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:816:6a56d59d` · `bot/shared/services/assessment/assessment-orchestrator.service.js:58:de0a339b`
-- `fde-religious-terms.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:1265:de2fc872` · `bot/shared/services/assessment/fde-key-checks.js:13:bbb8c6ee`
+- `fde-reader.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:822:6a56d59d` · `bot/shared/services/assessment/assessment-orchestrator.service.js:58:de0a339b`
+- `fde-religious-terms.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:1271:de2fc872` · `bot/shared/services/assessment/fde-key-checks.js:13:bbb8c6ee`
 - `fde-render-v37.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:51:fbed5f0c` · `bot/shared/services/assessment/fde-oral-sheet.js:23:199daf53`
-- `fde-scheme-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:834:fc42f462`
+- `fde-scheme-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:840:fc42f462`
 - `fde-scheme-cover.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:49:16445aa5`
 - `fde-scheme-figures.js` ← imported by `bot/shared/services/assessment/maths-check.js:19:97434eea`
 - `fde-scheme-shape.js` ← imported by `bot/shared/services/assessment/fde-mid-key-fixes.js:16:8efd9a02`
-- `fde-science-giveaway-drop.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:842:32faddc7` · `bot/shared/services/assessment/fde-science-mcq-reask.js:11:45eba715`
-- `fde-science-key-points.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:841:df6c1d23`
+- `fde-science-giveaway-drop.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:848:32faddc7` · `bot/shared/services/assessment/fde-science-mcq-reask.js:11:45eba715`
+- `fde-science-key-points.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:847:df6c1d23`
 - `fde-science-key-stem.js` ← imported by `bot/shared/services/assessment/fde-science-key-points.js:11:4f40d2ba`
 - `fde-science-keys.js` ← imported by `bot/shared/services/assessment/fde-g5-key-fixes-2.js:15:91ae16b1`
-- `fde-science-mcq-reask.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:843:d0f4740e`
+- `fde-science-mcq-reask.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:849:d0f4740e`
 - `fde-science-option-keys.js` ← imported by `bot/shared/services/assessment/fde-science-giveaway-drop.js:16:62c07446`
 - `fde-science-r2.js` ← imported by `bot/shared/services/assessment/fde-science-keys.js:28:e3199233` · `bot/shared/services/assessment/marking-scheme.js:27:4cc7bfde`
 - `fde-science-repeats.js` ← imported by `bot/shared/services/assessment/fde-g5-paper-giveaways.js:16:d3f5bbb7`
 - `fde-science-shared-facts.js` ← imported by `bot/shared/services/assessment/fde-science-repeats.js:13:27576454`
 - `fde-science-task-repeats.js` ← imported by `bot/shared/services/assessment/fde-science-repeats.js:14:493eed94`
 - `fde-scramble-block.js` ← imported by `bot/shared/services/assessment/fde-early-writer.js:29:67039c38`
-- `fde-sentence-count.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:812:e965d64b`
+- `fde-sentence-count.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:818:e965d64b`
 - `fde-situation-check.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:44:eb0ad918`
 - `fde-slot-fit.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:34:e9241106`
-- `fde-stem-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:817:f84e0d14` · `bot/shared/services/assessment/assessment-orchestrator.service.js:57:c549dad8`
+- `fde-stem-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:823:f84e0d14` · `bot/shared/services/assessment/assessment-orchestrator.service.js:57:c549dad8`
 - `fde-stem-repeats.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:42:54aa04fb`
 - `fde-sub-answers.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:39:1123ed7a` · `bot/shared/services/assessment/marking-scheme.js:26:ba6f9a37`
 - `fde-task-line.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:44:dc7e1520` · `bot/shared/services/assessment/fde-layout.js:1761:589a0819`
@@ -408,25 +410,25 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-urdu-common-error-lang.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-fixes.js:22:177fbdc7`
 - `fde-urdu-first-action.js` ← imported by `bot/shared/services/assessment/fde-g5-urdu-mends.js:14:931ad091`
 - `fde-urdu-form-lines.js` ← imported by `bot/shared/services/assessment/fde-g5-urdu-mends.js:11:46b3abb0`
-- `fde-urdu-g5-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:845:7596fb20`
-- `fde-urdu-nonword.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:836:afc1d712` · `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79`
+- `fde-urdu-g5-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:851:7596fb20`
+- `fde-urdu-nonword.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:842:afc1d712` · `bot/shared/services/assessment/fde-early-writer.js:32:4565fa79`
 - `fde-urdu-notes.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:41:46241001`
-- `fde-urdu-punct.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:847:b109b66c`
+- `fde-urdu-punct.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:853:b109b66c`
 - `fde-urdu-quoted-word.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-fixes.js:20:04c5fa5c` · `bot/shared/services/assessment/fde-key-checks.js:18:3d7f7eca`
-- `fde-urdu-r3-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:845:7596fb20` · `bot/shared/services/assessment/fde-key-checks.js:16:564627c5`
-- `fde-urdu-r4.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:845:7596fb20` · `bot/shared/services/assessment/fde-early-writer.js:31:dd6c4ae1`
-- `fde-urdu-spelling.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:3150:e1a516e2` · `bot/shared/services/assessment/fde-early-urdu-fixes.js:14:bc7f29e2`
+- `fde-urdu-r3-checks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:851:7596fb20` · `bot/shared/services/assessment/fde-key-checks.js:16:564627c5`
+- `fde-urdu-r4.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:851:7596fb20` · `bot/shared/services/assessment/fde-early-writer.js:31:dd6c4ae1`
+- `fde-urdu-spelling.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:3156:e1a516e2` · `bot/shared/services/assessment/fde-early-urdu-fixes.js:14:bc7f29e2`
 - `fde-urdu-use-word.js` ← imported by `bot/shared/services/assessment/fde-early-urdu-fixes.js:21:7f1faf90` · `bot/shared/services/assessment/fde-key-checks.js:19:3104fae7`
 - `fde-urdu-walk-all.js` ← imported by `bot/shared/services/assessment/fde-poem-title-giveaway.js:10:449a8696` · `bot/shared/services/assessment/fde-urdu-antonyms.js:10:449a8696` · `bot/shared/services/assessment/fde-urdu-first-action.js:9:646b7d66` · `bot/shared/services/assessment/fde-urdu-form-lines.js:13:449a8696` (+2: `python3 kg/kg.py who-reads fde-urdu-walk-all.js`)
 - `fde-who-said-check.js` ← imported by `bot/shared/services/assessment/fde-early-writer.js:31:dd6c4ae1`
-- `fde-whole-marks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:845:7596fb20`
-- `fde-word-box-spare.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:832:59f4763f`
-- `fde-word-box.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:831:e2f2ae8b`
+- `fde-whole-marks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:851:7596fb20`
+- `fde-word-box-spare.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:838:59f4763f`
+- `fde-word-box.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:837:e2f2ae8b`
 - `fde-work-space.js` ← imported by `bot/shared/services/assessment/assessment-paper-fde.renderer.js:32:3cb44865`
-- `free-secondary-checks.js` ← imported by `bot/shared/services/assessment/free-secondary-grammar.js:8:9903993a` · `bot/shared/services/assessment/free-secondary-levels.js:14:9903993a` · `bot/shared/services/assessment/free-secondary-pool.js:11:9903993a` · `bot/shared/services/assessment/free-secondary-review.js:11:9903993a` (+2: `python3 kg/kg.py who-reads free-secondary-checks.js`)
+- `free-secondary-checks.js` ← imported by `bot/shared/services/assessment/free-secondary-grammar.js:8:9903993a` · `bot/shared/services/assessment/free-secondary-levels.js:18:9903993a` · `bot/shared/services/assessment/free-secondary-pool.js:11:9903993a` · `bot/shared/services/assessment/free-secondary-review.js:11:9903993a` (+2: `python3 kg/kg.py who-reads free-secondary-checks.js`)
 - `free-secondary-chrome.data.json` ← imported by `bot/shared/services/assessment/free-secondary-chrome.js:10:5bc0d768`
 - `free-secondary-chrome.js` ← imported by `bot/shared/services/assessment/assessment-paper.renderer.js:22:5b0cef62`
-- `free-secondary-grammar.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:52:8af664f8`
+- `free-secondary-grammar.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:53:8af664f8`
 - `free-secondary-keys.js` ← imported by `bot/shared/services/assessment/free-secondary-checks.js:22:b3df4c03` · `bot/shared/services/assessment/free-secondary-pool.js:12:fddc990c` · `bot/shared/services/assessment/free-secondary-review.js:12:fce97b64` · `bot/shared/services/assessment/free-secondary.service.js:47:af3bea18`
 - `free-secondary-levels.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:51:1ba7ea75`
 - `free-secondary-pool.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:49:9493296f`
@@ -435,27 +437,29 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `free-secondary-rewrite.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:48:70e7217c`
 - `free-secondary-rules.js` ← imported by `bot/shared/services/assessment/free-secondary-checks.js:21:1b1b4639` · `bot/shared/services/assessment/free-secondary-review.js:13:02e61d53` · `bot/shared/services/assessment/free-secondary-rewrite.js:12:5de8c5d0` · `bot/shared/services/assessment/free-secondary.service.js:45:2f30841c`
 - `free-secondary-scheme.js` ← imported by `bot/shared/services/assessment/free-secondary-checks.js:23:fc5ac00f`
-- `free-secondary-tidy.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:53:6d81f22c`
+- `free-secondary-target.js` ← imported by `bot/shared/services/assessment/free-secondary-rules.js:12:509bba08` · `bot/shared/services/assessment/free-secondary.service.js:52:c13f24b7`
+- `free-secondary-tidy.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:54:6d81f22c`
 - `free-secondary.service.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:657:b602cb7b`
 - `grade-gate.js` ← imported by `bot/shared/config/feature-flags.js:14:f16f55f6` · `bot/shared/routes/assessment-gen-endpoint.js:41:f16f55f6` · `bot/shared/routes/internal-api.routes.js:1597:f16f55f6`
 - `ict-prompts.json` ← imported by `bot/shared/services/assessment/free-secondary.service.js:44:07597eaf` · `bot/shared/services/assessment/prompts-6-12.js:10:07597eaf`
-- `marking-scheme.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:810:6a87ce14` · `bot/shared/services/assessment/blueprint-check.js:11:f0655cc4` · `bot/shared/services/assessment/fde-early-writer.js:21:6a87ce14`
-- `maths-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:813:82cd9d27` · `bot/shared/services/assessment/fde-early-writer.js:22:82cd9d27` · `bot/shared/services/assessment/fde-layout.js:630:b9e22d6a`
-- `mcq-answer-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:33:c5e61b28`
-- `paper-diagram.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:29:4592271b` · `bot/shared/services/assessment/assessment-paper.renderer.js:25:1661f70e` · `bot/shared/services/assessment/free-secondary.service.js:109:a168bba6`
+- `marking-scheme.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:816:6a87ce14` · `bot/shared/services/assessment/blueprint-check.js:11:f0655cc4` · `bot/shared/services/assessment/fde-early-writer.js:21:6a87ce14`
+- `maths-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:819:82cd9d27` · `bot/shared/services/assessment/fde-early-writer.js:22:82cd9d27` · `bot/shared/services/assessment/fde-layout.js:630:b9e22d6a`
+- `mcq-answer-check.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:34:c5e61b28`
+- `objective-writer-model.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:23:f9042bac`
+- `paper-diagram.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:30:4592271b` · `bot/shared/services/assessment/assessment-paper.renderer.js:25:1661f70e` · `bot/shared/services/assessment/free-secondary.service.js:110:a168bba6`
 - `paper-reuse.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:61:428cf86a`
-- `prompts-6-12.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:2732:3659f7c9` · `bot/shared/services/assessment/board-6-12/section-prompt.js:7:422013a5` · `bot/shared/services/assessment/board-writer.js:16:db655659`
+- `prompts-6-12.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:2738:3659f7c9` · `bot/shared/services/assessment/board-6-12/section-prompt.js:7:422013a5` · `bot/shared/services/assessment/board-writer.js:16:db655659`
 - `question-types-6-12.data.json` ← imported by `bot/shared/services/assessment/free-secondary-chrome.js:11:f1235a2a` · `bot/shared/services/assessment/question-types-6-12.js:13:15079dd2`
 - `question-types-6-12.js` ← imported by `bot/shared/services/assessment/question-types.js:113:cfb280e0`
 - `question-types.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:27:6c8431b2` · `bot/shared/routes/internal-api.routes.js:1701:6c8431b2` · `scripts/assessment/eval-plan.js:16:3a2d72d0` · `scripts/assessment/eval-per-type-counts.js:39:3a2d72d0` (+5: `python3 kg/kg.py who-reads question-types.js`)
-- `repeat-guard.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:848:e2df476b` · `bot/shared/services/assessment/assessment-orchestrator.service.js:60:8151c410`
+- `repeat-guard.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:854:e2df476b` · `bot/shared/services/assessment/assessment-orchestrator.service.js:60:8151c410`
 - `scheme-accept-check.js` ← imported by `bot/shared/services/assessment/marking-scheme.js:24:5988947e`
-- `secondary-writer-model.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:56:31874acf`
-- `seen-categories.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:26:fedf06fc`
-- `seen-picked.js` ← imported by `bot/shared/routes/internal-api.routes.js:1697:e4fc162e` · `bot/shared/services/assessment/assessment-generation.service.js:28:9489b21b`
-- `seen-types.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:27:32436c44` · `bot/shared/services/assessment/free-secondary.service.js:42:32436c44` · `bot/shared/services/assessment/paper-diagram.js:21:a8bdbfd9`
-- `standard-marks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:31:fadbddc2`
-- `subject-config.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:2725:0c9e647f` · `bot/shared/services/assessment/assessment-revision.service.js:33:0c9e647f` · `bot/shared/services/assessment/book-content.service.js:56:746de04c` · `bot/shared/services/assessment/free-secondary.service.js:43:0c9e647f` (+1: `python3 kg/kg.py who-reads subject-config.js`)
+- `secondary-writer-model.js` ← imported by `bot/shared/services/assessment/free-secondary.service.js:57:31874acf`
+- `seen-categories.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:27:fedf06fc`
+- `seen-picked.js` ← imported by `bot/shared/routes/internal-api.routes.js:1697:e4fc162e` · `bot/shared/services/assessment/assessment-generation.service.js:29:9489b21b`
+- `seen-types.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:28:32436c44` · `bot/shared/services/assessment/free-secondary.service.js:42:32436c44` · `bot/shared/services/assessment/paper-diagram.js:21:a8bdbfd9`
+- `standard-marks.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:32:fadbddc2`
+- `subject-config.js` ← imported by `bot/shared/services/assessment/assessment-generation.service.js:2731:0c9e647f` · `bot/shared/services/assessment/assessment-revision.service.js:33:0c9e647f` · `bot/shared/services/assessment/book-content.service.js:56:746de04c` · `bot/shared/services/assessment/free-secondary-target.js:17:0c9e647f` (+2: `python3 kg/kg.py who-reads subject-config.js`)
 - `topic-key.renderer.js` ← imported by `bot/shared/services/assessment/assessment-orchestrator.service.js:34:370417ae` · `bot/shared/services/assessment/assessment-paper.renderer.js:570:9064e1bd`
 - column `assessment_papers.attempt` (written by `assessment-revision.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:143:1661513d` · `bot/shared/services/assessment/assessment-orchestrator.service.js:452:ea7ca533`
 - column `assessment_papers.edited_from` (written by `assessment-revision.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:144:8f1aa092` · `bot/scripts/assessment/repair-backfilled-v1-created-at.js:69:e3ab478d` · `bot/shared/services/assessment/assessment-browse.service.js:177:16468a3d` · `bot/shared/services/assessment/assessment-orchestrator.service.js:451:62e6c849` (+1: `python3 kg/kg.py who-reads assessment_papers.edited_from`)
@@ -473,12 +477,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `assessment_requests.subject_code` (written by `assessment-request.service.js`) ← read by `bot/shared/services/nudges/topic-end-nudge.service.js:161:00c6277c` · `bot/shared/services/portal-ready-whatsapp.service.js:119:b99a43d6` · `bot/shared/services/assessment/assessment-browse.service.js:266:64e1a363` · `bot/shared/services/assessment/assessment-feedback.service.js:70:10ae5357`
 - column `assessment_requests.surface` (written by `assessment-request.service.js`) ← read by `bot/shared/services/portal-ready-whatsapp.service.js:121:dbdd5706`
 - column `assessment_requests.textbook_id` (written by `assessment-request.service.js`) ← read by `bot/shared/services/assessment/repeat-guard.js:70:73071f2a`
-- column `assessment_requests.user_id` (written by `assessment-request.service.js`) ← read by `bot/shared/services/nudges/topic-end-nudge.service.js:160:59e24eac` · `bot/shared/services/portal-ready-whatsapp.service.js:119:b99a43d6` · `dashboard/routes/portal.routes.js:1172:8c12ba89` · `dashboard/services/teacher-home-order.service.js:240:b5e302a6` (+2: `python3 kg/kg.py who-reads assessment_requests.user_id`)
+- column `assessment_requests.user_id` (written by `assessment-request.service.js`) ← read by `bot/shared/services/nudges/topic-end-nudge.service.js:160:59e24eac` · `bot/shared/services/portal-ready-whatsapp.service.js:119:b99a43d6` · `dashboard/routes/portal.routes.js:1173:8c12ba89` · `dashboard/services/teacher-home-order.service.js:240:b5e302a6` (+2: `python3 kg/kg.py who-reads assessment_requests.user_id`)
 - column `lp_feedback.trigger_mode` (written by `assessment-feedback.service.js`) ← read by `bot/shared/services/lp-in-app-answer.js:22:be882615`
 - column `lp_feedback.useful` (written by `assessment-feedback.service.js`) ← read by `bot/shared/services/lp-feedback.service.js:317:4500ad2e` · `bot/shared/services/lp-in-app-answer.js:21:806094e8`
 - column `lp_feedback.user_id` (written by `assessment-feedback.service.js`) ← read by `bot/scripts/recover-lost-lp-feedback.js:47:f137fcef` · `bot/shared/services/lp-feedback.service.js:319:2c6fea63` · `bot/shared/services/lp-in-app-answer.js:22:be882615` · `bot/shared/services/lp-in-app-feedback.service.js:78:fb820125`
-- table `assessment_papers` (written by `assessment-orchestrator.service.js`, `assessment-revision.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:143:1661513d`? · `bot/scripts/assessment/repair-backfilled-v1-created-at.js:69:e3ab478d`? · `bot/shared/services/share-send.service.js:137:d9bccf73`? · `dashboard/routes/portal.routes.js:1740:f8c4de9c`? (+6: `python3 kg/kg.py who-reads assessment_papers`)
-- table `assessment_requests` (written by `assessment-request.service.js`) ← read by `bot/shared/services/nudges/topic-end-nudge.service.js:159:34683b50`? · `bot/shared/services/portal-ready-whatsapp.service.js:118:53413c6f`? · `dashboard/routes/portal.routes.js:1170:b7d7c184`? · `dashboard/services/teacher-home-order.service.js:240:b5e302a6`? (+3: `python3 kg/kg.py who-reads assessment_requests`)
+- table `assessment_papers` (written by `assessment-orchestrator.service.js`, `assessment-revision.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:143:1661513d`? · `bot/scripts/assessment/repair-backfilled-v1-created-at.js:69:e3ab478d`? · `bot/shared/services/share-send.service.js:137:d9bccf73`? · `dashboard/routes/portal.routes.js:1744:f8c4de9c`? (+6: `python3 kg/kg.py who-reads assessment_papers`)
+- table `assessment_requests` (written by `assessment-request.service.js`) ← read by `bot/shared/services/nudges/topic-end-nudge.service.js:159:34683b50`? · `bot/shared/services/portal-ready-whatsapp.service.js:118:53413c6f`? · `dashboard/routes/portal.routes.js:1171:b7d7c184`? · `dashboard/services/teacher-home-order.service.js:240:b5e302a6`? (+3: `python3 kg/kg.py who-reads assessment_requests`)
 - table `lp_feedback` (written by `assessment-feedback.service.js`) ← read by `bot/scripts/recover-lost-lp-feedback.js:46:7f9fddf0`? · `bot/shared/services/lp-feedback.service.js:316:5cdfa157`? · `bot/shared/services/lp-in-app-answer.js:21:806094e8`? · `bot/shared/services/lp-in-app-feedback.service.js:77:cbce2d31`? (+1: `python3 kg/kg.py who-reads lp_feedback`)
 - env `KIE_API_KEY` read at `bot/shared/services/assessment/fde-picture-kie.js:122:39cdf850`
 
@@ -490,7 +494,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `assessment-editor.service.js` ← `tests/assessment/assessment-editor-service.test.js` · `tests/assessment/fde-edit.test.js`
 - `assessment-feedback.service.js` ← `tests/assessment/assessment-feedback.test.js`
 - `assessment-format.js` ← `tests/assessment/assessment-docx-flag.test.js` · `tests/assessment/assessment-format.test.js`
-- `assessment-generation.service.js` ← `bot/tests/assessment/generate-exam-bad-json.test.js` · `bot/tests/assessment/generate-exam-religious.test.js` · `tests/assessment/assessment-answers-and-lines.test.js` · `tests/assessment/assessment-generation.service.test.js` · `tests/assessment/assessment-per-type-counts.test.js` · `tests/assessment/assessment-seen-per-type-counts.test.js` (+109: `python3 kg/kg.py who-reads bot/shared/services/assessment/assessment-generation.service.js`)
+- `assessment-generation.service.js` ← `bot/tests/assessment/generate-exam-bad-json.test.js` · `bot/tests/assessment/generate-exam-objective-job.test.js` · `bot/tests/assessment/generate-exam-religious.test.js` · `tests/assessment/assessment-answers-and-lines.test.js` · `tests/assessment/assessment-generation.service.test.js` · `tests/assessment/assessment-per-type-counts.test.js` (+110: `python3 kg/kg.py who-reads bot/shared/services/assessment/assessment-generation.service.js`)
 - `assessment-json.util.js` ← `tests/assessment/assessment-json.util.test.js` · `tests/assessment/fde-r7-json-parse-first.test.js`
 - `assessment-orchestrator.service.js` ← `tests/assessment/assessment-answer-key-persisted.test.js` · `tests/assessment/assessment-build-paper-seam.test.js` · `tests/assessment/assessment-delivery.test.js` · `tests/assessment/assessment-feedback-hook.test.js` · `tests/assessment/assessment-orchestrator-versions.test.js` · `tests/assessment/assessment-orchestrator.service.test.js` (+22: `python3 kg/kg.py who-reads bot/shared/services/assessment/assessment-orchestrator.service.js`)
 - `assessment-order.js` ← `tests/assessment/assessment-order.test.js`
@@ -668,20 +672,22 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `free-secondary-chrome.js` ← `tests/assessment/free-secondary-chrome.test.js`
 - `free-secondary-grammar.js` ← `tests/assessment/free-secondary-grammar.test.js`
 - `free-secondary-keys.js` ← `tests/assessment/free-secondary-keys.test.js`
-- `free-secondary-levels.js` ← `tests/assessment/free-secondary-levels.test.js`
+- `free-secondary-levels.js` ← `tests/assessment/free-secondary-levels.test.js` · `tests/assessment/free-secondary-target-wiring.test.js`
 - `free-secondary-pool.js` ← `tests/assessment/free-secondary-pool.test.js`
 - `free-secondary-print.js` ← `tests/assessment/free-secondary-print.test.js`
 - `free-secondary-review.js` ← `tests/assessment/free-secondary-review-written.test.js` · `tests/assessment/free-secondary-review.test.js`
 - `free-secondary-rewrite.js` ← `tests/assessment/free-secondary-a8-wiring.test.js` · `tests/assessment/free-secondary-rewrite.test.js`
-- `free-secondary-rules.js` ← `tests/assessment/free-secondary-a8-prompts.test.js` · `tests/assessment/free-secondary-review.test.js` · `tests/assessment/free-secondary-rules.test.js`
+- `free-secondary-rules.js` ← `tests/assessment/free-secondary-a8-prompts.test.js` · `tests/assessment/free-secondary-review.test.js` · `tests/assessment/free-secondary-rules.test.js` · `tests/assessment/free-secondary-target-wiring.test.js`
 - `free-secondary-scheme.js` ← `tests/assessment/free-secondary-scheme.test.js`
+- `free-secondary-target.js` ← `tests/assessment/free-secondary-target-wiring.test.js` · `tests/assessment/free-secondary-target.test.js`
 - `free-secondary-tidy.js` ← `tests/assessment/free-secondary-tidy.test.js`
-- `free-secondary.service.js` ← `tests/assessment/assessment-seen-types-chain.test.js` · `tests/assessment/free-secondary-a8-wiring.test.js` · `tests/assessment/free-secondary-reviewer.test.js` · `tests/assessment/free-secondary.service.test.js` · `tests/assessment/seen-picked-chain.test.js`
+- `free-secondary.service.js` ← `tests/assessment/assessment-seen-types-chain.test.js` · `tests/assessment/free-secondary-a8-wiring.test.js` · `tests/assessment/free-secondary-reviewer.test.js` · `tests/assessment/free-secondary-target-wiring.test.js` · `tests/assessment/free-secondary.service.test.js` · `tests/assessment/seen-picked-chain.test.js`
 - `grade-gate.js` ← `tests/assessment/grade-gate.test.js`
 - `ict-prompts.json` ← `tests/assessment/assessment-generation.service.test.js` · `tests/assessment/board-writer/real-reply.test.js` · `tests/assessment/free-secondary.service.test.js` · `tests/assessment/prompts-6-12.test.js`
 - `marking-scheme.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/fde-fixtures-chain.test.js` · `tests/assessment/fde-frame-bank.test.js` · `tests/assessment/fde-match.test.js` · `tests/assessment/fde-maths-angle-options.test.js` · `tests/assessment/fde-orchestrator.test.js` (+30: `python3 kg/kg.py who-reads bot/shared/services/assessment/marking-scheme.js`)
 - `maths-check.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/fde-fixtures-chain.test.js` · `tests/assessment/fde-orchestrator.test.js` · `tests/assessment/fde-r10-place.test.js` · `tests/assessment/fde-r5-rt3a-s2.test.js` · `tests/assessment/fde-r5-rt3a.test.js` (+14: `python3 kg/kg.py who-reads bot/shared/services/assessment/maths-check.js`)
 - `mcq-answer-check.js` ← `tests/assessment/mcq-answer-check.test.js`
+- `objective-writer-model.js` ← `bot/tests/objective-writer-model.test.js`
 - `paper-diagram.js` ← `tests/assessment/drawn-items-picture.test.js` · `tests/assessment/paper-diagram.test.js`
 - `paper-reuse.js` ← `tests/assessment/paper-reuse-plain-key.test.js` · `tests/assessment/paper-reuse-wiring.test.js` · `tests/assessment/paper-reuse.test.js`
 - `prompts-6-12.js` ← `tests/assessment/prompts-6-12.test.js`
@@ -695,7 +701,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `seen-picked.js` ← `tests/assessment/seen-picked.test.js`
 - `seen-types.js` ← `tests/assessment/assessment-seen-per-type-counts.test.js`
 - `standard-marks.js` ← `tests/assessment/standard-marks-complexity.test.js` · `tests/assessment/standard-marks.test.js`
-- `subject-config.js` ← `tests/assessment/g612-subjects-migration.test.js` · `tests/assessment/subject-config.test.js`
+- `subject-config.js` ← `tests/assessment/free-secondary-target.test.js` · `tests/assessment/g612-subjects-migration.test.js` · `tests/assessment/subject-config.test.js`
 - `topic-key.renderer.js` ← `tests/assessment/topics/topic-key.test.js`
 
 ## Related (all, generated)

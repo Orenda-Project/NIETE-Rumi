@@ -1,6 +1,6 @@
 # home — Coach Home on the kit: visits today and feature tiles
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=4d1fb92091b7 gen=111916b09232 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/home kg=cc855f205443 gen=6d9d6efd749a overflow=0 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `copy.ts` — Home and reports-waiting words in English and Urdu
@@ -16,8 +16,8 @@
 | `VisitCards.tsx` | Coach Home visit rows as kit HistoryRows and the expanded current visit (bd-4404s7.2) |
 
 ## Who reads this (generated)
-- `copy.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:15:130de9ad` · `portal/src/portal/coach/pages/CoachHome.tsx:15:130de9ad` (+3)
-- `VisitCards.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:16:6141706a`
+- `copy.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:16:130de9ad` · `portal/src/portal/coach/pages/CoachHome.tsx:16:130de9ad` (+3)
+- `VisitCards.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:17:6141706a`
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._

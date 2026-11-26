@@ -1,7 +1,7 @@
 # nudges — Scheduled teacher nudges: store, sweeper, caps, coaching ask, quiz offer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=caed248dae5c gen=7b03741d7f8f overflow=89 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=ea65c65e4b5c gen=1835ae0d15e6 overflow=89 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `teacher-nudges.sweeper.js` — periodic tick that claims and dispatches due rows
@@ -19,10 +19,10 @@ Full index: `CLAUDE.index.md`
 | … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `quizzes` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+68)
-- column `quizzes.meta` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+32)
-- column `quizzes.quiz_source` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+31)
-- … 36 more → `CLAUDE.index.md`
+- table `quizzes` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64`? (+70)
+- column `quizzes.meta` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+33)
+- column `quizzes.quiz_source` (written by `lp-quiz-offer.service.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:135:8cb71b1f` · `bot/scripts/quiz/gb-quiz-readiness.js:44:fa852d64` (+33)
+- … 35 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Parse nudge flags only via `flags.js` (ask took literal 'true', bd-mg9c7.159.10, `flags.js:8`)

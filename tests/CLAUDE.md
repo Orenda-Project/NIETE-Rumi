@@ -1,7 +1,7 @@
 # tests — Root jest suite over bot/ and dashboard/ code, plus the no-new-failure baseline gate
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests kg=0f12f79152bf gen=2154df12beb3 overflow=2 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests kg=47819c1147ec gen=afbfb51b65b9 overflow=2 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `BASELINE.md` — why `npm test` (baseline-gate.js) is a delta check against baseline.snapshot.json, not all-green
@@ -13,7 +13,7 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 22 sub-dirs, each with `CLAUDE.md` | `assessment/` · `attendance/` · `books/` · `child-test/` · `coaching/` · `coachip/` · `dashboard/` · `e2e-mock/` · `features/` · `hcp/` · `identity/` · `lesson-plan-lifecycle/` · `lp612/` · `observe/` · `observe2/` · `portal/` · `quiz/` · `routes/` · `scripts/` · `setup/` · `training/` · `whatsapp/` |
-| 49 sub-dirs without a door | `__mocks__/` (24 tests) · `ab-tracker/` (8 tests) · `app-funnel/` (12 tests) · `app-redirect/` (33 tests) · `broadcast/` (6 tests) · +44 more → `CLAUDE.index.md` |
+| 49 sub-dirs without a door | `__mocks__/` (24 tests) · `ab-tracker/` (8 tests) · `app-funnel/` (12 tests) · `app-redirect/` (34 tests) · `broadcast/` (6 tests) · +44 more → `CLAUDE.index.md` |
 | `BASELINE.md` | Explains the root-suite baseline gate: why npm test means "no new failure", filtered jest runs, known red suites |
 | `jest.config.js` | Root jest config: rootDir is repo root, matches tests/**/*.test.js|ts, maps bot-only deps to tests/__mocks__ stubs |
 | `baseline*` | 3 files; most used `baseline.snapshot.json`: Recorded known-failing suites, failing test names and offender lists that baseline-gate.js compares each run against |

@@ -1,6 +1,6 @@
 # settings — Shared app_settings switch cache and the page-switch snapshot
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=aa993b14313d gen=b89411b8ce73 overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=539e06a5bbb8 gen=d40e7f9f8cc3 overflow=0 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `switch-cache.js` — cachedSwitch: one read per TTL, last good on failure
@@ -15,7 +15,7 @@
 
 ## Who reads this (generated)
 - `settings-snapshot.js` ← imported by `bot/shared/services/child-test/app/add-child-switch.js:10:0634a325` · `bot/shared/services/child-test/app/all-grades-switch.js:9:0634a325` (+44)
-- `switch-cache.js` ← imported by `bot/shared/services/classes/class-vocabulary.service.js:42:9cf59a45` · `bot/shared/services/coaching/duplicate-check-switch.js:29:9cf59a45` (+16)
+- `switch-cache.js` ← imported by `bot/shared/services/classes/class-vocabulary.service.js:42:9cf59a45` · `bot/shared/services/coaching/duplicate-check-switch.js:29:9cf59a45` (+18)
 
 ## Never (human)
 - A failed read serves the last good value else off (`bot/shared/services/settings/switch-cache.js:8`)

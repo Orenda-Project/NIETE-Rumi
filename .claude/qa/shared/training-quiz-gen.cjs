@@ -37,13 +37,18 @@ const normText = (s) => String(s || '').toLowerCase().normalize('NFKC').replace(
 const correctText = (q) => q && q['option_' + String(q.correct_option || '').toLowerCase()];
 const words = (s) => new Set(normText(s).split(' ').filter((w) => w.length > 2));
 const overlap = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return 0; let n = 0; for (const w of A) if (B.has(w)) n++; return n / Math.min(A.size, B.size); };
-/** Two questions that ask the same thing with the same answer (fill-in-the-blank folded in). */
+// The numbers a stem states (Urdu/Arabic-Indic digits folded to ASCII, "105.00" → "105"), sorted: two stems about
+// different numbers are different questions even with the same answer (T83: "105 − 40" and "120 − 55" both make 65).
+const numbersOf = (s) => (String(s || '').replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
+  .match(/\d+(?:\.\d+)?/g) || []).map((n) => String(Number(n))).sort().join(',');
+/** Two questions that ask the same thing with the same answer (fill-in-the-blank folded in), about the same numbers. */
 const duplicates = (qs) => {
   const out = [];
   for (let i = 0; i < qs.length; i++) for (let j = i + 1; j < qs.length; j++) {
     const a = qs[i], b = qs[j];
     const ca = normText(correctText(a)).replace(/ سے$/, ''), cb = normText(correctText(b)).replace(/ سے$/, '');
     if (!ca || ca !== cb) continue;
+    if (numbersOf(a.question_text) !== numbersOf(b.question_text)) continue;
     const sa = normText(a.question_text).replace(/_+|ڈیش/g, ca), sb = normText(b.question_text).replace(/_+|ڈیش/g, cb);
     if (sa === sb || overlap(sa, sb) >= 0.85) out.push({ a: a.sort_order, b: b.sort_order, answer: short(correctText(a), 40), stemA: short(a.question_text, 70), stemB: short(b.question_text, 70) });
   }
@@ -363,19 +368,24 @@ exports.run = async (ctx) => {
         while (Date.now() - t0 < 200000) { for (const x of await api.fresh()) got.push(x); if (got.filter((x) => x.doc || x.pdf).length >= 2) break; if (got.some((x) => x.doc || x.pdf) && Date.now() - t0 > ABSENCE_MS(90000)) break; await sleep(3000); }
         const ev77 = { asks: [c1.ok, c2.ok], secondAsk: c2.ok ? 'placed' : 'refused by the screen: ' + (c2.err || '') + ' offered ' + JSON.stringify(c2.offered || p2.actions || []), reportsArrived: got.filter((x) => x.doc || x.pdf).length, noOneFinishedSaid: got.some((x) => /No one has finished|کسی نے یہ quiz مکمل نہیں/.test(x.txt || '')), texts: got.map((x) => short(x.txt, 60)).slice(0, 6) };
         done('T77', ...V(c1.ok && ev77.reportsArrived === 1 && !ev77.noOneFinishedSaid, ev77));
-        // T78 — a scheduled run after the report was sent is suppressed; a late child + the teacher's ask → a fresh report
+        // T78 — a scheduled run after the ONE automatic report is suppressed; a late child + the teacher's ask → a fresh report.
+        // Since fcda95623a (21 Nov) a /quiz ask never stamps report_sent_at (that stamp is the automatic report's), so the
+        // asks above leave the code unreported: the first scheduled run here IS the automatic report and must arrive.
         s = t();
+        await api.freshReset();
+        const first = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
+        const firstAuto = await collect(api, (x) => (x.doc || x.pdf), 240000);
+        const k22 = child(22);
+        const r22 = await childRunKeyed(k22, code, 'Zara', 'Grade 1', g1rows, { correct: 1 });
         await api.freshReset();
         const sched = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
         const auto = await collect(api, (x) => (x.doc || x.pdf), ABSENCE_MS(60000));
-        const k22 = child(22);
-        const r22 = await childRunKeyed(k22, code, 'Zara', 'Grade 1', g1rows, { correct: 1 });
         await api.freshReset();
         const p3 = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id); const c3 = p3.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
         const fresh2 = await collect(api, (x) => (x.doc || x.pdf), 240000);
         const pdf2 = fresh2.ok ? await pdfOf(fresh2.hit, 'T78-report.pdf') : { text: '' };
-        const ev78 = { scheduledRun: sched.result === false ? 'suppressed (generate returned false)' : sched.result || sched.err, autoReportArrived: auto.ok, lateChildFinished: r22.ok, askedAgain: c3.ok, freshReport: fresh2.ok, namesLateChild: /Zara/.test(pdf2.text || ''), namesFirstChild: /Ali/.test(pdf2.text || '') };
-        done('T78', ...V(!auto.ok && r22.ok && c3.ok && fresh2.ok && ev78.namesLateChild && ev78.namesFirstChild, ev78));
+        const ev78 = { firstScheduledRun: first.result === true ? 'sent' : first.result === false ? 'suppressed' : first.err || first.result, firstAutoReport: firstAuto.ok, scheduledRun: sched.result === false ? 'suppressed (generate returned false)' : sched.result || sched.err, autoReportArrived: auto.ok, lateChildFinished: r22.ok, askedAgain: c3.ok, freshReport: fresh2.ok, namesLateChild: /Zara/.test(pdf2.text || ''), namesFirstChild: /Ali/.test(pdf2.text || '') };
+        done('T78', ...V(firstAuto.ok && sched.result === false && !auto.ok && r22.ok && c3.ok && fresh2.ok && ev78.namesLateChild && ev78.namesFirstChild, ev78));
       } catch (e) { errors.push('T25:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T25', 'T77', 'T78']) if (!seenIds.has(id)) blocked(id, 'the children/report leg threw: ' + short(e.message, 200)); }
     } else { for (const id of ['T25', 'T77', 'T78']) if (!seenIds.has(id)) blocked(id, 'no generated lesson-plan quiz for the class to take'); }
 
@@ -633,7 +643,10 @@ exports.run = async (ctx) => {
       s = t();
       const sheet = String(pdf.text || '');
       const sheetLines = sheet.split('\n');
-      const taughtIdx = sheetLines.findIndex((l) => /What you\s+taught/i.test(l)); const checksIdx = sheetLines.findIndex((l) => /What this quiz\s+checks/i.test(l));
+      // The sheet prints its headings in letter-spaced capitals; extracted text reads "W H AT Y O U TA U G H T", so a heading is
+      // matched with its spaces removed (bd-ke5dtg).
+      const heading = (l) => String(l).replace(/\s+/g, '').toLowerCase();
+      const taughtIdx = sheetLines.findIndex((l) => heading(l).includes('whatyoutaught')); const checksIdx = sheetLines.findIndex((l) => heading(l).includes('whatthisquizchecks'));
       const ev81 = { pdfChars: sheet.length, hasTaught: taughtIdx >= 0, hasChecks: checksIdx >= 0, mistakeOnSheet: /4\s*\/\s*8[^.\n]{0,40}(is )?not (a )?proper|4\s*\/\s*8[^.\n]{0,40}improper/i.test(sheet), blameOnSheet: /(teacher|class)[^.\n]{0,30}(wrong|mistake|incorrect)|correction/i.test(sheet), summaryTruth: rr.quiz && rr.quiz.meta && rr.quiz.meta.summary_truth, note: 'QUIZ_SUMMARY_TRUTH_FILTER=off is a per-process switch not flipped in this run' };
       done('T81', ...V(mT.ok && ev81.hasTaught && ev81.hasChecks && !ev81.mistakeOnSheet && !ev81.blameOnSheet, ev81));
       s = t();
@@ -802,3 +815,6 @@ exports.run = async (ctx) => {
     for (const id of OWNED) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'not reached — an earlier step of the generation cluster threw: ' + (errors.slice(-1)[0] || 'unknown'), errors: errors.slice(0, 6) }, 0);
   }
 };
+
+// Pure helpers, exported for tests/e2e-mock/training-lane-baseline.test.js.
+exports._test = { duplicates, numbersOf };

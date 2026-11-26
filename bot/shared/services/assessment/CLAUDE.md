@@ -1,7 +1,7 @@
 # assessment — Assessment (exam paper) generator: textbook pages to marked, rendered papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=a910cf40088c gen=b7b33e67b30d overflow=929 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=dbf43a91fee3 gen=50f153b1180a overflow=936 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `assessment-orchestrator.service.js` — runs a queued request end to end (generate, render, deliver)
@@ -18,12 +18,12 @@ Full index: `CLAUDE.index.md`
 | `patterns/` | Board-pattern definitions (FDE grades 1, 2, 5) as frozen data → `patterns/CLAUDE.md` |
 | `slo-map/` | (no description yet) → `slo-map/CLAUDE.md` |
 | `subject-config/` | (no description yet) → `subject-config/CLAUDE.md` |
-| … | 223 more → `CLAUDE.index.md` |
+| … | 225 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `fde-near-repeats.js` ← imported by `bot/shared/services/assessment/fde-answer-repeats.js:39:cc246831` · `bot/shared/services/assessment/fde-concept-caps.js:16:3a65e219` (+26)
 - `assessment-paper.renderer.js` ← imported by `bot/scripts/assessment/backfill-paper-versions.js:103:10ace4e3` · `bot/shared/routes/assessment-gen-endpoint.js:810:7568e5aa` (+10)
-- … 242 more → `CLAUDE.index.md`
+- … 244 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Don't pick the renderer or file extension outside assessment-format.js (assessment-format.js:3-6)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/assessment/fde-v37-science-r2.test.js` (fde-circuit-frame.js, fde-layout.js, fde-science-keys.js, fde-science-r2.js, fde-science-repeats.js, fde-science-shared-facts.js, marking-scheme.js)
 - `tests/assessment/fde-r6s2.test.js` (assessment-generation.service.js, assessment-paper-fde.renderer.js, assessment-selection.js, fde-layout.js, marking-scheme.js, maths-check.js)
-- … 481 more → `CLAUDE.index.md`
+- … 485 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`? · `todo.md`?

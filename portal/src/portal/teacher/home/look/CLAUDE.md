@@ -1,7 +1,7 @@
 # look — Teacher Home 'look' (portal_teacher_home_look): navy band, one card, rows, progress strip
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home/look kg=523e7c65fbef gen=2803e4720015 overflow=15 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home/look kg=43bccd57491c gen=cc9d65581069 overflow=16 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `LookHome.tsx` — composes band, card, strip, rows; `HomeBand.tsx` and `bandShape.ts` — band layout
@@ -32,9 +32,9 @@ Full index: `CLAUDE.index.md`
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
+- `portal/src/portal/teacher/help/howToPill.test.tsx` (LanguagePill.tsx)
 - `portal/src/portal/teacher/home/look/FeatureTiles.test.tsx` (FeatureTiles.tsx)
-- `portal/src/portal/teacher/home/look/LanguagePill.test.tsx` (LanguagePill.tsx)
-- … 5 more → `CLAUDE.index.md`
+- … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/home/CLAUDE.md`? · `portal/src/portal/teacher/icons/CLAUDE.md`?

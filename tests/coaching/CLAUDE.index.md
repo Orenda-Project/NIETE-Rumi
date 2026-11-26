@@ -33,6 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-2700-stale-thresholds-configurable.test.js` | bd-2700: stale-session reminder (2h) and auto-complete (12h) thresholds are env-configurable with prod defaults |
 | `bd-2c1gj-lp-select-confirm.test.js` | bd-2c1gj: tapping a recent lesson plan asks Yes/Cancel first, nothing linked until confirmed; Urdu copy, 20-char buttons |
 | `bd-3ipd2-photo-capture-routing.test.js` | bd-3ipd2: pure routing helpers deciding when an image document counts as a classroom photo (photo-capture-routing) |
+| `bd-3itk00-analysis-survives-deploy.test.js` | (unmapped) |
 | `bd-47vud-caption-no-dangling-cut.test.js` | bd-47vud: over-cap (110 char) photo captions end on a whole phrase, not a dangling word (photo-note) |
 | `bd-4alcjx-own-plan-time.test.js` | (unmapped) |
 | `bd-59840-honest-wait-no-ack.test.js` | bd-59840: step 1/5 wait copy states minutes for long recordings; post-transcription acknowledgement removed |
@@ -79,6 +80,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-c5reix-whatsapp-recording-kept.test.js` | bd-c5reix: keepRecording saves a 15+ minute WhatsApp lesson for the app under the portal audio tree, deduped |
 | `bd-c5zs1-editable-fidelity.test.js` | bd-c5zs1: coach edits measured fidelity in the v4 review Flow; composeEditableFidelity prefill, rescore from edits |
 | `bd-cbe2d-photo-scoring-fallback.test.js` | bd-cbe2d: a rejected image scoring call retries text-only so photos never fail a session; provenance kept |
+| `bd-chz35n.25-report-delivery.test.js` | (unmapped) |
 | `bd-di5ap-no-premature-praise.test.js` | bd-di5ap: removes the Long Lesson Detected warning and the model call between transcription and the photo prompt |
 | `bd-erpvf-hitl-duplicate-recording.test.js` | bd-erpvf: a coach's /observe recording is analysed once; prior leader observation lookup and en/ur refusal string |
 | `bd-fe35j9-urdu-pdf-vision-retry.test.js` | bd-fe35j9: extraction worker retries a rejected typed-Urdu LP PDF through the vision model (lesson-plan-extraction) |
@@ -188,6 +190,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `commitment-card-fallback.test.js` | Commitment card graceful-degrade ladder: missing or too-short Q3 falls to the rule-based card (commitment-card.service) |
 | `continue-coaching-tap.test.js` | Stale-session Continue coaching tap honours NUM_REFLECTIVE_QUESTIONS and queues the report when all are answered |
 | `corpus-time-anchor.test.js` | bd-gr4fy.5.13: reflective corpus time anchors are in the teacher's script and spelled right (corpus-prompt) |
+| `dc-v6-breakdown.test.js` | (unmapped) |
 | `devanagari-guard.test.js` | bd-bfy69: devanagari-guard detects Devanagari in real prod-derived strings and guarantees none is rendered |
 | `devanagari-transcribe-recovery.test.js` | bd-bfy69: source assertions on audio.service for the three layers: no Hindi hint, forced-Urdu retry, guard |
 | `document-audio-routing.test.js` | WhatsApp documents with an audio MIME route to the coaching audio pipeline; PDFs fall through; 100 MB cap |
@@ -220,6 +223,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fico17-v6-dc-evidence.test.js` | (unmapped) |
 | `fico17-v6-dc-report-enhance.test.js` | (unmapped) |
 | `fico17-v6-dc-report-on-v6.test.js` | (unmapped) |
+| `fico17-v6-dc11-report-path.test.js` | (unmapped) |
+| `fico17-v6-dc11.test.js` | (unmapped) |
 | `fico17-v6-framework.test.js` | (unmapped) |
 | `fico17-v6-gate.test.js` | (unmapped) |
 | `fico17-v6-grade-gate.test.js` | (unmapped) |

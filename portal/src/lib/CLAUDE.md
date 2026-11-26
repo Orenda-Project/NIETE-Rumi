@@ -1,7 +1,7 @@
 # lib — Runtime helpers: app target, Android links/back key, lazy chunks, Urdu text, WhatsApp
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=38f1e509909e gen=42e40a7b799c overflow=79 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=b5ffaae0aca0 gen=09633bf9b264 overflow=79 rendered=2026-11-25 kg.py=1.1.0 -->
 
 ## Entry points
 - `runtime.ts` — reads Capacitor/env and applies the pure rules in app-target.cjs
@@ -18,7 +18,7 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `utils.ts` ← imported by `portal/src/components/ui/alert-dialog.tsx:4:a05a987a` · `portal/src/components/ui/badge.tsx:4:a05a987a` (+268)
+- `utils.ts` ← imported by `portal/src/components/ui/alert-dialog.tsx:4:a05a987a` · `portal/src/components/ui/badge.tsx:4:a05a987a` (+270)
 - `runtime.ts` ← imported by `portal/src/App.tsx:6:84711a37` · `portal/src/portal/coach/flow/track.ts:1:2abaa55e` (+24)
 - `lazyPage.ts` ← imported by `portal/src/App.tsx:32:f8a16879` · `portal/src/portal/components/PortalLayout.tsx:2:52e3f833` (+14)
 - `whatsapp.ts` ← imported by `portal/src/components/FinalCTA.tsx:2:eff5b19a` · `portal/src/components/Hero.tsx:2:eff5b19a` (+10)

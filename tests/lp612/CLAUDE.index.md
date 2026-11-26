@@ -34,6 +34,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-oak77-11-reaper-checkpoint.test.js` | bd-oak77.11: pins isStrandedAuthoring treating a fresh checkpoint as a living owner, not a stranded row |
 | `bd-oak77-11-resume.test.js` | bd-oak77.11: pins author resumeFrom skipping the initial LLM call when a deliverable checkpoint exists |
 | `bd-snkn32-70-change-checks.test.js` | (unmapped) |
+| `bd-snkn32-77-wrongful-refusals.test.js` | (unmapped) |
 | `bidi-caps.test.js` | Pins the vendored 6-12 renderer's bidi pass and language-aware page caps for Urdu and English |
 | `book-crop-legibility.test.js` | bd-8lifl: pins the template's book-crop image clamp being no tighter than the diagram slot height |
 | `book-figure-counts.test.js` | bd-8lifl: pins the author brief's textbook-figure rules (4b.1 vs 4b.4) not contradicting each other |
