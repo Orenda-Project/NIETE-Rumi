@@ -526,6 +526,8 @@ function createAppFunnelRouter({ limiter } = {}) {
         kind: body.kind,
         visitId: idOr(body.visitId, REC_ID),
         observationId: idOr(body.observationId, REC_ID),
+        // bd-ma9jiy (queue #262, 26 Nov ~15:10): a teacher's DC attempt (made at Start) — what the recording belongs to.
+        attemptId: idOr(body.attemptId, REC_ID),
         teacherExtId: idOr(body.teacherExtId, /^[A-Za-z0-9_.:-]{1,64}$/),
       };
       const t0 = Number.isFinite(Number(body.t0)) ? Number(body.t0) : now;

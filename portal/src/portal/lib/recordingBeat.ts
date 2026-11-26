@@ -19,6 +19,7 @@
  */
 
 import { browserEnv, getApiBaseUrl } from "@/lib/runtime";
+import type { RecordingLink } from "./recordingStore";
 
 export type RecordingKind = "dc" | "obs" | "dbrf";
 
@@ -29,7 +30,24 @@ export type BeatContext = {
   teacherExtId?: string | null;
   /** Debrief: the observation the talk belongs to. */
   observationId?: string | null;
+  /** bd-ma9jiy (26 Nov ~15:10): a teacher's Digital Coaching attempt, made when she pressed Start. */
+  attemptId?: string | null;
 };
+
+/**
+ * bd-ma9jiy (26 Nov ~15:10) — the recorder's heartbeat context IS what the recording belongs to (lib/recordingLink):
+ * kept in its row on the phone. The class (and the teacher's name) ride along on the phone only, never in telemetry.
+ */
+/** The recorder's heartbeat context IS the link; the class (and the teacher's name) ride along on the phone only. */
+export function beatLink(beat: BeatContext, extra: Partial<Pick<RecordingLink, "grade" | "subject" | "teacherName">> = {}): RecordingLink {
+  const link: RecordingLink = { kind: beat.kind as RecordingLink["kind"] };
+  if (beat.visitId) link.visitId = beat.visitId;
+  if (beat.teacherExtId) link.teacherExtId = beat.teacherExtId;
+  if (beat.observationId) link.observationId = beat.observationId;
+  if (beat.attemptId) link.attemptId = beat.attemptId;
+  for (const [k, v] of Object.entries(extra)) if (v != null && v !== "") (link as Record<string, unknown>)[k] = v;
+  return link;
+}
 
 /** One sample. Short keys: it is stored once a second for the whole lesson and sent in batches. */
 export type BeatSample = {

@@ -12,8 +12,10 @@ import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
-import { deleteRecording, latestUnsent, type KeptRecording } from '../../lib/recordingStore';
-import { keptOffer } from '../../lib/keptOffer';
+import { deleteRecording, latestUnsent, listKept, readKept, type KeptRecording } from '../../lib/recordingStore';
+import { linkOf, newAttemptId } from '../../lib/recordingLink';
+import { pkTime } from '../../coach/reports/data';
+import { KeptRecordingCard, teacherKeptFrom, useClassLabel, type TeacherKept } from './keptCard';
 import { useRecordingResume } from '../../lib/recordingResume';
 import { tellSent } from '../../lib/recordingBeat';
 import { withDuration } from '../../lib/webmDuration';
@@ -217,7 +219,12 @@ export function NewObservationPage() {
     if (!session) return;
     setAudioProblem(null);
     setPhase('starting');
-    const result = await session.start({ returnTo: COACHING_NEW, beat: { kind: 'dc' } });
+    // bd-ma9jiy (26 Nov ~15:10): a new lesson is a new attempt — its own file, never another's.
+    attemptRef.current = newAttemptId();
+    const result = await session.start({
+      returnTo: COACHING_NEW, beat: { kind: 'dc', attemptId: attemptRef.current },
+      linkExtra: cls ? { grade: cls.grade, subject: cls.subject } : undefined,
+    });
     setPhase(result === 'recording' ? 'recording' : 'micBlocked');
   };
   /** bd-ma9jiy: Resume — on a recording reopened from the phone it opens the microphone first. */
@@ -331,6 +338,27 @@ export function NewObservationPage() {
   // "Your recording was paused abruptly." with ONE Continue recording on top (no Recording choices); the press reopens it
   // PAUSED (Resume / Stop, as any paused lesson). `pausedKept`: the kept recording waiting for that press.
   const [pausedKept, setPausedKept] = useState<KeptRecording | null>(null);
+  // bd-ma9jiy (26 Nov ~15:10): the attempt this screen records (made at Start, or the kept one continued); the take a DC
+  // page card named (?kept=); her other kept takes, each on its own card; "Record a different lesson" pressed.
+  const attemptRef = useRef<string | null>(null);
+  const keptParam = new URLSearchParams(location.search).get('kept');
+  const [keptCards, setKeptCards] = useState<TeacherKept[]>([]);
+  const [newLesson, setNewLesson] = useState(false);
+  const classLabel = useClassLabel();
+  /** A kept take becomes THIS screen's recording, on its own (the operator: never joined to another). */
+  const attachKept = async (id: string) => {
+    const k = await readKept(id);
+    if (!k || !mounted.current) return;
+    attemptRef.current = linkOf(k.meta)?.attemptId ?? null;
+    const blob = await withDuration(k.blob, k.meta.ext, k.meta.elapsedMs);
+    if (!mounted.current) return;
+    setKeptCards((cards) => cards.filter((c) => c.id !== id));
+    setAudioProblem(null);
+    setAudio({
+      blob, filename: lessonFilename(k.meta.ext, new Date(k.meta.startedAt)), durationMs: k.meta.elapsedMs || null,
+      recordingId: k.meta.id, source: 'resumed', size: blob.size, startedAt: k.meta.startedAt,
+    });
+  };
   const recorderRef = useRef<HTMLElement | null>(null);
   // Read once, on arrival, on its own (not from the Not sent card's read): the newest recording kept on this phone.
   const triedRestore = useRef(false);
@@ -339,30 +367,38 @@ export function NewObservationPage() {
   useEffect(() => {
     if (resumeOn !== true || triedRestore.current || !session || session.active || audio || phase !== 'idle') return;
     triedRestore.current = true;
-    Promise.resolve().then(() => latestUnsent()).then(async (k) => {
-      if (!mounted.current || !k || k.meta.ext !== '.webm' || session.active) return;
-      // bd-91htd2 (queue #292): only a lesson cut by a kill, reopened soon, comes back paused. One she stopped, or one
-      // from hours before, is never resumed (Resume joined today's lesson onto it): 15+ min is hers to send, as Stop gives.
-      const offer = keptOffer(k, Date.now());
-      if (offer === 'none') return;
+    // bd-ma9jiy (queue #262; the operator 26 Nov ~15:10: "note which observation is the one that's being recorded. So
+    // they can also store 2 at a time") — every kept take is its own attempt. On arrival:
+    //   ?kept=<id> (a card on the DC page)  THAT recording: paused → Continue recording; otherwise it is this screen's
+    //   nothing named                       the newest lesson cut minutes ago (#292's rule) offers Continue for ITS attempt;
+    //                                       every other kept take is a card of its own (Add details & send attaches it)
+    // Never one appended to another; an unlinked take (kept before attempts) is never reopened.
+    Promise.resolve().then(() => listKept()).then(async (all) => {
+      if (!mounted.current || session.active) return;
+      const mine = teacherKeptFrom(all, Date.now());
+      const named = keptParam ? mine.find((it) => it.id === keptParam) ?? null : null;
+      const resumable = (it: TeacherKept | null | undefined) => !!it && it.offer === 'resume' && !it.unlinked;
+      const pick = keptParam ? named : mine.find(resumable) ?? null;
       setUnsent(null);
-      if (offer === 'send') {
-        const blob = await withDuration(k.blob, k.meta.ext, k.meta.elapsedMs);
+      if (pick && resumable(pick)) {
+        const k = await readKept(pick.id);
         if (!mounted.current) return;
-        setAudio((a) => a || {
-          blob, filename: lessonFilename(k.meta.ext, new Date(k.meta.startedAt)), durationMs: k.meta.elapsedMs || null,
-          recordingId: k.meta.id, source: 'resumed', size: blob.size, startedAt: k.meta.startedAt,
-        });
-        return;
+        if (k && k.meta.ext === '.webm') setPausedKept(k);
+        else if (k) await attachKept(pick.id);
+      } else if (named) {
+        await attachKept(named.id);
       }
-      setPausedKept(k);
-    }).catch(() => { /* nothing to reopen: the screen as before */ });
+      if (mounted.current) setKeptCards(mine.filter((it) => it.id !== pick?.id));
+    }).catch(() => { /* nothing kept: the screen as before */ });
   }, [resumeOn, session, audio, phase]);
   const continueKept = () => {
     const k = pausedKept;
     if (!k || !session || session.active) return;
     setPausedKept(null);
-    session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
+    setNewLesson(false);
+    // bd-ma9jiy (26 Nov ~15:10): THAT attempt's recording, and its attempt carried on.
+    attemptRef.current = linkOf(k.meta)?.attemptId ?? null;
+    session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc', ...(attemptRef.current ? { attemptId: attemptRef.current } : {}) } });
     setRestored(k.meta.startedAt);
     setPhase('recording');
     setTimeout(() => { try { recorderRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); } catch { /* fine */ } }, 50);
@@ -425,7 +461,7 @@ export function NewObservationPage() {
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) {
         // bd-ma9jiy: the heartbeat's recording joined to the coaching session it became.
-        tellSent(audio.recordingId, { kind: 'dc' }, coachingSessionId);
+        tellSent(audio.recordingId, { kind: 'dc', ...(attemptRef.current ? { attemptId: attemptRef.current } : {}) }, coachingSessionId);
         try { await deleteRecording(audio.recordingId); } catch { /* gone */ }
         letGo(audio.recordingId);
       }
@@ -555,8 +591,32 @@ export function NewObservationPage() {
       {!after ? (
         <>
           {/* bd-r2uzg1.18.8 — first thing on the screen, before she picks anything: her recording not sent. */}
-          {pausedKept && !audio && phase === 'idle' ? <RecordUploadPair paused={{ onPress: continueKept, testId: 'dc-continue-kept' }} /> : null}
-          {unsent && !audio && !checking && phase === 'idle' && unsent.meta.id !== session?.recordingId ? (
+          {/* bd-ma9jiy (26 Nov ~15:10): the lesson cut minutes ago, with ITS class — Continue reopens that one only; a
+              different lesson is its own new recording (the paused one stays kept, on its card). */}
+          {pausedKept && !newLesson && !audio && phase === 'idle' ? (
+            <>
+              <RecordUploadPair paused={{
+                onPress: continueKept, testId: 'dc-continue-kept',
+                label: [classLabel(linkOf(pausedKept.meta) ?? {}), pkTime(pausedKept.meta.startedAt)].filter(Boolean).join(' · ') || undefined,
+              }} />
+              <button type="button" data-testid="dc-different-lesson" onClick={() => setNewLesson(true)}
+                className={cn('mx-auto flex min-h-[48px] items-center justify-center rounded-full border border-[#d1d5db] bg-white px-5 text-[15px] font-medium text-[#4b5563]', FOCUS)}>
+                {C.differentLesson}
+              </button>
+            </>
+          ) : null}
+          {/* Her other kept takes, each its own card (and the paused one, once she chose a different lesson). */}
+          {resumeOn === true && !audio && phase === 'idle' ? (
+            <>
+              {pausedKept && newLesson ? (
+                <KeptRecordingCard item={{ id: pausedKept.meta.id, offer: 'resume', unlinked: false, attemptId: linkOf(pausedKept.meta)?.attemptId ?? null,
+                  grade: linkOf(pausedKept.meta)?.grade ?? null, subject: linkOf(pausedKept.meta)?.subject ?? null,
+                  startedAt: pausedKept.meta.startedAt, elapsedMs: pausedKept.meta.elapsedMs }} onPress={continueKept} />
+              ) : null}
+              {keptCards.map((it) => <KeptRecordingCard key={it.id} item={it} onPress={() => { void attachKept(it.id); }} />)}
+            </>
+          ) : null}
+          {resumeOn === false && unsent && !audio && !checking && phase === 'idle' && unsent.meta.id !== session?.recordingId ? (
             <UnsentRecording startedAt={unsent.meta.startedAt} durationMs={unsent.meta.elapsedMs || null} onPress={() => { void takeUnsent(); }} />
           ) : null}
           <FlowStep n={1} state={s1}>{C.gradeAndSubject}</FlowStep>
@@ -632,7 +692,7 @@ export function NewObservationPage() {
           {cls && !audio && !checking && phase === 'idle' ? waitingList.map((rec) => (
             <WaitingRecording key={rec.key} rec={rec} onPress={() => attachWaiting(rec)} />
           )) : null}
-          {cls && !audio && !checking && phase === 'idle' && !pausedKept ? (
+          {cls && !audio && !checking && phase === 'idle' && !(pausedKept && !newLesson) ? (
             <>
               {/* Recording is one card that opens a tray with the two choices, as Grade and subject does (operator,
                   16 Oct). A choice closes the tray. */}
