@@ -208,10 +208,11 @@ describe('obs612_coach (FDE grades 6-12) takes the same role key', () => {
 describe('the real chain: a principal\'s /observe visit to their teacher is stamped like a coach\'s', () => {
   const O6 = require('../../bot/shared/services/observe/observe-fico17-v6');
 
-  test('decideVisitFramework: grades 1-5 teacher → fico17_v6; grades 6-8 teacher → today\'s V3 (no stamp)', async () => {
+  // bd-ra8xu.64.8 (queue #282): no grade gate on /observe any more; the role key decides, then every band is v6.
+  test('decideVisitFramework: grades 1-5 teacher → fico17_v6; grades 6-8 teacher (no class named) → fico17_v6 too', async () => {
     mockSettings.fico_coach_rubric = JSON.stringify({ 'role:principal': 'v6' });
     await expect(O6.decideVisitFramework({ userId: PRINCIPAL, region: 'Sihala', teacherUserId: 'prim' })).resolves.toBe('fico17_v6');
-    await expect(O6.decideVisitFramework({ userId: PRINCIPAL, region: 'Sihala', teacherUserId: 'middle' })).resolves.toBeNull();
+    await expect(O6.decideVisitFramework({ userId: PRINCIPAL, region: 'Sihala', teacherUserId: 'middle' })).resolves.toBe('fico17_v6');
   });
 
   test('without the role key a principal is V3, exactly as before', async () => {

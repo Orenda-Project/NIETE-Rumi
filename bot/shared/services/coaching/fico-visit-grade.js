@@ -43,7 +43,9 @@ async function isFicoGradeVisit(teacherUserId) {
   }
 }
 
-// The old names are kept (callers: observe-fico17-v6 decideVisitFramework, observe2/rubric visitRubric): since 12 Nov
+// bd-ra8xu.64.8 (queue #282): /observe's decideVisitFramework no longer reads this (v6 for every band); /observe2's
+// visitRubric (retired 13 Nov) is the last caller.
+// The old names are kept (callers: observe2/rubric visitRubric): since 12 Nov
 // they mean a FICO-grade visit (grades 1-5 or 9-12).
 const isPrimaryOnly = isFicoGradeOnly;
 const isPrimaryVisit = isFicoGradeVisit;
