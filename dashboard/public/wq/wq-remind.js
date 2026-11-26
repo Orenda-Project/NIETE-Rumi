@@ -317,6 +317,8 @@
       primer: function () {
         var ok = '<button type="button" class="wq-btn wq-soft" data-act="primer_go">' + esc(c.primerGo) + '</button>';
         draw(title(c.primerHead) + line(c.primerBody) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + ok + btn('wq-ghost', 'primer_back', c.remindLater) + '</div>');
+        // the Urdu card can fall below a 740 px fold after Yes: bring its OK into view (no jump when it already fits)
+        try { var card = slot.firstElementChild; if (card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest' }); } catch (_) { /* no layout */ }
       },
       retry: function () {
         var yes = '<button type="button" class="wq-btn wq-soft" data-act="yes"><span aria-hidden="true">🔔</span> ' + esc(c.askBYes) + '</button>';
