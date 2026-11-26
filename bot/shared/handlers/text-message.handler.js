@@ -1044,12 +1044,6 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     }
   }
 
-  // JUGNU: "jugnu" / "reading game" (the whole message, en + ur) is the children's reading game, the coach app's
-  // Learning Assessment: a leader it opens for gets its link, a teacher or anyone it is not on for one line saying so.
-  // Never the chat (which wrote a lesson plan about fireflies). No account / a child's handset: today's path.
-  const JugnuCommand = require('./jugnu-command');
-  if (JugnuCommand.isJugnuWord(messageBody)
-    && await JugnuCommand.handleJugnuCommand({ user, from, text: messageBody, language: responseLanguage, typingController })) return;
 
   // ============================================================
   // PORTAL COMMAND DETECTION: Check for /portal command
@@ -2888,6 +2882,19 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       await handleLessonPlanRequest(from, messageBody, user, lessonPlanState.sessionId, lessonPlanState.language, typingController);
       return; // Stop further processing
     }
+  }
+
+  // ============================================================
+  // JUGNU: a LEADER's "jugnu" / "reading game" (the whole message, en + ur) is the children's reading game, the coach
+  // app's Learning Assessment: a leader it opens for gets its link, a leader it is not on for one line saying so. Never
+  // the chat (which wrote a lesson plan about fireflies). HERE, after every open conversation above (a quiz or video
+  // waiting for its topic, comprehension, a coaching reflection, a lesson-plan topic) has declined the message, so a
+  // waiting flow still takes the word as its answer. A teacher's Jugnu is NIETE's own children's games: today's path.
+  // ============================================================
+  {
+    const JugnuCommand = require('./jugnu-command');
+    if (JugnuCommand.isJugnuWord(messageBody)
+      && await JugnuCommand.handleJugnuCommand({ user, from, text: messageBody, language: responseLanguage, typingController })) return;
   }
 
   // ============================================================

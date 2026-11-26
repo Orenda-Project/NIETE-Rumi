@@ -4,13 +4,14 @@
  * NIETE the same game is the coach app's Learning Assessment. NIETE had no such word: a Gilgit-Baltistan teacher's
  * "Jugnu" went to the intent classifier (general) and the chat model wrote a lesson plan about fireflies.
  *
- * Now the whole message, in the main bot's words and with its normalisation:
+ * Now, for a LEADER (observe-gate LEADER_ROLES), the whole message, in the main bot's words and its normalisation:
  *   a leader the Learning Assessment opens for (the child-test gate AND the portal's portal_child_test_sa)
  *       → ONE message with a button that opens the app signed in, on /portal/leader/assess;
- *   a teacher, or a leader it does not open for → ONE line that says so;
+ *   a leader it does not open for → ONE line: the Learning Assessment is not switched on for their account yet;
  *   the link cannot be made → ONE line that says so and where to find it.
- * Never the chat, never a lesson plan. Someone with no account, a child's handset and a sentence that only mentions
- * Jugnu keep today's path.
+ * A teacher's Jugnu is exactly today's: NIETE already calls the games and quizzes teachers send home "Jugnu".
+ * The word is read only when no open conversation took it first (a quiz or video waiting for its topic, …), so a
+ * waiting flow still gets its answer. No account, a child's handset and a sentence that mentions Jugnu: today's path.
  *
  * Driven through the REAL text handler, the REAL child-test gate and the REAL app link; the link is tapped through
  * the REAL GET /go router. Mocked: the DB (memory), the WhatsApp send layer, the LLM, redis, the portal's lookups.
@@ -99,8 +100,22 @@ jest.mock('../../bot/shared/handlers/exam-checker.handler', () => ({
   handleExamText: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('../../dashboard/services/telemetry.service', () => ({ logEvent: jest.fn(), flush() {}, isEnabled: () => true }));
+// A quiz and a video waiting for their topic: the real handlers' doors, with the work they start stubbed.
+const mockTopic = jest.fn().mockResolvedValue(true);
+jest.mock('../../bot/shared/services/quiz/quiz-orchestrator.service', () => ({
+  ...jest.requireActual('../../bot/shared/services/quiz/quiz-orchestrator.service'),
+  handleTopicReply: (...a) => mockTopic(...a),
+}));
+let mockVideoAwaiting = null;
+const mockVideoStart = jest.fn().mockResolvedValue(true);
+jest.mock('../../bot/shared/services/video/video-orchestrator.service', () => ({
+  ...jest.requireActual('../../bot/shared/services/video/video-orchestrator.service'),
+  checkAwaitingTopic: jest.fn(async () => mockVideoAwaiting),
+  clearAwaitingTopic: jest.fn(async () => true),
+  initiateVideoRequest: (...a) => mockVideoStart(...a),
+}));
 
-const PHONE = '923002220099';
+const PHONE = '923002222222';
 const PORTAL = 'https://portal.example.test';
 const person = (id, role, region, lang = 'en') => ({
   id, phone_number: PHONE, name: 'P', first_name: 'P', role, region,
@@ -123,7 +138,9 @@ const GATE_ENV = {
 const PORTAL_ON = [{ key: 'portal_child_test_sa', value: LEADERS }];
 
 const LEADER_BODY_EN = "Open Jugnu: the NIETE app's Learning Assessment. Pick a school and a grade, then hand the phone to each child in turn.";
-const NOT_ON_EN = "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet.";
+const NOT_ON_EN = "Jugnu, the NIETE app's Learning Assessment, isn't switched on for your account yet.";
+// The line the first version of this door sent a teacher: never sent now.
+const OLD_TEACHER_LINE = "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet.";
 const NO_LINK_EN = "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment.";
 
 const WORDS = ['jugnu', '/jugnu', 'reading game', 'readinggame', '/readinggame', 'جگنو', 'پڑھنے کا کھیل', 'ریڈنگ گیم'];
@@ -153,6 +170,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockStore.clear();
   mockDetectIntent.mockResolvedValue({ type: 'general' });
+  mockVideoAwaiting = null;
   // Dummy LLM keys: the real text handler builds an LLM client on load; the LLM itself is mocked above.
   process.env = {
     ...ENV, INTERNAL_API_KEY: 'test-internal-key', PORTAL_URL: PORTAL, SUPABASE_URL: 'https://abcdefgh.supabase.co',
@@ -190,6 +208,11 @@ async function tap(url) {
 const ctas = () => mockWa.sendCtaUrl.mock.calls;
 const texts = () => mockWa.sendMessage.mock.calls.map(([, t]) => t);
 const chatRan = () => mockDetectIntent.mock.calls.length > 0 || mockGetResponse.mock.calls.length > 0;
+const jugnuLines = () => texts().filter((t) => t === NOT_ON_EN || t === NO_LINK_EN || t === OLD_TEACHER_LINE || /جگنو، یعنی|جگنو ⁦NIETE⁩ ایپ میں/.test(t));
+const waiting = (flow, step, payload = {}) => ({
+  conversation_state: { flow, step, payload },
+  conversation_state_expires_at: new Date(Date.now() + 3600e3).toISOString(),
+});
 
 describe('a leader the Learning Assessment opens for: one button, signed in on the Learning Assessment', () => {
   test.each(WORDS)('RED on the base: a GB coach types %s', async (word) => {
@@ -200,8 +223,14 @@ describe('a leader the Learning Assessment opens for: one button, signed in on t
     expect(ctas()).toHaveLength(1);
     const [to, { body, buttonText, url }] = ctas()[0];
     expect(to).toBe(PHONE);
-    expect(body).toBe(LEADER_BODY_EN);
-    expect(buttonText).toBe('Open Jugnu');
+    // the turn's language: a word typed in Urdu is answered in Urdu, as the text handler answers every typed Urdu message
+    if (/[\u0600-\u06FF]/.test(word)) {
+      expect(body).toContain('جگنو کھولیں');
+      expect(buttonText).toBe('جگنو کھولیں');
+    } else {
+      expect(body).toBe(LEADER_BODY_EN);
+      expect(buttonText).toBe('Open Jugnu');
+    }
     const res = await tap(url);
     expect(res.status).toBe(303);
     expect(res.location).toBe('/portal/leader/assess');
@@ -245,38 +274,32 @@ describe('a leader the Learning Assessment opens for: one button, signed in on t
   });
 });
 
-describe('everyone else: one honest line, never the chat, never a lesson plan', () => {
-  test.each(WORDS)('RED on the base: a GB teacher types %s', async (word) => {
+describe('a teacher\'s Jugnu is exactly today\'s (NIETE already calls the games teachers send home "Jugnu")', () => {
+  test.each(WORDS)('RED on the head before this fix: a GB teacher types %s: no Learning Assessment line, no button', async (word) => {
     load(GB_TEACHER);
     await say(word);
-    expect(chatRan()).toBe(false);
     expect(ctas()).toHaveLength(0);
-    expect(texts()).toEqual([NOT_ON_EN]);
+    expect(jugnuLines()).toEqual([]);
   });
 
-  test('RED on the base: the same line in Urdu for a teacher who reads Urdu', async () => {
-    load({ ...GB_TEACHER, preferred_language: 'ur' });
-    await say('jugnu');
-    expect(chatRan()).toBe(false);
-    expect(texts()).toHaveLength(1);
-    expect(texts()[0]).toContain('جگنو');
-    expect(texts()[0]).toContain('کوچز اور اسکول سربراہان کے لیے ہے');
-    expect(texts()[0]).not.toMatch(/ٹیسٹ|امتحان/);
-  });
+  test.each([[GB_TEACHER], [ICT_TEACHER], [{ ...ICT_TEACHER, preferred_language: 'ur' }]])(
+    'RED on the head before this fix: %o types "jugnu": the chat answers it, as on sandbox', async (user) => {
+      load(user);
+      await say('jugnu');
+      expect(mockDetectIntent).toHaveBeenCalledTimes(1);
+      expect(jugnuLines()).toEqual([]);
+      expect(ctas()).toHaveLength(0);
+    },
+  );
+});
 
-  test('RED on the base: an ICT teacher gets the same line', async () => {
-    load(ICT_TEACHER);
-    await say('jugnu');
-    expect(chatRan()).toBe(false);
-    expect(texts()).toEqual([NOT_ON_EN]);
-  });
-
+describe('a leader the Learning Assessment does not open for: one line that is true for a leader', () => {
   test.each([
     ['not on the pilot list', OFF_LIST_COACH, {}],
     ['outside the child-test regions', GB_COACH, { env: { ...GATE_ENV, CHILD_TEST_REGIONS: 'niete,ict,sihala' } }],
     ['the child test off on this deployment', GB_COACH, { env: { ...GATE_ENV, CHILD_TEST_ENABLED: 'false' } }],
     ['on the bot\'s list but not on the portal\'s (the page would refuse)', GB_COACH, { settings: [] }],
-  ])('RED on the base: a leader %s', async (_label, user, opts) => {
+  ])('RED on the head before this fix: a leader %s', async (_label, user, opts) => {
     load(user, opts);
     await say('jugnu');
     expect(chatRan()).toBe(false);
@@ -284,7 +307,17 @@ describe('everyone else: one honest line, never the chat, never a lesson plan', 
     expect(texts()).toEqual([NOT_ON_EN]);
   });
 
-  test('RED on the base: the link cannot be made here (no signing key): a line that says so, not "not on"', async () => {
+  test('RED on the head before this fix: the same line in Urdu for a leader who reads Urdu', async () => {
+    load({ ...OFF_LIST_COACH, preferred_language: 'ur' });
+    await say('جگنو');
+    expect(chatRan()).toBe(false);
+    expect(texts()).toHaveLength(1);
+    expect(texts()[0]).toContain('تعلیمی جائزہ');
+    expect(texts()[0]).toContain('ابھی آپ کے اکاؤنٹ پر دستیاب نہیں');
+    expect(texts()[0]).not.toMatch(/ٹیسٹ|امتحان|کوچز اور اسکول سربراہان/);
+  });
+
+  test('the link cannot be made here (no signing key): a line that says so, not "not on"', async () => {
     load(GB_COACH);
     delete process.env.INTERNAL_API_KEY;
     await say('jugnu');
@@ -294,25 +327,53 @@ describe('everyone else: one honest line, never the chat, never a lesson plan', 
   });
 });
 
+describe('an open conversation keeps the word: Jugnu is read only when nothing is waiting for an answer', () => {
+  test('RED on the head before this fix: an ICT teacher asked for a quiz topic replies «جگنو»: the quiz takes it as the topic', async () => {
+    load({ ...ICT_TEACHER, preferred_language: 'ur', ...waiting('quiz', 'awaiting_topic', { grade: 3 }) });
+    await say('جگنو');
+    expect(mockTopic).toHaveBeenCalledTimes(1);
+    expect(mockTopic.mock.calls[0][2]).toBe('جگنو');
+    expect(jugnuLines()).toEqual([]);
+    expect(ctas()).toHaveLength(0);
+  });
+
+  test('RED on the head before this fix: a leader the Learning Assessment opens for, asked for a quiz topic, replies «جگنو»: the quiz takes it', async () => {
+    load({ ...GB_COACH, ...waiting('quiz', 'awaiting_topic', { grade: 3 }) });
+    await say('جگنو');
+    expect(mockTopic).toHaveBeenCalledTimes(1);
+    expect(mockTopic.mock.calls[0][2]).toBe('جگنو');
+    expect(ctas()).toHaveLength(0);
+  });
+
+  test('RED on the head before this fix: a leader asked for a video topic replies "jugnu": the video takes it', async () => {
+    mockVideoAwaiting = { sessionId: 'sess-1' };
+    load(GB_COACH);
+    await say('jugnu');
+    expect(mockVideoStart).toHaveBeenCalledTimes(1);
+    expect(ctas()).toHaveLength(0);
+    expect(jugnuLines()).toEqual([]);
+  });
+});
+
 describe('today\'s path, unchanged', () => {
   test('no account: not answered here (never a "not on" line, never a link)', async () => {
     load(null);
     await say('jugnu');
     expect(ctas()).toHaveLength(0);
-    expect(texts()).not.toContain(NOT_ON_EN);
+    expect(jugnuLines()).toEqual([]);
   });
 
   test('a child\'s handset (persona student) that reaches the text handler: not answered here', async () => {
     load({ ...person('u-child', null, 'Gilgit-Baltistan'), persona: 'student', personaReason: 'identity' });
     await say('jugnu');
     expect(ctas()).toHaveLength(0);
-    expect(texts()).not.toContain(NOT_ON_EN);
+    expect(jugnuLines()).toEqual([]);
   });
 
-  test('a sentence that mentions Jugnu is the chat\'s, as before', async () => {
-    load(GB_TEACHER);
+  test('a sentence that mentions Jugnu is the chat\'s, as before (a leader too)', async () => {
+    load(GB_COACH);
     await say('jugnu what is photosynthesis');
-    expect(texts()).not.toContain(NOT_ON_EN);
+    expect(jugnuLines()).toEqual([]);
     expect(ctas()).toHaveLength(0);
     expect(mockDetectIntent).toHaveBeenCalled();
   });
@@ -321,6 +382,6 @@ describe('today\'s path, unchanged', () => {
     load(person('u-parent', 'parent', 'Gilgit-Baltistan'));
     await say('jugnu');
     expect(ctas()).toHaveLength(0);
-    expect(texts()).not.toContain(NOT_ON_EN);
+    expect(jugnuLines()).toEqual([]);
   });
 });

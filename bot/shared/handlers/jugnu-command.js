@@ -14,21 +14,26 @@
  * The main bot's older test words are not taken (NIETE's own /egra door owns that vocabulary, and no NIETE copy ever
  * named them).
  *
+ * ─── Who it answers: LEADERS only ──────────────────────────────────────────────────────────────────────────────────
+ * The leader family (observe-gate LEADER_ROLES). A teacher's Jugnu is exactly today's: NIETE already calls the games and
+ * quizzes teachers send home "Jugnu" (the weak-skill game, the round invite, "read along with Jugnu", Jugnu's
+ * Challenge), so this door never takes a teacher's word. The text handler asks only after every open conversation
+ * (a quiz or video waiting for its topic, a comprehension flow, a coaching reflection, …) has declined the message.
+ *
  * ─── Answers ───────────────────────────────────────────────────────────────────────────────────────────────────────
- *   no account, a child's handset (persona student), a role that is neither teacher nor leader → false: today's path
+ *   no account, a child's handset (persona student), anyone not in the leader family → false: today's path
  *   a leader the Learning Assessment opens for (child-test app-api learningAssessmentOpensFor: the bot's gate AND the
  *     portal's portal_child_test_sa) → ONE message with a button, signed in on the Learning Assessment
- *   a teacher, or a leader it does not open for → ONE line: who it is for, and that it is not on for this account
+ *   a leader it does not open for → ONE line: the Learning Assessment is not switched on for their account yet
  *   a leader it opens for whose link cannot be sent here (no portal address or signing key, Meta refused) → ONE line
  *     that says so and where to find the page
- * Never the chat, never a lesson plan, for anyone this answers.
+ * Never the chat, never a lesson plan, for a leader this answers.
  */
 
 const WhatsAppService = require('../services/whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { resolveUx } = require('../config/ux-strings');
 const { isSchoolLeader } = require('../services/observe/observe-gate');
-const { isTeacherRole } = require('../services/teacher-audience');
 
 // A person on a log line is their keyed reference, never the raw id (tests/setup/log-raw-ids.test.js).
 const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
@@ -87,10 +92,9 @@ async function send(from, text, what, ref) {
  */
 async function handleJugnuCommand({ user, from, text, language, typingController, deps = {} } = {}) {
   if (!isJugnuWord(text)) return false;
-  // Someone with no account and a child's handset keep today's path (the tutor answers a child's "jugnu").
-  if (!user || !user.id || user.persona === 'student') return false;
-  const leader = isSchoolLeader(user);
-  if (!leader && !isTeacherRole(user.role)) return false;
+  // Someone with no account and a child's handset keep today's path (the tutor answers a child's "jugnu"), and so does
+  // everyone outside the leader family: a teacher's Jugnu is NIETE's own children's games.
+  if (!user || !user.id || user.persona === 'student' || !isSchoolLeader(user)) return false;
 
   if (typingController && typeof typingController.stop === 'function') typingController.stop();
   const lang = language || user.preferred_language;
@@ -103,12 +107,10 @@ async function handleJugnuCommand({ user, from, text, language, typingController
     || ((args) => require('../services/app-redirect.service').sendLearningAssessmentLink(args));
 
   let opens = false;
-  if (leader) {
-    try { opens = (await opensFor(user.id)) === true; } catch (_) { opens = false; }
-  }
+  try { opens = (await opensFor(user.id)) === true; } catch (_) { opens = false; }
   if (!opens) {
-    logToFile('[jugnu] not on for this account', { tk: teacherRef(user.id), role: user.role || null, leader });
-    await send(from, resolveUx('jugnuNotOn', { language: lang }), 'not_on', teacherRef(user.id));
+    logToFile('[jugnu] Learning Assessment not on for this leader', { tk: teacherRef(user.id), role: user.role || null });
+    await send(from, resolveUx('jugnuNotOnLeader', { language: lang }), 'not_on', teacherRef(user.id));
     return true;
   }
 
