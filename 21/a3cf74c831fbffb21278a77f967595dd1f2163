@@ -12,3 +12,5 @@
 {"ts":"2026-11-24T01:09:52Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
 {"ts":"2026-11-25T00:46:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
 {"ts":"2026-11-25T00:46:07Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
+{"ts":"2026-11-26T01:39:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
+{"ts":"2026-11-26T01:39:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"21a3cf74c831","branch":"bd-dp9ipc-main2","user":""}
