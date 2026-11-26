@@ -6,6 +6,7 @@
  * outside them (shared/services/ab-tracker/ab-tracker-cadence.js) — and keeps every guard (replica only, the
  * ab_tracker_rollup_enabled switch, one caller per tick). Then it closes Redis and exits.
  * Exit 1 on a refused, partial or failed run so the Railway run shows red; exit 0 on every quiet outcome.
+ * After a rollup that ran it advances the A/B ledger once (planned -> running -> concluded; bd-9nb6s0.2).
  * Before exiting it sends the buffered log lines to Axiom: process.exit() skips the logger's beforeExit flush, so
  * until bd-3kshar.20 no cron line ever reached niete-logs and a failed run could not be alerted on.
  */
@@ -33,6 +34,7 @@ async function flushLogs({
 
 async function main({
   run = (...a) => require('../shared/services/ab-tracker/ab-tracker-rollup.service').run(...a),
+  ledger = (...a) => require('../shared/services/ab-tracker/ab-ledger.service').advance(...a),
   redis = require('../shared/services/cache/railway-redis.service'),
   flush = flushLogs,
   exit = (code) => process.exit(code),
@@ -43,7 +45,17 @@ async function main({
   } catch (error) {
     logToFile('❌ A/B tracker cron: the run threw', { error: error && error.message }, 'error');
   }
-  logToFile('A/B tracker cron: done', { outcome: result && result.outcome });
+  // The ledger (bd-9nb6s0.2): only after a rollup that ran, so every rollup guard held. Never changes the exit code.
+  let ledgerOutcome;
+  if (result && result.outcome === 'ran') {
+    try {
+      ledgerOutcome = (await ledger()).outcome;
+    } catch (error) {
+      ledgerOutcome = 'failed';
+      logToFile('A/B tracker cron: the ledger step threw (ignored)', { error: error && error.message }, 'warn');
+    }
+  }
+  logToFile('A/B tracker cron: done', { outcome: result && result.outcome, ledger: ledgerOutcome });
   try {
     await redis.close();
   } catch (error) {
