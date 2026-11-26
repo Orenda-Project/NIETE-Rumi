@@ -3,3 +3,4 @@
 {"ts":"2026-11-26T04:40:01Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan spec_sync=true","sha":"0b834cfbdf9e","branch":"bd-zrdvmi.74.1-65651","user":""}
 {"ts":"2026-11-26T05:31:49Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (maths symbol formatting only, no flow or screen change; unit test caret-exponent-body.test.js)","sha":"0b834cfbdf9e","branch":"bd-zrdvmi.74.1-65651","user":""}
 {"ts":"2026-11-26T05:31:58Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (maths symbol formatting only, no flow or screen change; unit test caret-exponent-body.test.js)","sha":"0b834cfbdf9e","branch":"bd-zrdvmi.74.1-65651","user":""}
+{"ts":"2026-11-26T05:31:58Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5c6cdb5d-b889-4ba9-a6f3-f67f3921a21e","sha":"0b834cfbdf9e","branch":"bd-zrdvmi.74.1-65651","user":""}
