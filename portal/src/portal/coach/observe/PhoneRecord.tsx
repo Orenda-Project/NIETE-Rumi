@@ -8,7 +8,7 @@ import { OBSERVE } from "./copy";
 import { lengthShort } from "./format";
 import ObservePage from "./ObservePage";
 import { useObserveRoutes } from "./observeRoutes";
-import { useKeptFor } from "./keptRecording";
+import { useKeptForVisit } from "./keptRecording";
 import { setDraft } from "../observeDraft";
 import { AUDIO_ACCEPT, checkRecording, formatSize, readAudioDuration } from "../../lib/coachingUpload";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
@@ -37,7 +37,7 @@ export default function PhoneRecord({ visit, mode, onRecord }: { visit: CoachVis
   const uploadInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  const kept = useKeptFor(visit.teacherExtId) === true || mode === "kept";
+  const kept = useKeptForVisit(visit.teacherExtId ? visit.id : null) === true || mode === "kept";
 
   const onChosen = async (picked: File | undefined) => {
     setError(null);

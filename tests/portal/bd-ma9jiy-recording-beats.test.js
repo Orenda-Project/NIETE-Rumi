@@ -62,6 +62,20 @@ describe('POST /funnel/recording — the recorder heartbeat', () => {
     expect(beats[0].d.beats.split(';')).toHaveLength(6);
   });
 
+  // bd-ma9jiy (queue #262; the operator 26 Nov ~15:10): every row says what the recording belongs to — a teacher's DC
+  // attempt (made at Start) as the coach's visit and the debrief's observation do — so recordingId <-> observation is on
+  // every event and every batch in Axiom.
+  test('a teacher DC recording: its attemptId on every beats and event row', async () => {
+    const res = await post(await app(), {
+      v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', attemptId: 'att-0f1e2d3c-4b5a', b: 'whatsapp-iab', t0: Date.now() - 2000,
+      cols: COLS, rows: [row(0), row(1)], ev: [{ k: 'start', dt: 0 }],
+    });
+    expect(res.status).toBe(204);
+    const rows = emitted.filter((x) => x.e === 'recording.beats' || x.e === 'recording.event');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((x) => x.d.attemptId === 'att-0f1e2d3c-4b5a' && x.d.recordingId === 'a3f1c2d4-1111-4222-8333-944455556666')).toBe(true);
+  });
+
   test('each event is a recording.event row (a cut carries its gap)', async () => {
     const res = await post(await app(), {
       v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'dc', t0: Date.now(), cols: COLS, rows: [],

@@ -22,6 +22,23 @@ const VERSION = 1;
 const RECORDINGS = "recordings";
 const CHUNKS = "chunks";
 
+/**
+ * bd-ma9jiy (queue #262; the operator 26 Nov ~15:10: "on the user's device we should note which observation is the one
+ * that's being recorded. So they can also store 2 at a time as well.") — what a recording belongs to, kept IN its row:
+ * a coach's or principal's visit (lesson) or observation (debrief), a teacher's Digital Coaching attempt (made at Start,
+ * with its class). lib/recordingLink reads it; rows saved before have none (the coach's teacher list may still say).
+ */
+export type RecordingLink = {
+  kind: "obs" | "dbrf" | "dc";
+  visitId?: string | null;
+  observationId?: string | null;
+  attemptId?: string | null;
+  teacherExtId?: string | null;
+  teacherName?: string | null;
+  grade?: string | number | null;
+  subject?: string | null;
+};
+
 export type StoredRecording = {
   id: string;
   mimeType: string;
@@ -29,6 +46,7 @@ export type StoredRecording = {
   startedAt: string;
   elapsedMs: number;
   finished: boolean;
+  link?: RecordingLink;
 };
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -95,6 +113,19 @@ export async function appendChunk(id: string, seq: number, blob: Blob, elapsedMs
   const recordings = tx.objectStore(RECORDINGS);
   const meta = await request<StoredRecording | undefined>(recordings.get(id));
   if (meta) recordings.put({ ...meta, elapsedMs });
+  await done(tx);
+}
+
+/**
+ * bd-ma9jiy (26 Nov) — tie a kept recording to the observation it is now sent as (an old-recorder copy with no visit, sent
+ * from Needs you as its OWN observation). Only the row's link changes; its audio never does.
+ */
+export async function setLink(id: string, link: RecordingLink): Promise<void> {
+  const db = await open();
+  const tx = db.transaction(RECORDINGS, "readwrite");
+  const recordings = tx.objectStore(RECORDINGS);
+  const meta = await request<StoredRecording | undefined>(recordings.get(id));
+  if (meta) recordings.put({ ...meta, link });
   await done(tx);
 }
 

@@ -22,7 +22,7 @@ import { REPORTS } from "../reports/copy";
 import { FLOW_V7_ERRORS } from "../flow/copyV7errors";
 import { useObserveRoutes } from "../observe/observeRoutes";
 import { useUploadOnly } from "../observe/uploadOnly";
-import { keptFor, keptState, useKept } from "../observe/keptRecording";
+import { keptForVisit, keptState, useKept } from "../observe/keptRecording";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { SCHOOL_CARD } from "../card/copy";
 import { PRINCIPAL } from "../../teacher/principal/copy";
@@ -82,8 +82,9 @@ const CoachVisit = () => {
   // bd-ih6cej — the switch (upload-only for a person it names; everyone else the in-app recorder) and a kept copy.
   const uploadOnly = useUploadOnly();
   // bd-ma9jiy.3 (queue #262): the kept copy itself, to say paused (Continue recording only) or not sent (Send saved recording).
-  const keptTeacher = data?.visit?.status === "upcoming" ? data.visit.teacherExtId || "" : "";
-  const keptRec = useKept(keptTeacher ? () => keptFor(keptTeacher) : null, [keptTeacher]);
+  // bd-ma9jiy (26 Nov ~15:10): THIS visit's recording only — another visit of the same teacher starts afresh.
+  const keptTeacher = data?.visit?.status === "upcoming" && data.visit.teacherExtId ? data.visit.id : "";
+  const keptRec = useKept(keptTeacher ? () => keptForVisit(keptTeacher) : null, [keptTeacher]);
   const kept = !!keptRec;
   const keptPaused = !!keptRec && uploadOnly === false && keptState(keptRec) === "paused";
   // Nothing to press until the phone has answered (a quick read): never Start recording first, then gone.
