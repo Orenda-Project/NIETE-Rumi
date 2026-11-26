@@ -6,3 +6,5 @@
 {"ts":"2026-11-24T02:32:24Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-a3030a763143","sha":"a3030a763143","branch":"bd-97daxo.34.6-stg","user":""}
 {"ts":"2026-11-25T00:45:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"a3030a763143","branch":"bd-97daxo.34.6-stg","user":""}
 {"ts":"2026-11-25T00:45:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"a3030a763143","branch":"bd-97daxo.34.6-stg","user":""}
+{"ts":"2026-11-26T01:39:43Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"a3030a763143","branch":"bd-97daxo.34.6-stg","user":""}
+{"ts":"2026-11-26T01:39:43Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"a3030a763143","branch":"bd-97daxo.34.6-stg","user":""}
