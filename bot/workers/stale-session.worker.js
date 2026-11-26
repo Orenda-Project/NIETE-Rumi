@@ -1149,20 +1149,31 @@ async function resolveMidFlightRecipient(session) {
 async function processStuckMidFlightSessions() {
   const { getCoachingMessage } = require('../shared/config/coaching-messages');
   const { observeStrings } = require('../shared/services/observe/observe-strings');
+  const { MIDFLIGHT_MAX_AGE_MS } = require('../shared/services/coaching/coaching-stale-recovery');
   const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+  const tooOldBefore = new Date(Date.now() - MIDFLIGHT_MAX_AGE_MS).toISOString();
   // bd-go4tl / bd-mwn4j: project the SLICE, never the fat column. This sweep now
   // includes observations, whose analysis_data carries the whole FICO analysis —
   // pulling it for 25 rows every 15 minutes per replica is the exact shape that
   // OOM-wedged prod on 24/25 Aug. The planner only reads .watchdog; the one row
   // we actually act on re-reads its own analysis_data by primary key to merge.
   // Load math: 25 rows x ~200 bytes x 4 ticks/hr x replicas — kilobytes, not MB.
-  const { data: stuck } = await supabase
+  // bd-0h9ira: the select named `coaching_sessions.name` (bd-60092, 14 Sep), a column
+  // that does not exist. PostgREST answered 42703, nothing read the error, and every
+  // sweep from then on found 0 rows. The person's name is users.name, in the embed.
+  // Read the error: a query that fails must say so, not look like a quiet day.
+  const { data: stuck, error } = await supabase
     .from('coaching_sessions')
-    .select('id, user_id, status, created_at, updated_at, audio_id, audio_url, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(name, phone_number, preferred_language), name')
+    .select('id, user_id, status, created_at, updated_at, audio_id, audio_url, observation_type, observer_user_id, watchdog:analysis_data->watchdog, users!inner(name, phone_number, preferred_language)')
     .in('status', ['transcribing', 'transcription_complete', 'analyzing', 'analysis_started', 'analysis_complete', 'generating_report'])
     .lt('updated_at', staleBefore)
+    .gt('updated_at', tooOldBefore)
     .order('updated_at', { ascending: true })
     .limit(25);
+  if (error) {
+    logToFile('❌ Mid-flight watchdog: sweep query failed', { code: error.code, error: error.message }, 'error');
+    return { total: 0, retried: 0, failed: 0, skipped: 0, queryFailed: true };
+  }
 
   let retried = 0; let failed = 0; let skipped = 0;
   for (const session of (stuck || [])) {
