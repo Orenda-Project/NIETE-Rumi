@@ -194,7 +194,10 @@ function handlesNotDrawn(drawnTexts, options = []) {
 
 // ─── a drawn count that IS the key ─────────────────────────────────────────
 
-const COUNT_ASK = /\b(how many|count)\b|کتن[ےیا]|گن(?:یں|و|ئیں)/i;
+// Counting is also matching a numeral to the drawn group: "What numeral matches these petals?", "What number do the
+// sticks show?" (the generate prompt's own example). bd-ke5dtg: those were refused, and a grade 1 counting quiz
+// shipped two pictures short of its three. "Which number leaves one over in pairs?" names no match and stays refused.
+const COUNT_ASK = /\b(how many|count|number of)\b|\b(numeral|number)s? (?:that )?(?:match(?:es)?|shows?)\b|\bnumber do(?:es)? (?:the|these|this) [^?]{1,40}\bshow\b|کتن[ےیا]|گن(?:یں|و|ئیں)/i;
 
 /**
  * A picture of ONE quantity under a "which number…" stem, where that quantity

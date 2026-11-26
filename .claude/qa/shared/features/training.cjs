@@ -84,18 +84,9 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       ...V(hits.every(h => h.card && h.cta), { hits, note: 'the /menu row is covered by menu.cjs' }), t() - s);
   }
 
-  // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
-  if (want('T15')) {
-  s = t();
-  // The previous scenario may have left the menu wait open; inside it the bot matches free text to a menu row
-  // by words ("Teacher Training" ← "/teacher training", menu_match.row) and opens the Flow. The spec is a chat
-  // with no menu open, so park the conversation state first (bd-yuur1a).
-  if (api.setUser) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
-  const two = await api.sendWait('/teacher training');
-  rec('T15', '"/teacher training" (two words) is not a training command',
-      ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
-           { reply: (two.txt || '').slice(0, 140) }), t() - s);
-  }
+  // T15 removed from the mock lane (bd-ke5dtg, 26 Nov): its scenario is @obsolete since 27 Oct (bd-1r3k2h). Since
+  // bd-xw56ed the intent classifier is offered the teacher's live menu rows, so "/teacher training" opens the Teacher
+  // Training row by design (menu_match.row, door 'intent'). The lane asserted the retired behaviour and failed every run.
 
   // ── T18 — /training is stateless: it works mid-way through something else ───
   if (want('T18')) {

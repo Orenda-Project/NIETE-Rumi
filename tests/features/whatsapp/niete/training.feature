@@ -760,6 +760,8 @@ Feature: NIETE (ICT) Teacher Training
     # video-quiz-report generate(): a scheduled run on a share code whose report_sent_at is set suppresses
     # (report_suppressed why already_reported) — one automatic report per quiz (operator, 15 Sep). force (the
     # /quiz ask) still sends. VIDEO_REPORT_SCHEDULED_FOLLOWUP=on restores the old follow-up send. @wip.
+    # Since fcda95623a (21 Nov) a /quiz ask never stamps report_sent_at, so "the class report" here is the automatic
+    # one: the mock lane runs the scheduled job once (it arrives), then after the late child once more (suppressed) (bd-ke5dtg).
 
   @e2e @quiz @wip @draft @P2 @T43
   Scenario: The class report names the class once, the same way, however the children typed it
