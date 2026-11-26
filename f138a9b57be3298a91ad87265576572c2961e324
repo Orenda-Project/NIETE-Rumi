@@ -1,0 +1,2 @@
+{"ts":"2026-11-26T14:34:22Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,child-test spec_sync=true","sha":"f138a9b57be3","branch":"bd-pdwwk4.2.4-stg-shape","user":"Haroon Yasin"}
+{"ts":"2026-11-26T14:34:29Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe,child-test owe their Gherkin","sha":"f138a9b57be3","branch":"bd-pdwwk4.2.4-stg-shape","user":"Haroon Yasin"}
