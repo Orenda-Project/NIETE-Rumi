@@ -105,7 +105,7 @@ function _supabaseDb() {
 
     async userByPhone(phone) {
       const { data } = await supabase.from('users')
-        .select('id, phone_number, role, school_id, name, organization, is_test_user, deleted_at')
+        .select('id, phone_number, role, school_id, name, organization, region, is_test_user, deleted_at')
         .eq('phone_number', phone).limit(1);
       return (data && data[0]) || null;
     },
@@ -130,6 +130,25 @@ function _supabaseDb() {
      * Fill a BLANK organization, and only a blank: the NULL guard is in the
      * write itself, so a value that arrived since the plan is never overwritten.
      */
+    /**
+     * bd-dsu5mq.1 — fill a BLANK region, and only a blank: the NULL guard is in
+     * the write itself, as fillOrganization's is. Never throws; returns whether
+     * it was written.
+     */
+    async fillRegion({ userId, region }) {
+      try {
+        const { error } = await supabase.from('users').update({ region })
+          .eq('id', userId).is('region', null);
+        if (error) throw new Error(error.message);
+        return true;
+      } catch (e) {
+        const { logToFile } = require('../../utils/logger');
+        let tk = null;
+        try { tk = require('../quiz/web-quiz-kid').tk(userId); } catch (_) { /* no key → no reference */ }
+        logToFile('⚠️ observe: region not filled', { tk, error: e.message }, 'warn');
+        return false;
+      }
+    },
     async fillOrganization({ userId, organization }) {
       try {
         const { error } = await supabase.from('users').update({ organization })
@@ -263,6 +282,7 @@ async function planAdd({ actorLeaderUserId, schoolExtId, rawPhone }, deps = {}) 
   const person = {
     userId: u.id, name: u.name, role: u.role, isPrincipal: u.role === 'principal',
     organization: u.organization == null ? null : u.organization,
+    region: u.region == null ? null : u.region,
     isTestOrDeleted: u.is_test_user === true || Boolean(u.deleted_at),
   };
   if (u.school_id && u.school_id === target.school_id) {
@@ -512,6 +532,21 @@ const HQ_NAME = /^\s*NIETE/i;
  * Anywhere else — another organization's region, a region the registry does
  * not list, a registry that cannot be read — nothing is written.
  */
+/**
+ * bd-dsu5mq.1 (queue #291) — the region a PRINCIPAL placed at this school takes, or null. ICT call 17: 179 principals
+ * had no school, and coaches place them themselves (Add a teacher with the principal's number). The FICO-S / Digital
+ * Coach switches reach principals through "role:principal@ict", which needs users.region, so a principal placed with a
+ * blank region would still get FDE's hand-scored form. Only a blank is filled; only a principal (a teacher's region
+ * decides other things, e.g. her books, and stays as it is); the same exclusions as the organization fill.
+ */
+function regionForPlacement(target, person) {
+  if (!person || !person.isPrincipal || person.isTestOrDeleted) return null;
+  if (person.region != null && String(person.region).trim()) return null;
+  if (!target || !target.region || !String(target.region).trim() || target.is_probable_test) return null;
+  if (HQ_NAME.test(String(target.school_name || ''))) return null;
+  return String(target.region).trim();
+}
+
 async function organizationForPlacement(db, target, person) {
   if (person && (person.organization != null || person.isTestOrDeleted)) return null;
   if (!target || !target.region || target.is_probable_test) return null;
@@ -561,6 +596,10 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
   // Only once she is at the school, and never instead of it: a fill that fails
   // costs a blank the backfill script picks up, not the move the coach asked for.
   if (placed && organization) await db.fillOrganization({ userId: plan.person.userId, organization });
+  const region = regionForPlacement(target, plan.person);
+  // An injected port without fillRegion places her all the same: the region is never a reason the move fails.
+  const regionFilled = Boolean(placed && region && typeof db.fillRegion === 'function')
+    && await db.fillRegion({ userId: plan.person.userId, region });
 
   // A NAMELESS account takes the name the coach typed on the name screen —
   // only a nameless one (the guard is in the write), and only once she is at
@@ -574,7 +613,7 @@ async function commitAdd({ actorLeaderUserId, schoolExtId, rawPhone, name }, dep
     action: 'move', actor_user_id: actorLeaderUserId, affected_leader_user_id: actorLeaderUserId,
     teacher_ext_id: plan.phone, teacher_phone_e164: plan.phone, teacher_name: nameNow,
     from_school_ext_id: plan.fromSchoolExtId, to_school_ext_id: schoolExtId,
-    detail: { via: 'observe_flow', wasRole: plan.person.role },
+    detail: { via: 'observe_flow', wasRole: plan.person.role, ...(regionFilled ? { regionFilled: region } : {}) },
   })];
   // The same row the Edit -> Name path writes (account id, phone, the name
   // before, detail.to), marked as coming from the add.

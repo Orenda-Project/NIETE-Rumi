@@ -57,9 +57,6 @@ async function onIn(c, who, now) {
     if (!Object.keys(map).length) return false; // default off: no region lookup
     const w = { ...who };
     if (w.region === undefined) w.region = await regionOfUser(w.userId);
-    // bd-dsu5mq: a blank users.region (a teacher a coach made Principal) falls back to the school's region, else
-    // users.organization, so the "role:<role>@ict" keys still reach them. {} on any failure: decided as before.
-    if (!w.organization) Object.assign(w, await require('../observer-home').fallbackFor(w));
     return (await pickFor(map, w, VALUES, OFF)) === 'on';
   } catch (_) {
     return false;
@@ -76,31 +73,37 @@ async function isOn(who = {}, now = Date.now()) { return onIn(cache, who, now); 
 async function isDcOn(who = {}, now = Date.now()) { return onIn(dcCache, who, now); }
 
 /**
- * Does this VISIT get FICO-S for a grade 6-12 lesson? The observer's switch, and an ICT visit (never GB). Never
- * throws: false on any failure.
- * @param {object} user  the observer's users row (id, region, role)
+ * Does this VISIT get FICO-S for a grade 6-12 lesson? bd-dsu5mq.2 (operator 26 Nov ~21:40): the VISIT'S SCHOOL decides
+ * ICT vs GB, never the observer's profile users.region. The switch is looked up for who the observer is (users.id, role)
+ * at where the visit is (coaching/fde-region.js visitPlace / switchWho): a GB visit, or one whose place cannot be read,
+ * never gets FICO-S. Never throws: false on any failure.
+ * @param {object} user  the observer's users row (id, role)
  * @param {{teacherUserId?: string|null, schoolExtId?: string|null, schoolId?: string|null}} [visit]
  */
 async function forVisit(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    const on = await isOn({ userId: user.id, region: user.region, role: user.role });
-    if (!on) return false;
-    return await require('./fde-region').fdeAllowed({ observer: user, ...(visit || {}) });
+    const FR = require('./fde-region');
+    const place = await FR.visitPlace({ observer: user, ...(visit || {}) });
+    if (place.side === 'gb' || place.side === 'error') return false;
+    return await isOn(FR.switchWho(user, place));
   } catch (_) {
     return false;
   }
 }
 
 /**
- * Queue #184: does this FICO 6-12 VISIT go to the Digital Coach? fico_s_coach for the visit (forVisit: ICT, never GB)
- * and fico_s_dc for the observer. Never throws: false on any failure.
+ * Queue #184: does this FICO 6-12 VISIT go to the Digital Coach? fico_s_dc and fico_s_coach, both looked up at the
+ * visit's place (bd-dsu5mq.2), never a GB visit. Never throws: false on any failure.
  */
 async function dcForVisit(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    if (!(await isDcOn({ userId: user.id, region: user.region, role: user.role }))) return false;
-    return await forVisit(user, visit);
+    const FR = require('./fde-region');
+    const place = await FR.visitPlace({ observer: user, ...(visit || {}) });
+    if (place.side === 'gb' || place.side === 'error') return false;
+    const who = FR.switchWho(user, place);
+    return (await isDcOn(who)) && (await isOn(who));
   } catch (_) {
     return false;
   }

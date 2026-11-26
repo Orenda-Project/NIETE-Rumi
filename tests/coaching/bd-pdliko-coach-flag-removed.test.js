@@ -73,7 +73,9 @@ beforeEach(() => {
   mockUsers = {
     [NEW_COACH]: { id: NEW_COACH, role: 'coach', region: 'ICT', source: null, school_id: null },
     [OFF_COACH]: { id: OFF_COACH, role: ' Coach ', region: 'ICT', source: null, school_id: null },
-    [GB_COACH]: { id: GB_COACH, role: 'coach', region: 'Gilgit-Baltistan', source: null, school_id: null },
+    // bd-dsu5mq.2: the profile region no longer decides a visit's side; with no school on the visit, the GB import
+    // source (or the schools she holds) does.
+    [GB_COACH]: { id: GB_COACH, role: 'coach', region: 'Gilgit-Baltistan', source: 'main_rumi_gb', school_id: null },
     [PRINCIPAL]: { id: PRINCIPAL, role: 'principal', region: 'ICT' },
     [TEACHER]: { id: TEACHER, role: 'teacher', region: 'ICT', teacher_level: ['PRIMARY'] },
     prim: { id: 'prim', teacher_level: ['PRIMARY'] },

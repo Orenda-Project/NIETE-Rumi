@@ -12,8 +12,8 @@
  *
  *   (a) the role edit fills users.region and users.organization from the person's school when they are blank, and
  *       logs who changed whom (the leader_roster_audit row already did; the log line named only the coach);
- *   (b) the switches' "role:<role>@ict" keys fall back to the school's region (else users.organization) when
- *       users.region is blank, so an account nobody fixed is still reached.
+ *   (b) superseded by bd-dsu5mq.2: every observe switch decides from the VISIT's school, never the profile region
+ *       (tests/coaching/visit-school-decides.test.js), so (a) is data hygiene only.
  *
  * Real: teacher-edit-commit.service (the portal's Edit teacher), patch-resolver, the switch modules, region-registry.
  * Faked: the Supabase client (in memory) and the logger.
@@ -170,59 +170,17 @@ describe('(a) a coach makes a teacher a Principal: the new Principal\'s region c
   });
 });
 
-describe('(b) the @ict switch keys reach an observer whose users.region is blank', () => {
-  const ROLLOUT = { 'role:coach@ict': 'on', 'role:principal@ict': 'on' };
-  const ficoS = () => require('../../bot/shared/services/coaching/fico-s-switch');
-  const obs612 = () => require('../../bot/shared/services/coaching/obs612-switch');
-  const principal = (over = {}) => ({ id: 'u-ayyaz', role: 'principal', region: null, ...over });
-
-  beforeEach(() => {
+// (b) moved, bd-dsu5mq.2 (operator 26 Nov ~21:40): the switches no longer fall back to the observer's school or
+// organization; the VISIT'S school decides for every observer, whatever her profile says. Ayyaz's case and the rest:
+// tests/coaching/visit-school-decides.test.js. The fill in (a) stays as data hygiene; nothing decides from it.
+describe('(b) the profile region decides nothing (bd-dsu5mq.2)', () => {
+  it("Ayyaz after the role edit: the visit at his ICT school gets the Digital Coach, his own row aside", async () => {
     user('u-ayyaz').role = 'principal';
-    tables.app_settings.push({ key: 'fico_s_coach', value: ROLLOUT }, { key: 'fico_s_dc', value: ROLLOUT });
-  });
-
-  test('blank region, ICT school: FICO-S and the Digital Coach are ON (Ayyaz, 26 Nov)', async () => {
-    const who = { userId: 'u-ayyaz', role: 'principal', region: null };
-    expect(await ficoS().isOn(who)).toBe(true);
-    expect(await ficoS().isDcOn(who)).toBe(true);
-  });
-
-  test('blank region, no school, users.organization niete: ON', async () => {
-    Object.assign(user('u-ayyaz'), { school_id: null, organization: 'niete' });
-    expect(await ficoS().isDcOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(true);
-  });
-
-  test('blank region, GB school: the ICT keys do not reach them', async () => {
-    user('u-ayyaz').school_id = 'sch-gb';
-    expect(await ficoS().isDcOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(false);
-  });
-
-  test('blank region, nothing to go on (no school, no organization): OFF, as before', async () => {
-    user('u-ayyaz').school_id = null;
-    expect(await ficoS().isDcOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(false);
-  });
-
-  test('a region already set decides on its own: no school read', async () => {
-    failSelect.add('schools');
-    expect(await ficoS().isDcOn({ userId: 'u-ayyaz', role: 'principal', region: 'Urban-II' })).toBe(true);
-  });
-
-  test('the users read fails: no fallback, OFF (fail closed)', async () => {
-    failSelect.add('users');
-    expect(await ficoS().isDcOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(false);
-  });
-
-  test('dcForVisit with the observer row the portal loads (region null): the visit goes to the Digital Coach', async () => {
-    jest.doMock('../../bot/shared/services/coaching/fde-region', () => ({ fdeAllowed: jest.fn(async () => true) }));
-    expect(await ficoS().dcForVisit(principal(), { teacherUserId: 't-1' })).toBe(true);
-  });
-
-  test('obs612: a blank-region principal at a GB school gets the @gb rule (off), at an ICT school the bare role (on)', async () => {
-    tables.app_settings.push({ key: 'obs612_coach', value: { 'role:principal': 'on', 'role:principal@gb': 'off' } });
-    user('u-ayyaz').school_id = 'sch-gb';
-    expect(await obs612().isOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(false);
-    jest.resetModules();
-    user('u-ayyaz').school_id = 'sch-910';
-    expect(await obs612().isOn({ userId: 'u-ayyaz', role: 'principal', region: null })).toBe(true);
+    tables.app_settings.push(
+      { key: 'fico_s_coach', value: { 'role:principal@ict': 'on' } },
+      { key: 'fico_s_dc', value: { 'role:principal@ict': 'on' } },
+    );
+    const ficoS = require('../../bot/shared/services/coaching/fico-s-switch');
+    expect(await ficoS.dcForVisit({ id: 'u-ayyaz', role: 'principal', region: null }, { schoolId: 'sch-910' })).toBe(true);
   });
 });
