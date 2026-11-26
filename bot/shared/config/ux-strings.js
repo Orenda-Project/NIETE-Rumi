@@ -4938,7 +4938,7 @@ const UX_STRINGS = {
   },
   qfix_offers_cq_lang_ur_note: {
     en: 'Urdu: English terms stay in English letters.',
-    ur: 'اردو: انگریزی اصطلاحات انگریزی حروف ہی میں رہیں گی۔',
+    ur: 'اردو: انگریزی اصطلاحات انگریزی حروف ہی میں رہیں گی۔',
   },
   qfix_offers_cq_lang_en_note: {
     en: 'English: the whole quiz in English.',

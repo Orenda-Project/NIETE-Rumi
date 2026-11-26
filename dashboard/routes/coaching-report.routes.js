@@ -105,7 +105,7 @@ async function loadReport(supabase, sessionId, userId) {
  * qfix offers: the bot's /api/internal/rq (report-quiz-internal.routes.js), reached as every portal → bot call is
  * (MAIN_BOT_URL + INTERNAL_API_KEY, read per call). Resolves { status, body }; never throws past a refusal or a timeout.
  */
-function createReportQuizClient({ fetchImpl = (...a) => fetch(...a), timeoutMs = 8000 } = {}) {
+function createReportQuizClient({ fetchImpl = (...a) => fetch(...a), timeoutMs = 4000 } = {}) {
   return async (op, body) => {
     const base = String(process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
     const key = process.env.INTERNAL_API_KEY || '';
@@ -388,9 +388,11 @@ function createCoachingReportRouter(opts = {}) {
     const b = req.body || {};
     if (!BEACON_EVENTS.includes(b.ev)) return res.status(400).json({ error: 'bad_event' });
     const props = { surface: surfaceOf(b) };
+    // the page's beacon is form-encoded ("true"); a JSON body says true
+    const yes = (x) => x === true || x === 'true';
     if (b.ev === 'copy') {
-      props.fallback = b.fallback === true;
-      if (b.manual === true) props.manual = true;
+      props.fallback = yes(b.fallback);
+      if (yes(b.manual)) props.manual = true;
     }
     if (b.ev === 'make_timeout') props.reason = 'timeout';
     quizEvent(`transcript_quiz.${BEACON[b.ev]}`, v, props);
@@ -406,7 +408,7 @@ function createCoachingReportRouter(opts = {}) {
     quizAction('lang', (b) => ({ language: QUIZ_LANGS.includes(b.language) ? b.language : null })));
   router.get('/cq/:token/pdf', privateHeaders, limiter, quizPdf);
   router.get('/cq/:token/try', privateHeaders, limiter, quizTry);
-  router.post('/cq/:token/e', privateHeaders, limiter, json, quizBeacon);
+  router.post('/cq/:token/e', privateHeaders, limiter, form, json, quizBeacon);
   return router;
 }
 
