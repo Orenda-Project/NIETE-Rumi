@@ -139,6 +139,12 @@ const SCENARIOS = [
   // (blockRest); driven in a browser on sandbox/staging, unit-tested in bot/tests/child-test/sa-any-school.test.js.
   ['CT98', 'A user on sa_any_school sees every live school with its EMIS and sector, and opens today\'s list at one they are not linked to', 'L4'],
   ['CT99', 'Without sa_any_school, or at a test or closed school, nothing changes', 'L4'],
+  // Jugnu ("jugnu" / "reading game", handlers/jugnu-command.js): the Learning Assessment link for a leader, one line for
+  // anyone else. Proven through the real text handler in tests/child-test/jugnu-door.test.js; not driven here yet.
+  ['CT304', 'A leader the Learning Assessment opens for types "Jugnu" and gets one button that opens it, signed in', 'L4'],
+  ['CT307', 'Every Jugnu word, written any of the ways teachers type it, is the same request', 'L4'],
+  ['CT308', 'A teacher types "Jugnu" and is told, in one line, who it is for, never a lesson plan', 'L4'],
+  ['CT309', 'A leader the Learning Assessment does not open for gets the same one line, and no button to a page that would refuse them', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -523,6 +529,14 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     record('CT74', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
     record('CT75', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
     record('CT76', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
+    // Jugnu (handlers/jugnu-command.js): jest-proven through the real text handler, the real gate and the real /go router
+    // in tests/child-test/jugnu-door.test.js. A drive needs the driver coach in CHILD_TEST_REGIONS and CHILD_TEST_COACH_IDS
+    // and named by app_settings portal_child_test_sa on the stack (and a teacher account for CT308).
+    const jugnuWhy = 'drive not written yet: needs the driver in CHILD_TEST_REGIONS, CHILD_TEST_COACH_IDS and portal_child_test_sa on the stack; jest-proven in tests/child-test/jugnu-door.test.js';
+    record('CT304', ...B(jugnuWhy));
+    record('CT307', ...B(jugnuWhy));
+    record('CT308', ...B('drive not written yet: needs a teacher account on the stack (the driver is a coach); jest-proven in tests/child-test/jugnu-door.test.js'));
+    record('CT309', ...B(jugnuWhy));
 } finally {
     await unassignSim();
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
