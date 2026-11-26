@@ -78,6 +78,9 @@ const getOpenRouter = () => {
     // That way a cassette replay answers without reaching the recorder, so a replay records no
     // spend (it cost nothing), and the cassette keys on the request minus its label (bd-t3u9t).
     // Once per client, like the cassette: wrapping twice would record every call twice.
+    // bd-9xnyql: the backup key goes innermost, so spend and the cassette see the answer that won.
+    require('../../llm-backup-key').withBackupKey(client, (apiKey) =>
+      new OpenAI({ apiKey, baseURL: 'https://openrouter.ai/api/v1', maxRetries: 0 }));
     require('../../llm-client').withSpendRecording(client);
     try { const cassette = require('../../e2e-cassette'); if (cassette.mode() !== 'off') cassette.wrapChatCompletions(client); } catch (_) { /* cassette optional */ }
   }
