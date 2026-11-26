@@ -260,6 +260,38 @@ async function editLevel({ actorLeaderUserId, schoolExtId, userId, bands }) {
   return { ok: true, outcome: 'saved', bands: plan.bands };
 }
 
+/**
+ * bd-dsu5mq (queue #291) — THE role write, for both doors: the portal's Edit teacher (editRole below) and the WhatsApp
+ * Flow's teacher_edit_role_commit (observe-visit-flow.handler.js). users.role from the plan, plus users.region and
+ * users.organization from the person's school where they are blank (observer-home.homePatch): a teacher a coach makes
+ * Principal is then reached by region-scoped switches ("role:principal@ict": FICO-S + the Digital Coach) like any
+ * other principal. Ayyaz (IMCB I-8/3, 26 Nov) was made Principal with region blank and got FDE's hand-scored form.
+ * One log line names the coach AND the person (the Flow's own line named only the coach). The audit row stays the
+ * caller's. If the write with the filled columns is refused, the role alone is written: the region never blocks it.
+ *
+ * @returns {Promise<{ok: boolean, filled: string[]}>}
+ */
+async function writeRoleChange({ actorUserId, targetUserId, schoolExtId, from, plan, via }) {
+  const supabase = _db();
+  const home = await require('../observer-home').homePatch(targetUserId, schoolExtId, supabase);
+  let filled = Object.keys(home);
+  const write = (patch) => supabase.from('users').update(patch).eq('id', targetUserId);
+  let { error } = (await write({ ...plan.patch, ...home })) || {};
+  if (error && filled.length) {
+    logToFile('role change: write with region refused - writing the role alone', {
+      targetUserId, filled, error: error.message,
+    }, 'warn');
+    filled = [];
+    ({ error } = (await write(plan.patch)) || {});
+  }
+  if (error) return { ok: false, filled: [] };
+  logToFile('👤 role changed by a coach', {
+    event: 'observe.role_changed', actorUserId, targetUserId, from: from || null, to: plan.role,
+    via: via || VIA, schoolExtId: schoolExtId || null, filled,
+  });
+  return { ok: true, filled };
+}
+
 /** main: teacher_edit_role_commit. A privilege change: Principal can observe. */
 async function editRole({ actorLeaderUserId, schoolExtId, userId, role }) {
   const person = await editPerson(actorLeaderUserId, schoolExtId, userId);
@@ -267,8 +299,11 @@ async function editRole({ actorLeaderUserId, schoolExtId, userId, role }) {
   const plan = E.planRoleEdit(person.row || {}, role);
   if (!plan.ok) return { ok: false, reason: plan.reason === 'invalid_role' ? 'invalid_role' : 'failed' };
   if (plan.unchanged) return { ok: true, outcome: 'unchanged', role: plan.role };
-  const { error } = await _db().from('users').update(plan.patch).eq('id', userId);
-  if (error) return { ok: false, reason: 'failed' };
+  const wrote = await writeRoleChange({
+    actorUserId: actorLeaderUserId, targetUserId: userId, schoolExtId,
+    from: (person.row && person.row.role) || null, plan, via: VIA,
+  });
+  if (!wrote.ok) return { ok: false, reason: 'failed' };
   await _editAudit(actorLeaderUserId, person, 'edit_role', {
     from: (person.row && person.row.role) || null, to: plan.role,
   });
@@ -408,6 +443,7 @@ module.exports = {
   editName,
   editLevel,
   editRole,
+  writeRoleChange,
   checkPhone,
   commitPhone,
   moveNumber,
