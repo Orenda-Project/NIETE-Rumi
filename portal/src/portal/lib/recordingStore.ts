@@ -29,7 +29,7 @@ const CHUNKS = "chunks";
  * with its class). lib/recordingLink reads it; rows saved before have none (the coach's teacher list may still say).
  */
 export type RecordingLink = {
-  kind: "obs" | "dbrf" | "dc";
+  kind: "obs" | "dbrf" | "dc" | "reflection";
   visitId?: string | null;
   observationId?: string | null;
   attemptId?: string | null;

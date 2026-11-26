@@ -43,7 +43,7 @@ export function teacherKeptFrom(all: KeptSummary[], now: number): TeacherKept[] 
   const out: TeacherKept[] = [];
   for (const k of all) {
     const link = linkOf(k.meta);
-    if (link && link.kind !== 'dc') continue; // a coach's or principal's
+    if (link && link.kind !== 'dc') continue; // a coach's or principal's, or a spoken reflection answer
     const unlinked = !link || !link.attemptId;
     // A linked take follows #292's rule; an unlinked one (the old recorder's, before 25 Nov 22:52) is never resumed and is
     // shown whenever it holds a minute or more (the operator, 26 Nov: they "must also be found and shown").

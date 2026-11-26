@@ -95,7 +95,7 @@ export async function listKeptItems(now = Date.now()): Promise<KeptItem[]> {
     // The coach's (or principal's) own: a lesson or a debrief. A teacher's Digital Coaching take (an attempt) is not hers.
     // One with nothing on the phone to say whose it is (the old recorder, a cleared list) is still listed — unlinked,
     // with Save to phone — never lost (the operator, 26 Nov).
-    if (link?.kind === "dc") continue;
+    if (link?.kind === "dc" || link?.kind === "reflection") continue; // a teacher's lesson or spoken answer
     if (!link) {
       out.push({ id: k.meta.id, kind: "obs", state: "unlinked", teacherName: "", teacherExtId: "", schoolExtId: null, visitId: null,
         observationId: null, startedAt: k.meta.startedAt, elapsedMs: k.meta.elapsedMs || 0 });

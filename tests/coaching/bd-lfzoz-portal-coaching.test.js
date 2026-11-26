@@ -388,6 +388,42 @@ describe('bd-lfzoz — portal coaching upload (bot side)', () => {
       expect(d.transcribe).not.toHaveBeenCalled();
     });
 
+    // bd-ma9jiy.5 (queue #262; prod 24-26 Nov: 29 reflection uploads were a WebM header and nothing else, 110 bytes, and
+    // Soniox v5, v4 and Whisper all refused them as "invalid audio file / may be corrupt"). A file with no audio frame is
+    // answered as no_audio at once — never sent to three transcribers, never a "request threw".
+    test('a header-only recording (the 110-byte prod file): no_audio, nothing transcribed, nothing sent to the engine', async () => {
+      const fs = require('fs');
+      const path = require('path');
+      const header = fs.readFileSync(path.join(__dirname, '../fixtures/audio/reflection/header-only-110.webm'));
+      const real = fs.readFileSync(path.join(__dirname, '../fixtures/audio/chrome-webm/one.webm'));
+      expect(Svc.audioHasFrames(header, '.webm')).toBe(false);
+      expect(Svc.audioHasFrames(real, '.webm')).toBe(true);
+      expect(Svc.audioHasFrames(Buffer.alloc(400), '.m4a')).toBe(false);
+      const d = deps({
+        supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '9230' } }),
+        transcribe: jest.fn().mockResolvedValue({ text: '', language: 'ur', noAudio: true, bytes: 110 }),
+      });
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: voiceKey }, d);
+      expect(out).toMatchObject({ status: 'invalid', reason: 'no_audio' });
+      expect(d.reflective.handleReflectiveResponse).not.toHaveBeenCalled();
+    });
+
+    test('transcribeFromR2: a header-only file is never handed to the transcribers', async () => {
+      const fs = require('fs');
+      const path = require('path');
+      const header = fs.readFileSync(path.join(__dirname, '../fixtures/audio/reflection/header-only-110.webm'));
+      jest.resetModules();
+      const asr = jest.fn();
+      jest.doMock('../../bot/shared/storage/r2', () => ({ downloadFromR2: jest.fn(async () => header) }));
+      jest.doMock('../../bot/shared/services/audio.service', () => ({ transcribeWithLanguagePreference: asr }));
+      const Fresh = require('../../bot/shared/services/coaching/portal-coaching.service');
+      const heard = await Fresh.transcribeFromR2(voiceKey, 'ur');
+      expect(heard).toMatchObject({ text: '', noAudio: true, bytes: 110 });
+      expect(asr).not.toHaveBeenCalled();
+      jest.dontMock('../../bot/shared/storage/r2');
+      jest.dontMock('../../bot/shared/services/audio.service');
+    });
+
     test('a recording with no words in it is refused, not sent to the engine as an empty answer', async () => {
       const d = deps({
         supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '9230' } }),
