@@ -61,11 +61,11 @@ describe('switch OFF — /observe stays FICO V3, byte-identical', () => {
     switchMod.coachRubric.mockResolvedValueOnce('current');
     expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala' })).toBeNull();
     switchMod.coachRubric.mockResolvedValueOnce('v6');
-    // bd-ra8xu.42: grades 1-5 only — the observed teacher must be PRIMARY-only (fico17-v6-grade-gate.test.js).
+    // bd-ra8xu.64.8 (queue #282): no grade gate any more; the coach switch alone decides, so the teacher's band is not read.
     const Grade = require('../../bot/shared/services/coaching/fico-visit-grade');
-    const spy = jest.spyOn(Grade, 'isPrimaryVisit').mockResolvedValue(true);
+    const spy = jest.spyOn(Grade, 'isPrimaryVisit');
     expect(await O6.decideVisitFramework({ userId: 'u1', region: 'Sihala', teacherUserId: 't1' })).toBe('fico17_v6');
-    expect(spy).toHaveBeenLastCalledWith('t1');
+    expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
     expect(switchMod.coachRubric).toHaveBeenLastCalledWith({ userId: 'u1', region: 'Sihala' });
     const was = process.env.OBSERVE_FRAMEWORK;
