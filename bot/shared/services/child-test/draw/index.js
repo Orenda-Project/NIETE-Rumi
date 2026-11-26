@@ -630,6 +630,12 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
  * class; a class is made when the school has none for that grade and section). The child goes on the roster under
  * the phone's id for them (clientChildId), is enrolled, and is seated as a main row of this visit's list. Ids only
  * in the logs.
+ *
+ * An empty list (nothing drawn for the visit yet) is opened by the first child added only when the draw has nobody to
+ * list: the school has no child on its roster in that grade (todaysList's `no_class_list`; every Gilgit-Baltistan
+ * school on NIETE today). The visit must be the coach's own day at this school (a day key for this school and today,
+ * of this grade when it names one) or an observe visit at this school. A school with children in that grade keeps
+ * the rule that the draw lists first: an empty list there is `no_list`, as before.
  */
 async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firstName, section = null, clientChildId, now = new Date() } = {}) {
   const named = oneVisit(givenVisitId, visitKey);
@@ -642,12 +648,17 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
   if (!name || !clientChildId) return { ok: false, reason: 'bad_child' };
   const open = await listFor(visitId);
   if (!open.ok) return open;
-  if (open.empty) return { ok: false, reason: 'no_list' };
 
   const cycleId = cycleFor(now);
   const sessionCode = sessionCodeFor(now);
   const cls = await store.listGradeClasses(schoolId, sessionCode, [g]);
   if (!cls.ok) return cls;
+  if (open.empty) {
+    const may = await emptyListOpens({ visitId, schoolId, grade: g, classes: cls.classes, now });
+    if (!may.ok) return may;
+    if (!may.open) return { ok: false, reason: 'no_list' };
+    logToFile('[child-test] empty roster: the first added child opens the list', { schoolId, visitId, grade: g });
+  }
   const sec = section ? String(section).trim().toUpperCase() : null;
   let room = sec ? cls.classes.find((c) => String(c.section || '').toUpperCase() === sec) : oneShift(cls.classes).sort(bySectionThenId)[0];
   if (!room) {
@@ -688,6 +699,27 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
     logToFile('[child-test] child added on the spot', { schoolId, visitId, classId: room.id, drawId: ins.ok ? ins.draws[0].id : null });
   }
   return listFor(visitId);
+}
+
+/**
+ * Whether the first added child may open an empty list (addChild above): the visit is this school's (the coach's own
+ * day key for this school and today, of this grade when the key names one; or an observe visit at this school; never a
+ * classic cs: key), and nobody is on the school's roster in that grade. { ok, open } | a store error.
+ */
+async function emptyListOpens({ visitId, schoolId, grade, classes, now }) {
+  const key = parseVisitKey(visitId);
+  if (key) {
+    const ours = key.kind === 'day' && key.schoolId === schoolId && key.date === pktDate(now)
+      && (key.grade === undefined || key.grade === grade);
+    if (!ours) return { ok: true, open: false };
+  } else {
+    const at = await resolveVisitSchool({ visitId });
+    if (!at.ok) return at.reason ? { ok: true, open: false } : at;
+    if (at.schoolId !== schoolId) return { ok: true, open: false };
+  }
+  const enr = await store.listActiveEnrollments(classes.map((c) => c.id));
+  if (!enr.ok) return enr;
+  return { ok: true, open: enr.enrollments.length === 0 };
 }
 
 // ── markOutcome ────────────────────────────────────────────────────────────────────────────────
