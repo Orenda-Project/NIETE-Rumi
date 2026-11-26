@@ -4894,38 +4894,96 @@ const UX_STRINGS = {
     en: '{n} children played',
     ur: '{n} بچوں نے کھیلا',
   },
-  // ─── qfix offers (append-only): "Make a quiz" on the coaching report page (/cr) when the window was closed ───
-  // quiz/report-page-quiz.js, app_settings quiz_offer_closed_window.report_page. The prefill is what the teacher sends us
-  // from WhatsApp; {ref} is the session's code (CR-a1b2c3d4), isolated so it keeps its order inside Urdu.
+  // ─── qfix offers (append-only): "Make a quiz" on the page the closed-window report opens (/cr block, /cq page) ───
+  // quiz/report-page-quiz.js, dashboard/services/report-quiz-page.js; app_settings quiz_offer_closed_window.report_page.
+  // The quiz is made IN the page (no message to us), then copied or shared from it. «واٹس ایپ» carries U+00A0 everywhere.
   qfix_offers_cr_quiz_head: {
     en: 'A quiz for your class',
     ur: 'آپ کی کلاس کے لیے کوئز',
   },
   qfix_offers_cr_quiz_body: {
-    en: 'We can make a short quiz from this lesson for your students. Tap below, then press send in WhatsApp.',
-    ur: 'ہم اس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنا سکتے ہیں۔ نیچے ٹیپ کریں، پھر واٹس ایپ میں بھیجیں دبائیں۔',
+    en: 'We can make a short quiz from this lesson for your students. It takes a few minutes; you can stay on this page.',
+    ur: 'ہم اس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنا سکتے ہیں۔ اس میں چند منٹ لگتے ہیں؛ آپ اسی صفحے پر رہ سکتے ہیں۔',
   },
   qfix_offers_cr_quiz_button: {
     en: 'Make a quiz',
     ur: 'کوئز بنائیں',
   },
-  qfix_offers_cr_quiz_prefill: {
-    en: 'Make a quiz for my class · {ref}',
-    ur: 'میری کلاس کے لیے کوئز بنائیں · ⁦{ref}⁩',
-  },
   // the quiz-only page (/cq, dashboard/services/report-quiz-page.js) once the quiz is made
   qfix_offers_cq_send: {
     en: 'Send it to your class on WhatsApp',
-    ur: 'واٹس ایپ پر اپنی کلاس کو بھیجیں',
+    ur: 'واٹس ایپ پر اپنی کلاس کو بھیجیں',
   },
   // the quiz-only page when the offer is neither held nor made: the /quiz door, the page's own noun (کوئز)
   qfix_offers_cq_none: {
     en: 'This quiz offer has closed. You can still make a quiz for any lesson: send /quiz to us on WhatsApp.',
-    ur: 'کوئز کی یہ پیشکش اب بند ہو گئی ہے۔ کسی بھی سبق کا کوئز اب بھی بنایا جا سکتا ہے: واٹس ایپ پر ہمیں \u2066/quiz\u2069 بھیجیں۔',
+    ur: 'کوئز کی یہ پیشکش اب بند ہو گئی ہے۔ کسی بھی سبق کا کوئز اب بھی بنایا جا سکتا ہے: واٹس ایپ پر ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
   qfix_offers_cq_open_wa: {
     en: 'Open WhatsApp',
-    ur: 'واٹس ایپ کھولیں',
+    ur: 'واٹس ایپ کھولیں',
+  },
+  // making → (language) → ready, all on the page; the page updates itself while the quiz is made
+  qfix_offers_cq_making: {
+    en: 'Making your quiz… This page will update by itself.',
+    ur: 'آپ کا کوئز بن رہا ہے… یہ صفحہ خود بخود بدل جائے گا۔',
+  },
+  qfix_offers_cq_slow: {
+    en: 'This is taking longer than usual. You can close this page and open it again later: your quiz will be here.',
+    ur: 'اس میں معمول سے زیادہ وقت لگ رہا ہے۔ آپ یہ صفحہ بند کر کے بعد میں دوبارہ کھول سکتے ہیں: آپ کا کوئز یہیں ہو گا۔',
+  },
+  qfix_offers_cq_lang_q: {
+    en: 'Which language should the quiz be in?',
+    ur: 'کوئز کس زبان میں ہو؟',
+  },
+  qfix_offers_cq_lang_ur_note: {
+    en: 'Urdu: English terms stay in English letters.',
+    ur: 'اردو: انگریزی اصطلاحات انگریزی حروف ہی میں رہیں گی۔',
+  },
+  qfix_offers_cq_lang_en_note: {
+    en: 'English: the whole quiz in English.',
+    ur: 'انگریزی: پورا کوئز انگریزی میں۔',
+  },
+  qfix_offers_cq_ready: {
+    en: 'Your quiz is ready. Send this message to your class:',
+    ur: 'آپ کا کوئز تیار ہے۔ یہ پیغام اپنی کلاس کو بھیجیں:',
+  },
+  qfix_offers_cq_copy: {
+    en: 'Copy message',
+    ur: 'پیغام کاپی کریں',
+  },
+  qfix_offers_cq_copied: {
+    en: 'Copied',
+    ur: 'کاپی ہو گیا',
+  },
+  qfix_offers_cq_copy_manual: {
+    en: 'Press and hold the message to copy it.',
+    ur: 'پیغام کاپی کرنے کے لیے اسے دبا کر رکھیں۔',
+  },
+  // {n} in the page language's own digits (digitsFor)
+  qfix_offers_cq_questions: {
+    en: 'See the questions ({n})',
+    ur: 'سوالات دیکھیں ({n})',
+  },
+  qfix_offers_cq_correct: {
+    en: 'Correct answer',
+    ur: 'درست جواب',
+  },
+  qfix_offers_cq_pdf: {
+    en: 'Download PDF',
+    ur: 'پی ڈی ایف ڈاؤن لوڈ کریں',
+  },
+  qfix_offers_cq_try: {
+    en: 'Try it as a student',
+    ur: 'بچوں والا کوئز خود آزما کر دیکھیں',
+  },
+  qfix_offers_cq_failed: {
+    en: 'We could not make a quiz from this lesson. You can make one for any lesson on WhatsApp: send /quiz.',
+    ur: 'ہم اس سبق سے کوئز نہیں بنا سکے۔ کسی بھی سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
+  },
+  qfix_offers_cq_failed_subject: {
+    en: 'We do not make quizzes for this subject yet. You can make one for another lesson on WhatsApp: send /quiz.',
+    ur: 'اس مضمون کے کوئز ابھی نہیں بنتے۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
 };
 

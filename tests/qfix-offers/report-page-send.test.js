@@ -69,7 +69,7 @@ beforeEach(() => {
 afterAll(() => { process.env = ENV; });
 
 test('C/D: one message, the link template; the quiz row is held at send time (held_path template)', async () => {
-  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' } });
+  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v2' } });
   const s = sender();
   expect(await run(s)).toBe('template');
   expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1']);
@@ -78,11 +78,11 @@ test('C/D: one message, the link template; the quiz row is held at send time (he
 });
 
 test('A/B: one message, the quiz-page template with the teacher\'s /cr token; held at send time', async () => {
-  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' }, group: 'A' });
+  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v2' }, group: 'A' });
   const s = sender();
   expect(await run(s)).toBe('template');
   expect(s.calls).toHaveLength(1);
-  expect(s.calls[0].name).toBe('share_dc_report_open_v1');
+  expect(s.calls[0].name).toBe('share_dc_report_open_v2');
   const v = require('../../bot/shared/services/coaching/report-link-token').verifyReportLink(s.calls[0].token);
   expect(v).toMatchObject({ ok: true, sessionId: SID, userId: UID });
   expect(held()[0].meta.held_path).toBe('template');
@@ -98,23 +98,23 @@ test('undrawn school, no quiz-page template named: today\'s plain report, nothin
 });
 
 test('C/D, link template refused: the quiz-page template next, and the link is never tried twice', async () => {
-  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' } });
+  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v2' } });
   const s = sender(['share_dc_report_link_v1']);
   expect(await run(s)).toBe('template');
-  expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1', 'share_dc_report_open_v1']);
+  expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1', 'share_dc_report_open_v2']);
   expect(held()).toHaveLength(1);
 });
 
 test('both refused: today\'s plain report goes, nothing held', async () => {
-  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' } });
-  const s = sender(['share_dc_report_link_v1', 'share_dc_report_open_v1']);
+  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v2' } });
+  const s = sender(['share_dc_report_link_v1', 'share_dc_report_open_v2']);
   expect(await run(s)).toBe('template');
-  expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1', 'share_dc_report_open_v1', 'share_dc_report_v1']);
+  expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1', 'share_dc_report_open_v2', 'share_dc_report_v1']);
   expect(held()).toHaveLength(0);
 });
 
 test('a session that cannot take a quiz (short transcript): the chain as today, the link template for C/D, nothing held', async () => {
-  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v1' }, transcript: 'short' });
+  setup({ page: { trace: true, report_page: true, quiz_page_template: 'share_dc_report_open_v2' }, transcript: 'short' });
   const s = sender();
   expect(await run(s)).toBe('template');
   expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1']);
@@ -124,7 +124,7 @@ test('a session that cannot take a quiz (short transcript): the chain as today, 
 test.each([
   ['no row', undefined],
   ['trace only', { trace: true }],
-  ['report_page false', { trace: true, report_page: false, quiz_page_template: 'share_dc_report_open_v1' }],
+  ['report_page false', { trace: true, report_page: false, quiz_page_template: 'share_dc_report_open_v2' }],
 ])('switch off (%s): A/B get today\'s plain report, never the quiz-page template', async (_n, page) => {
   setup({ page, group: 'B' });
   const s = sender();

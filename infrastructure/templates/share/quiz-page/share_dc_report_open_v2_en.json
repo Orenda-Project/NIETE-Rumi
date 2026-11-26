@@ -1,0 +1,41 @@
+{
+  "name": "share_dc_report_open_v2",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<filled at submit>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Your Digital Coach report: *{{1}}*\n{{2}} class\n\nYour next step for this lesson is ready.",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "Grade 4 · Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "See next step",
+          "url": "https://portal.niete.edu.pk/cq/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/cq/eyJzIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidSI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9.3TxIajJUt4sBl7xeLmR2FI"
+          ]
+        }
+      ]
+    }
+  ]
+}

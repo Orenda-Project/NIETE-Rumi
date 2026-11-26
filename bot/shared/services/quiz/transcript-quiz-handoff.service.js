@@ -9,6 +9,11 @@
  * resend never rewrites `status`/`sent_at`, never re-promises a report the
  * teacher already has, and never schedules a second nudge — only the very first
  * send (`firstSend: true`, always from generate()'s process()) does that.
+ *
+ * A quiz made in the report's page (report-page-quiz.js) reaches here with the
+ * phone PAGE_NO_SEND: the code, the class message and the PDF are made and
+ * stored exactly as above, nothing is sent and no nudge is queued; the page
+ * shows them (meta.delivered_via 'page').
  */
 const fs = require('fs');
 const os = require('os');
@@ -81,6 +86,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     quiz, session, questions, qRows, digest, teacherName, teacherLang, language,
   } = bundle;
   const meta = bundle.meta || {};
+  const quiet = phone === require('./report-page-quiz').PAGE_NO_SEND;
   const funnel = {
     quiz_id: quizId, teacher_id: quiz.teacher_id, source: quiz.quiz_source || 'transcript',
     channel: Funnel.channelOf(meta.source),
@@ -122,7 +128,8 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     });
     if (!minted) {
       await updateQuiz(quizId, { meta: { ...meta, step: 'ready', handoff_error: 'mint_failed' } });
-      await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
+      if (quiet) logEvent('transcript_quiz.page_make_failed', { quizId, reason: 'generate_failed', cause: 'mint_failed', step: 'handoff' });
+      else await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
       Funnel.emit('send_failed', { ...funnel, reason: 'mint_failed' });
       return { ok: false, reason: 'mint_failed' };
     }
@@ -189,51 +196,57 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
 
   // ── send: document (or its text fallback), THEN the link alone, THEN (first
   // send only) the report promise — paced exactly as process() always paced it.
-  // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
-  const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
-    language: teacherLang,
-    params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: digitsFor(qRows.length, teacherLang) },
-  });
-  // The report promise (first send only) rides in the PDF's caption — or in the
-  // text that stands in for it — instead of costing a message of its own after
-  // the link. The forwardable stays alone and LAST. Only past Meta's 1,024-
-  // code-point caption cap does it go separately, after the link, as before.
-  const promise = firstSend ? resolveUx('tqReportPromise', { language: teacherLang }) : null;
-  // The teacher's own preview of the web quiz page, when it is on for them —
-  // in the caption only, so it is never forwarded to the class.
-  const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
-  const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
-  const head0 = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
-  // One tap to the class group (quiz_forward_button): a teacher-only line, so it rides the caption, never the
-  // forwardable; null (switch off, no link) → the caption is today's.
-  const forwardLine = await require('../first-touch/quiz-forward').lineFor({ quizId, surface: 'wa_handout', lang: teacherLang });
-  const head = forwardLine && [...`${head0}\n\n${forwardLine}`].length <= CAPTION_MAX ? `${head0}\n\n${forwardLine}` : head0;
-  const promiseInCaption = Boolean(promise) && [...`${head}\n\n${promise}`].length <= CAPTION_MAX;
-  const caption = promiseInCaption ? `${head}\n\n${promise}` : head;
+  // Made in the page: nothing is sent; the page shows the message and the PDF.
   let pdfSent = false;
-  if (tempPath) {
-    const { pdfFilename } = require('./transcript-quiz-generate.service');
-    pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);
+  let linkSent = false;
+  if (!quiet) {
+    // "what you taught" is true only of a recorded lesson; an lp_v8 quiz was planned.
+    const intro = resolveUx(handoffIntroKey(quiz.quiz_source), {
+      language: teacherLang,
+      params: { lesson: lessonLabel({ digest, quizLanguage: language, teacherLanguage: teacherLang }), n: digitsFor(qRows.length, teacherLang) },
+    });
+    // The report promise (first send only) rides in the PDF's caption — or in the
+    // text that stands in for it — instead of costing a message of its own after
+    // the link. The forwardable stays alone and LAST. Only past Meta's 1,024-
+    // code-point caption cap does it go separately, after the link, as before.
+    const promise = firstSend ? resolveUx('tqReportPromise', { language: teacherLang }) : null;
+    // The teacher's own preview of the web quiz page, when it is on for them —
+    // in the caption only, so it is never forwarded to the class.
+    const preview = await require('./web-quiz-link').previewLink(code, { shareCodeId, teacherUserId: quiz.teacher_id });
+    const previewLine = preview ? resolveUx('tqWebPreview', { language: teacherLang, params: { link: preview } }) : null;
+    const head0 = previewLine && [...`${intro}\n\n${previewLine}`].length <= CAPTION_MAX ? `${intro}\n\n${previewLine}` : intro;
+    // One tap to the class group (quiz_forward_button): a teacher-only line, so it rides the caption, never the
+    // forwardable; null (switch off, no link) → the caption is today's.
+    const forwardLine = await require('../first-touch/quiz-forward').lineFor({ quizId, surface: 'wa_handout', lang: teacherLang });
+    const head = forwardLine && [...`${head0}\n\n${forwardLine}`].length <= CAPTION_MAX ? `${head0}\n\n${forwardLine}` : head0;
+    const promiseInCaption = Boolean(promise) && [...`${head}\n\n${promise}`].length <= CAPTION_MAX;
+    const caption = promiseInCaption ? `${head}\n\n${promise}` : head;
+    if (tempPath) {
+      const { pdfFilename } = require('./transcript-quiz-generate.service');
+      pdfSent = await WhatsAppService.sendDocument(phone, tempPath, pdfFilename(quiz.topic), caption);
+      try { fs.unlinkSync(tempPath); } catch { /* not worth failing over */ }
+    }
+    if (!pdfSent) {
+      await WhatsAppService.sendMessage(phone, `${caption}\n\n${resolveUx('tqForwardThis', { language: teacherLang })}`);
+    }
+    await api.sleep(GAP_MS);
+    // THE forwardable message, alone — the one thing the class needs. Whether it
+    // arrived is recorded: `sent` used to be logged either way.
+    linkSent = Boolean(await WhatsAppService.sendMessage(phone, forwardable));
+    if (promise && !promiseInCaption) {
+      await api.sleep(GAP_MS);
+      await WhatsAppService.sendMessage(phone, promise);
+    }
+    // "Which class is this quiz for?" — only after the hand-out is out, so it can
+    // never hold the quiz back; a tap binds this code late.
+    if (resolved && resolved.state === 'ambiguous') {
+      await api.sleep(GAP_MS);
+      await require('./handout-class.service').askAfterHandout(phone, {
+        shareCodeId, quizId, userId: quiz.teacher_id, language: teacherLang,
+      }, resolved.classes);
+    }
+  } else if (tempPath) {
     try { fs.unlinkSync(tempPath); } catch { /* not worth failing over */ }
-  }
-  if (!pdfSent) {
-    await WhatsAppService.sendMessage(phone, `${caption}\n\n${resolveUx('tqForwardThis', { language: teacherLang })}`);
-  }
-  await api.sleep(GAP_MS);
-  // THE forwardable message, alone — the one thing the class needs. Whether it
-  // arrived is recorded: `sent` used to be logged either way.
-  const linkSent = Boolean(await WhatsAppService.sendMessage(phone, forwardable));
-  if (promise && !promiseInCaption) {
-    await api.sleep(GAP_MS);
-    await WhatsAppService.sendMessage(phone, promise);
-  }
-  // "Which class is this quiz for?" — only after the hand-out is out, so it can
-  // never hold the quiz back; a tap binds this code late.
-  if (resolved && resolved.state === 'ambiguous') {
-    await api.sleep(GAP_MS);
-    await require('./handout-class.service').askAfterHandout(phone, {
-      shareCodeId, quizId, userId: quiz.teacher_id, language: teacherLang,
-    }, resolved.classes);
   }
 
   // ── bookkeeping — only the first send owns status/sent_at/the nudge ────────
@@ -241,12 +254,22 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     const newMeta = {
       ...meta, step: 'sent', share_code: code, share_code_id: shareCodeId, link,
       student_message: forwardable, pdf_key: pdfKey, pdf_sent: pdfSent, link_sent: linkSent, sent_at: new Date().toISOString(),
+      ...(quiet ? { delivered_via: 'page' } : {}),
     };
     await updateQuiz(quizId, { status: 'sent', meta: newMeta });
     logEvent('transcript_quiz.sent', {
       quizId, userId: quiz.teacher_id, code, language, pdfSent, costUsd: meta.cost_usd, quiz_source: quiz.quiz_source || 'transcript',
     });
     Funnel.emit('sent', { ...funnel, pdf_sent: pdfSent, link_sent: linkSent });
+    if (quiet) {
+      // The page is the delivery: no nudge (it is a WhatsApp message), and the time from the tap to ready.
+      const tapped = Date.parse(meta.page_make_at || '');
+      logEvent('transcript_quiz.page_make_ready', {
+        quizId, coachingSessionId: quiz.coaching_session_id || null, ms: Number.isFinite(tapped) ? Date.now() - tapped : null,
+        surface: meta.page_surface || null, pdf: Boolean(pdfKey),
+      });
+      return { ok: true, code, pdfSent, reused };
+    }
     // The row is `sent` (the teacher has the document, and /quiz can resend the
     // link), but a class cannot join without the link: that is a failure to see.
     if (!linkSent) Funnel.emit('send_failed', { ...funnel, reason: 'link_not_delivered' });

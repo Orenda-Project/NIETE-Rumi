@@ -1,38 +1,44 @@
 'use strict';
 /**
- * "Make a quiz" on the coaching report PAGE, for a teacher whose 24 h WhatsApp window was closed.
+ * "Make a quiz" made INSIDE the page the closed-window coaching report opens.
  *
  * WHY. With the window closed the transcript quiz offer cannot go (Meta refuses a free-form message, 131047), so
  * closed-window-offer.js writes the session's quiz row as held (status 'skipped', meta.skip_reason 'window_closed').
- * The report itself still reaches the teacher as one UTILITY template, and its "Open my report" button opens the /cr page
- * (coaching/report-link-button.js). That page is where the offer goes: no second message, no marketing template.
+ * The report still reaches the teacher as one UTILITY template whose URL button opens a page: their /cr report (v10
+ * arms C/D, coaching/report-link-button.js) or /cq, a page with only the quiz on it (everyone else,
+ * `quiz_page_template`). That page is where the quiz is made, read and handed on: no second message either way.
  *
- * HOW. The page shows "Make a quiz" = https://wa.me/<bot>?text=<prefill>, the prefill ending in a short code naming
- * the session (`CR-` + the session id's first 8 hex digits). Sending it is the TEACHER's message, so it opens their window; the
- * bot matches the code to their own session (the sender's sessions only, one match or none) and treats it exactly as
- * the "Make a quiz" tap (transcript-quiz-offer.service handleReportQuizTap: owner check, then the quiz, free-form
- * inside the window it just opened).
+ * HOW. The portal (dashboard/routes/coaching-report.routes.js) asks the bot over /api/internal/rq
+ * (routes/report-quiz-internal.routes.js), naming the session and teacher its signed token carries:
+ *   state  held | making | ask (the language, as two page buttons) | ready | failed | none
+ *   make   the tap: the same yes as the report template's "Make a quiz" (processOffer, accepted), queued as the
+ *          offer job with `page: true`, so the offer, the language ask and the generate step send the teacher nothing
+ *          (the generate job's phone is PAGE_NO_SEND; the hand-off mints the code and the PDF and sends nothing). The
+ *          row ends 'sent' with meta.made_via 'page', delivered_via 'page': the page is the delivery.
+ *   lang   the language choice → generating
+ *   pdf    a 1-hour link to the quiz's PDF (meta.pdf_key)
+ * Every step is the teacher's own session only (the token's teacher must own it).
  *
- * WHO GETS A PAGE. A teacher in v10 report arm C or D gets the report's link template (report-link-button.js), whose
- * button opens their /cr report. Everyone else (arms A/B, schools outside the draw) must not see the new report, so the
- * report goes as `quiz_page_template` instead: the same image and body, a URL button "Make a quiz" → /cq/<token>, a
- * page with only the quiz on it (dashboard/services/report-quiz-page.js). Either way ONE utility message, and the
- * session's quiz row is written as held (held_path 'template') the moment it went, so the page has its block at once.
+ * WHO GETS A PAGE. report_page alone: C/D teachers only (their link template must be on). quiz_page_template: name
+ * it only once Meta has approved it as UTILITY on that number (share_dc_report_open_v2; v1 was filed MARKETING and
+ * is never named). Either way the session's quiz row is written as held (held_path 'template') when the report went.
  *
  * THE SWITCH. `app_settings.quiz_offer_closed_window`, the same row as the trace:
- *   { "trace": true, "report_page": true, "quiz_page_template": "share_dc_report_open_v1" }
- * report_page alone: C/D teachers only (their link template must be on). quiz_page_template: name it only once Meta
- * has approved it on that number. Absent, false, or unreadable = off: no page block, no code matched, today's report.
+ *   { "trace": true, "report_page": true, "quiz_page_template": "share_dc_report_open_v2" }
+ * Absent, false, or unreadable = off: no page block, the internal route 404s, today's report.
  *
- * The portal requires this file for its page half (parseSwitch, pageQuiz), so it loads nothing of the bot's at module
- * scope (the portal has no pino). The bot half requires its modules when it runs.
+ * The portal requires this file for its switch read (parseSwitch, fetchFrom), so it loads nothing of the bot's at
+ * module scope (the portal has no pino). The bot half requires its modules when it runs.
  */
 
 const SETTING = 'quiz_offer_closed_window';
 const HELD_REASON = 'window_closed';
-const REF_PREFIX = 'CR-';
-const REF_RX = /\bCR-([0-9a-f]{8})\b/i;
-const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// The generate job's phone for a quiz made in the page: never a number, so no step sends it anything.
+const PAGE_NO_SEND = 'report_page:no_send';
+// A tap on a held row reads as "making" for this long, until the offer job turns the row.
+const TAP_FRESH_MS = 10 * 60 * 1000;
+const LANGS = Object.freeze(['ur', 'en']);
+const SURFACES = Object.freeze(['cq', 'cr']);
 
 const OFF = Object.freeze({ reportPage: false, pageTemplate: null });
 /** Meta template names: lowercase letters, digits and underscores. */
@@ -66,37 +72,6 @@ async function fetchFrom(db) {
   return (await readParts(db)).reportPage;
 }
 
-/** `CR-a1b2c3d4` for a session id, or null. */
-function refOf(sessionId) {
-  const id = String(sessionId || '');
-  return UUID_RX.test(id) ? `${REF_PREFIX}${id.slice(0, 8).toLowerCase()}` : null;
-}
-
-/** The 8 hex digits a message's code names, or null. */
-function matchRef(text) {
-  const m = REF_RX.exec(String(text || ''));
-  return m ? m[1].toLowerCase() : null;
-}
-
-/**
- * The page's "Make a quiz" link for this session, or null: the switch off, the offer not held for a closed window
- * (no row, or a row that went on), no bot number. `db` is the portal's client. Never throws.
- */
-async function pageQuiz({ db, sessionId, language, bot, switchOn }) {
-  try {
-    const ref = refOf(sessionId);
-    if (!ref || !bot || !(await switchOn())) return null;
-    const { data, error } = await db.from('quizzes').select('status, meta')
-      .eq('coaching_session_id', sessionId).eq('quiz_source', 'transcript').maybeSingle();
-    if (error || !data || data.status !== 'skipped' || !data.meta || data.meta.skip_reason !== HELD_REASON) return null;
-    const { resolveUx } = require('../../config/ux-strings'); // eslint-disable-line global-require
-    const text = resolveUx('qfix_offers_cr_quiz_prefill', { language, params: { ref } });
-    return { ref, href: `https://wa.me/${bot}?text=${encodeURIComponent(text)}` };
-  } catch (_) {
-    return null;
-  }
-}
-
 let botSwitch = null;
 function botParts(now = Date.now()) {
   if (!botSwitch) {
@@ -105,7 +80,9 @@ function botParts(now = Date.now()) {
   }
   return botSwitch.get(now);
 }
-const botSwitchOn = async (now) => (await botParts(now)).reportPage === true;
+const botSwitchOn = async (now) => {
+  try { return (await botParts(now)).reportPage === true; } catch (_) { return false; }
+};
 
 /**
  * Asked by coaching/report-window-send.js when the window is closed: the session (when it can take a quiz) and the
@@ -122,56 +99,153 @@ async function pageOffer({ coachingSessionId, userId }) {
   }
 }
 
-/**
- * The session a code names among the sender's own sessions: exactly one match, else null. The code is the first 8
- * hex digits of the id, so the range below is that prefix's whole slice of uuids (the primary key's index).
- */
-async function sessionForRef({ ref, phone }, db) {
-  const digits = String(phone || '').replace(/\D/g, '');
-  if (!ref || !digits) return null;
-  const { data: user } = await db.from('users').select('id').eq('phone_number', digits).maybeSingle();
-  if (!user || !user.id) return null;
-  const { data: rows } = await db.from('coaching_sessions').select('id').eq('user_id', user.id)
-    .gte('id', `${ref}-0000-0000-0000-000000000000`).lte('id', `${ref}-ffff-ffff-ffff-ffffffffffff`).limit(2);
-  return rows && rows.length === 1 ? rows[0].id : null;
+// ─── the page's half (the bot side of /api/internal/rq) ──────────────────────
+
+function defaults() {
+  /* eslint-disable global-require */
+  return {
+    db: () => require('../../config/supabase'),
+    queueJob: (...a) => require('../queue').queueJob(...a),
+    log: (event, props) => require('../../utils/structured-logger').logEvent(event, props),
+    presign: (key) => require('../../storage/r2').getPresignedGetUrl(key, 3600),
+    preview: (code, ids) => require('./web-quiz-link').previewLink(code, ids),
+    now: () => Date.now(),
+  };
+  /* eslint-enable global-require */
+}
+
+function safeLog(d, event, props) {
+  try { d.log(event, props); } catch (_) { /* logging never decides */ }
+}
+
+/** The session when the token's teacher owns it, with their phone; else null. Throws on a failed read. */
+async function ownedSession(d, sessionId, userId) {
+  if (!sessionId || !userId) return null;
+  const { data, error } = await d.db().from('coaching_sessions')
+    .select('id, user_id, users!inner(phone_number)').eq('id', sessionId).maybeSingle();
+  if (error) throw new Error(error.message || 'coaching_sessions read failed');
+  return data && data.user_id === userId ? data : null;
+}
+
+async function quizOf(d, sessionId) {
+  const { data, error } = await d.db().from('quizzes')
+    .select('id, status, language, subject, topic, teacher_id, meta, coaching_session_id')
+    .eq('coaching_session_id', sessionId).eq('quiz_source', 'transcript').maybeSingle();
+  if (error) throw new Error(error.message || 'quizzes read failed');
+  return data || null;
+}
+
+const isHeld = (q) => Boolean(q && q.status === 'skipped' && q.meta && q.meta.skip_reason === HELD_REASON);
+const byPage = (q) => Boolean(q && q.meta && q.meta.made_via === 'page');
+
+/** The page's questions: text, options in order, the key. */
+async function questionsOf(d, quizId) {
+  const { data } = await d.db().from('quiz_questions')
+    .select('question_text, option_a, option_b, option_c, option_d, correct_option, sort_order')
+    .eq('quiz_id', quizId).order('sort_order', { ascending: true });
+  return (data || []).map((r) => ({
+    text: r.question_text,
+    options: ['a', 'b', 'c', 'd'].filter((k) => typeof r[`option_${k}`] === 'string' && r[`option_${k}`].trim())
+      .map((k) => ({ key: k.toUpperCase(), text: r[`option_${k}`], correct: String(r.correct_option || '').toUpperCase() === k.toUpperCase() })),
+  }));
 }
 
 /**
- * A text message carrying a report-page code. true when it was ours (handled, whatever the outcome); false when the
- * message has no code or the switch is off, so the text handler runs as before.
+ * What the page shows for this quiz row. Pure but for the ready state's reads (questions, preview link).
+ * @returns {Promise<{state: string, page: boolean, ...}>}
  */
-async function handleReportPageText(text, phone, deps = {}) {
-  const ref = matchRef(text);
-  if (!ref) return false;
-  const d = {
-    switchOn: botSwitchOn,
-    db: () => require('../../config/supabase'), // eslint-disable-line global-require
-    tap: (payload, from) => require('./transcript-quiz-offer.service').handleReportQuizTap(payload, from), // eslint-disable-line global-require
-    say: async (to) => {
-      const Offer = require('./transcript-quiz-offer.service'); // eslint-disable-line global-require
-      const { resolveUx } = require('../../config/ux-strings'); // eslint-disable-line global-require
-      await require('../whatsapp.service').sendMessage(to, resolveUx('tqOfferExpired', { language: await Offer.languageByPhone(to) })); // eslint-disable-line global-require
-    },
-    log: (event, props) => require('../../utils/structured-logger').logEvent(event, props), // eslint-disable-line global-require
-    ...deps,
-  };
-  if (!(await d.switchOn())) return false;
-  let sessionId = null;
-  try {
-    sessionId = await sessionForRef({ ref, phone }, d.db());
-  } catch (_) {
-    sessionId = null;
+async function stateOf(d, q) {
+  const page = byPage(q);
+  if (!q) return { state: 'none', page };
+  const meta = q.meta || {};
+  if (isHeld(q)) {
+    const tapped = Date.parse(meta.page_make_at || '');
+    // tapped in the page, the job not yet run: the page's own quiz, being made
+    return Number.isFinite(tapped) && d.now() - tapped < TAP_FRESH_MS ? { state: 'making', page: true } : { state: 'held', page };
   }
-  try { d.log('transcript_quiz.report_page_text', { ref, outcome: sessionId ? 'matched' : 'no_session' }); } catch (_) { /* never decides */ }
-  // No session of theirs: the teacher still hears something true, the /quiz door.
-  if (!sessionId) await d.say(phone);
-  else await d.tap(`tqr_${sessionId}`, phone);
-  return true;
+  if (q.status === 'offered' && page && meta.awaiting_language) {
+    const rule = LANGS.includes(q.language) ? q.language : LANGS[0];
+    return { state: 'ask', page, choices: [rule, ...LANGS.filter((l) => l !== rule)] };
+  }
+  // A live WhatsApp offer (Yes / Not now) is still the teacher's to take: the page offers it too.
+  if (q.status === 'offered') return { state: 'held', page };
+  if (['generating', 'ready'].includes(q.status)) return { state: 'making', page };
+  if (['sent', 'report_sent'].includes(q.status) && typeof meta.student_message === 'string' && meta.student_message.trim()) {
+    let preview = null;
+    try { preview = await d.preview(meta.share_code, { shareCodeId: meta.share_code_id, teacherUserId: q.teacher_id }); } catch (_) { preview = null; }
+    return {
+      state: 'ready', page, message: meta.student_message, topic: q.topic || null, language: q.language || null,
+      questions: await questionsOf(d, q.id), pdf: Boolean(meta.pdf_key), preview: preview || null,
+    };
+  }
+  if (page && (q.status === 'failed' || q.status === 'skipped')) {
+    return { state: 'failed', page, reason: meta.skip_reason || meta.error || 'generate_failed' };
+  }
+  return { state: 'none', page };
+}
+
+/** The page's state for this session, for its own teacher only (null = not theirs). */
+async function pageState({ sessionId, userId }, deps = {}) {
+  const d = { ...defaults(), ...deps };
+  if (!(await ownedSession(d, sessionId, userId))) return null;
+  return stateOf(d, await quizOf(d, sessionId));
+}
+
+/**
+ * "Make a quiz" tapped in the page. A held row is marked as tapped and the offer job is queued as the page's; any
+ * other row is answered with its state (a double tap never queues twice in the same breath).
+ * @returns {Promise<object|null>} the state after the tap, or null when the session is not the teacher's
+ */
+async function makeFromPage({ sessionId, userId, surface }, deps = {}) {
+  const d = { ...defaults(), ...deps };
+  const where = SURFACES.includes(surface) ? surface : 'cq';
+  const session = await ownedSession(d, sessionId, userId);
+  if (!session) {
+    safeLog(d, 'transcript_quiz.page_make_failed', { coachingSessionId: sessionId, reason: 'not_owner', surface: where });
+    return null;
+  }
+  const q = await quizOf(d, sessionId);
+  const before = await stateOf(d, q);
+  if (before.state !== 'held') return before;
+  const tapAt = new Date(d.now()).toISOString();
+  if (isHeld(q)) {
+    await d.db().from('quizzes').update({ meta: { ...(q.meta || {}), page_make_at: tapAt, page_surface: where } })
+      .eq('id', q.id).eq('status', 'skipped');
+  }
+  const phone = String((session.users && session.users.phone_number) || '').replace(/\D/g, '');
+  await d.queueJob(sessionId, 'quiz_offer', {
+    coachingSessionId: sessionId, userId, phone, accepted: true, page: true, tapAt, surface: where, source: 'offer',
+  }, { delaySeconds: 0 });
+  safeLog(d, 'transcript_quiz.page_make_tap', { coachingSessionId: sessionId, quizId: q ? q.id : null, surface: where });
+  return { state: 'making', page: true };
+}
+
+/** The language picked on the page → generating. null when not theirs; the state otherwise. */
+async function chooseLanguage({ sessionId, userId, language }, deps = {}) {
+  const d = { ...defaults(), ...deps };
+  const session = await ownedSession(d, sessionId, userId);
+  if (!session) return null;
+  const q = await quizOf(d, sessionId);
+  const now = await stateOf(d, q);
+  if (now.state !== 'ask' || !LANGS.includes(language)) return now;
+  const phone = String((session.users && session.users.phone_number) || '').replace(/\D/g, '');
+  const Offer = require('./transcript-quiz-offer.service'); // eslint-disable-line global-require
+  await Offer.handleLanguageButton(`tq_lang_${language}_${q.id}`, phone, null, { page: true });
+  return stateOf(d, await quizOf(d, sessionId));
+}
+
+/** A 1-hour link to the quiz's PDF, or null (not theirs, not ready, no PDF). */
+async function pdfFor({ sessionId, userId }, deps = {}) {
+  const d = { ...defaults(), ...deps };
+  if (!(await ownedSession(d, sessionId, userId))) return null;
+  const q = await quizOf(d, sessionId);
+  const key = q && ['sent', 'report_sent'].includes(q.status) && q.meta && q.meta.pdf_key;
+  return key ? d.presign(key) : null;
 }
 
 function _resetCache() { if (botSwitch) botSwitch.reset(); }
 
 module.exports = {
-  SETTING, parseParts, parseSwitch, fetchFrom, refOf, matchRef, pageQuiz, pageOffer, sessionForRef, handleReportPageText,
-  _resetCache,
+  SETTING, PAGE_NO_SEND, LANGS, SURFACES, parseParts, parseSwitch, fetchFrom, pageOffer, botSwitchOn,
+  pageState, makeFromPage, chooseLanguage, pdfFor, _resetCache,
 };

@@ -115,9 +115,10 @@ async function recordHeld({ session, heldPath }) {
 /**
  * A held row back to 'generating' — the claim, for a session whose offer was held for a closed window. Only a row
  * still skipped for that reason moves (atomic filter), so a double tap or a racing job moves it once.
+ * `extra`: more meta for the revived row (report-page-quiz.js: made_via 'page', the tap's time and surface).
  * @returns {Promise<{quizId: string, heldPath: string|null}|null>}
  */
-async function reviveHeld({ coachingSessionId, source }) {
+async function reviveHeld({ coachingSessionId, source, extra }) {
   const { data, error } = await supabase.from('quizzes')
     .select('id, status, meta')
     .eq('coaching_session_id', coachingSessionId)
@@ -130,7 +131,7 @@ async function reviveHeld({ coachingSessionId, source }) {
     .update({
       status: 'generating',
       meta: { step: 'digest', source: source || 'offer', claimed_at: new Date().toISOString(),
-        held_path: meta.held_path || null, revived_from: HELD_REASON },
+        held_path: meta.held_path || null, revived_from: HELD_REASON, ...(extra || {}) },
     })
     .eq('id', data.id).eq('status', 'skipped')
     .select('id');
