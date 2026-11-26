@@ -53,9 +53,12 @@ function page({ ua = UA_CHROME, key = { key: 'BPUBKEYAAAA' }, perm = 'granted', 
   if (wqt) ctx.WQT = wqt;
   ctx.window = ctx; ctx.self = ctx;
   vm.runInNewContext(REMIND_SRC, ctx);
-  const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {} };
+  // the drawn card (slot's first element): records each scrollIntoView call; boom makes it throw
+  const scrolls = [];
+  const card = { boom: false, scrollIntoView(o) { scrolls.push(o); if (card.boom) throw new Error('no layout'); } };
+  const slot = { innerHTML: '', onclick: null, setAttribute() {}, removeAttribute() {}, get firstElementChild() { return slot.innerHTML ? card : null; } };
   return {
-    ctx, slot,
+    ctx, slot, scrolls, card,
     wait: (ms) => { now += ms; },
     tap: async (act) => { slot.onclick({ target: { closest: () => ({ getAttribute: (a) => (a === 'data-act' ? act : null) }) }, preventDefault() {} }); await flush(); },
     hide: async () => { doc.visibilityState = 'hidden'; (docL.visibilitychange || []).forEach((f) => f({})); await flush(); },
@@ -150,5 +153,34 @@ describe('a second Yes tap while the primer is up', () => {
     await p.tap('yes');
     expect(only(p, 'yes')).toHaveLength(1);
     expect(only(p, 'primer_shown')).toHaveLength(1);
+  });
+});
+
+// At 360x740 the Urdu primer's OK could fall below the fold after Yes, so the child had to scroll to find it. The primer card scrolls into view when it is drawn ({block:'nearest'}: no jump if it fits);
+// nothing else the card draws scrolls the page (the ask is drawn at mount, under the score).
+describe('the primer card is brought into view', () => {
+  test.each(['en', 'ur'])('Yes → primer (%s): one scrollIntoView({block:"nearest"}) on the drawn card', async (lang) => {
+    const p = await mounted({ key: { key: KEY, ask: true, primer: true } }, { code: 'AB12CD', lang, chips: 1 });
+    expect(p.scrolls).toEqual([]);
+    await p.tap('yes');
+    expect(p.scrolls).toEqual([{ block: 'nearest' }]);
+  });
+  test('the ask at mount, Not now, and the primer-off Yes path never scroll', async () => {
+    const p = await mounted({ key: { key: KEY, ask: true, primer: true } });
+    await p.tap('yes');
+    await p.tap('primer_back');
+    expect(p.scrolls).toHaveLength(1);
+    const q = await mounted({ key: { key: KEY, ask: true } });
+    await q.tap('yes');
+    expect(q.scrolls).toEqual([]);
+  });
+  test('a scrollIntoView that throws still leaves the primer working', async () => {
+    const p = await mounted({ key: { key: KEY, ask: true, primer: true } });
+    p.card.boom = true;
+    await p.tap('yes');
+    expect(p.slot.innerHTML).toContain('One more step');
+    await p.tap('primer_go');
+    expect(p.ctx.asked).toBe(1);
+    expect(only(p, 'primer_go')).toHaveLength(1);
   });
 });
