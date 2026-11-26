@@ -11,7 +11,8 @@
 
 import { leader, portal } from "../services/api";
 import type { CoachObservationView, ObserveLesson, ObserveNote, ObserveStep } from "../services/api";
-import { sendLesson, SendError, type PlanChoice } from "./coachingSend";
+import { sendLesson, SendError, uploadPiecesOn, type PlanChoice } from "./coachingSend";
+import { PiecesUnavailable, sendInPieces, type PiecesOptions, type WaitInfo } from "./pieceUpload";
 
 type EntryCopy = {
   title: string; sub: string; sheet: (name: string) => string;
@@ -114,7 +115,12 @@ export const STEP_CHIP: Record<ObserveStep, string> = {
 
 // ── sending ────────────────────────────────────────────────────────────────
 
-type ObserveApi = Pick<typeof leader, "presignObserveUpload" | "startObservation" | "startTalk">;
+/** bd-q261rec — `observePieces`: her recording in pieces that resume (absent in older tests: one PUT, as before). */
+type ObserveApi = Pick<typeof leader, "presignObserveUpload" | "startObservation" | "startTalk">
+  & Partial<Pick<typeof leader, "observePieces">>;
+
+/** bd-q261rec (queue #261) — how her recording goes up: in pieces or not (absent: /config says), and who is told it waits. */
+export type PieceChoice = { piecesOn?: boolean; onWait?: (w: WaitInfo) => void; pieceOptions?: Partial<PiecesOptions> };
 type UploadApi = Pick<typeof portal, "uploadToR2">;
 
 /**
@@ -130,6 +136,8 @@ export function sendObservation(
     teacherExtId: string;
     schoolExtId?: string | null;
     audio: { blob: Blob; filename: string };
+    /** bd-q261rec — the phone's copy of an in-app recording, so a killed send is picked up again by its id. */
+    recordingId?: string | null;
     plan: PlanChoice | null;
     photos: File[];
     /** bd-ra8xu.40 — the class she named on Check and send; absent when it was not asked. */
@@ -140,13 +148,20 @@ export function sendObservation(
     uploaded?: WeakMap<Blob, string>;
     /** bd-tfya0m — waits before each extra ask of an unanswered start (START_RETRY_MS; tests pass zeros). */
     startRetryMs?: number[];
-  },
+  } & PieceChoice,
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
-  const { teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded, startRetryMs = START_RETRY_MS } = args;
-  return sendLesson({ audio, plan, photos, startRetryMs, ...(uploaded ? { uploaded } : {}) }, {
+  const {
+    teacherExtId, schoolExtId, audio, plan, photos, lesson, notes, uploaded, startRetryMs = START_RETRY_MS, piecesOn, onWait, pieceOptions,
+    recordingId,
+  } = args;
+  return sendLesson({
+    audio: recordingId ? { ...audio, recordingId } : audio, plan, photos, startRetryMs, ...(uploaded ? { uploaded } : {}),
+    ...(piecesOn !== undefined ? { piecesOn } : {}), ...(onWait ? { onWait } : {}), ...(pieceOptions ? { pieceOptions } : {}),
+  }, {
+    ...(api.observePieces ? { pieces: api.observePieces } : {}),
     presignCoachingUpload: (a) => api.presignObserveUpload(a),
     uploadToR2: (url, blob, type, cb) => upload.uploadToR2(url, blob, type, cb),
     startCoachingUpload: (start) => api.startObservation({
@@ -155,20 +170,37 @@ export function sendObservation(
   }, onProgress);
 }
 
-/** Send her talk with the teacher: one audio file to R2, then attach it to the observation. */
+/**
+ * Send her talk with the teacher: one audio file to R2, then attach it to the observation. bd-q261rec (queue #261): with
+ * portal_upload_pieces on for her, in pieces that resume after a drop (an older server: one PUT, as before).
+ */
 export async function sendTalk(
   coachingSessionId: string,
-  audio: { blob: Blob; filename: string },
+  audio: { blob: Blob; filename: string; recordingId?: string | null },
   api: ObserveApi = leader,
   upload: UploadApi = portal,
   onProgress?: (pct: number) => void,
+  choice: PieceChoice = {},
 ): Promise<void> {
-  let key: string;
+  let key: string | null = null;
+  const pct = (loaded: number) => onProgress?.(Math.min(100, Math.round((loaded / (audio.blob.size || 1)) * 100)));
   try {
-    const signed = await api.presignObserveUpload({ filename: audio.filename, sizeBytes: audio.blob.size, kind: "audio" });
-    await upload.uploadToR2(signed.uploadUrl, audio.blob, signed.contentType,
-      (loaded) => onProgress?.(Math.min(100, Math.round((loaded / (audio.blob.size || 1)) * 100))));
-    key = signed.key;
+    const pieces = api.observePieces && (choice.piecesOn ?? await uploadPiecesOn()) ? api.observePieces : null;
+    if (pieces) {
+      try {
+        key = await sendInPieces(audio.blob, audio.filename, {
+          ...(audio.recordingId ? { identity: `rec:${audio.recordingId}` } : {}),
+          ...choice.pieceOptions, api: pieces, onProgress: pct, onWait: choice.onWait,
+        });
+      } catch (err) {
+        if (!(err instanceof PiecesUnavailable)) throw err;
+      }
+    }
+    if (!key) {
+      const signed = await api.presignObserveUpload({ filename: audio.filename, sizeBytes: audio.blob.size, kind: "audio" });
+      await upload.uploadToR2(signed.uploadUrl, audio.blob, signed.contentType, pct);
+      key = signed.key;
+    }
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response?.status;
     throw new SendError(status === 400 ? "refused" : "network");

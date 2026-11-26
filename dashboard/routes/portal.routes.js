@@ -106,6 +106,7 @@ const {
   PORTAL_COACH_FULL_APP_KEY,
   PORTAL_COACH_FLOW_V2_KEY,
   isObserveUploadOnlyFor,
+  isUploadPiecesFor,
   PORTAL_RECORDING_RESUME_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
@@ -8258,6 +8259,31 @@ router.post('/coaching-upload/presign', requirePortalAuth, requireSelfObservatio
 });
 
 /**
+ * bd-q261rec (queue #261) — the recording sent in PIECES, so a slow or broken line resumes instead of starting over.
+ * The bot signs and joins (portal-upload-pieces.service); these routes only pin the SESSION user and the named fields.
+ * Shared by the teacher's routes below and the coach's/principal's (/leader/observe-upload/pieces/*).
+ */
+function piecesRoutes(prefix, guards, userOf) {
+  router.post(`${prefix}/begin`, ...guards, (req, res) => {
+    const { filename, sizeBytes, pieceBytes, key } = req.body || {};
+    return relayToBot(res, 'pieces-begin', () => PortalCoachingClient.piecesBegin({
+      userId: userOf(req), filename, sizeBytes, pieceBytes, key,
+    }));
+  });
+  router.post(`${prefix}/sign`, ...guards, (req, res) => {
+    const { key, pieces, attempt } = req.body || {};
+    return relayToBot(res, 'pieces-sign', () => PortalCoachingClient.piecesSign({ userId: userOf(req), key, pieces, attempt }));
+  });
+  router.post(`${prefix}/join`, ...guards, (req, res) => {
+    const { key, sizeBytes, pieceBytes, digests } = req.body || {};
+    return relayToBot(res, 'pieces-join', () => PortalCoachingClient.piecesJoin({
+      userId: userOf(req), key, sizeBytes, pieceBytes, digests,
+    }));
+  });
+}
+piecesRoutes('/coaching-upload/pieces', [requirePortalAuth, requireSelfObservation], (req) => req.session.portalUserId);
+
+/**
  * bd-5rz1v — the fields of a library lesson-plan pick the bot reads, and no
  * others. The bot validates the shape; this only keeps anything else (a
  * `userId`, say) from riding along to it.
@@ -8579,6 +8605,9 @@ router.post('/leader/observe-upload/presign', ...coachObserve, (req, res) => {
     userId: sessionCoach(req), filename, sizeBytes, kind,
   }));
 });
+
+/** bd-q261rec — the coach's and principal's recording (observation and debrief talk) in pieces, signed under her own id. */
+piecesRoutes('/leader/observe-upload/pieces', coachObserve, sessionCoach);
 
 /**
  * POST /api/portal/leader/observe/start
@@ -9708,6 +9737,10 @@ router.get('/config', async (req, res) => {
     const lpOwnNotGb = teacherV2 && (lpMakeOwnRaw || lpOwnShelfRaw)
       ? !(await isGbTeacher(supabase, userId).catch(() => true))
       : false;
+    // bd-q261rec — pieces: coaches and principals with their flow v2 on, teachers on portal_upload_pieces; "off" = nobody.
+    const leaderFlowV2 = (coachV2 && coachFullAppRaw && coachFlowV2Raw) === true
+      || (principal && principalApp === true && coachFlowV2Raw === true);
+    const uploadPieces = await isUploadPiecesFor(supabase, userId, { leaderFlowV2 }).catch(() => false);
     return res.json({
       success: true,
       // This deployment's WhatsApp bot (digits) for the portal's chat buttons, or null with none configured — then the
@@ -9762,6 +9795,8 @@ router.get('/config', async (req, res) => {
         observeUploadOnly,
         // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
         recordingResume: recordingResumeRaw === true,
+        // bd-q261rec (queue #261) — the recording is sent in pieces that resume after a drop (portal_upload_pieces).
+        uploadPieces,
       },
     });
   } catch (error) {
@@ -9811,6 +9846,7 @@ router.get('/config', async (req, res) => {
         // bd-ih6cej — fail-closed: a broken read is the in-app recorder (Upload recording beside it).
         observeUploadOnly: false,
         recordingResume: false,
+        uploadPieces: false,
       },
       roleSwitchRoles: [],
     });

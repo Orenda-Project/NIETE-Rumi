@@ -348,6 +348,41 @@ const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
  * features.recordingResume. Coaches and principals have it on by default, unswitched.
  */
 const PORTAL_RECORDING_RESUME_KEY = 'portal_recording_resume';
+
+/**
+ * bd-q261rec (queue #261) — portal_upload_pieces: a recording is sent IN PIECES (each one a short PUT, resumed after a
+ * drop, retried by itself), not as one PUT of the whole file. The operator 26 Nov (via Godfather): teachers on their own
+ * switch; coaches and principals with the coach/principal flow v2.
+ *
+ *   no row                  coaches and principals on the flow v2: on; teachers: off
+ *   true / "teachers" / […] read with isFlagEnabledForUser for TEACHERS (everyone / every teacher / those users.id);
+ *                           coaches and principals on the flow v2 stay on
+ *   "off"                   nobody (the kill switch: everyone back on the one-PUT send)
+ *
+ * Fail-closed for teachers (a failed read is off); a failed read leaves coaches on, their default. Served as
+ * features.uploadPieces. The pieces routes take any user's own upload, so there is no server gate to keep in step.
+ */
+const PORTAL_UPLOAD_PIECES_KEY = 'portal_upload_pieces';
+
+/**
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @param {{ leaderFlowV2: boolean }} opts  the coach's or principal's flow v2 is on for her
+ * @returns {Promise<boolean>}
+ */
+async function isUploadPiecesFor(supabase, userId, { leaderFlowV2 = false } = {}) {
+  if (!userId) return false;
+  let off = false;
+  try {
+    const { data } = await readFlagRow(supabase, PORTAL_UPLOAD_PIECES_KEY);
+    let value = data ? data.value : null;
+    if (typeof value === 'string') { try { value = JSON.parse(value); } catch (_) { /* the raw string */ } }
+    off = typeof value === 'string' && value.trim().toLowerCase() === 'off';
+  } catch (_) { off = false; }
+  if (off) return false;
+  if (leaderFlowV2) return true;
+  return isFlagEnabledForUser(supabase, PORTAL_UPLOAD_PIECES_KEY, userId);
+}
 const PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY = 'portal_observe_upload_only_on';
 const PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY = 'portal_observe_upload_only_off';
 
@@ -699,6 +734,8 @@ module.exports = {
   PORTAL_OBSERVE_UPLOAD_ONLY_ON_KEY,
   PORTAL_OBSERVE_UPLOAD_ONLY_OFF_KEY,
   isObserveUploadOnlyFor,
+  isUploadPiecesFor,
+  PORTAL_UPLOAD_PIECES_KEY,
   PORTAL_RECORDING_RESUME_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,

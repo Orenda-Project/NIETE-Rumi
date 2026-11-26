@@ -22,6 +22,8 @@
 import { portal, type LiveMovesRecord } from "../services/api";
 import { failureOf, reportSendFailure, type SendFailure } from "./dcUploadReport";
 import { isHeld, readPicked, READ_RETRY_MS, Unreadable } from "./pickedRead";
+import { PiecesUnavailable, sendInPieces, type PiecesApi, type PiecesOptions, type WaitInfo } from "./pieceUpload";
+import { readConfigShared } from "./useNewUi";
 
 export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" } | { ownId: string };
 
@@ -61,11 +63,26 @@ export function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 
-type Api = Pick<typeof portal, "presignCoachingUpload" | "uploadToR2" | "startCoachingUpload">;
+/** bd-q261rec — `pieces`: her recording in pieces that resume (lib/pieceUpload); absent, one PUT as before. */
+type Api = Pick<typeof portal, "presignCoachingUpload" | "uploadToR2" | "startCoachingUpload"> & { pieces?: PiecesApi };
+
+/**
+ * bd-q261rec (queue #261) — is portal_upload_pieces on for the signed-in user (/config features.uploadPieces)? The shared
+ * /config read, so no extra request. Fail-closed: an unreadable config sends the old way.
+ */
+export async function uploadPiecesOn(): Promise<boolean> {
+  try {
+    const cfg = await readConfigShared();
+    return (cfg as { features?: { uploadPieces?: unknown } } | null)?.features?.uploadPieces === true;
+  } catch {
+    return false;
+  }
+}
 
 type Args = {
   /** The recording to upload, or (bd-c5reix) the key of one already in R2: her recording kept from WhatsApp. */
-  audio: { blob: Blob; filename: string } | { key: string };
+  /** bd-q261rec — `recordingId`: an in-app recording's id, so its pieces are found again after a kill (pieceUpload). */
+  audio: { blob: Blob; filename: string; recordingId?: string | null } | { key: string };
   plan: PlanChoice | null;
   photos: File[];
   /** Digital Coaching from the teacher app: the class she picked. Absent elsewhere. */
@@ -87,6 +104,14 @@ type Args = {
    * coach's start answers a repeat of the same recording with the same observation, so its send passes waits.
    */
   startRetryMs?: number[];
+  /**
+   * bd-q261rec (queue #261) — send the recording in pieces (when `api.pieces` is there): true / false, or absent to ask
+   * /config (uploadPiecesOn). `onWait`: the line dropped and the send waits to go on (she is told, with Try now).
+   * `pieceOptions`: the sender's own options (tests: memo, put, sleep, waits, piece size).
+   */
+  piecesOn?: boolean;
+  onWait?: (w: WaitInfo) => void;
+  pieceOptions?: Partial<PiecesOptions>;
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo"; photo: number };
@@ -169,7 +194,10 @@ function bareType(type: string): string {
 }
 
 export async function sendLesson(
-  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater, readWaits = READ_RETRY_MS, startRetryMs = [] }: Args,
+  {
+    audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater, readWaits = READ_RETRY_MS, startRetryMs = [],
+    piecesOn, onWait, pieceOptions,
+  }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
   /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
@@ -197,6 +225,11 @@ export async function sendLesson(
   let stage: SendFailure["stage"] = "presign";
   let sentAs: SendFailure["sentAs"] = "none";
   let sentBytes = 0;
+  // bd-q261rec — the pieces sender reports each failed try itself (onFailure); the catch below then does not repeat it.
+  let reportedByPieces = false;
+  const pieces = api.pieces && items.some((it) => it.kind === "audio")
+    ? (piecesOn ?? await uploadPiecesOn()) && api.pieces
+    : null;
   try {
     for (const it of items) {
       at += 1;
@@ -214,6 +247,39 @@ export async function sendLesson(
       // eslint-disable-next-line no-await-in-loop
       const out = await bodyOf(it.blob, readWaits);
       sentAs = out.sentAs;
+      if (it.kind === "audio" && pieces) {
+        // bd-q261rec (queue #261): the recording in pieces that resume after a drop; on an older server (no pieces
+        // routes) it falls through to the one PUT below.
+        stage = "upload";
+        try {
+          const base = done;
+          // eslint-disable-next-line no-await-in-loop
+          const rid = !("key" in audio) ? audio.recordingId : null;
+          const key = await sendInPieces(out.body, it.filename, {
+            ...(rid ? { identity: `rec:${rid}` } : {}),
+            ...pieceOptions,
+            api: pieces,
+            onProgress: (loaded) => { sentBytes = loaded; progress(base + loaded); },
+            onWait,
+            onFailure: (f) => {
+              reportedByPieces = true;
+              tell({
+                stage: f.piece < 0 ? "presign" : "upload", kind: "audio", item: at, ...failureOf(f.err),
+                sizeBytes: it.blob.size, type: bareType(it.blob.type), sentBytes: f.sentBytes, sentAs: "pieces",
+                piece: f.piece, pieces: f.pieces, attempt: f.attempt,
+              });
+            },
+          });
+          done += it.blob.size;
+          progress(done);
+          keys.push({ kind: it.kind, key });
+          uploaded?.set(it.blob, key);
+          continue;
+        } catch (err) {
+          if (!(err instanceof PiecesUnavailable)) throw err;
+          reportedByPieces = false;
+        }
+      }
       stage = "presign";
       // eslint-disable-next-line no-await-in-loop
       const { key, uploadUrl, contentType } = await api.presignCoachingUpload({
@@ -231,7 +297,7 @@ export async function sendLesson(
     const it = items[at - 1];
     const unreadable = err instanceof Unreadable;
     const part = it ? { kind: it.kind, photo: it.photo } : null;
-    tell({
+    if (!reportedByPieces) tell({
       stage, kind: it ? it.kind : null, item: at,
       ...(unreadable ? { status: null, reason: "unreadable" as const, errName: err.errName } : failureOf(err)),
       sizeBytes: it ? it.blob.size : 0, type: it ? bareType(it.blob.type) : "", sentBytes, sentAs,

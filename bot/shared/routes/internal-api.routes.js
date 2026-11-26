@@ -3303,6 +3303,27 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
   (Svc, b) => Svc.presignUpload({ userId: b.userId, filename: b.filename, sizeBytes: b.sizeBytes, kind: b.kind })));
 
 /**
+ * bd-q261rec (queue #261) — a recording sent in PIECES, so a slow or broken line resumes instead of starting over
+ * (portal-upload-pieces.service). Teacher, coach and principal alike: the portal signs under the session user.
+ *   POST /api/internal/coaching/pieces-begin  { userId, filename, sizeBytes, pieceBytes, key? }
+ *        → { status:'ok', key, contentType, pieceBytes, pieces, have:[n…], joined }
+ *   POST /api/internal/coaching/pieces-sign   { userId, key, pieces:[n…], attempt? } → { status:'ok', urls:[{ n, url }] }
+ *   POST /api/internal/coaching/pieces-join   { userId, key, sizeBytes, pieceBytes, digests? }
+ *        → { status:'ok', key, sizeBytes, sha256 } | 400 { reason:'pieces_missing', missing } | 400 { reason:'pieces_mismatch', bad }
+ */
+const loadPieces = () => require('../services/coaching/portal-upload-pieces.service');
+router.post('/coaching/pieces-begin', requireInternalKey, portalCoachingRoute('pieces-begin',
+  (Svc, b) => Svc.beginPieces({
+    userId: b.userId, filename: b.filename, sizeBytes: b.sizeBytes, pieceBytes: b.pieceBytes, key: b.key,
+  }), loadPieces));
+router.post('/coaching/pieces-sign', requireInternalKey, portalCoachingRoute('pieces-sign',
+  (Svc, b) => Svc.signPieces({ userId: b.userId, key: b.key, pieces: b.pieces, attempt: b.attempt }), loadPieces));
+router.post('/coaching/pieces-join', requireInternalKey, portalCoachingRoute('pieces-join',
+  (Svc, b) => Svc.joinPieces({
+    userId: b.userId, key: b.key, sizeBytes: b.sizeBytes, pieceBytes: b.pieceBytes, digests: b.digests,
+  }), loadPieces));
+
+/**
  * POST /api/internal/coaching/start
  * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? }
  *   teacherClass (bd-fmf24g.9): { grade 1-12, subject, subjectKey? } — the class she picked; stored on the row

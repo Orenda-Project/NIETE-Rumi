@@ -22,6 +22,8 @@ describe('GET /recording-file/link — Save to phone', () => {
   let probed;
   beforeEach(() => {
     jest.resetModules();
+    process.env.R2_ENDPOINT = 'https://acc.r2.cloudflarestorage.com';
+    process.env.R2_BUCKET_NAME = 'rumi-bucket';
     emitted = [];
     probeStatus = 206;
     probed = [];
@@ -76,6 +78,24 @@ describe('GET /recording-file/link — Save to phone', () => {
     expect((await get(srv, { src: SIGNED.split('?')[0], name: 'NIETE_OBS_x.webm' })).status).toBe(400);
     expect((await get(await app({}), { src: SIGNED, name: 'NIETE_OBS_x.webm' })).status).toBe(401);
     expect(probed).toEqual([]);
+  });
+
+  // Production, 25 Nov (emulator test): the players' links are VIRTUAL-HOSTED (the bot's S3 client: the bucket in the host,
+  // digital-coach-audio.<account>.r2.cloudflarestorage.com/<key>), and the shared signer only reads path-style links, so
+  // every sent recording answered 502 sign_failed. The route re-signs the same object as path-style for the configured bucket.
+  test('a virtual-hosted link (the bot signs these) → the same object re-signed, path-style', async () => {
+    const vh = 'https://rumi-bucket.acc.r2.cloudflarestorage.com/coaching/58e9a819.m4a?X-Amz-Signature=abc&X-Amz-Date=20261125T150000Z';
+    const res = await get(await app(), { src: vh, name: 'NIETE_OBS_23Nov_2013.m4a' });
+    expect(res.status).toBe(200);
+    expect(presign).toHaveBeenCalledWith('https://acc.r2.cloudflarestorage.com/rumi-bucket/coaching/58e9a819.m4a', 3600, { disposition: 'attachment', filename: 'NIETE_OBS_23Nov_2013.m4a' });
+  });
+
+  test('another bucket on the same account, or another account: refused, nothing probed or signed', async () => {
+    const srv = await app();
+    expect((await get(srv, { src: 'https://other-bucket.acc.r2.cloudflarestorage.com/k.m4a?X-Amz-Signature=1', name: 'NIETE_OBS_x.m4a' })).status).toBe(400);
+    expect((await get(srv, { src: 'https://rumi-bucket.evil.r2.cloudflarestorage.com/k.m4a?X-Amz-Signature=1', name: 'NIETE_OBS_x.m4a' })).status).toBe(400);
+    expect(probed).toEqual([]);
+    expect(presign).not.toHaveBeenCalled();
   });
 
   test('a name that is not ours → the file\'s own name', async () => {

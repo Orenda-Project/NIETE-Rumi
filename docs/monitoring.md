@@ -200,6 +200,38 @@ The bot uses structured logging via `logToFile()`. Key patterns to search for:
 
 ## Setting Up Alerts
 
+### The production incident watch (built in, no model)
+
+`bot/shared/services/monitoring/prod-incident-watch.service.js` runs inside the sqs-worker every 5 minutes
+and posts to one Slack channel when something major breaks. It counts the deployment's own log lines in
+Axiom; every message is a fixed template filled with counts. No model is called anywhere in the path.
+
+| Rule | Fires when | Clears when (2 checks in a row) |
+|------|------------|-------------------------------|
+| `provider_refusal` | an error/warn line names a provider refusal: key limit, out of credits, quota, key not accepted | none in 5 min |
+| `health_down` | a service's `/health` fails 2 checks in a row | the first good check |
+| `crash_loop` | one deployment's worker replicas boot again and again (≥5 restarts in 30 min) | no restarts in 30 min |
+| `job_failures` | `❌ Job failed` ≥5 in 30 min | ≤1 in 15 min |
+| `error_rate` | error lines ≥75 in 15 min **and** ≥3× the usual for that hour | ≤39 in 15 min |
+| `portal_5xx` | portal 5xx ≥50 in 15 min | ≤15 in 15 min |
+| `rate_limited` | 429s (model provider or Meta) ≥20 in 15 min | ≤5 in 15 min |
+
+One incident is one top-level post with a colour bar (the most severe rule leads). Other rules that fire
+while it is open go in its thread; a "Still happening" update goes there at most every 30 minutes; the
+all-clear goes in the thread and to the channel. A problem back within an hour continues the same thread.
+A second check, every 30 minutes, reads the OpenRouter key's usage (`GET /api/v1/key`, never a completion)
+and warns once a day when under 10% is left or under 3 days at the 7-day burn rate; again at 3% or 1 day.
+
+Switch it on with `PROD_ALERTS_ENABLED=true` plus `PROD_ALERTS_SLACK_TOKEN` / `PROD_ALERTS_SLACK_CHANNEL`
+(see `.env.template` for the rest; `PROD_ALERTS_DRY_RUN=true` logs what it would post instead). The
+owner replica logs `prod_incident_watch.tick` every check, so an outside monitor can tell when the watch
+itself has gone quiet. Before changing a threshold, replay history and count the posts:
+
+```bash
+node bot/scripts/prod-incident-watch.js --from 2026-10-25T00:00:00Z --to 2026-11-25T00:00:00Z --dry-run --envfile <env file>
+node bot/scripts/prod-incident-watch.js --key-budget --dry-run --envfile <env file>
+```
+
 ### Option A: Railway Alerts
 
 Railway provides built-in alerts for:
