@@ -1451,6 +1451,31 @@ navy / band fills, ~20% of every page near-black). Decision (queue #203): lighte
 **LOCAL-ONLY divergence** until upstream `lp_html/lib/template.js` carries the block (the grades 1-5 v9
 PDFs are rendered there). Stored PDFs keep the dark look until re-rendered.
 
+### 3.45 The quiz picture-maker draws what its spec says — `diagrams/types/{geometry,money,base_ten}.js` (2026-11-25, bd-cu8noh.2.6)
+
+Four live grades 1-5 maths quiz questions were held back by the teacher review (queue tasks 316/319/322) because
+the picture contradicted the figure spec stored beside it. All four were the engine dropping a key it was given:
+
+- `geometry` standalone `angle`: `arc` is read. `"reflex"` takes the long way round (large-arc flag), and
+  `"full_circle"` sweeps a whole turn from ray `a` back to itself. Every arc used to be the minor angle, so a
+  reflex angle drew obtuse and a whole turn (`a == b`) drew as a bare line. Each arc sits in
+  `<g data-angle="<label>" data-deg="<swept degrees>">`, which the test reads.
+- `money`: an item's `label` (the letter an option points at, or a name like "Bunty") is drawn above the piece.
+  It was dropped, so "which one is the note? P / Q / R" showed three unlettered pieces. Not drawn: a name that
+  repeats the value ("25 Cent" on the 25 coin), or a name when only one piece is named (it would be the answer,
+  not a handle).
+- `base_ten`: `items` (2-4 numbers, each with a `label`) draws one mat per number, side by side under its letter,
+  stacked by default so each draws bigger. It was ignored: only the top-level number was drawn, with the letters
+  the author put in `labels` as its column heads. A `labels` map that reuses an item letter falls back to the
+  language's own heads.
+
+The quiz lane's own check (`bot/shared/services/quiz/transcript-quiz-figure.js` `figureEmptyReason`, not vendored)
+also refuses an angle with a ray of no length unless it is a whole turn.
+Test: `tests/quiz/picture-maker-draws-its-spec.test.js` (the four live specs verbatim): 9 red before, green after.
+Redraw of the stored pictures: `06_Logs & Misc/Investigations/workspace/pk-ict/assessments/bd-cu8noh.2-quiz-answer-keys-319/workbench/pictures340/`.
+
+**LOCAL-ONLY divergence** until upstream `lp_html/diagrams/types/` carries it.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

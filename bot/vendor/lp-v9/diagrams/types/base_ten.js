@@ -189,7 +189,8 @@ function count(v, place) {
   return k;
 }
 
-function render(spec) {
+/** Size one mat and return how to draw it at (x0, y0) on a shared canvas. */
+function layoutMat(spec) {
   const isUr = spec.lang === "ur";
   const model = spec.model === "blocks" ? "blocks" : "bundles";
   const counts = {};
@@ -234,16 +235,12 @@ function render(spec) {
   const bodyW = PAD * 2 + layout.reduce((a, c) => a + c.w, 0) + (layout.length - 1) * COLGAP;
   const bodyH = PAD * 2 + headH + 8 + panelH;
 
-  const svg = new Svg(bodyW, bodyH, {
-    title: spec.title, caption: spec.caption, source: spec.source, note: spec.note,
-    lang: isUr ? "ur" : "en", spec,
-  });
-
-  let x = PAD;
-  const top = PAD + headH + 8;
+  return { bodyW, bodyH, isUr, draw(svg, x0, y0) {
+  let x = x0 + PAD;
+  const top = y0 + PAD + headH + 8;
   layout.forEach((c) => {
     if (!noHeads) {
-      svg.text(x + c.w / 2, PAD + headH / 2, heads[c.place], {
+      svg.text(x + c.w / 2, y0 + PAD + headH / 2, heads[c.place], {
         size: headSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink,
       });
     }
@@ -263,6 +260,59 @@ function render(spec) {
     if (items.length) svg.add(`<g data-model="${model}">${items.join("")}</g>`);
     x += c.w + COLGAP;
   });
+  } };
+}
+
+// VENDOR DIVERGENCE (SYNC §3.45, bd-cu8noh.2.6): `items` — "which picture shows
+// 583?" — draws one mat per named number, side by side, each under its letter.
+// The engine used to ignore `items` and draw only the top-level number, with the
+// letters the author put in `labels` as its column heads: P over the hundreds,
+// Q over the tens, R over the ones, on a live quiz.
+//   items  [{hundreds, tens, ones, thousands?, label:"P"}, …]  2..4 mats
+// The top-level counts are then ignored, and a `labels` map that reuses an item's
+// letter as a column head is dropped for the language's own heads.
+function renderItems(spec) {
+  const isUr = spec.lang === "ur";
+  const items = spec.items.filter((it) => it && typeof it === "object");
+  if (items.length < 2 || items.length > 4) throw new Error(`base_ten: \`items\` draws 2 to 4 mats, got ${items.length}`);
+  const names = new Set(items.map((it) => String(it.label ?? "").trim()).filter(Boolean));
+  const own = spec.labels && typeof spec.labels === "object"
+    && !Object.values(spec.labels).some((v) => names.has(String(v ?? "").trim()));
+  const heads = spec.labels === false ? false : (own ? spec.labels : DEFAULT_LABELS[isUr ? "ur" : "en"]);
+  const mats = items.map((it) => {
+    // Stacked by default: three mats side by side are wide, and a stacked mat is narrow, so each draws bigger.
+    const one = { model: spec.model, places: spec.places, stack: spec.stack ?? true, lang: spec.lang, labels: heads };
+    PLACES.forEach((p) => { if (it[p] !== undefined) one[p] = it[p]; });
+    return { name: String(it.label ?? "").trim(), m: layoutMat(one) };
+  });
+  const nameSize = SIZE.label * 2;
+  const nameH = names.size ? nameSize * 1.6 : 0;
+  const GAP = 28;
+  const bodyW = mats.reduce((a, x) => a + x.m.bodyW, 0) + GAP * (mats.length - 1);
+  const bodyH = nameH + Math.max(...mats.map((x) => x.m.bodyH));
+  const svg = new Svg(bodyW, bodyH, {
+    title: spec.title, caption: spec.caption, source: spec.source, note: spec.note,
+    lang: isUr ? "ur" : "en", spec,
+  });
+  // Urdu reads the row right to left, like the option letters it names.
+  const order = isUr ? [...mats].reverse() : mats;
+  let x = 0;
+  order.forEach(({ name, m }) => {
+    if (name) svg.text(x + m.bodyW / 2, nameH / 2, name, { size: nameSize, weight: 700, anchor: "middle", baseline: "middle", fill: C.ink });
+    m.draw(svg, x, nameH);
+    x += m.bodyW + GAP;
+  });
+  return svg.toString();
+}
+
+function render(spec) {
+  if (Array.isArray(spec.items) && spec.items.length) return renderItems(spec);
+  const m = layoutMat(spec);
+  const svg = new Svg(m.bodyW, m.bodyH, {
+    title: spec.title, caption: spec.caption, source: spec.source, note: spec.note,
+    lang: m.isUr ? "ur" : "en", spec,
+  });
+  m.draw(svg, 0, 0);
   return svg.toString();
 }
 
