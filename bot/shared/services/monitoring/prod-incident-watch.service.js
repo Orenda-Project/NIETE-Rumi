@@ -22,7 +22,7 @@
  *   portal_5xx        portal 5xx ≥50 in 15 min (p99 20)
  *   rate_limited      429s from a model provider or Meta ≥20 in 15 min (at most 12 in 15 min in 30 days)
  *
- * One open incident is ONE top-level post (the most severe rule leads, with a colour bar). Any other rule
+ * One open incident is ONE top-level post, one line (the most severe rule leads). Any other rule
  * that fires while it is open goes in its thread ("Also: …"), a "Still happening" update goes in the thread
  * at most every 30 minutes, and when every rule is below its clear line (lower than its fire line) for 2
  * checks in a row the all-clear goes in the thread and to the channel. A problem back within an hour of its
@@ -118,7 +118,6 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Severity order: the first firing rule leads an incident's post. */
 const RULES = ['provider_refusal', 'health_down', 'crash_loop', 'job_failures', 'error_rate', 'portal_5xx', 'rate_limited'];
-const COLOR = Object.freeze({ red: '#d0021b', orange: '#f5a623', yellow: '#f8e71c', green: '#2eb67d' });
 
 // ─── the queries ─────────────────────────────────────────────────────────────
 
@@ -156,21 +155,11 @@ function aplFor({ env, dataset }) {
   const P = `['${dataset}'] | where env == '${env}'`;
   const keyed = `${P} | where ${WARN} or msg == ${q(JOB_FAILED)} or (service == 'portal' and toint(statusCode) >= 500) `
     + `| extend s = strcat(msg, ' ', tostring(data_json)) | extend k = ${KEY_CASE} | where k != ''`;
-  const top = (where) => `${keyed} | where ${where} | summarize c = count() by m = substring(msg, 0, 90), service `
-    + '| order by c desc | take 5';
   return {
     bins: `${keyed} | summarize c = count() by bin(_time, 1m), k`,
     baseline: `${keyed} | summarize c = count() by bin(_time, 15m), k`,
     boots: `${P} | where msg == ${q(BOOT_LINE)} | extend d = parse_json(data_json) `
       + '| project _time, service, dep = tostring(d.deploymentId), rep = tostring(d.replicaId) | take 5000',
-    sample: `${keyed} | where k startswith 'refusal:' | summarize arg_max(_time, s) by k`,
-    top: {
-      refusal: top("k startswith 'refusal:'"),
-      error: top("k == 'error'"),
-      rate_429: top("k == 'rate_429'"),
-    },
-    portal_top: `${P} | where service == 'portal' and toint(statusCode) >= 500 | summarize c = count() by path `
-      + '| order by c desc | take 20',
   };
 }
 
@@ -179,13 +168,6 @@ function aplFor({ env, dataset }) {
 const FAMILY_OF_KEY = (k) => (String(k).startsWith('refusal:') ? 'refusal' : k);
 const FAMILY_OF_RULE = {
   provider_refusal: 'refusal', rate_limited: 'rate_429', job_failures: 'job_failed', error_rate: 'error', portal_5xx: 'portal_5xx',
-};
-const FAMILY_NAME = {
-  refusal: ['provider refusal', 'provider refusals'],
-  job_failed: ['job failure', 'job failures'],
-  error: ['error line', 'error lines'],
-  portal_5xx: ['portal 5xx', 'portal 5xx'],
-  rate_429: ['429 refusal', '429 refusals'],
 };
 
 /** Sum of the 1-minute bins of `match(k)` in [end - windowMin, end). */
@@ -282,7 +264,9 @@ function evaluate({ bins = [], boots = [], baseline = null, health = null, now =
     fire: down.length > 0,
     clean: targets.every((t) => t.ok),
     count: down.length,
-    targets: down.map((t) => ({ name: t.name, fails: num(t.fails), status: t.status || null, lastGoodAt: t.lastGoodAt || null, failedAt: t.failedAt || [] })),
+    targets: down.map((t) => ({
+      name: t.name, fails: num(t.fails), status: t.status || null, url: t.url || null, lastGoodAt: t.lastGoodAt || null, failedAt: t.failedAt || [],
+    })),
   };
 
   out.crash_loop = crashFromBoots(boots, end, cfg);
@@ -435,222 +419,87 @@ function accumulate(incident, bins, end, cfg) {
   incident.countedTo = iso(end);
 }
 
-// ─── the messages (fixed templates) ──────────────────────────────────────────
-
-/** A log line as it may appear in Slack: no phone-like numbers, emails or ids, ever. */
-function scrubLine(s) {
-  return String(s || '')
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, ':email')
-    .replace(/\+?\d[\d\s-]{6,}\d/g, '#')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80);
-}
-
-/** A portal path with ids and tokens folded, so the top paths group and never carry a link token. */
-function normPath(p) {
-  return String(p || '').split('?')[0].split('/').map((seg) => {
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg)) return ':id';
-    if (/^\d+$/.test(seg)) return ':id';
-    if (seg.length >= 16 && /\d/.test(seg) && /^[A-Za-z0-9_.~-]+$/.test(seg)) return ':id';
-    return seg;
-  }).join('/');
-}
-
-/** The status, phrase and amounts of a refusal line — extracted, never the line itself (it carries a key URL). */
-function refusalFacts(text) {
-  const s = String(text || '');
-  const out = {};
-  const m = /\b([45]\d\d)\s+(Key limit exceeded(?:\s*\([^)]*\))?|Insufficient credits|This request requires more credits|User not found|No auth credentials found)/i.exec(s);
-  if (m) { out.status = m[1]; out.phrase = m[2]; }
-  const a = /\$([\d,]+(?:\.\d+)?) of \$([\d,]+(?:\.\d+)?) used/.exec(s);
-  if (a) { out.used = a[1]; out.limit = a[2]; }
-  if (Object.keys(out).length && /does not reset/i.test(s)) out.noReset = true;
-  return out;
-}
-
-const PROVIDER_HEAD = {
-  key_limit: ['OpenRouter is refusing calls: key limit reached', "Fix: raise the key's limit or swap the key (OpenRouter → Keys)."],
-  credits: ['OpenRouter is refusing calls: out of credits', 'Fix: add credits (OpenRouter → Credits).'],
-  quota: ['A model provider is refusing calls: quota used up', "Fix: raise the provider's quota or swap the key."],
-  bad_key: ['A model provider is refusing calls: the API key is not accepted', 'Fix: check the key set on the service (OPENROUTER_API_KEY or the provider named above).'],
-};
-
-const RULE_LINE = (rule, cfg) => ({
-  provider_refusal: 'fires on the first one seen',
-  health_down: `${cfg.healthFailsMin} failed checks in a row; clears on the first good one`,
-  crash_loop: `≥${cfg.crashRestartsMin} restarts of one deploy in ${cfg.crashWindowMin} min`,
-  job_failures: `≥${cfg.jobFailMin} in ${cfg.jobFailWindowMin} min`,
-  error_rate: `≥${cfg.errorMin} in ${cfg.errorWindowMin} min and ≥${cfg.errorRatio}× the usual for this hour; clears below ${cfg.errorClearMax + 1}`,
-  portal_5xx: `≥${cfg.portal5xxMin} in ${cfg.portal5xxWindowMin} min`,
-  rate_limited: `≥${cfg.rate429Min} in ${cfg.rate429WindowMin} min`,
-}[rule]);
+// ─── the messages: one line each ────────────────────────────────────────────
+//
+// Operator, 26 Nov 2026: "make those super brief. Only as much as needed." Every post is ONE line: what broke,
+// how many, since when, and one link (the logs, or the thing to open). People are tagged on the top-level post
+// only (postToSlack's `mention`). No headers, no explanations, no advice, nothing repeated.
 
 const cap = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
-const roundUsual = (u) => (u === null || u === undefined ? null : Math.round(u));
-/** "Top: <line> n · …" — the same line from two services counts once. */
-function topLine(rows) {
-  const by = {};
-  for (const r of rows || []) { const m = scrubLine(r.m); by[m] = num(by[m]) + num(r.c); }
-  const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  return top.length ? `Top: ${top.map(([m, n]) => `${m} ${n}`).join(' · ')}` : null;
-}
-
-/** The service most of the top lines came from, or null. */
-function mostlyFrom(rows) {
-  const by = {};
-  for (const r of rows || []) if (r.service) by[r.service] = num(by[r.service]) + num(r.c);
-  const best = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
-  return best ? best[0] : null;
-}
-
-/** The headline of a rule: {emoji, color, title, detail, lines}. Pure apart from `details` (pre-fetched). */
-function headline(rule, ev, { incident = null, details = {}, cfg = DEFAULTS } = {}) {
-  const e = ev || {};
-  const totals = (incident && incident.totals) || {};
-  switch (rule) {
-    case 'provider_refusal': {
-      const [title, fix] = PROVIDER_HEAD[e.sub] || PROVIDER_HEAD.key_limit;
-      const f = refusalFacts(details.sample);
-      const facts = [
-        f.status && f.phrase ? `${f.status} ${f.phrase}` : null,
-        f.used && f.limit ? `$${f.used} of $${f.limit} used` : null,
-        f.noReset ? 'does not reset' : null,
-      ].filter(Boolean).join(' · ');
-      const first = incident && incident.first.refusal ? hhmm(new Date(incident.first.refusal)) : hhmm(new Date());
-      const n = num(totals.refusal) || num(e.count);
-      const jobs = num(totals.job_failed);
-      return {
-        emoji: '🔴', color: COLOR.red, title,
-        detail: `${plural(n, 'refusal')} in the last ${cfg.refusalWindowMin} min`,
-        lines: [
-          facts || null,
-          `Since ${first} PKT: ${plural(n, 'refusal')} · ${plural(jobs, 'job')} failed (each failed job tells the teacher to try again)`,
-          topLine(details.top),
-          fix,
-        ].filter(Boolean),
-      };
-    }
-    case 'health_down': {
-      const t = (e.targets || [])[0] || { name: 'service', fails: cfg.healthFailsMin };
-      const times = (t.failedAt || []).slice(-3).map((x) => hhmm(new Date(x))).join(', ');
-      const others = (e.targets || []).slice(1).map((x) => cap(x.name));
-      return {
-        emoji: '🔴', color: COLOR.red, title: `${cap(t.name)} is not answering`,
-        detail: `/health failed ${t.fails} checks in a row${times ? ` (${times})` : ''}`,
-        lines: [
-          t.lastGoodAt ? `Last good: ${hhmm(new Date(t.lastGoodAt))} PKT` : 'No good check since the watch started',
-          t.status ? `Last answer: ${t.status}` : 'Last answer: none (timed out or refused)',
-          others.length ? `Also down: ${others.join(', ')}` : null,
-        ].filter(Boolean),
-      };
-    }
-    case 'crash_loop':
-      return {
-        emoji: '🔴', color: COLOR.red, title: `${e.service || 'The worker'} is restarting in a loop`,
-        detail: e.fallback
-          ? `${e.count} boots in ${cfg.crashWindowMin} min, more than any deploy day`
-          : `${plural(e.count, 'restart')} in ${cfg.crashWindowMin} min within one deploy`,
-        lines: ['Railway → the service → Deployments: look at the latest crash logs. Checks run inside this worker, so they may stall while it loops.'],
-      };
-    case 'job_failures': {
-      const u = roundUsual(e.usual);
-      return {
-        emoji: '🟠', color: COLOR.orange, title: 'Job failures far above normal',
-        detail: `${e.count} in ${cfg.jobFailWindowMin} min${u === null ? '' : ` (normal for this hour: ${u})`}`,
-        lines: ['Each failed job tells the teacher to try again.', topLine(details.top)].filter(Boolean),
-      };
-    }
-    case 'error_rate': {
-      const u = roundUsual(e.usual);
-      const x = u ? Math.round(e.count / u) : null;
-      return {
-        emoji: '🟠', color: COLOR.orange, title: x ? `Errors ${x}× normal` : 'Errors far above normal',
-        detail: `${e.count} error lines in the last ${cfg.errorWindowMin} min${u === null ? '' : ` (normal for this hour: ${u})`}`,
-        lines: [topLine(details.top)].filter(Boolean),
-      };
-    }
-    case 'portal_5xx': {
-      const u = roundUsual(e.usual);
-      const paths = {};
-      for (const r of details.paths || []) { const p = normPath(r.path); paths[p] = num(paths[p]) + num(r.c); }
-      const top = Object.entries(paths).sort((a, b) => b[1] - a[1]).slice(0, 3);
-      return {
-        emoji: '🟠', color: COLOR.orange, title: 'Portal 5xx',
-        detail: `${e.count} in the last ${cfg.portal5xxWindowMin} min${u === null ? '' : ` (normal for this hour: ${u})`}`,
-        lines: [top.length ? `Top: ${top.map(([p, n]) => `${p} ${n}`).join(' · ')}` : null].filter(Boolean),
-      };
-    }
-    case 'rate_limited':
-      return {
-        emoji: '🟠', color: COLOR.orange, title: 'Rate-limited',
-        detail: `${e.count} 429 refusals (model provider or Meta) in the last ${cfg.rate429WindowMin} min`,
-        lines: [topLine(details.top)].filter(Boolean),
-      };
-    default:
-      return { emoji: '🟠', color: COLOR.orange, title: rule, detail: '', lines: [] };
-  }
-}
+const since = (isoTime) => (isoTime ? ` since ${hhmm(new Date(isoTime))} PKT` : '');
+const link = (url, label) => (url ? ` · <${url}|${label}>` : '');
+const OPENROUTER_KEYS = 'https://openrouter.ai/settings/keys';
+const OPENROUTER_CREDITS = 'https://openrouter.ai/settings/credits';
 
 function axiomLink(org, apl) {
   if (!org || !apl) return null;
   return `https://app.axiom.co/${org}/query?initForm=${encodeURIComponent(JSON.stringify({ apl }))}`;
 }
 
-function buildOpen(rule, ev, ctx) {
-  const h = headline(rule, ev, ctx);
-  const link = axiomLink(ctx.axiomOrg, ctx.linkApl);
-  const footer = `_${ctx.service ? `mostly ${ctx.service} · ` : ''}rule ${rule}: ${RULE_LINE(rule, ctx.cfg)} · updates in this thread`
-    + `${link ? ` · <${link}|open in Axiom>` : ''}_`;
-  return { color: h.color, text: [`${h.emoji} *${h.title}*`, h.detail, ...h.lines, footer].filter(Boolean).join('\n') };
+/** What a refusal is, and the page that fixes it (null: the logs). */
+const REFUSAL_WHAT = {
+  key_limit: ['OpenRouter refusing calls (key limit)', OPENROUTER_KEYS, 'keys'],
+  credits: ['OpenRouter refusing calls (out of credits)', OPENROUTER_CREDITS, 'credits'],
+  quota: ['Model provider refusing calls (quota)', null, null],
+  bad_key: ['Model provider refusing calls (bad key)', null, null],
+};
+
+/** The one line for a rule: what broke, how many, since when (or in what window), one link. Pure. */
+function ruleLine(rule, ev, { incident = null, cfg = DEFAULTS, axiomOrg = null, linkApl = null } = {}) {
+  const e = ev || {};
+  const totals = (incident && incident.totals) || {};
+  const first = (incident && incident.first) || {};
+  const logs = link(axiomLink(axiomOrg, linkApl), 'logs');
+  switch (rule) {
+    case 'provider_refusal': {
+      const [what, url, label] = REFUSAL_WHAT[e.sub] || REFUSAL_WHAT.key_limit;
+      return `🔴 ${what}: ${num(totals.refusal) || num(e.count)}${since(first.refusal)}${url ? link(url, label) : logs}`;
+    }
+    case 'health_down': {
+      const t = (e.targets || [])[0] || { name: 'service', fails: cfg.healthFailsMin };
+      return `🔴 ${cap(t.name)} down: /health failed ${t.fails}×${since((t.failedAt || [])[0])}${link(t.url, '/health')}`;
+    }
+    case 'crash_loop':
+      return `🔴 ${e.service || 'worker'} restarting in a loop: ${num(e.count)} ${e.fallback ? 'boots' : 'restarts'} in ${cfg.crashWindowMin} min${logs}`;
+    case 'job_failures':
+      return `🟠 Jobs failing: ${num(totals.job_failed) || num(e.count)}${since(first.job_failed)}${logs}`;
+    case 'error_rate': {
+      const usual = e.usual === null || e.usual === undefined ? '' : ` (usual ${Math.round(e.usual)})`;
+      return `🟠 Errors: ${num(e.count)} in ${cfg.errorWindowMin} min${usual}${logs}`;
+    }
+    case 'portal_5xx':
+      return `🟠 Portal 5xx: ${num(e.count)} in ${cfg.portal5xxWindowMin} min${logs}`;
+    case 'rate_limited':
+      return `🟠 429s: ${num(e.count)} in ${cfg.rate429WindowMin} min${logs}`;
+    default:
+      return `🟠 ${rule}${logs}`;
+  }
 }
 
-function buildReopen(rule, ev, ctx) {
-  const h = headline(rule, ev, ctx);
-  return { color: h.color, text: [`🔁 *Back again* · ${h.emoji} ${h.title}`, h.detail, ...h.lines].filter(Boolean).join('\n') };
-}
+const buildOpen = (rule, ev, ctx) => ({ text: ruleLine(rule, ev, ctx) });
+const buildAlso = (rule, ev, ctx) => ({ text: ruleLine(rule, ev, ctx) });
+const buildReopen = (rule, ev, ctx) => ({ text: `🔁 Back: ${ruleLine(rule, ev, ctx)}` });
 
-function buildAlso(rule, ev, ctx) {
-  const h = headline(rule, ev, ctx);
-  return { color: h.color, text: [`${h.emoji} Also: ${h.title} · ${h.detail}`, ...h.lines.slice(0, 2)].join('\n') };
-}
+const SHORT = { refusal: 'refusals', job_failed: 'failed jobs', error: 'errors', portal_5xx: '5xx', rate_429: '429s' };
 
-/** The joined rules' totals, e.g. "238 provider refusals · 149 job failures". */
-function totalsLine(incident) {
-  const fams = [...new Set(Object.keys(incident.rules).map((r) => FAMILY_OF_RULE[r]).filter(Boolean))];
-  return fams.filter((f) => num(incident.totals[f]) > 0)
-    .map((f) => { const n = num(incident.totals[f]); return `${n} ${FAMILY_NAME[f][n === 1 ? 0 : 1]}`; })
-    .join(' · ');
-}
-
-function buildUpdate(incident, evals, now, cfg) {
+/** "Still on: 204 refusals, 122 failed jobs" — the joined rules' counts so far. */
+function buildUpdate(incident, evals) {
   const active = Object.entries(incident.rules).filter(([, s]) => s.active).map(([r]) => r);
-  const down = active.includes('health_down') ? (evals.health_down.targets || []).map((t) => `${t.name} still down`) : [];
-  const loop = active.includes('crash_loop') ? ['the worker is still restarting'] : [];
-  const parts = [totalsLine(incident), ...down, ...loop].filter(Boolean).join(' · ');
-  const next = hhmm(new Date(now.getTime() + cfg.updateEveryMin * MIN));
-  return {
-    color: COLOR.orange,
-    text: `Still happening · ${parts || active.join(', ')} so far · next update ${next} PKT, or sooner if it changes`,
-  };
+  const fams = [...new Set(Object.keys(incident.rules).map((r) => FAMILY_OF_RULE[r]).filter(Boolean))];
+  const parts = fams.filter((f) => num(incident.totals[f]) > 0).map((f) => `${num(incident.totals[f])} ${SHORT[f]}`);
+  if (active.includes('health_down')) parts.push(...((evals.health_down && evals.health_down.targets) || []).map((t) => `${t.name} down`));
+  if (active.includes('crash_loop')) parts.push('still restarting');
+  return { text: `Still on: ${parts.join(', ') || active.join(', ')}` };
 }
 
-function buildClear(incident, cfg) {
+/** "✅ Resolved after 47 min" — first event to last. */
+function buildClear(incident) {
   const fams = Object.keys(incident.rules).map((r) => FAMILY_OF_RULE[r]).filter(Boolean);
   const lastLog = fams.map((f) => incident.last[f]).filter(Boolean).map((x) => Date.parse(x));
   const last = lastLog.length ? Math.max(...lastLog) : Date.parse(incident.lastBadAt);
   const firstLog = fams.map((f) => incident.first[f]).filter(Boolean).map((x) => Date.parse(x));
   const first = firstLog.length ? Math.min(...firstLog) : Date.parse(incident.openedAt);
-  const onlyHealth = Object.keys(incident.rules).every((r) => r === 'health_down');
-  const checks = onlyHealth ? 'the first good check' : `${cfg.clearChecks} clean checks in a row`;
-  const mins = Math.max(1, Math.round((last - first) / MIN) + 1);
-  const totals = totalsLine(incident);
-  return {
-    color: COLOR.green,
-    text: [`✅ *All clear* · nothing new since ${hhmm(new Date(last))} PKT (${checks})`,
-      `Lasted about ${mins} min${totals ? ` · ${totals}` : ''}`].join('\n'),
-  };
+  return { text: `✅ Resolved after ${Math.max(1, Math.round((last - first) / MIN) + 1)} min` };
 }
 
 // ─── one check ───────────────────────────────────────────────────────────────
@@ -691,8 +540,7 @@ function linkAplFor(rule, { env, dataset, sub = null }) {
  */
 async function tick({
   now = new Date(), cfg = DEFAULTS, query, store, post, checkHealth = null,
-  env = 'production', dataset = 'niete-logs', stateKey = STATE_KEY, axiomOrg = null, details: wantDetails = true,
-  mention = '',
+  env = 'production', dataset = 'niete-logs', stateKey = STATE_KEY, axiomOrg = null, mention = '',
 }) {
   const apl = aplFor({ env, dataset });
   const failed = [];
@@ -734,7 +582,7 @@ async function tick({
         ? { fails: 0, lastGoodAt: iso(t), failedAt: [] }
         : { fails: num(h.fails) + 1, lastGoodAt: h.lastGoodAt, failedAt: [...(h.failedAt || []), iso(t)].slice(-3) };
       healthState[r.name] = next;
-      return { name: r.name, ok: r.ok, status: r.status || null, ...next };
+      return { name: r.name, ok: r.ok, status: r.status || null, url: r.url || null, ...next };
     });
   }
 
@@ -745,26 +593,9 @@ async function tick({
   const incident = r.state.incident || (closing && closing.incident) || null;
   accumulate(incident, bins, end, cfg);
 
-  // Only what a message will show is fetched, and only when there is a message.
-  const details = {};
-  const need = new Set(r.actions.filter((a) => a.type === 'open' || a.type === 'reopen' || a.type === 'also').map((a) => a.rule));
-  if (wantDetails) {
-    const s = end - 30 * MIN;
-    if (need.has('provider_refusal')) {
-      const rows = await ask('sample', apl.sample, s, t);
-      const pick = (rows || []).find((x) => x.k === `refusal:${evals.provider_refusal.sub}`) || (rows || [])[0];
-      details.provider_refusal = { sample: pick ? pick.s : null, top: await ask('top', apl.top.refusal, s, t) };
-    }
-    if (need.has('error_rate')) details.error_rate = { top: await ask('top', apl.top.error, end - cfg.errorWindowMin * MIN, t) };
-    if (need.has('rate_limited')) details.rate_limited = { top: await ask('top', apl.top.rate_429, end - cfg.rate429WindowMin * MIN, t) };
-    if (need.has('portal_5xx')) details.portal_5xx = { paths: await ask('portal_top', apl.portal_top, end - cfg.portal5xxWindowMin * MIN, t) };
-  }
-
   const next = { ...r.state, health: healthState };
   const ctx = (rule) => ({
-    incident, cfg, details: details[rule] || {}, axiomOrg,
-    linkApl: linkAplFor(rule, { env, dataset, sub: evals.provider_refusal.sub }),
-    service: mostlyFrom(details[rule] && details[rule].top),
+    incident, cfg, axiomOrg, linkApl: linkAplFor(rule, { env, dataset, sub: evals.provider_refusal.sub }),
   });
   let posted = 0;
   for (const a of r.actions) {
@@ -772,8 +603,8 @@ async function tick({
     if (a.type === 'open') msg = buildOpen(a.rule, evals[a.rule], ctx(a.rule));
     else if (a.type === 'reopen') msg = buildReopen(a.rule, evals[a.rule], ctx(a.rule));
     else if (a.type === 'also') msg = buildAlso(a.rule, evals[a.rule], ctx(a.rule));
-    else if (a.type === 'update') msg = buildUpdate(incident, evals, now, cfg);
-    else msg = buildClear(a.incident, cfg);
+    else if (a.type === 'update') msg = buildUpdate(incident, evals);
+    else msg = buildClear(a.incident);
 
     if (a.type === 'open') {
       try {
@@ -854,44 +685,18 @@ function keyBudgetVerdict(reading, now = new Date(), cfg = DEFAULTS) {
   };
 }
 
-const money = (v) => `$${Math.round(num(v)).toLocaleString('en-US')}`;
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function pktDayLabel(isoTime) {
-  const d = new Date(Date.parse(isoTime) + PKT_OFFSET_MS);
-  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
-}
 const pktDayKey = (now) => new Date(now.getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
 
-function buildKeyBudget(reading, v, now = new Date(), cfg = DEFAULTS) {
-  const footer = `_read from OpenRouter's key-usage endpoint (no model call) · checked every ${cfg.keyTickMin} min · posted at most once a day; `
-    + `again at ${100 - cfg.keyCritPctLeft}% or under ${plural(cfg.keyCritDays, 'day')} left_`;
-  if (v.remaining <= 0) {
-    return {
-      color: COLOR.red,
-      text: [
-        '🔴 *OpenRouter key has reached its limit · calls are being refused*',
-        `${money(reading.usage)} of ${money(reading.limit)} used${reading.reset ? ` · resets ${reading.reset}` : ' · does not reset'}`,
-        'Raise the limit or swap the key now (OpenRouter → Keys).',
-        `_read from OpenRouter's key-usage endpoint (no model call) · checked every ${cfg.keyTickMin} min · posted at most once a day_`,
-      ].join('\n'),
-    };
-  }
-  const left = !Number.isFinite(v.daysLeft) ? 'no spend in the last 7 days'
-    : v.daysLeft < 1 ? 'under a day left' : `about ${plural(Math.round(v.daysLeft), 'day')} left`;
-  const runsOut = v.runsOutAt && !reading.reset ? ` → runs out around ${pktDayLabel(v.runsOutAt)}` : '';
-  const resets = reading.reset
-    ? `This limit resets ${reading.reset}.`
-    : 'This limit does not reset. Raise it, or line up a new key, before then.';
-  return {
-    color: v.level === 'critical' ? COLOR.red : COLOR.yellow,
-    text: [
-      `${v.level === 'critical' ? '🔴' : '🟡'} *OpenRouter key at ${v.pctUsed}% of its limit · ${left}*`,
-      `${money(reading.limit - v.remaining)} of ${money(reading.limit)} used · last 7 days: about ${money(v.burnPerDay)} a day${runsOut}`,
-      resets,
-      footer,
-    ].join('\n'),
-  };
+/** One line: "🟡 OpenRouter key 91% used, ~3 days left · keys". */
+function buildKeyBudget(reading, v) {
+  const keys = link(OPENROUTER_KEYS, 'keys');
+  if (v.remaining <= 0) return { text: `🔴 OpenRouter key at its limit: calls refused${keys}` };
+  let left;
+  if (reading.reset) left = `resets ${reading.reset}`;
+  else if (!Number.isFinite(v.daysLeft)) left = 'no spend this week';
+  else if (v.daysLeft < 1) left = '<1 day left';
+  else left = `~${plural(Math.round(v.daysLeft), 'day')} left`;
+  return { text: `${v.level === 'critical' ? '🔴' : '🟡'} OpenRouter key ${v.pctUsed}% used, ${left}${keys}` };
 }
 
 /** One key-budget check: read, log the reading, post a warning at most once a day per level. */
@@ -917,7 +722,7 @@ async function keyBudgetCheck({
   const key = `${warnedKey}:${v.level}:${pktDayKey(now)}`;
   if (await safeGet(store, key)) return { level: v.level, already: true };
   try {
-    await post({ ...buildKeyBudget(reading, v, now, cfg), type: 'key_budget', rule: `key_budget_${v.level}`, ...(mention ? { mention } : {}) });
+    await post({ ...buildKeyBudget(reading, v), type: 'key_budget', rule: `key_budget_${v.level}`, ...(mention ? { mention } : {}) });
   } catch (err) {
     logToFile('❌ prod incident watch: key budget post failed', { error: err.message }, 'error');
     return { level: v.level, failed: true };
@@ -947,9 +752,9 @@ function makeHealthCheck(targets, cfg, fetchImpl = global.fetch) {
   return async () => Promise.all(targets.map(async ({ name, url }) => {
     try {
       const res = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(cfg.healthTimeoutMs) });
-      return { name, ok: Boolean(res.ok), status: res.status };
+      return { name, url, ok: Boolean(res.ok), status: res.status };
     } catch {
-      return { name, ok: false, status: null };
+      return { name, url, ok: false, status: null };
     }
   }));
 }
@@ -1035,9 +840,9 @@ async function run({
 }
 
 module.exports = {
-  DEFAULTS, RULES, COLOR, TICK_KEY, STATE_KEY, BASELINE_KEY, KEY_TICK_KEY,
+  DEFAULTS, RULES, TICK_KEY, STATE_KEY, BASELINE_KEY, KEY_TICK_KEY,
   config, mentionsFrom, aplFor, buildBaseline, evaluate, step, tick, run,
-  headline, buildOpen, buildReopen, buildAlso, buildUpdate, buildClear,
+  ruleLine, buildOpen, buildReopen, buildAlso, buildUpdate, buildClear,
   readKeyBudget, keyBudgetVerdict, buildKeyBudget, keyBudgetCheck,
-  healthTargets, makeHealthCheck, scrubLine, normPath, refusalFacts,
+  healthTargets, makeHealthCheck,
 };
