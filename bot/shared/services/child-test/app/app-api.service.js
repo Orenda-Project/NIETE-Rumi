@@ -107,18 +107,30 @@ async function portalSaOnFor(userId, d) {
   return Array.isArray(value) && value.some((id) => typeof id === 'string' && id === userId);
 }
 
+/** child_test_practice_only read so that a failed read THROWS (practice-only-switch.js answers off on a failure). */
+async function practiceOnStrict(d) {
+  const key = 'child_test_practice_only';
+  const found = await rows(d.supabase.from('app_settings').select('key, value').eq('key', key));
+  return found.some((r) => r && r.key === key && r.value === true);
+}
+
 /**
  * Does the coach app's Learning Assessment open for this user? The answer the page would give them: the bot's gate
  * (guarded above: CHILD_TEST_ENABLED, the leader family, a child-test region, the pilot list; or practice-only with a
  * practice school) AND the portal's own switch, portal_child_test_sa. The WhatsApp "jugnu" word sends the page's link
  * only on yes (handlers/jugnu-command.js), so no one is sent to a page that says "not on for your account".
- * Never throws: a failed read is no.
+ *   true   it opens for them
+ *   false  it does not (every read answered)
+ *   null   a read failed, so the answer is not known: the caller must not say "not on" (it may be false)
+ * Never throws.
  */
 async function learningAssessmentOpensFor(userId, deps) {
   if (!userId) return false;
   const d = withDefaults(deps);
   try {
     if (!(await d.enabled(userId, d))) {
+      // practice-only: a failed read of its switch is "not known", never "off"
+      if (!(await practiceOnStrict(d))) return false;
       const schools = await d.practice(userId, d);
       if (!schools || !schools.size) return false;
     }
@@ -128,7 +140,7 @@ async function learningAssessmentOpensFor(userId, deps) {
     let tk = null;
     try { tk = require('../../quiz/web-quiz-kid').tk(userId); } catch (_) { tk = null; } // eslint-disable-line global-require
     d.logError('child_test.app.opens_for failed', { tk, error: error && error.message });
-    return false;
+    return null;
   }
 }
 

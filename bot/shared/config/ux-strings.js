@@ -1207,9 +1207,11 @@ const UX_STRINGS = {
     en: "Jugnu, the NIETE app's Learning Assessment, isn't switched on for your account yet.",
     ur: 'جگنو، یعنی \u2066NIETE\u2069 ایپ کا تعلیمی جائزہ، ابھی آپ کے اکاؤنٹ پر دستیاب نہیں۔',
   },
+  // No "just now": the link may be missing for a configuration reason (no portal address or signing key, logged at error)
+  // as well as a refused send, so the line names only what is true in both.
   jugnuNoLink: {
-    en: "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment.",
-    ur: 'ابھی لنک نہیں بھیج سکی۔ \u2066NIETE\u2069 ایپ کھولیں اور تعلیمی جائزہ پر ٹیپ کریں۔',
+    en: "I couldn't send the link. Open the NIETE app and tap Learning Assessment.",
+    ur: 'لنک نہیں بھیج سکی۔ \u2066NIETE\u2069 ایپ کھولیں اور تعلیمی جائزہ پر ٹیپ کریں۔',
   },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────

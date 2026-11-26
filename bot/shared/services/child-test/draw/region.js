@@ -23,6 +23,21 @@ const ICT_ORGANIZATION = 'niete';
 const GB = 'gilgit-baltistan';
 
 /**
+ * A region value (schools.region, users.region) → its programme as the registry names it: 'ict' for an ICT sector,
+ * the registry key otherwise ('gilgit-baltistan'), 'ict' for a blank or unlisted value. Throws when the registry
+ * cannot be read (the callers below turn that into 'ict' and a warn).
+ */
+async function programmeOf(value) {
+  const key = Registry.regionKey(value);
+  if (!key) return ICT;
+  // eslint-disable-next-line global-require
+  const rows = await Registry.listRegions(require('../../../config/supabase'));
+  const row = rows.find((r) => Registry.regionKey(r.region) === key || Registry.regionKey(r.display_name) === key);
+  if (!row || row.organization === ICT_ORGANIZATION) return ICT;
+  return Registry.regionKey(row.region) || ICT;
+}
+
+/**
  * @param {string} schoolId
  * @returns {Promise<string>} the value for child_test_draws.region
  */
@@ -32,15 +47,19 @@ async function regionForSchool(schoolId) {
     const got = await store.getSchoolsByIds([schoolId]);
     if (!got || !got.ok) throw new Error((got && got.error) || 'school read failed');
     const school = (got.schools || []).find((s) => s && s.id === schoolId);
-    const key = Registry.regionKey(school && school.region);
-    if (!key) return ICT;
-    // eslint-disable-next-line global-require
-    const rows = await Registry.listRegions(require('../../../config/supabase'));
-    const row = rows.find((r) => Registry.regionKey(r.region) === key || Registry.regionKey(r.display_name) === key);
-    if (!row || row.organization === ICT_ORGANIZATION) return ICT;
-    return Registry.regionKey(row.region) || ICT;
+    return await programmeOf(school && school.region);
   } catch (err) {
     logToFile('[child-test] draw region unreadable; stamping ict', { schoolId, error: err && err.message }, 'warn');
+    return ICT;
+  }
+}
+
+/** A region value's programme (programmeOf), 'ict' when the registry cannot be read (logged at warn). Never throws. */
+async function regionOfValue(value) {
+  try {
+    return await programmeOf(value);
+  } catch (err) {
+    logToFile('[child-test] region registry unreadable; reading ict', { error: err && err.message }, 'warn');
     return ICT;
   }
 }
@@ -50,4 +69,4 @@ async function isGilgitBaltistan(schoolId) {
   return (await regionForSchool(schoolId)) === GB;
 }
 
-module.exports = { regionForSchool, isGilgitBaltistan, ICT, GB };
+module.exports = { regionForSchool, regionOfValue, isGilgitBaltistan, ICT, GB };

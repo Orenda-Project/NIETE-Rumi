@@ -7,7 +7,8 @@
  * Now, for a LEADER (observe-gate LEADER_ROLES), the whole message, in the main bot's words and its normalisation:
  *   a leader the Learning Assessment opens for (the child-test gate AND the portal's portal_child_test_sa)
  *       → ONE message with a button that opens the app signed in, on /portal/leader/assess;
- *   a leader it does not open for → ONE line: the Learning Assessment is not switched on for their account yet;
+ *   a Gilgit-Baltistan leader it does not open for → ONE line: it is not switched on for their account yet;
+ *   an ICT leader it does not open for, or any leader whose gate cannot be read → exactly today's reply;
  *   the link cannot be made → ONE line that says so and where to find it.
  * A teacher's Jugnu is exactly today's: NIETE already calls the games and quizzes teachers send home "Jugnu".
  * The word is read only when no open conversation took it first (a quiz or video waiting for its topic, …), so a
@@ -124,6 +125,7 @@ const person = (id, role, region, lang = 'en') => ({
 const GB_COACH = person('u-gb-coach', 'coach', 'Gilgit-Baltistan');
 const GB_PRINCIPAL = person('u-gb-principal', 'principal', 'Gilgit-Baltistan');
 const ICT_COACH = person('u-ict-coach', 'coach', 'Sihala');
+const ICT_PRINCIPAL = person('u-ict-principal', 'principal', 'Urban-I');
 const GB_TEACHER = person('u-gb-teacher', 'teacher', 'Gilgit-Baltistan');
 const ICT_TEACHER = person('u-ict-teacher', 'teacher', 'Sihala');
 const OFF_LIST_COACH = person('u-gb-coach-2', 'coach', 'Gilgit-Baltistan');
@@ -141,19 +143,26 @@ const LEADER_BODY_EN = "Open Jugnu: the NIETE app's Learning Assessment. Pick a 
 const NOT_ON_EN = "Jugnu, the NIETE app's Learning Assessment, isn't switched on for your account yet.";
 // The line the first version of this door sent a teacher: never sent now.
 const OLD_TEACHER_LINE = "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet.";
-const NO_LINK_EN = "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment.";
+const NO_LINK_EN = "I couldn't send the link. Open the NIETE app and tap Learning Assessment.";
+const OLD_NO_LINK_EN = "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment.";
+// The region registry (region_features): the GB check reads it.
+const REGISTRY = [
+  { region: 'gilgit-baltistan', organization: 'moawin', display_name: 'Gilgit-Baltistan', is_active: true },
+  { region: 'sihala', organization: 'niete', display_name: 'Sihala', is_active: true },
+  { region: 'urban-i', organization: 'niete', display_name: 'Urban-I', is_active: true },
+];
 
 const WORDS = ['jugnu', '/jugnu', 'reading game', 'readinggame', '/readinggame', 'جگنو', 'پڑھنے کا کھیل', 'ریڈنگ گیم'];
 
 const ENV = { ...process.env };
 let handler; let me;
-function load(user, { settings = PORTAL_ON, env = GATE_ENV } = {}) {
+function load(user, { settings = PORTAL_ON, env = GATE_ENV, failTables = [] } = {}) {
   jest.resetModules();
   me = user ? { ...user } : null;
   mockDb = makeDb({
     users: user ? [{ ...user }] : [], app_settings: settings.map((r) => ({ ...r })),
-    user_feature_first_use: [], coaching_sessions: [], leader_schools: [],
-  });
+    user_feature_first_use: [], coaching_sessions: [], leader_schools: [], region_features: REGISTRY.map((r) => ({ ...r })),
+  }, { failTables });
   Object.assign(process.env, env);
   handler = require('../../bot/shared/handlers/text-message.handler');
 }
@@ -208,7 +217,8 @@ async function tap(url) {
 const ctas = () => mockWa.sendCtaUrl.mock.calls;
 const texts = () => mockWa.sendMessage.mock.calls.map(([, t]) => t);
 const chatRan = () => mockDetectIntent.mock.calls.length > 0 || mockGetResponse.mock.calls.length > 0;
-const jugnuLines = () => texts().filter((t) => t === NOT_ON_EN || t === NO_LINK_EN || t === OLD_TEACHER_LINE || /جگنو، یعنی|جگنو ⁦NIETE⁩ ایپ میں/.test(t));
+const jugnuLines = () => texts().filter((t) => t === NOT_ON_EN || t === NO_LINK_EN || t === OLD_NO_LINK_EN || t === OLD_TEACHER_LINE
+  || /جگنو، یعنی|جگنو ⁦NIETE⁩ ایپ میں|تعلیمی جائزہ پر ٹیپ/.test(t));
 const waiting = (flow, step, payload = {}) => ({
   conversation_state: { flow, step, payload },
   conversation_state_expires_at: new Date(Date.now() + 3600e3).toISOString(),
@@ -293,7 +303,7 @@ describe('a teacher\'s Jugnu is exactly today\'s (NIETE already calls the games 
   );
 });
 
-describe('a leader the Learning Assessment does not open for: one line that is true for a leader', () => {
+describe('a Gilgit-Baltistan leader the Learning Assessment does not open for: one line that is true for a leader', () => {
   test.each([
     ['not on the pilot list', OFF_LIST_COACH, {}],
     ['outside the child-test regions', GB_COACH, { env: { ...GATE_ENV, CHILD_TEST_REGIONS: 'niete,ict,sihala' } }],
@@ -317,13 +327,49 @@ describe('a leader the Learning Assessment does not open for: one line that is t
     expect(texts()[0]).not.toMatch(/ٹیسٹ|امتحان|کوچز اور اسکول سربراہان/);
   });
 
-  test('the link cannot be made here (no signing key): a line that says so, not "not on"', async () => {
-    load(GB_COACH);
-    delete process.env.INTERNAL_API_KEY;
+  test.each([['no signing key', 'INTERNAL_API_KEY'], ['no portal address', 'PORTAL_URL']])(
+    'RED on the second review\'s head: the link cannot be made here (%s): a line true for that state, not "just now", and an error log', async (_l, key) => {
+      load(GB_COACH);
+      delete process.env[key];
+      await say('jugnu');
+      expect(chatRan()).toBe(false);
+      expect(ctas()).toHaveLength(0);
+      expect(texts()).toEqual([NO_LINK_EN]);
+      const logger = require('../../bot/shared/utils/logger');
+      expect(logger.logToFile.mock.calls.some(([m, , level]) => /link not sent/.test(m) && level === 'error')).toBe(true);
+    },
+  );
+
+  test.each([['off the pilot list', OFF_LIST_COACH], ['on the pilot list', GB_COACH]])(
+    'RED on the second review\'s head: a GB leader %s whose gate cannot be read (a database failure): today\'s reply, never "not switched on", and a warn', async (_l, user) => {
+    load(user, { failTables: ['app_settings'] });
     await say('jugnu');
-    expect(chatRan()).toBe(false);
     expect(ctas()).toHaveLength(0);
-    expect(texts()).toEqual([NO_LINK_EN]);
+    expect(jugnuLines()).toEqual([]);
+    expect(mockDetectIntent).toHaveBeenCalledTimes(1);
+    const logger = require('../../bot/shared/utils/logger');
+    expect(logger.logToFile.mock.calls.some(([m, , level]) => /could not be read/.test(m) && level === 'warn')).toBe(true);
+  });
+});
+
+describe('an ICT leader the Learning Assessment does not open for: exactly today\'s reply (the chat), no new line', () => {
+  test.each(['جگنو', 'jugnu', 'reading game'])('RED on the second review\'s head: an ICT principal not on the gate types %s', async (word) => {
+    load(ICT_PRINCIPAL);
+    await say(word);
+    expect(mockDetectIntent).toHaveBeenCalledTimes(1);
+    expect(jugnuLines()).toEqual([]);
+    expect(ctas()).toHaveLength(0);
+  });
+
+  test.each([
+    ['with the portal switch off', ICT_COACH, { settings: [] }],
+    ['with the child test off on this deployment', ICT_COACH, { env: { ...GATE_ENV, CHILD_TEST_ENABLED: 'false' } }],
+  ])('RED on the second review\'s head: an ICT coach %s types "jugnu"', async (_l, user, opts) => {
+    load(user, opts);
+    await say('jugnu');
+    expect(mockDetectIntent).toHaveBeenCalledTimes(1);
+    expect(jugnuLines()).toEqual([]);
+    expect(ctas()).toHaveLength(0);
   });
 });
 
