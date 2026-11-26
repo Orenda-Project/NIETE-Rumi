@@ -264,7 +264,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the bot shows my certificates list, or the no-certificates nudge
     # Verified live on PROD (2026-08-05): a junk argument is ignored → list/nudge mode.
 
-  @e2e @edge @negative @P3 @T15 @obsolete
+  @e2e @edge @negative @P3 @T15 @obsolete @no-mock-driver
   Scenario: "/teacher training" (two words) is not a training command
     Given the NIETE bot chat is open
     When I send "/teacher training"
@@ -274,6 +274,7 @@ Feature: NIETE (ICT) Teacher Training
     # opens the one she names (text-message.handler menu_match.row, door 'intent'); "/teacher training" is
     # classified as the Teacher Training row and the Flow opens — by design, on every mock run (bot.log:
     # "Intent detected" → "menu_match.row" → "Sent teacher-training flow"). Proposed for deletion — not deleted.
+    # @no-mock-driver (bd-ke5dtg, 26 Nov): the mock lane no longer asserts this retired behaviour.
 
   @e2e @quiz @negative @destructive @P3 @T16
   Scenario: Failing the level exam starts a wait before I can retry
