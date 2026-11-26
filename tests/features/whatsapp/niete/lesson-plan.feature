@@ -1144,3 +1144,15 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And my answer stays the one I gave in the app, with no second answer saved
     # @no-mock-driver: the app answer needs the portal session and the survey's 30 s timer; the mock lane drives neither.
     # Unit: tests/feedback/lp-in-app-feedback.test.js ("an app answer counts for a later WhatsApp tap").
+
+  @e2e @L66 @no-mock-driver @config-gated @P1
+  Scenario: With "lp_card_for_all" on, a Grades 1-5 teacher gets the one-page card first, the full plan one tap away
+    Given "lp_card_for_all" is on and my school is not in the coaching test
+    When I take a Grades 1-5 lesson plan for a day that has a one-page card
+    Then the plan I get is the one-page card
+    And each part of the card has "Full details ›", which opens that part of the full plan
+    When I take a Grades 6-12 lesson plan, or a day with no card
+    Then I get the full plan, as before
+    And a teacher whose school is in the coaching test gets what her group gets, switch on or off
+    # bd-zrdvmi.71, queue #343: 82+ "plan too long" rows on the ICT feedback sheet (decision bd-jrarr).
+    # Off by default. Unit: tests/lp-v8/lp-card-for-all.test.js.
