@@ -1,2 +1,3 @@
 {"ts":"2026-11-26T02:19:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d3d0b63ba8f3","branch":"bd-ke5dtg-22697","user":""}
 {"ts":"2026-11-26T02:32:01Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (training)","sha":"d3d0b63ba8f3","branch":"bd-ke5dtg-22697","user":""}
+{"ts":"2026-11-26T03:33:44Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (spec edited in d3d0b63 itself + T15 @no-mock-driver in d89383f; validate_specs OK; driven by the training mock run on descendant b9d24a7)","sha":"d3d0b63ba8f3","branch":"bd-ke5dtg-22697","user":""}
