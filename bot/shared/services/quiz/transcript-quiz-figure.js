@@ -1118,6 +1118,13 @@ function figureEmptyReason(spec) {
         return lack.length ? `${kind} needs ${need.join(' + ')}` : null;
       }).filter(Boolean);
       if (missing.length) return `a shape is missing the keys its kind needs: ${missing.join('; ')}`;
+      // An angle whose ray ends on its own vertex has one arm: "R, a quarter
+      // turn" drew as a lone line with an arc hanging off it (bd-cu8noh.2.6).
+      // A whole turn is the one angle drawn from a single ray (arc full_circle).
+      const samePt = (p, q) => Array.isArray(p) && Array.isArray(q) && Number(p[0]) === Number(q[0]) && Number(p[1]) === Number(q[1]);
+      const oneArm = shapes.find((sh) => String(sh.kind).toLowerCase() === 'angle' && sh.arc !== 'full_circle'
+        && (samePt(sh.vertex, sh.a) || samePt(sh.vertex, sh.b)));
+      if (oneArm) return `angle ${oneArm.label || ''} has a ray of no length (a or b sits on its vertex); give both rays a far end, or "arc":"full_circle" for a whole turn`.replace('  ', ' ');
       const mathematical = shapes.some((sh) => n(sh.labels) || n(sh.sides) || n(sh.angles) || sh.label || (sh.radius !== undefined && (sh.label || sh.radiusLabel)));
       return mathematical ? null : 'geometry must carry labelled points, sides or angles — it draws mathematics, never a scene of objects';
     }
