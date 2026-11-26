@@ -479,7 +479,7 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     expect(screen.queryByText(/^Saved \d/)).toBeNull(); // nothing saved here yet
   });
 
-  it("Next saves the part: Saved <time> in the chip row; the score is a count, never a %", async () => {
+  it("Next saves the part: Saved <time> in the chip row; the score is a percentage, its points under it", async () => {
     L.getObservationDraft.mockResolvedValue(FDE());
     renderPage();
     await screen.findByText("Teaching the concept");
@@ -489,9 +489,30 @@ describe("switch on: FICO-S v1.1 and FDE, saved part by part", () => {
     expect(L.saveObs612Form).toHaveBeenCalledWith("cs-1", expect.objectContaining({ m1: "2" }), false);
     expect(within(screen.getByTestId("form-chips")).getByText("Saved 10:58 AM")).toBeInTheDocument();
     expect(screen.getByText("Saved part by part: leave and come back without losing anything.")).toBeInTheDocument();
-    expect(screen.getByText("9 / 12")).toBeInTheDocument();
-    expect(screen.queryByText(/75%/)).toBeNull();
+    // Queue #293 (the operator 26 Nov): the percentage big, the points in a small line under it, the rating unchanged,
+    // so a total that moves with N/A (88 on one form, 92 on another) no longer reads as a different scale.
+    const score = within(screen.getByTestId("fde-score"));
+    expect(score.getByTestId("fde-score-pct")).toHaveTextContent(/^75%$/);
+    expect(score.getByTestId("fde-score-points")).toHaveTextContent(/^9 of 12 points$/);
+    expect(score.getByText("Proficient")).toBeInTheDocument();
+    expect(screen.queryByText("9 / 12")).toBeNull();
     expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+  });
+
+  it("the score card rounds the percentage (50 of 92 → 54%), and says its points in Urdu", async () => {
+    const sections = FDE().sections.map((s) => (s.id === "MSCI_B"
+      ? { ...s, parts: s.parts.map((p: any) => (p.type === "score" ? { type: "score", total: 50, max: 92, pct: 54.3, band: "Developing" } : p)) }
+      : s));
+    L.getObservationDraft.mockResolvedValue(FDE({ sections, values: { m1: "2" }, errors: {}, missing: ["fb_line"] }));
+    L.saveObs612Form.mockImplementation(async (_id: string, values: Record<string, string>) => ({ ...FDE({ sections }), values, errors: {}, missing: [] }));
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    renderPage();
+    await screen.findByText("Teaching the concept");
+    fireEvent.click(screen.getByRole("button", { name: /اگلا حصہ/ }));
+    const pct = await screen.findByTestId("fde-score-pct");
+    expect(pct).toHaveTextContent(/^54%$/);
+    expect(pct).toHaveAttribute("dir", "ltr");
+    expect(unisolated(screen.getByTestId("fde-score-points").textContent || "")).toBe("92 میں سے 50 نمبر");
   });
 
   it("Back saves what changed on the part, then goes back; with nothing changed it only goes back", async () => {
