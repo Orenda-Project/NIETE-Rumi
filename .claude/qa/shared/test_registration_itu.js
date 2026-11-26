@@ -112,6 +112,10 @@ async function t(name, fn) {
     assert.deepStrictEqual(M.dataVerdict({ ok: false, notChecked: 'shared database' }), { ok: true, data: 'NOT CHECKED: shared database' });
   });
 
+  await t('dataVerdict: a check that cannot run on the run\'s own database fails — it never reads as NOT CHECKED', () => {
+    const v = M.dataVerdict({ ok: false, error: 'unknown table users_x' });
+    if (v.ok !== false || !/ERROR: unknown table users_x/.test(v.data)) throw new Error('got ' + JSON.stringify(v));
+  });
   console.log(`${n} test(s), ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

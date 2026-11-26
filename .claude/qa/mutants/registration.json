@@ -39,12 +39,28 @@
     "registration"
    ],
    "why": "Finish does not mark her registration complete",
-   "expect": "killed",
+   "expect": "survived",
    "edits": [
     {
      "file": "bot/shared/handlers/flow-response.handler.js",
      "find": "        registration_completed: true,\n        registration_completed_at: new Date().toISOString(),\n        registration_pending_name: false,",
      "replace": "        registration_completed_at: new Date().toISOString(),\n        registration_pending_name: false,"
+    }
+   ]
+  },
+  {
+   "id": "reg-screen-save-writes-everyone-else",
+   "lane": "mock",
+   "features": [
+    "registration"
+   ],
+   "why": "the form's screen-by-screen save (name, completion) lands on every OTHER account instead of hers",
+   "expect": "killed",
+   "edits": [
+    {
+     "file": "bot/shared/routes/registration-endpoint.js",
+     "find": "    const { error } = await supabase.from('users').update(clean).eq('id', userId);",
+     "replace": "    const { error } = await supabase.from('users').update(clean).neq('id', userId);"
     }
    ]
   }

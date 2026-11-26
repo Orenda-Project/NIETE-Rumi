@@ -16,7 +16,7 @@
  *
  * DATA CHECKS (bd-5b3u70.8, the data E2E strategy). Around each Finish the scenario's own two accounts (her new one
  * and the "other account") are its cast; a snapshot of the watched tables (.claude/qa/config/data-keys.json) is taken
- * just before she answers, and after it the two rules run: no teacher's account outside the cast is added, changed or
+ * when her set-up ends (before she opens the form, whose screens save as she goes), and after Finish the two rules run: no teacher's account outside the cast is added, changed or
  * removed, and no number has two accounts. A violation fails the scenario; a database that is not the run's own
  * reads NOT CHECKED in the evidence and never decides the verdict.
  *
@@ -131,7 +131,10 @@ function makeItu({ api, sleep }) {
       await post('teacher_training_progress', { user_id: other.id, module_id: mod.id });
     }
     made.push(me.id, other.id);
-    return { u, me, phone: ph.me, card, other: { id: other.id, phone: ph.other }, name };
+    // set-up ends here: the data checks' "before", so every save the form makes (screen by screen, then Finish) is inside it
+    const keys = api.dataKeys();
+    const before = keys.ok ? await api.snapshot(keys.watch) : keys;
+    return { u, me, phone: ph.me, card, other: { id: other.id, phone: ph.other }, name, keys, before };
   }
 
   /** Open the card on the form named (v6 copy or the stored v5.1), type her name, search, pick the school. */
@@ -155,8 +158,7 @@ function makeItu({ api, sleep }) {
 
   /** Answer (when asked), pick a grade and subject, Finish, and collect what the bot sends after it. */
   async function finish(t, answer) {
-    const keys = api.dataKeys();
-    const before = keys.ok ? await api.snapshot(keys.watch) : keys;
+    const { keys, before } = t;
     if (answer) {
       await t.u.flowClick(ANSWER[answer], { exact: true, settleMs: 300 });
       await t.u.flowClick('Next', { exact: true, settleMs: 2000 });
@@ -205,6 +207,8 @@ const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 /** The data part of a scenario from api.dataRules' answer: ok unless a rule is broken. Off the run's own database it is
  *  NOT CHECKED, which never fails a scenario and never passes the data part either: the evidence says which. */
 function dataVerdict(rules) {
+  // on the run's own database a check that cannot run fails: a broken check must never stay green
+  if (rules && rules.error) return { ok: false, data: 'ERROR: ' + rules.error };
   if (!rules || !rules.ok) return { ok: true, data: 'NOT CHECKED: ' + ((rules && rules.notChecked) || 'no answer') };
   return { ok: !rules.owner.length && !rules.duplicates.length, data: 'checked', owner: rules.owner, duplicates: rules.duplicates };
 }
