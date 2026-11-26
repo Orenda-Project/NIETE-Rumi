@@ -954,11 +954,11 @@ describe("LeaderAssess", () => {
       expect(screen.queryByTestId("assess-add-child")).toBeNull();
     });
 
-    // A school with nobody on its roster for the grade (every Gilgit-Baltistan school today): the server cannot draw a
-    // list (no_class_list), and the first child added opens it.
-    it("RED on the base: ON at a school with no class list: the message stays and Add a child seats the first child", async () => {
+    // A Gilgit-Baltistan school with nobody on its roster for the grade: the server cannot draw a list (no_class_list),
+    // says the first child added opens it (addOpens), and the page shows Add a child under the message.
+    it("RED on the base: ON at a GB school with no class list: the message stays and Add a child seats the first child", async () => {
       withAdd();
-      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list" } } });
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list", addOpens: true } } });
       const added = child(1, { firstName: "Zara", name: "Zara Testwala", nameUr: null, firstNameUr: null, childNo: 1 });
       api.addChild.mockResolvedValue({ list: { ...LIST, children: [added], alternates: [] } });
       renderPage();
@@ -976,9 +976,9 @@ describe("LeaderAssess", () => {
       expect(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" })).toBeInTheDocument();
     });
 
-    it("RED on the base: ON with every grade, at a school with no class list: the picked grade is the child's and the list's", async () => {
+    it("RED on the base: ON with every grade, at a GB school with no class list: the picked grade is the child's and the list's", async () => {
       withAdd({ allGrades: true });
-      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list" } } });
+      api.getList.mockRejectedValue({ response: { status: 409, data: { reason: "no_class_list", addOpens: true } } });
       api.addChild.mockResolvedValue({ list: { ...LIST, grade: 4, children: [child(1, { grade: 4 })], alternates: [] } });
       renderPage();
       fireEvent.click(await screen.findByTestId("assess-school-s2"));
@@ -992,6 +992,16 @@ describe("LeaderAssess", () => {
       fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
       await waitFor(() => expect(api.addChild).toHaveBeenCalled());
       expect(api.addChild.mock.calls[0][0]).toMatchObject({ grade: 4, listGrade: 4 });
+    });
+
+    // An ICT school: the server's answer carries no addOpens, so the page is sandbox's, the message and nothing else.
+    it("RED on the second review's head: ON at an ICT school with no class list (no addOpens): the message only, as on sandbox", async () => {
+      withAdd();
+      api.getList.mockRejectedValue({ response: { status: 400, data: { reason: "no_class_list" } } });
+      renderPage();
+      await chooseSchool();
+      expect(await screen.findByText(/no class list/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("assess-add-child")).toBeNull();
     });
 
     it("OFF at a school with no class list: the message only, no Add a child", async () => {
