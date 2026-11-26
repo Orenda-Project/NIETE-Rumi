@@ -238,8 +238,10 @@ describe('HITL v6 (decideVisitFramework): a GB visit is v6 at every grade; ICT k
     await expect(O6().decideVisitFramework({ userId: GB_PRINCIPAL, region: 'Gilgit-Baltistan', teacherUserId: T_GB_MIDDLE, schoolExtId: null })).resolves.toBe('fico17_v6');
   });
 
-  test('ICT: a grade 6-8 teacher is not v6 here (FDE\'s, through the class question), a primary teacher is', async () => {
-    await expect(O6().decideVisitFramework({ userId: ICT_COACH, region: 'Urban-I', teacherUserId: T_ICT_MIDDLE })).resolves.toBeNull();
+  // bd-ra8xu.64.8 (queue #282): an ICT grade 6-8 lesson is FDE's only when the class question names it (the capture tests
+  // below); a visit that reaches decideVisitFramework is v6 whatever the teacher's band.
+  test('ICT: a grade 6-8 teacher reaching decideVisitFramework (no class named) is v6, as a primary teacher is', async () => {
+    await expect(O6().decideVisitFramework({ userId: ICT_COACH, region: 'Urban-I', teacherUserId: T_ICT_MIDDLE })).resolves.toBe('fico17_v6');
     await expect(O6().decideVisitFramework({ userId: ICT_COACH, region: 'Urban-I', teacherUserId: T_ICT_PRIMARY })).resolves.toBe('fico17_v6');
   });
 
