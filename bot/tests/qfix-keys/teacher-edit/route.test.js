@@ -18,6 +18,11 @@ function mockQuery(table) {
     eq(c, v) { filters.push((r) => r[c] === v); return q; },
     is(c, v) { filters.push((r) => (r[c] == null) === (v === null)); return q; },
     in(c, vs) { filters.push((r) => vs.includes(r[c])); return q; },
+    or(expr) {   // PostgREST "user_id.is.null,user_id.neq.<id>"
+      const parts = expr.split(',').map((x) => x.split('.'));
+      filters.push((r) => parts.some(([c, op, v]) => (op === 'is' ? r[c] == null : r[c] !== v)));
+      return q;
+    },
     order() { return q; },
     limit(n) { q._limit = n; return q; },
     rows() { const all = (mockDb.tables[table] || []).filter((r) => filters.every((f) => f(r))); return q._limit ? all.slice(0, q._limit) : all; },
@@ -160,6 +165,12 @@ test('the floor is refused at the route: removing 3 of 8 asks the function for p
   expect(ok.body).toMatchObject({ ok: true, n: 6 });
 });
 
+test('more than 40 ops in one save: refused at the route, the save function never called', async () => {
+  const r = await save(Array.from({ length: 41 }, (_, i) => ({ op: 'text', qid: qid(i % 8), text: `w${i}` })));
+  expect(r).toEqual({ status: 400, body: { ok: false, reason: 'bad_request' } });
+  expect(mockDb.rpcCalls).toEqual([]);
+});
+
 test('a bad op is refused before the save function is called', async () => {
   const r = await save([{ op: 'key', qid: qid(0), slot: 'D' }]);
   expect(r).toEqual({ status: 400, body: { ok: false, reason: 'bad_slot', qid: qid(0) } });
@@ -175,6 +186,11 @@ test('the view: every question with its key; another teacher gets 403; a child a
   mockDb.tables.quiz_sessions = [{ id: 's-teacher', quiz_id: QUIZ, user_id: TEACHER }, { id: 's-kid', quiz_id: QUIZ, user_id: null }];
   mockDb.tables.quiz_answers = [{ id: 'a1', session_id: 's-teacher' }];
   expect((await get(`/quiz/${QUIZ}?t=${TEACHER}`)).body.locked).toBe(false);   // the teacher's own preview never locks it
+  mockDb.tables.quiz_sessions.push({ id: 's-other', quiz_id: QUIZ, user_id: OTHER });
+  mockDb.tables.quiz_answers.push({ id: 'a3', session_id: 's-other' });
+  expect((await get(`/quiz/${QUIZ}?t=${TEACHER}`)).body.locked).toBe(true);   // anyone but the quiz's teacher counts
+  mockDb.tables.quiz_answers.pop();
+  expect((await get(`/quiz/${QUIZ}?t=${TEACHER}`)).body.locked).toBe(false);
   mockDb.tables.quiz_answers.push({ id: 'a2', session_id: 's-kid' });
   const locked = await get(`/quiz/${QUIZ}?t=${TEACHER}`);
   expect(locked.body.locked).toBe(true);

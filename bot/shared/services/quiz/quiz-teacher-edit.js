@@ -213,9 +213,13 @@ async function readRows(quizId, db = supabase) {
   return data || [];
 }
 
-/** Has a child answered this quiz (any of its links)? Advisory for the page; the save checks again under its lock. */
-async function childAnswered(quizId, db = supabase) {
-  const { data: sessions, error } = await db.from('quiz_sessions').select('id').eq('quiz_id', quizId).is('user_id', null).limit(1000);
+/**
+ * Has a child answered this quiz (any of its links)? Any sitting but the teacher's own preview (user_id = the quiz's
+ * teacher) counts. Advisory for the page; the save checks again under its lock.
+ */
+async function childAnswered(quizId, teacherId, db = supabase) {
+  const { data: sessions, error } = await db.from('quiz_sessions').select('id').eq('quiz_id', quizId)
+    .or(`user_id.is.null,user_id.neq.${teacherId}`).limit(1000);
   if (error) throw new Error(`quiz_sessions read failed: ${error.message}`);
   const ids = (sessions || []).map((s) => s.id);
   for (let i = 0; i < ids.length; i += 200) {
@@ -331,7 +335,7 @@ async function view({ quizId, teacherUserId } = {}, deps = {}) {
   if (quiz.teacher_id !== teacherUserId) return refusal('not_owner');
   const rows = await readRows(quizId, db);
   const round = rows.some((r) => r && r.media && (r.media.round != null || r.media.round_key != null));
-  const locked = await childAnswered(quizId, db);
+  const locked = await childAnswered(quizId, quiz.teacher_id, db);
   const meta = quiz.meta || {};
   return out(200, {
     ok: true,
