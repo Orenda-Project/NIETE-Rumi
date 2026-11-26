@@ -119,15 +119,19 @@ async function listen(app) {
 }
 
 /** The bot's internal route and the portal, wired as on Railway: the portal reaches the bot by MAIN_BOT_URL + key. */
-async function start() {
+async function start({ botDelayMs = 0 } = {}) {
   require('../../bot/shared/services/quiz/report-page-quiz')._resetCache();
   require('../../bot/shared/services/quiz/closed-window-offer')._resetCache();
   const bot = express();
+  if (botDelayMs) bot.use((req, res, next) => setTimeout(next, botDelayMs));
   bot.use('/api/internal/rq', require('../../bot/shared/routes/report-quiz-internal.routes'));
   const botPort = await listen(bot);
   process.env.MAIN_BOT_URL = `http://127.0.0.1:${botPort}`;
   const portal = express();
-  portal.use(require('../../dashboard/routes/coaching-report.routes').createCoachingReportRouter({
+  // The real portal → bot clients, with a test-machine timeout: a loaded run answers late, not never.
+  const { createCoachingReportRouter, createReportQuizClient } = require('../../dashboard/routes/coaching-report.routes');
+  portal.use(createCoachingReportRouter({
+    reportQuiz: createReportQuizClient({ timeoutMs: 30000 }),
     groupOf: async () => null,
     deliverySwitch: async () => ({ linkTemplate: null, tipWording: false, timeOnPage: false }),
   }));
@@ -274,6 +278,20 @@ describe('held offer: the page makes the quiz itself', () => {
     expect(jobs('quiz_generate')[0][2].phone).toBe(require('../../bot/shared/services/quiz/report-page-quiz').PAGE_NO_SEND);
     noWhatsApp();
   });
+
+  // A bot that answers late (a loaded test machine) is still the bot answering: the page under test must draw its
+  // answer, not the unreachable-bot fallback. Production keeps its own short timeout.
+  test('a bot slower than the page\'s production timeout still draws the language ask in these tests', async () => {
+    seed();
+    const { token, req } = await start({ botDelayMs: 4500 });
+    const t = token();
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    Digest.run.mockResolvedValue(DIGEST('maths'));
+    await runOfferJob();
+    const ask = await req('GET', `/cq/${t}`);
+    expect(ask.body).toContain('Which language should the quiz be in?');
+    noWhatsApp();
+  }, 30000);
 
   test('a subject we do not quiz → the page names that, and the teacher is sent nothing', async () => {
     process.env.TRANSCRIPT_QUIZ_SUBJECTS = 'maths,science,english,urdu';

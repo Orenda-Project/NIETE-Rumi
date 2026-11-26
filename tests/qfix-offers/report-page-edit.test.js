@@ -112,7 +112,11 @@ async function start() {
   bot.use('/api/internal/wqedit', router);
   process.env.MAIN_BOT_URL = `http://127.0.0.1:${await listen(bot)}`;
   const portal = express();
-  portal.use(require('../../dashboard/routes/coaching-report.routes').createCoachingReportRouter({
+  // The real portal → bot clients, with a test-machine timeout: a loaded run answers late, not never.
+  const { createCoachingReportRouter, createReportQuizClient, createBotCaller } = require('../../dashboard/routes/coaching-report.routes');
+  portal.use(createCoachingReportRouter({
+    reportQuiz: createReportQuizClient({ timeoutMs: 30000 }),
+    callBot: createBotCaller({ timeoutMs: 30000 }),
     groupOf: async () => null,
     deliverySwitch: async () => ({ linkTemplate: null, tipWording: false, timeOnPage: false }),
   }));
