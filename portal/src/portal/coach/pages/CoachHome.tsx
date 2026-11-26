@@ -19,11 +19,8 @@ import { Failed, Loading, SectionLabel, useLoad } from "../ui";
 import { COACH_TRAINING } from "../coachTraining/copy";
 import { COACH_TRAINING_PATH } from "../coachTraining/modules";
 import { ReadyReportCard } from "../report/ReadyReportCard";
-import { useKeptItems } from "../observe/keptRecording";
-import { KeptRows } from "../observe/KeptRows";
+import { KeptHomeCard } from "../observe/KeptRows";
 import { COACH_OBSERVE_ROUTES } from "../observe/observeRoutes";
-import { SCHEDULE } from "../schedule/copy";
-import { LIST_CARD } from "../../teacher/ui/styles";
 
 /**
  * bd-o15qnr / bd-4404s7.2 — coach Home on the shared kit (Coach_Home, Coach_HomeBusy, Coach_Home_Urdu):
@@ -44,10 +41,6 @@ const CoachHome = () => {
   const { data, failed, reload } = useLoad(() => coach.getHome(), []);
   const home = data?.home;
   const waiting = home?.counts.waiting ?? 0;
-  // bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent: a Needs you card
-  // on Home too, one row each (Paused / Not sent), only when there is one.
-  const keptItems = useKeptItems() ?? [];
-  const S = useCopy(SCHEDULE);
 
   return (
     <CoachGate>
@@ -68,12 +61,8 @@ const CoachHome = () => {
         {/* Coach reports in the app: the card above the tiles when her report is ready (nothing when off). */}
         <ReadyReportCard />
         {waiting > 0 && <AttentionBanner testId="reports-waiting" text={W.reportsWaiting(waiting)} to="/portal/coach/reports?show=waiting" />}
-        {keptItems.length > 0 && (
-          <section data-testid="home-kept" className="flex flex-col gap-2">
-            <SectionLabel count={keptItems.length} countTone="warn">{S.needsYou}</SectionLabel>
-            <div className={LIST_CARD}><KeptRows items={keptItems} routes={COACH_OBSERVE_ROUTES} /></div>
-          </section>
-        )}
+        {/* bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — her recordings kept on this phone and not sent. */}
+        <KeptHomeCard routes={COACH_OBSERVE_ROUTES} />
 
         <SectionLabel count={<span data-testid="todays-visits">{home ? home.today.length : 0}</span>}>{W.todaysVisits}</SectionLabel>
         {failed && <Failed onRetry={reload} message={W.loadFailed} retryLabel={F.tryAgain} />}
