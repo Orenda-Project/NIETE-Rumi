@@ -62,6 +62,8 @@ const considerPerTick = () => Math.max(maxPerTick(), 200);
 
 const lockKey = (classId, day) => `wq:er:lock:${classId}:${day}`;
 const seenKey = (day) => `wq:er:seen:${day}`;
+// Classes read with no roster today: looked at again, but after every class not yet looked at (never starve the batch).
+const emptyKey = (day) => `wq:er:empty:${day}`;
 const roundKeyOf = (classId, day) => `${classId}|${day}`;
 const cacheKey = (day, classId) => `wq:er:r:${day}:${classId}`;
 const chunks = (xs, n = IN_CHUNK) => { const out = []; for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n)); return out; };
@@ -225,26 +227,36 @@ async function roundsOn(day, classIds = null) {
   return want ? out.filter((q) => q.meta && want.has(String(q.meta.class_id))) : out;
 }
 
+// Each read is paged past PostgREST's max rows (1000), ordered by the table's key: one chunk of classes can hold more
+// enrollments than that, and an unpaged read silently stops inside the first few classes (26 Nov: 1000 of 3,093 rows).
+const KEY_OF = { class_teacher_subjects: ['class_teacher_id', 'subject_code'] };
+
 async function readIn(table, cols, col, ids, extra = (q) => q) {
+  const keys = KEY_OF[table] || ['id'];
   const out = [];
   for (const part of chunks([...new Set(ids)])) {
-    // eslint-disable-next-line no-await-in-loop
-    const { data, error } = await extra(supabase.from(table).select(cols).in(col, part));
-    if (error) throw new Error(`evening round: ${table}: ${error.message}`);
-    out.push(...(data || []));
+    for (let from = 0; ; from += 1000) {
+      let q = extra(supabase.from(table).select(cols).in(col, part));
+      keys.forEach((k) => { q = q.order(k, { ascending: true }); });
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await q.range(from, from + 999);
+      if (error) throw new Error(`evening round: ${table}: ${error.message}`);
+      out.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
   }
   return out;
 }
 
-async function seenOf(day) {
+async function seenOf(day, key = seenKey) {
   const r = redisUp();
   if (!r) return new Set();
-  try { const v = await r.get(seenKey(day)); return new Set(Array.isArray(v) ? v.map(String) : []); } catch (_) { return new Set(); }
+  try { const v = await r.get(key(day)); return new Set(Array.isArray(v) ? v.map(String) : []); } catch (_) { return new Set(); }
 }
-async function addSeen(day, ids) {
+async function addSeen(day, ids, key = seenKey) {
   const r = redisUp();
   if (!r || !ids.length) return;
-  try { const s = await seenOf(day); ids.forEach((id) => s.add(String(id))); await r.set(seenKey(day), [...s], LOCK_TTL_S); } catch (_) { /* next tick re-checks */ }
+  try { const s = await seenOf(day, key); ids.forEach((id) => s.add(String(id))); await r.set(key(day), [...s], LOCK_TTL_S); } catch (_) { /* next tick re-checks */ }
 }
 
 async function queueGenerate(quizId) {
@@ -388,8 +400,11 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     const done = new Set(today.map((q) => q.meta && q.meta.class_id).filter(Boolean));
     // A round that failed for a passing reason (a model outage) is tried again on this same row, within the canary.
     out.retried = await retryFailed(today.filter((q) => q.meta && inCanary.has(String(q.meta.class_id))), { now, enqueue, room: max });
-    const seen = Array.isArray(classIds) && classIds.length ? new Set() : await seenOf(day);
-    const todo = [...links.keys()].filter((id) => inCanary.has(id) && !done.has(id) && !seen.has(id)).sort();
+    const direct = Array.isArray(classIds) && classIds.length;
+    const seen = direct ? new Set() : await seenOf(day);
+    const empty = direct ? new Set() : await seenOf(day, emptyKey);
+    const todo = [...links.keys()].filter((id) => inCanary.has(id) && !done.has(id) && !seen.has(id))
+      .sort((a, b) => (empty.has(a) - empty.has(b)) || (a < b ? -1 : a > b ? 1 : 0));
     out.exists = [...links.keys()].filter((id) => done.has(id)).length;
     const batch = todo.slice(0, considerPerTick());
     out.more = todo.length > batch.length;
@@ -404,13 +419,15 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
     const { by, src } = await lpTakenFor(cts.map((c) => c.teacher_user_id), day);
     out.lp_src = src;
     const finished = [];
+    const noRoster = [];
     for (const classId of batch) {
       if (out.queued >= max) { out.more = true; break; }
-      finished.push(classId);
       const cls = classes.find((c) => c.id === classId);
-      if (!cls || cls.is_active === false) { out.no_roster += 1; continue; }
+      // A class with no roster is not marked seen: a later tick looks again (children can be added during the day).
+      if (!cls || cls.is_active === false) { out.no_roster += 1; noRoster.push(classId); continue; }
       const enrolled = enr.filter((e) => e.class_id === classId).map((e) => e.student_id);
-      if (!enrolled.length) { out.no_roster += 1; continue; }
+      if (!enrolled.length) { out.no_roster += 1; noRoster.push(classId); continue; }
+      finished.push(classId);
       const teachers = cts.filter((c) => c.class_id === classId).map((c) => ({
         teacherId: c.teacher_user_id, subjects: subj.filter((s) => s.class_teacher_id === c.id).map((s) => s.subject_code),
       }));
@@ -425,7 +442,9 @@ async function writeRounds({ now = new Date(), classIds = null, max = maxPerTick
         logToFile('⚠️ evening round: one class failed', { error: err.message });
       }
     }
-    if (!(Array.isArray(classIds) && classIds.length)) await addSeen(day, finished);
+    // Which classes read empty, so a day's read counts each class once however many ticks looked at it.
+    if (noRoster.length) out.no_roster_ids = noRoster.slice(0, 50);
+    if (!direct) { await addSeen(day, finished); await addSeen(day, noRoster, emptyKey); }
     return out;
   } catch (err) {
     out.failed += 1;
