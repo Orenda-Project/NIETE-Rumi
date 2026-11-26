@@ -42,9 +42,9 @@ test('/observe2: a named grades 1-5 lesson is v6 whatever the profile; unnamed, 
   expect((await visitRubric({ observerUserId: 'c', region: 'sihala', teacherUserId: 'prim' })).rubricVersion).toBe('fico17_v6');
 });
 
-test('/observe: the same', async () => {
+test('/observe: a named grades 1-5 lesson is v6; unnamed is v6 too since bd-ra8xu.64.8 (queue #282: in doubt is v6)', async () => {
   expect(await O6.decideVisitFramework({ userId: 'c', region: 'sihala', teacherUserId: 'mixed', lessonIsPrimary: true })).toBe('fico17_v6');
-  expect(await O6.decideVisitFramework({ userId: 'c', region: 'sihala', teacherUserId: 'mixed' })).toBeNull();
+  expect(await O6.decideVisitFramework({ userId: 'c', region: 'sihala', teacherUserId: 'mixed' })).toBe('fico17_v6');
 });
 
 test('the coach switch still rules: off, a named primary lesson stays on today\'s rubric', async () => {
