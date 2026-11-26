@@ -39,43 +39,63 @@
       ]
     ]
   },
-  "sa/v5/en/420a8389562d.mp3": {
+  "sa/v5/en/2f988087bd31.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 2865,
-    "dur_ms": 2968,
-    "first_end_ms": 827,
+    "speech_end_ms": 1681,
+    "dur_ms": 1811,
+    "first_end_ms": 427,
     "speech_spans_ms": [
       [
         310,
-        827
+        427
       ],
       [
-        1329,
-        1846
+        937,
+        1054
       ],
       [
-        2347,
-        2865
+        1564,
+        1681
       ]
     ]
   },
-  "sa/v5/en/4697c4da849a.mp3": {
+  "sa/v5/en/360e801b2da2.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 2864,
-    "dur_ms": 2968,
-    "first_end_ms": 826,
+    "speech_end_ms": 1602,
+    "dur_ms": 1732,
+    "first_end_ms": 401,
     "speech_spans_ms": [
       [
         310,
-        826
+        401
       ],
       [
-        1329,
-        1845
+        911,
+        1001
       ],
       [
-        2348,
-        2864
+        1512,
+        1602
+      ]
+    ]
+  },
+  "sa/v5/en/6cc5c36d85b2.mp3": {
+    "speech_start_ms": 310,
+    "speech_end_ms": 1532,
+    "dur_ms": 1659,
+    "first_end_ms": 386,
+    "speech_spans_ms": [
+      [
+        310,
+        386
+      ],
+      [
+        885,
+        957
+      ],
+      [
+        1459,
+        1532
       ]
     ]
   },
@@ -99,63 +119,23 @@
       ]
     ]
   },
-  "sa/v5/en/91b3047b486c.mp3": {
+  "sa/v5/en/902fc6e315f9.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 2864,
-    "dur_ms": 2968,
-    "first_end_ms": 826,
+    "speech_end_ms": 2169,
+    "dur_ms": 2294,
+    "first_end_ms": 601,
     "speech_spans_ms": [
       [
         310,
-        826
+        601
       ],
       [
-        1329,
-        1845
+        1093,
+        1385
       ],
       [
-        2348,
-        2864
-      ]
-    ]
-  },
-  "sa/v5/en/a321bfba35ba.mp3": {
-    "speech_start_ms": 310,
-    "speech_end_ms": 2849,
-    "dur_ms": 2968,
-    "first_end_ms": 812,
-    "speech_spans_ms": [
-      [
-        310,
-        812
-      ],
-      [
-        1329,
-        1830
-      ],
-      [
-        2348,
-        2849
-      ]
-    ]
-  },
-  "sa/v5/en/aa98ed74844b.mp3": {
-    "speech_start_ms": 300,
-    "speech_end_ms": 2865,
-    "dur_ms": 2988,
-    "first_end_ms": 828,
-    "speech_spans_ms": [
-      [
-        300,
-        828
-      ],
-      [
-        1319,
-        1846
-      ],
-      [
-        2338,
-        2865
+        1877,
+        2169
       ]
     ]
   },
@@ -199,26 +179,6 @@
       ]
     ]
   },
-  "sa/v5/en/d8be0cdacead.mp3": {
-    "speech_start_ms": 310,
-    "speech_end_ms": 1523,
-    "dur_ms": 1632,
-    "first_end_ms": 373,
-    "speech_spans_ms": [
-      [
-        310,
-        373
-      ],
-      [
-        885,
-        948
-      ],
-      [
-        1459,
-        1523
-      ]
-    ]
-  },
   "sa/v5/en/e7745a4e7e63.mp3": {
     "speech_start_ms": 309,
     "speech_end_ms": 2859,
@@ -236,6 +196,46 @@
       [
         2347,
         2859
+      ]
+    ]
+  },
+  "sa/v5/en/fa6a577d1290.mp3": {
+    "speech_start_ms": 310,
+    "speech_end_ms": 1536,
+    "dur_ms": 1664,
+    "first_end_ms": 387,
+    "speech_spans_ms": [
+      [
+        310,
+        387
+      ],
+      [
+        884,
+        961
+      ],
+      [
+        1459,
+        1536
+      ]
+    ]
+  },
+  "sa/v5/ur/025b34d4fe2f.mp3": {
+    "speech_start_ms": 309,
+    "speech_end_ms": 1549,
+    "dur_ms": 1669,
+    "first_end_ms": 400,
+    "speech_spans_ms": [
+      [
+        309,
+        400
+      ],
+      [
+        884,
+        974
+      ],
+      [
+        1459,
+        1549
       ]
     ]
   },
@@ -279,26 +279,6 @@
       ]
     ]
   },
-  "sa/v5/ur/42a27591c742.mp3": {
-    "speech_start_ms": 301,
-    "speech_end_ms": 1683,
-    "dur_ms": 1784,
-    "first_end_ms": 429,
-    "speech_spans_ms": [
-      [
-        301,
-        429
-      ],
-      [
-        928,
-        1056
-      ],
-      [
-        1555,
-        1683
-      ]
-    ]
-  },
   "sa/v5/ur/5ce2f6497740.mp3": {
     "speech_start_ms": 300,
     "speech_end_ms": 1859,
@@ -316,6 +296,26 @@
       [
         1658,
         1859
+      ]
+    ]
+  },
+  "sa/v5/ur/6cbe48d95dc1.mp3": {
+    "speech_start_ms": 310,
+    "speech_end_ms": 1613,
+    "dur_ms": 1732,
+    "first_end_ms": 411,
+    "speech_spans_ms": [
+      [
+        310,
+        411
+      ],
+      [
+        910,
+        1012
+      ],
+      [
+        1511,
+        1613
       ]
     ]
   },
@@ -396,26 +396,6 @@
       [
         1824,
         2096
-      ]
-    ]
-  },
-  "sa/v5/ur/be762a415596.mp3": {
-    "speech_start_ms": 300,
-    "speech_end_ms": 1929,
-    "dur_ms": 2051,
-    "first_end_ms": 519,
-    "speech_spans_ms": [
-      [
-        300,
-        519
-      ],
-      [
-        1005,
-        1224
-      ],
-      [
-        1710,
-        1929
       ]
     ]
   },
