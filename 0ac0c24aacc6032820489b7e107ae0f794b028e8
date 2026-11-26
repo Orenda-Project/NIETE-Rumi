@@ -1,0 +1,1 @@
+{"ts":"2026-11-26T14:01:19Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"0ac0c24aacc6","branch":"HEAD","user":"Haroon Yasin"}
