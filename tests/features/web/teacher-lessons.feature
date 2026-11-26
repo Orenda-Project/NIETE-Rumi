@@ -469,6 +469,17 @@ Feature: Teacher lesson plans
     Then the plan ends ready with her goal at the top, or with "We could not make a plan we are sure of for this goal."
     And she never sees "Couldn't make it" for that reason
 
+  # bd-snkn32.58.9 (queue #365): live 24-26 Nov, 15 of 35 goal plans refused. A formal-letter goal was written over the
+  # Survival Haiku day and stayed a haiku lesson; the check also refused on the book day's labels and on lines it called
+  # "not an error". Pinned by tests/lp612/own-goal-refusals.test.js.
+  @GOAL17 @draft @config-gated
+  Scenario: A Grade 5 English writing goal gets a plan about that goal, not the book day beside it
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from the Grade 5 English goal "Draft and write a formal letter/email, application, complaint."
+    Then the plan opens with her goal at the top and teaches writing a formal letter
+    And it does not teach a haiku
+    And she does not see "We could not make a plan we are sure of for this goal."
+
   # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
   @GOAL14 @draft @config-gated
   Scenario: Make my own's check screen names the subject, not its key
