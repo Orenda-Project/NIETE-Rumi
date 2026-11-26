@@ -158,7 +158,11 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
     parts.push(`<section><h2>${esc(c.report)}</h2>${inner}</section>`);
   }
   if (v.voice) parts.push(`<section><h2>${esc(c.voice)}</h2><audio controls src="${esc(v.voice)}"></audio></section>`);
-  if (typeof v.quizMessage === 'string' && v.quizMessage.trim()) {
+  if (links.quizBlock) {
+    // qfix offers: the quiz made in this page (report-quiz-page.js renderQuizBlock, already escaped), for an offer held
+    // for a closed window or a quiz made here (quiz/report-page-quiz.js).
+    parts.push(links.quizBlock);
+  } else if (typeof v.quizMessage === 'string' && v.quizMessage.trim()) {
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
   }

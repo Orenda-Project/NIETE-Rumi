@@ -1,0 +1,41 @@
+{
+  "name": "share_dc_report_open_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "آپ کی ڈیجیٹل کوچ رپورٹ: *{{1}}*\n{{2}} کی کلاس\n\nاس سبق سے آپ کے طلبہ کے لیے ایک مختصر کوئز بنایا جا سکتا ہے۔ نیچے کوئز بنائیں دبائیں۔",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "جماعت 4 · Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "کوئز بنائیں",
+          "url": "https://portal.niete.edu.pk/cq/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/cq/eyJzIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidSI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9.3TxIajJUt4sBl7xeLmR2FI"
+          ]
+        }
+      ]
+    }
+  ]
+}
