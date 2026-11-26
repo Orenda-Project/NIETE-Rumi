@@ -201,13 +201,21 @@ Feature: School leader (principal) portal
   @LP30 @config-gated
   # Asserted in portal/src/portal/pages/LeaderAssess.test.tsx ("Add a child on the spot") and, on the server,
   # tests/child-test/L3/sa-add-child-empty-roster.test.js.
-  Scenario: Learning assessment: at a school with no class list for the grade, "Add a child" seats the first child (sa_add_child)
-    Given sa_add_child is on and the coach's school has nobody on its roster in the chosen grade
+  Scenario: Learning assessment: at a Gilgit-Baltistan school with no class list for the grade, "Add a child" seats the first child (sa_add_child)
+    Given sa_add_child is on and the coach's Gilgit-Baltistan school has nobody on its roster in the chosen grade
     When they open /portal/leader/assess, pick that school and grade, and see "This school has no class list for this grade yet."
     Then "Add a child" is under that message, with the chosen grade already picked
     When they add a child by first name
     Then the message goes and today's list shows that child with "Present"
     And with sa_add_child off, or when the school is not theirs, the page shows only its message, as before
+
+  @LP32 @config-gated
+  # Asserted in portal/src/portal/pages/LeaderAssess.test.tsx ("an ICT school with no class list") and, on the server,
+  # tests/child-test/L3/sa-add-child-empty-roster.test.js ("an ICT school is exactly sandbox").
+  Scenario: Learning assessment: at an ICT school with no class list for the grade, the page is exactly as before (sa_add_child)
+    Given sa_add_child is on and the coach's ICT school has nobody on its roster in the chosen grade
+    When they open /portal/leader/assess and pick that school and grade
+    Then they see only "This school has no class list for this grade yet.", with no "Add a child"
 
   @LP31 @config-gated
   # Asserted in portal/src/portal/pages/LeaderAssess.test.tsx ("frame_exhausted where the server says Add opens the

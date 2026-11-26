@@ -2127,8 +2127,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # (bot/shared/handlers/jugnu-command.js), for the leader family only, and only once every open conversation has
   # declined the message. A teacher's Jugnu is untouched: NIETE already calls the children's games teachers send home
   # "Jugnu". And every Gilgit-Baltistan school has 0 children on its roster, so the day list could not be drawn and
-  # "Add a child" refused too; now the draw is asked first and the first child opens the list when it has nobody to
-  # list. Driven through the real text handler, the real gate and the real /go router in
+  # "Add a child" refused too; now, at a Gilgit-Baltistan school only, the draw is asked first and the first child opens
+  # the list when it has nobody to list. ICT is exactly as before, except that an ICT leader the Learning Assessment
+  # opens for gets its link. Driven through the real text handler, the real gate and the real /go router in
   # tests/child-test/jugnu-door.test.js; the roster, the second visit and the region through the coach app's API, the
   # real draw and store in tests/child-test/L3/sa-add-child-empty-roster.test.js, draw-region.test.js and
   # sa-game-draw-region.test.js. The child-test mock driver drives /egra only (CT01-CT99), so these are @no-mock-driver.
@@ -2150,8 +2151,8 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @destructive @P1 @CT305 @no-mock-driver
   # No mock driver: the coach app's Learning Assessment is a portal page. Asserted in
   # tests/child-test/L3/sa-add-child-empty-roster.test.js and portal/src/portal/pages/LeaderAssess.test.tsx.
-  Scenario: At a school with nobody on its roster, the coach adds the first child and the day's list opens with them
-    Given "Add a child" is on, and the coach is linked to a school with no child on its roster in Grade 3
+  Scenario: At a Gilgit-Baltistan school with nobody on its roster, the coach adds the first child and the day's list opens with them
+    Given "Add a child" is on, and the coach is linked to a Gilgit-Baltistan school with no child on its roster in Grade 3
     And the coach opens the Learning Assessment at that school for Grade 3 and sees "This school has no class list for this grade yet."
     When I tap "Add a child", type the first name "Zara" and tap "Add to the list"
     Then today's list opens with Zara on it, as child 1, with "Present", "Absent" and "Refused"
@@ -2201,6 +2202,25 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the same holds for a video waiting for its topic
 
   # ── NEGATIVE ──
+  @e2e @wip @draft @config-gated @P1 @CT315 @no-mock-driver
+  # No mock driver: the coach app is a portal page. Asserted in tests/child-test/L3/sa-add-child-empty-roster.test.js ("an
+  # ICT school is exactly sandbox") and portal/src/portal/pages/LeaderAssess.test.tsx.
+  Scenario: At an ICT school with nobody on its roster in a grade, the Learning Assessment is exactly as before
+    Given "Add a child" is on, and the coach is linked to an ICT school with no child on its roster in Grade 3
+    When I open the Learning Assessment at that school for Grade 3
+    Then I see only "This school has no class list for this grade yet.", with no "Add a child"
+    And the school's roster gets no new class, child, enrolment or list
+    And the same holds with every grade off, for a grade missing beside others that have children, and for a child added before any list is drawn
+
+  @e2e @wip @draft @config-gated @P1 @CT316 @no-mock-driver
+  # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
+  # handler in tests/child-test/jugnu-door.test.js ("an ICT leader the Learning Assessment does not open for").
+  Scenario: An ICT leader the Learning Assessment does not open for gets exactly today's reply to "Jugnu"
+    Given the NIETE bot chat is open on an ICT principal or coach account the Learning Assessment does not open for
+    When I send «جگنو», "jugnu" or "reading game"
+    Then the message is answered exactly as it was before this change
+    And there is no Learning Assessment line and no button
+
   @e2e @wip @draft @config-gated @P1 @CT308 @persona:teacher @no-mock-driver
   # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
   # handler in tests/child-test/jugnu-door.test.js ("a teacher's Jugnu is exactly today's").
@@ -2213,31 +2233,33 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   @e2e @wip @draft @config-gated @P1 @CT309 @no-mock-driver
   # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
   # handler, the real gate and the real /go router in tests/child-test/jugnu-door.test.js.
-  Scenario: A leader the Learning Assessment does not open for is told so in one line, and no button to a page that would refuse them
+  Scenario: A Gilgit-Baltistan leader the Learning Assessment does not open for is told so in one line, and no button to a page that would refuse them
     Given the NIETE bot chat is open on a COACH account in Gilgit-Baltistan, with nothing waiting for an answer
     And the child test is NOT on for them: their region is not a child-test region, or they are not on the pilot list, or the coach app's Learning Assessment switch does not name them
     When I send "Jugnu"
     Then I get ONE line: "Jugnu, the NIETE app's Learning Assessment, isn't switched on for your account yet."
     And there is no button and the chat does not answer
     And a leader who reads Urdu gets the line in Urdu
+    And when the leader's switches cannot be read at that moment, the message is answered as before, never with that line
 
   @e2e @wip @draft @config-gated @P2 @CT310 @no-mock-driver
   # No mock driver: needs a deployment with no portal address or signing key. Asserted in tests/child-test/jugnu-door.test.js.
   Scenario: When the link cannot be made, the leader is told so and where to find the page
     Given the Learning Assessment opens for this coach but this deployment cannot make the signed-in link
     When I send "Jugnu"
-    Then I get ONE line: "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment."
+    Then I get ONE line: "I couldn't send the link. Open the NIETE app and tap Learning Assessment."
     And I am not told the Learning Assessment is off for my account, and the chat does not answer
 
   @e2e @wip @draft @config-gated @P2 @CT311 @no-mock-driver
   # No mock driver: the coach app is a portal page. Asserted in tests/child-test/L3/sa-add-child-empty-roster.test.js and
   # portal/src/portal/pages/LeaderAssess.test.tsx.
-  Scenario: A school with children on its roster keeps the draw first: a 1-child list never replaces the drawn list
-    Given "Add a child" is on, and the coach's school has 12 children in Grade 5 and none in Grade 3, and the day's list is not drawn yet
+  Scenario: A Gilgit-Baltistan school with children on its roster keeps the draw first: a 1-child list never replaces the drawn list
+    Given "Add a child" is on, and the coach's Gilgit-Baltistan school has 12 children in Grade 5 and none in Grade 3, and the day's list is not drawn yet
     When a Grade 3 child is added before the list is opened
     Then the day's Grade 5 list is drawn as it would be, and the added child joins it, last
     And a list of the added child alone is never opened in its place
-    And at an ICT school where every child in the grade has been tested, or a school that is not the coach's, the page shows only its message, with no "Add a child"
+    And at an ICT school in the same state the add is refused and nothing is drawn or written, as before
+    And at a school that is not the coach's the page shows only its message, with no "Add a child"
     And a day list for another school or another day is never opened from "Add a child"
 
   # ── EDGE ──
