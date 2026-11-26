@@ -2119,3 +2119,99 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the four answers stay 56 px tall and at least 8 px apart, on the practice and on the scored questions
     And English, the coach-led phone and the tablet show these screens as before
     And with sa_r28_mcq off there is no story question screen and nothing changes
+
+  # ═══════════════ JUGNU, AND A SCHOOL WITH NOBODY ON ITS ROSTER ═══════════════
+  # Jugnu is the main Rumi bot's name for the children's reading game; on NIETE the same game is the coach app's
+  # Learning Assessment (/portal/leader/assess). "Jugnu" used to reach the chat, which wrote a lesson plan about
+  # fireflies. The words are the main bot's, matched on the WHOLE message with its normalisation
+  # (bot/shared/handlers/jugnu-command.js). And every Gilgit-Baltistan school has 0 children on its roster, so the day
+  # list could not be drawn and "Add a child" refused too. Driven through the real text handler, the real gate and the
+  # real /go router in tests/child-test/jugnu-door.test.js; the roster and region rules through the coach app's API, the
+  # real draw and store in tests/child-test/L3/sa-add-child-empty-roster.test.js and draw-region.test.js.
+
+  # ── POSITIVE ──
+  @e2e @wip @draft @config-gated @P1 @CT304
+  Scenario: A leader the Learning Assessment opens for types "Jugnu" and gets one button that opens it, signed in
+    Given the NIETE bot chat is open on a COACH account in Gilgit-Baltistan
+    And the child test is on for them: their region is a child-test region, they are on the pilot list, and the coach app's Learning Assessment switch names them
+    When I send "Jugnu"
+    Then I get ONE message: "Open Jugnu: the NIETE app's Learning Assessment. Pick a school and a grade, then hand the phone to each child in turn." with the button "Open Jugnu"
+    And tapping the button opens the NIETE app already signed in, on the Learning Assessment
+    And the chat does not answer and no lesson plan is written
+    And a coach or principal in an ICT sector the child test is on for gets the same message and button
+    And a leader who reads Urdu gets it in Urdu, with the button «جگنو کھولیں»
+
+  @e2e @wip @draft @config-gated @destructive @P1 @CT305 @no-mock-driver
+  # No mock driver: the coach app's Learning Assessment is a portal page. Asserted in
+  # tests/child-test/L3/sa-add-child-empty-roster.test.js and portal/src/portal/pages/LeaderAssess.test.tsx.
+  Scenario: At a school with nobody on its roster, the coach adds the first child and the day's list opens with them
+    Given "Add a child" is on, and the coach is linked to a school with no child on its roster in Grade 3
+    And the coach opens the Learning Assessment at that school for Grade 3 and sees "This school has no class list for this grade yet."
+    When I tap "Add a child", type the first name "Zara" and tap "Add to the list"
+    Then today's list opens with Zara on it, as child 1, with "Present", "Absent" and "Refused"
+    And Zara is saved on that school's roster, in a new Grade 3 class of the school (section A, morning), and nowhere else
+    And opening the Learning Assessment again at that school and grade shows the same list, and a second child added joins it
+    And marking Zara present starts her session as for any child on a list
+
+  # ── BUSINESS RULES ──
+  @e2e @wip @draft @config-gated @P1 @CT306 @no-mock-driver
+  # No mock driver: the region is a column of the draw, never shown. Asserted in tests/child-test/L3/draw-region.test.js.
+  Scenario: A child drawn or added at a school counts for that school's programme, so ICT and Gilgit-Baltistan never mix
+    Given a school in Gilgit-Baltistan and a school in an ICT sector
+    When the day's list is drawn, or a child is added, at each of them
+    Then the Gilgit-Baltistan school's children are recorded as Gilgit-Baltistan's
+    And the ICT school's children are recorded as ICT's, exactly as every list before
+    And a school whose region is blank or not a listed region, or whose region cannot be read at that moment, is recorded as ICT's, and the list is still drawn
+
+  @e2e @wip @draft @config-gated @P2 @CT307
+  Scenario: Every Jugnu word, written any of the ways teachers type it, is the same request
+    Given the NIETE bot chat is open on a COACH account the Learning Assessment opens for
+    When I send each of "jugnu", "/jugnu", "reading game", "readinggame", "/readinggame", «جگنو», «پڑھنے کا کھیل» and «ریڈنگ گیم»
+    And "Jugnu!", "  JUGNU  ", "Reading  Game." and «جگنو۔»
+    Then each one gets the same single message with the "Open Jugnu" button
+    And a sentence that only mentions Jugnu, such as "jugnu what is photosynthesis", is answered by the chat as before
+
+  # ── NEGATIVE ──
+  @e2e @wip @draft @config-gated @P1 @CT308 @persona:teacher
+  Scenario: A teacher types "Jugnu" and is told, in one line, who it is for, never a lesson plan
+    Given the NIETE bot chat is open on a TEACHER account in Gilgit-Baltistan
+    When I send "Jugnu"
+    Then I get ONE line: "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet."
+    And there is no button, the chat does not answer and no lesson plan is written
+    And an ICT teacher gets the same line, and a teacher who reads Urdu gets it in Urdu
+
+  @e2e @wip @draft @config-gated @P1 @CT309
+  Scenario: A leader the Learning Assessment does not open for gets the same one line, and no button to a page that would refuse them
+    Given the NIETE bot chat is open on a COACH account in Gilgit-Baltistan
+    And the child test is NOT on for them: their region is not a child-test region, or they are not on the pilot list, or the coach app's Learning Assessment switch does not name them
+    When I send "Jugnu"
+    Then I get ONE line: "Jugnu is for coaches and school leaders in the NIETE app, and it isn't on for this account yet."
+    And there is no button and the chat does not answer
+
+  @e2e @wip @draft @config-gated @P2 @CT310 @no-mock-driver
+  # No mock driver: needs a deployment with no portal address or signing key. Asserted in tests/child-test/jugnu-door.test.js.
+  Scenario: When the link cannot be made, the leader is told so and where to find the page
+    Given the Learning Assessment opens for this coach but this deployment cannot make the signed-in link
+    When I send "Jugnu"
+    Then I get ONE line: "I couldn't send the link just now. Open the NIETE app and tap Learning Assessment."
+    And I am not told the Learning Assessment is off for my account, and the chat does not answer
+
+  @e2e @wip @draft @config-gated @P2 @CT311 @no-mock-driver
+  # No mock driver: the coach app is a portal page. Asserted in tests/child-test/L3/sa-add-child-empty-roster.test.js and
+  # portal/src/portal/pages/LeaderAssess.test.tsx.
+  Scenario: A school with children on its roster keeps today's rule: the list is drawn first, then a child is added
+    Given "Add a child" is on, and the coach's school has children on its roster in Grade 3
+    When the day's list cannot be opened there because every child has been tested this term, or the school is not on the coach's list
+    Then the page shows only that message, with no "Add a child"
+    And the school's roster gets no new child
+    And a day list for another school or another day is never opened from "Add a child"
+
+  # ── EDGE ──
+  @e2e @wip @draft @P2 @CT312 @no-mock-driver
+  # No mock driver: a child's handset is set up by the quiz join, not the driver's account. Asserted in
+  # tests/child-test/jugnu-door.test.js and bot/tests/first-touch/one-door-child-word.test.js.
+  Scenario: Someone with no account, a child's handset and a parent keep today's path for "Jugnu"
+    Given a number with no NIETE account, a child's handset, or an account that is neither a teacher nor a leader
+    When "Jugnu" is sent
+    Then they never get the "isn't on for this account" line or the "Open Jugnu" button
+    And a child's "Jugnu" is still answered by the tutor, as today
