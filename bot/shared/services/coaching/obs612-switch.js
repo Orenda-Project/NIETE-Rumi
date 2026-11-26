@@ -59,9 +59,6 @@ async function isOn(who = {}, now = Date.now()) {
     const map = await cache.get(now);
     if (!Object.keys(map).length) return false; // default off: no region lookup
     if (w.region === undefined) w.region = await regionOfUser(w.userId);
-    // bd-dsu5mq: a blank users.region (a teacher a coach made Principal) falls back to the school's region, else
-    // users.organization, so the "role:<role>@ict" keys still reach them. {} on any failure: decided as before.
-    if (!w.organization) Object.assign(w, await require('../observer-home').fallbackFor(w));
     return (await pickFor(map, w, VALUES, OFF)) === 'on';
   } catch (_) {
     return false;

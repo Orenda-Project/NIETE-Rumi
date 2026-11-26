@@ -63,23 +63,22 @@ function isObs612Form(form) {
 /**
  * Does this coach get the class question? The switch, and never for a GB visit (bd-hk2jm3, operator 17 Nov: FDE's
  * grade 6-8 tools are ICT's only; GB stays on FICO, v6 for HITL). `visit` names what is known of the visit: the
- * observed teacher's users.id and the school the coach picked (school_ext_id); without them the coach's own region
- * decides (coaching/fde-region.js). Never throws: false on any failure.
+ * observed teacher's users.id and the school the coach picked (school_ext_id); without them her own school decides,
+ * never her profile region (coaching/fde-region.js visitPlace). Never throws: false on any failure.
  * @param {object} user  the coach's (or principal's) users row
  * @param {{teacherUserId?: string|null, schoolExtId?: string|null}} [visit]
  */
 async function asksClass(user, visit = {}) {
   if (!user || !user.id) return false;
   try {
-    const who = {
-      userId: user.id,
-      region: user.region,
-      role: user.role, // bd-9bppaz: "role:principal" needs no read (undefined: read only when a role key needs it)
-    };
+    // bd-dsu5mq.2 (operator 26 Nov ~21:40): the VISIT'S SCHOOL decides ICT vs GB, never the observer's profile
+    // users.region. The switches are looked up for who she is at where the visit is (coaching/fde-region.js).
+    const FR = require('../../coaching/fde-region');
+    const place = await FR.visitPlace({ observer: user, ...(visit || {}) });
+    if (place.side === 'gb' || place.side === 'error') return false;
+    const who = FR.switchWho(user, place); // bd-9bppaz: user.role passes through, so "role:principal" needs no read
     // bd-31ziu8: FICO-S's switch asks the class too (its grades 6-12 lessons are named the same way).
-    const on = (await require('../../coaching/obs612-switch').isOn(who)) || (await ficoSSwitch().isOn(who));
-    if (!on) return false;
-    return await require('../../coaching/fde-region').fdeAllowed({ observer: user, ...(visit || {}) });
+    return (await require('../../coaching/obs612-switch').isOn(who)) || (await ficoSSwitch().isOn(who));
   } catch (_) {
     return false;
   }
