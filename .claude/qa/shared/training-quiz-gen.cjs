@@ -368,7 +368,7 @@ exports.run = async (ctx) => {
         while (Date.now() - t0 < 200000) { for (const x of await api.fresh()) got.push(x); if (got.filter((x) => x.doc || x.pdf).length >= 2) break; if (got.some((x) => x.doc || x.pdf) && Date.now() - t0 > ABSENCE_MS(90000)) break; await sleep(3000); }
         const ev77 = { asks: [c1.ok, c2.ok], secondAsk: c2.ok ? 'placed' : 'refused by the screen: ' + (c2.err || '') + ' offered ' + JSON.stringify(c2.offered || p2.actions || []), reportsArrived: got.filter((x) => x.doc || x.pdf).length, noOneFinishedSaid: got.some((x) => /No one has finished|کسی نے یہ quiz مکمل نہیں/.test(x.txt || '')), texts: got.map((x) => short(x.txt, 60)).slice(0, 6) };
         done('T77', ...V(c1.ok && ev77.reportsArrived === 1 && !ev77.noOneFinishedSaid, ev77));
-        // T78 — after the ONE automatic report, a late child's scheduled run is suppressed; the teacher's ask → a fresh report.
+        // T78 — a scheduled run after the ONE automatic report is suppressed; a late child + the teacher's ask → a fresh report.
         // Since fcda95623a (21 Nov) a /quiz ask never stamps report_sent_at (that stamp is the automatic report's), so the
         // asks above leave the code unreported: the first scheduled run here IS the automatic report and must arrive.
         s = t();
