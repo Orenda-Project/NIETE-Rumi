@@ -1,1 +1,2 @@
 {"ts":"2026-11-26T04:36:50Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"f567dae2ea44","branch":"HEAD","user":""}
+{"ts":"2026-11-26T04:38:34Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.6 in: spec_sync.py stale_text.py check-scenario-coverage.py","sha":"f567dae2ea44","branch":"bd-zrdvmi.71-staging3","user":""}
