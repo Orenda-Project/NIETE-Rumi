@@ -2130,7 +2130,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # real draw and store in tests/child-test/L3/sa-add-child-empty-roster.test.js and draw-region.test.js.
 
   # ── POSITIVE ──
-  @e2e @wip @draft @config-gated @P1 @CT304
+  @e2e @wip @draft @config-gated @P1 @CT304 @no-mock-driver
+  # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
+  # handler, the real gate and the real /go router in tests/child-test/jugnu-door.test.js.
   Scenario: A leader the Learning Assessment opens for types "Jugnu" and gets one button that opens it, signed in
     Given the NIETE bot chat is open on a COACH account in Gilgit-Baltistan
     And the child test is on for them: their region is a child-test region, they are on the pilot list, and the coach app's Learning Assessment switch names them
@@ -2163,7 +2165,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the ICT school's children are recorded as ICT's, exactly as every list before
     And a school whose region is blank or not a listed region, or whose region cannot be read at that moment, is recorded as ICT's, and the list is still drawn
 
-  @e2e @wip @draft @config-gated @P2 @CT307
+  @e2e @wip @draft @config-gated @P2 @CT307 @no-mock-driver
+  # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
+  # handler, the real gate and the real /go router in tests/child-test/jugnu-door.test.js.
   Scenario: Every Jugnu word, written any of the ways teachers type it, is the same request
     Given the NIETE bot chat is open on a COACH account the Learning Assessment opens for
     When I send each of "jugnu", "/jugnu", "reading game", "readinggame", "/readinggame", «جگنو», «پڑھنے کا کھیل» and «ریڈنگ گیم»
@@ -2172,7 +2176,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a sentence that only mentions Jugnu, such as "jugnu what is photosynthesis", is answered by the chat as before
 
   # ── NEGATIVE ──
-  @e2e @wip @draft @config-gated @P1 @CT308 @persona:teacher
+  @e2e @wip @draft @config-gated @P1 @CT308 @persona:teacher @no-mock-driver
+  # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
+  # handler, the real gate and the real /go router in tests/child-test/jugnu-door.test.js.
   Scenario: A teacher types "Jugnu" and is told, in one line, who it is for, never a lesson plan
     Given the NIETE bot chat is open on a TEACHER account in Gilgit-Baltistan
     When I send "Jugnu"
@@ -2180,7 +2186,9 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And there is no button, the chat does not answer and no lesson plan is written
     And an ICT teacher gets the same line, and a teacher who reads Urdu gets it in Urdu
 
-  @e2e @wip @draft @config-gated @P1 @CT309
+  @e2e @wip @draft @config-gated @P1 @CT309 @no-mock-driver
+  # No mock driver: the child-test driver drives the /egra conversation only (CT01-CT99). Asserted through the real text
+  # handler, the real gate and the real /go router in tests/child-test/jugnu-door.test.js.
   Scenario: A leader the Learning Assessment does not open for gets the same one line, and no button to a page that would refuse them
     Given the NIETE bot chat is open on a COACH account in Gilgit-Baltistan
     And the child test is NOT on for them: their region is not a child-test region, or they are not on the pilot list, or the coach app's Learning Assessment switch does not name them
