@@ -22,7 +22,7 @@ const { getLanguage } = require('../../bot/shared/config/languages');
 
 // 48 px touch targets on every new button (the page's shared a.btn is 44 px in English); the bar stays on screen.
 const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:48px;box-sizing:border-box;padding:12px 16px}'
-  + '.qz form{display:inline-block;margin:0}.qz a.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}'
+  + '.qz form{display:inline-block;margin:0}.qz .btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}'
   + '.qmsg{width:100%;min-height:8em;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);resize:vertical}'
   + '.qq summary{min-height:48px;padding:12px 0;cursor:pointer;font-weight:600;color:var(--s3)}'
   + '.qlist{list-style:none;padding:0;margin:0}.qitem{margin:0 0 14px}.qn{font-weight:700;margin-inline-end:6px}'
