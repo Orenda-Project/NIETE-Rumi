@@ -110,7 +110,8 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const box = await screen.findByRole("group", { name: "Observation" });
     const b = within(box);
-    expect(b.getByRole("link", { name: "Start recording" })).toBeInTheDocument();
+    // bd-ma9jiy.3: the two ways show once the phone has said whether it keeps a recording for her (no flash).
+    expect(await b.findByRole("link", { name: "Start recording" })).toBeInTheDocument();
     expect(b.getByRole("link", { name: "Upload recording" })).toBeInTheDocument();
     expect(b.getByRole("link", { name: /Reschedule/ })).toBeInTheDocument();
     expect(b.getByRole("button", { name: /^Cancel visit$/ })).toBeInTheDocument();

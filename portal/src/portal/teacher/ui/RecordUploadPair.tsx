@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload } from 'lucide-react';
+import { Pause, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TeacherUiCopy } from './copy';
 import { FOCUS, GRID } from './styles';
@@ -14,6 +14,12 @@ import './recordPair.css';
  * spreading rings) and Upload recording (white, an upload icon on a grey disc). A `…To` makes a square a link, an `on…` a button.
  * `actions` are small 52px buttons under them (Reschedule; Cancel visit in red): colour is not the only signal, the words are.
  * The mark moves only when the phone allows motion. Canvas: Coach_Visit. Its squares and box are ChoicePair's (bd-rlxkkt.6).
+ *
+ * bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10: "Since there is already a pending recording, the start recording
+ * and upload recording should not be there. Instead, there should be the Continue recording button that looks similar to
+ * the Start recording button but with a paused icon. With a text on top: Your recording was paused abruptly.") — `paused`:
+ * a recording this phone kept, cut mid-way. The pair is then that line and ONE wide Continue recording square, Start
+ * recording's indigo with a still red disc holding a pause mark; `actions` stay under it.
  */
 export interface PairAction {
   key: string;
@@ -33,14 +39,32 @@ export interface RecordUploadPairProps {
   copy?: Partial<Pick<TeacherUiCopy, 'startRecording' | 'uploadRecording'>>;
   /** Two 88px buttons with the 44px art beside the words (a screen where more steps follow: Digital Coaching's one screen). */
   compact?: boolean;
+  /** bd-ma9jiy.3 — a kept recording cut mid-way: only its line and Continue recording (a link or a button). */
+  paused?: { to?: string; onPress?: () => void; testId?: string };
   className?: string;
 }
 
-export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actions, copy, compact = false, className }: RecordUploadPairProps) {
+export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actions, copy, compact = false, paused, className }: RecordUploadPairProps) {
   const words = { ...useKitCopy(), ...copy };
   const art = compact ? 'h-11 w-11' : 'h-[84px] w-[84px]';
   return (
     <PairBox compact={compact} className={className}>
+      {paused ? (
+        <>
+          <p data-testid="paused-line" className="m-0 text-center text-[16px] font-semibold leading-snug text-[#b45309]">{words.pausedAbruptly}</p>
+          <div className={cn(GRID, 'grid-cols-1')}>
+            <Square to={paused.to} onPress={paused.onPress} name={words.continueRecording} compact={compact} testId={paused.testId ?? 'continue-kept'} className="bg-[#33374a] text-white">
+              <span aria-hidden="true" className={cn('relative flex shrink-0 items-center justify-center', art)}>
+                <i className={cn('absolute rounded-full border-[2.5px] border-[rgba(255,77,61,0.6)]', compact ? 'inset-1.5' : 'inset-2.5')} />
+                <span className={cn('flex items-center justify-center rounded-full bg-[#ff4d3d]', compact ? 'h-7 w-7' : 'h-12 w-12')}>
+                  <Pause className={cn('fill-current text-white', compact ? 'h-4 w-4' : 'h-6 w-6')} strokeWidth={2.4} />
+                </span>
+              </span>
+              <span aria-hidden="true">{words.continueRecording}</span>
+            </Square>
+          </div>
+        </>
+      ) : (
       <div className={cn(GRID, 'grid-cols-2 gap-3')}>
         <Square to={recordTo} onPress={onRecord} name={words.startRecording} compact={compact} className="bg-[#33374a] text-white">
           <span aria-hidden="true" className={cn('relative flex shrink-0 items-center justify-center', art)}>
@@ -57,6 +81,7 @@ export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actio
           <span aria-hidden="true">{words.uploadRecording}</span>
         </Square>
       </div>
+      )}
       {actions && actions.length ? (
         <div className="flex gap-2.5">
           {actions.map((a) => {

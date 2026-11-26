@@ -74,6 +74,8 @@ export interface TeacherUiCopy {
   savedToPhone: string;
   saveLinkCopied: string;
   saveFailed: string;
+  /** bd-ma9jiy.3 — after Save to phone on a recording not sent: it is still to be sent, and the button that sends it. */
+  savedNotSent: (send: string) => string;
   /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
   am: string;
   pm: string;
@@ -101,6 +103,13 @@ export interface TeacherUiCopy {
   select: string;
   startRecording: string;
   uploadRecording: string;
+  /**
+   * bd-ma9jiy.3 (queue #262; the operator 26 Nov ~11:10) — a recording kept on the phone: PAUSED (cut by a kill, last saved
+   * within the hour) shows ONE Continue recording under its line; NOT SENT (stopped, or older) says so above the buttons.
+   */
+  continueRecording: string;
+  pausedAbruptly: string;
+  notSentLine: string;
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
@@ -260,6 +269,7 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   savedToPhone: 'Opened in browser',
   saveLinkCopied: 'Link copied',
   saveFailed: 'Not saved',
+  savedNotSent: (send = 'Send') => `Saved on your phone. It is not sent yet: tap ${send}.`,
   am: 'AM',
   pm: 'PM',
   chosenSoFar: 'Chosen so far',
@@ -284,6 +294,9 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   select: 'Select',
   startRecording: 'Start recording',
   uploadRecording: 'Upload recording',
+  continueRecording: 'Continue recording',
+  pausedAbruptly: 'Your recording was paused abruptly.',
+  notSentLine: 'Your recording was not sent.',
   report: {
     report: 'Report',
     eyebrow: 'Celebrating your teaching',
@@ -411,6 +424,8 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   savedToPhone: 'براؤزر میں کھل گئی',
   saveLinkCopied: 'لنک کاپی ہو گیا',
   saveFailed: 'محفوظ نہیں ہوئی',
+  // bd-ma9jiy.3 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  savedNotSent: (send = 'بھیجیں') => `آپ کے فون میں محفوظ ہو گئی، مگر ابھی بھیجی نہیں گئی: «${send}» دبائیں۔`,
   /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
   pm: 'بعد دوپہر',
@@ -437,6 +452,9 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   select: 'چنیں',
   startRecording: 'ریکارڈنگ شروع کریں',
   uploadRecording: 'ریکارڈنگ اپ لوڈ کریں',
+  continueRecording: 'ریکارڈنگ جاری رکھیں',
+  pausedAbruptly: 'آپ کی ریکارڈنگ اچانک رک گئی تھی۔',
+  notSentLine: 'آپ کی ریکارڈنگ نہیں بھیجی گئی۔',
   report: {
     report: 'رپورٹ',
     /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */
@@ -513,7 +531,9 @@ export const COPY_ENTRY: CopyEntry = {
   // The report's words mirror the hero PNG word for word.
   // `notify.sending`: the passive "بھیجا جا رہا ہے" (4 words) with the percent after it.
   // `share.sent`: the ontology's "Sent on WhatsApp" is five words in Urdu (واٹس ایپ is one name).
-  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked', 'notify.sending', 'share.sent'],
+  // bd-ma9jiy.3 (queue #262): the operator's own sentences for a kept recording, word for word (26 Nov ~11:10 "With a text
+  // on top: Your recording was paused abruptly."; #290: "Saved on your phone. It is not sent yet: tap Send.").
+  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked', 'notify.sending', 'share.sent', 'pausedAbruptly', 'notSentLine', 'savedNotSent'],
 };
 
 /** bd-fmf24g.16 — the history row lead's subject short forms (ui/subjects.ts), registered beside the kit's words. */

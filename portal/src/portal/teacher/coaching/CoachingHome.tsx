@@ -15,6 +15,7 @@ import { COACHING } from './copy';
 import { readPrefill } from './draft';
 import { COACHING_ALL, COACHING_NEW } from './paths';
 import { WaitingRecording } from './parts';
+import { KeptRecordingCard, useTeacherKept } from './keptCard';
 import { useAuth } from '../../hooks/useAuth';
 import { usePrincipalAppState } from '../principal/usePrincipalApp';
 import { OBS_HOME } from '../observations/paths';
@@ -50,6 +51,8 @@ export function CoachingHomePage() {
   // bd-c5reix — her classroom recordings sent on WhatsApp, kept and waiting (a failed read shows none).
   const [pending] = useLoad(loadPending, 'dc:pending');
   const waiting = dataOf(pending) ?? [];
+  // bd-ma9jiy.3 (queue #262) — her own recordings kept on this phone and not sent, beside the WhatsApp ones.
+  const keptHere = useTeacherKept();
 
   const items = useMemo(() => dataOf(history)?.items ?? [], [history]);
   // bd-aqotzx — a lesson closed because it did not sound like a class is a finished one (in Summary, marked Stopped).
@@ -92,6 +95,7 @@ export function CoachingHomePage() {
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </Link>
 
+      {keptHere.map((it) => <KeptRecordingCard key={it.id} item={it} />)}
       {waiting.map((rec) => (
         <WaitingRecording key={rec.key} rec={rec} to={`${COACHING_NEW}?recording=${encodeURIComponent(rec.id)}`} />
       ))}

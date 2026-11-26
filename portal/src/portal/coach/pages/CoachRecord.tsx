@@ -23,7 +23,7 @@ import { clockText } from "../../components/coaching/coach/CoachRecorder";
 import type { CoachVisit } from "../types";
 import { useUploadOnly } from "../observe/uploadOnly";
 import PhoneRecord from "../observe/PhoneRecord";
-import { keptFor, useKept } from "../observe/keptRecording";
+import { keptFor, keptState, useKept } from "../observe/keptRecording";
 import type { KeptRecording } from "../../lib/recordingStore";
 import type { BeatContext } from "../../lib/recordingBeat";
 
@@ -314,7 +314,9 @@ const CoachRecord = () => {
   const keptTeacher = data?.visit?.teacherExtId || "";
   const keptRec = useKept(keptAsk && keptTeacher ? () => keptFor(keptTeacher) : null, [keptTeacher, keptAsk]);
   const kept = keptRec === undefined ? null : !!keptRec;
-  const resumable = !!keptRec && keptRec.meta.ext === ".webm";
+  // bd-ma9jiy.3 (#292's rule): only one cut mid-way within the hour reopens paused; a stopped or older one is sent, never
+  // joined onto a new lesson (PhoneRecord "kept": Send saved recording).
+  const resumable = !!keptRec && keptState(keptRec) === "paused";
   const [startNew, setStartNew] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [blocked, setBlocked] = useState(false);

@@ -76,7 +76,8 @@ const UPLOAD_ONLY = "Record in your phone's Recorder app, then upload it here.";
 
 const keep = (id: string, teacherExtId: string, startedAt: string) => {
   rememberRecording(id, { teacherExtId, schoolExtId: null, teacherName: "x" });
-  kept.list.push({ meta: { id, startedAt, elapsedMs: 1_800_000, ext: ".webm", finished: false }, blob: new Blob(["x"]) });
+  // bd-ma9jiy.3: last saved a minute ago (#292's rule: only a recording cut within the hour reopens paused).
+  kept.list.push({ meta: { id, startedAt, elapsedMs: 1_800_000, ext: ".webm", finished: false }, blob: new Blob(["x"]), beats: [{ t: Date.now() - 60_000, st: "r" }] });
 };
 
 const renderAt = (path: string) => render(
