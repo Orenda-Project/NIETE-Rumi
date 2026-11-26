@@ -145,6 +145,41 @@ describe("portal_recording_resume: a kept DC recording reopens as the PAUSED rec
     expect(screen.queryByTestId("dc-record-clock")).toBeNull();
   });
 
+  // bd-91htd2 (queue #292, prod 26 Nov): every kept recording reopened paused, even one she had STOPPED or one from days
+  // before; Resume then joined today's lesson onto it (63 of 110 old ones that morning). Only a recent cut is resumed.
+  it("switch ON, a recording she STOPPED (finished), 29 min: not reopened paused; it is her recording to send (no Resume)", async () => {
+    sw.on = true;
+    store.latestUnsent.mockImplementation(async () => stored({ finished: true, elapsedMs: 29 * 60_000 }));
+    open();
+    const card = await screen.findByTestId("dc-recording");
+    expect(card.textContent).toContain(C.minutes(29));
+    expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dc-record-clock")).toBeNull();
+    expect(screen.queryByRole("button", { name: C.resume })).toBeNull();
+  });
+
+  it("switch ON, a lesson cut by a kill YESTERDAY (23 min): never resumed (it would join today's lesson); hers to send", async () => {
+    sw.on = true;
+    store.latestUnsent.mockImplementation(async () => stored({
+      startedAt: new Date(Date.now() - 24 * 3600_000).toISOString(), elapsedMs: 23 * 60_000,
+    }));
+    open();
+    expect(await screen.findByTestId("dc-recording")).toBeTruthy();
+    expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: C.resume })).toBeNull();
+  });
+
+  it("switch ON, a stopped 6-second take (cannot be sent): nothing reopened, the screen as before", async () => {
+    sw.on = true;
+    store.latestUnsent.mockImplementation(async () => stored({ finished: true, elapsedMs: 6_000 }));
+    open();
+    await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(session.restore).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dc-record-clock")).toBeNull();
+    expect(screen.queryByTestId("dc-recording")).toBeNull();
+  });
+
   it("switch ON but an MP4 kept (an iPhone): not reopened (only WebM parts can be joined)", async () => {
     sw.on = true;
     store.latestUnsent.mockImplementation(async () => stored({ ext: ".m4a", mimeType: "audio/mp4" }));
