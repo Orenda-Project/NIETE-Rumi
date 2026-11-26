@@ -44,8 +44,9 @@ const { logToFile } = require('../../../utils/logger');
 const { classLabels, shiftOf } = require('./class-label');
 const { formPolicy, termSet } = require('./term-set');
 const { isVisitKey, parseVisitKey, pktDate, oneVisit } = require('./visit-key');
+// child_test_draws.region: the school's programme ('ict' for an ICT sector, as before; 'gilgit-baltistan' for GB)
+const { regionForSchool } = require('./region');
 
-const REGION = 'ict';
 const PER_VISIT = 5;
 // switch sa_per_visit: a whole number is clamped to 1–5; anything else is PER_VISIT
 const perVisitOf = (n) => {
@@ -185,6 +186,12 @@ async function loadContext({ schoolId, cycleId, now, grades = GRADES }) {
   return { ok: true, schoolId, cycleId, now, classesByGrade, enrolledByClass, draws: draws.draws, tested: tested.draws };
 }
 
+/** The region this school's new rows carry, read once per context and only when a row is written. */
+function regionOf(ctx) {
+  if (!ctx.region) ctx.region = regionForSchool(ctx.schoolId);
+  return ctx.region;
+}
+
 // The frame: written once per class per cycle. A lost race re-reads what the winner wrote.
 async function ensureFrames(ctx, grade, secret) {
   const classes = ctx.classesByGrade.get(grade);
@@ -199,9 +206,10 @@ async function ensureFrames(ctx, grade, secret) {
     const seed = seedFor(secret, ctx.cycleId, c.id);
     const digest = seedDigest(seed);
     const order = shuffle(canonical, seed);
+    const region = await regionOf(ctx);
     const rows = order.map((sid, i) => ({
       cycle_id: ctx.cycleId,
-      region: REGION,
+      region,
       school_id: ctx.schoolId,
       class_id: c.id,
       grade,
@@ -309,7 +317,7 @@ async function returningChild(ctx, grade, visitId, exclude = new Set()) {
   const ownRow = ctx.draws.find((d) => d.sample_role === 'new' && d.student_id === sid);
   const ins = await store.insertDraws([{
     cycle_id: ctx.cycleId,
-    region: REGION,
+    region: await regionOf(ctx),
     school_id: ctx.schoolId,
     class_id: cls.id,
     grade,
@@ -659,7 +667,7 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
     const at = iso(now);
     const ins = await store.insertDraws([{
       cycle_id: cycleId,
-      region: REGION,
+      region: await regionForSchool(schoolId),
       school_id: schoolId,
       class_id: room.id,
       grade: g,
