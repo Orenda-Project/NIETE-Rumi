@@ -48,6 +48,13 @@ function classifyStuckInitiatedSession(session, nowMs = Date.now()) {
 // every phase change, so "stale" means no touch for this long.
 const MIDFLIGHT_STUCK_AGE_MS = 45 * 60 * 1000; // 45 minutes
 
+// bd-0h9ira — the watchdog rescues LIVE sessions. A row untouched for longer than this
+// is a human's call, not a sweep's: a report re-run a day or more late reaches someone
+// outside WhatsApp's 24-hour window and surprises them. The query excludes these rows,
+// so an old backlog (28 rows stuck since Sep while the sweep's query was broken) neither
+// re-runs nor fills the 25-row page ahead of the sessions that are actually live.
+const MIDFLIGHT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 // The processing statuses NO other sweep owns. 'initiated' → bd-2417,
 // awaiting_* → bd-j3j4b photo gate, conducting_conversation → the 12h
 // auto-complete. Observations are IN this set as of bd-go4tl — see above.
@@ -113,6 +120,7 @@ module.exports = {
   STUCK_INITIATED_MAX_AGE_MS,
   classifyStuckMidFlightSession,
   MIDFLIGHT_STUCK_AGE_MS,
+  MIDFLIGHT_MAX_AGE_MS,
   WATCHDOG_STATUSES,
   // bd-go4tl: the observe resume path re-enters the pipeline at the phase a
   // session died in too, so the map has one owner rather than two drifting copies.

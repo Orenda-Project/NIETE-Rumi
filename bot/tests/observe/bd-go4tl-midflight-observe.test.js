@@ -90,6 +90,7 @@ function mockBuilder(table) {
     in: (k, v) => { ctx.filters[`in:${k}`] = v; return b; },
     or: (expr) => { ctx.filters.or = expr; return b; },
     lt: (k, v) => { ctx.filters[`lt:${k}`] = v; return b; },
+    gt: (k, v) => { ctx.filters[`gt:${k}`] = v; return b; },   // bd-0h9ira age ceiling
     order: () => b,
     limit: () => b,
     single: async () => ({ data: mockState.users[ctx.filters.id] || null, error: null }),
