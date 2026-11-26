@@ -141,6 +141,14 @@ function buildHeroReportHtml(vm) {
   // zero-width bar, which reads as a section she scored nothing on. The words go
   // where the fraction would be, and the row keeps its why line explaining why
   // there is no number.
+  // bd-r2uzg1.23.11 (queue #274, call 23A; ICT sheet DC 128; the operator 26 Nov: "Make these percentages, but do show a
+  // small fraction too, greyed out"): each section reads as its percentage, its points a small grey fraction under it, as
+  // #293's observer score card. Readers stopped adding up fractions out of different totals. The headline is unchanged.
+  // Only on a scored report: a report with no overall (FDE's Maths & Science and General forms, levels and yes/no by
+  // design, "no total") keeps its plain "x/n" and shows no percentage anywhere, as before.
+  const scored = score.overall != null;
+  const sectionPct = (g) => (Number.isFinite(Number(g.pct)) && g.pct !== null
+    ? Math.round(Number(g.pct)) : (g.max ? Math.round((100 * g.score) / g.max) : 0));
   const scorecard = (vm.groups || []).map((g) => (g.notAssessed
     ? `
     <div class="sc-row">
@@ -149,7 +157,9 @@ function buildHeroReportHtml(vm) {
     </div>`
     : `
     <div class="sc-row">
-      <div class="sc-h"><span class="sc-n">${T(g.name)}</span><span class="sc-s">${g.score}/${g.max}</span></div>
+      <div class="sc-h"><span class="sc-n">${T(g.name)}</span>${scored
+        ? `<span class="sc-s"><span class="sc-p">${sectionPct(g)}%</span><span class="sc-f">${g.score}/${g.max}</span></span>`
+        : `<span class="sc-s">${g.score}/${g.max}</span>`}</div>
       <div class="pbar"><div class="pfill" style="width:${g.pct}%;background:${g.pct >= 80 ? P.barHigh : g.pct >= 50 ? '#e0a52e' : '#dd7a5c'}"></div></div>
       ${whyLine('sc-why', g.why)}
     </div>`)).join('');
@@ -210,6 +220,9 @@ function buildHeroReportHtml(vm) {
   .sc-row{margin-bottom:12px}
   .sc-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
   .sc-n{font-size:13px;font-weight:700;color:${P.mid}}.sc-s{font-family:'Lexend';font-size:13px;font-weight:700;color:${P.deep}}
+  .sc-s:not(.sc-na){display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+  .sc-p{direction:ltr;unicode-bidi:isolate}
+  .sc-f{direction:ltr;unicode-bidi:isolate;font-size:10px;font-weight:600;color:#9ca3af}
   /* A not-assessed section: words, not a number, and lighter than a score so it
      never reads as one. No bar is emitted for the row at all. */
   .sc-s.sc-na{font-family:inherit;font-weight:600;color:${P.mid};opacity:.8}

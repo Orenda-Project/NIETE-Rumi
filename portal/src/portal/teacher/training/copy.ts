@@ -29,6 +29,9 @@ export const TRAINING_V2_COPY = {
   pct: (n: number) => `${n}%`,
   noValue: '—',
   done: 'Done',
+  /** bd-r2uzg1.23.11 (call 13A): a course whose parts are done and whose exam is still to pass; Continue to it. */
+  examLeft: 'Exam to do',
+  continueExam: 'Continue to the exam',
   levelOf: (n: number, of: number) => `Level ${n} of ${of}`,
   coursesOf: (done: number, total: number) => `${done} of ${total} courses`,
   nothingYet: 'No training yet',
@@ -78,6 +81,9 @@ export const TRAINING_V2_COPY_UR: Words<typeof TRAINING_V2_COPY> = {
   pct: (n: number) => `${n}%`,
   noValue: '—',
   done: 'مکمل',
+  // bd-r2uzg1.23.11: machine-drafted from the vocabulary (Exam = امتحان, Continue = جاری رکھیں, "left" = باقی); for Urdu review.
+  examLeft: 'امتحان باقی',
+  continueExam: 'امتحان جاری رکھیں',
   levelOf: (n: number, of: number) => `درجہ ${n}/${of}`,
   coursesOf: (done: number, total: number) => `${done}/${total} کورس`,
   nothingYet: 'ابھی کوئی ٹریننگ نہیں',
