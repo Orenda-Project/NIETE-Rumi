@@ -93,6 +93,29 @@ async function t(name, fn) {
     assert.ok(recs.some((a) => a[0] === 'R01') && recs.some((a) => a[0] === 'R22') && !recs.some((a) => a[0] === 'R05'));
   });
 
+  // Data E2E (bd-5b3u70.8): the two rules every data-checked scenario gets. dataVerdict turns api.dataRules' answer into
+  // the scenario's data part: a violation fails it; NOT CHECKED (not the run's own database) never passes or fails it.
+  await t('dataVerdict: no write to someone else and no duplicates is ok', () => {
+    assert.deepStrictEqual(M.dataVerdict({ ok: true, owner: [], duplicates: [], changes: { users: { added: [], changed: [{ key: 'me', cols: ['name'] }], removed: [] } } }),
+      { ok: true, data: 'checked', owner: [], duplicates: [] });
+  });
+  await t('dataVerdict: a write to another teacher fails, naming the row', () => {
+    const v = M.dataVerdict({ ok: true, owner: [{ table: 'users', key: 'x', owner: 'x', change: 'changed', cols: ['school_id'] }], duplicates: [], changes: {} });
+    assert.strictEqual(v.ok, false);
+    assert.deepStrictEqual(v.owner.map((o) => o.key), ['x']);
+  });
+  await t('dataVerdict: two accounts for one number fail', () => {
+    const v = M.dataVerdict({ ok: true, owner: [], duplicates: [{ table: 'users', same: ['phone_number'], keys: ['a', 'b'] }], changes: {} });
+    assert.strictEqual(v.ok, false);
+  });
+  await t('dataVerdict: not the run\'s own database is NOT CHECKED, never a failure', () => {
+    assert.deepStrictEqual(M.dataVerdict({ ok: false, notChecked: 'shared database' }), { ok: true, data: 'NOT CHECKED: shared database' });
+  });
+
+  await t('dataVerdict: a check that cannot run on the run\'s own database fails — it never reads as NOT CHECKED', () => {
+    const v = M.dataVerdict({ ok: false, error: 'unknown table users_x' });
+    if (v.ok !== false || !/ERROR: unknown table users_x/.test(v.data)) throw new Error('got ' + JSON.stringify(v));
+  });
   console.log(`${n} test(s), ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

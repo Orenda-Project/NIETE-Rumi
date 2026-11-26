@@ -14,6 +14,12 @@
  * IS_THIS_YOU) is stored beside it as flow id `e2e-registration-v6` (fixtures/flows/manifest.json); R24–R28 open the
  * bot's own card, same flow token, on that copy. R29 opens it on v5.1 — "a session opened on the previous form".
  *
+ * DATA CHECKS (bd-5b3u70.8, the data E2E strategy). Around each Finish the scenario's own two accounts (her new one
+ * and the "other account") are its cast; a snapshot of the watched tables (.claude/qa/config/data-keys.json) is taken
+ * when her set-up ends (before she opens the form, whose screens save as she goes), and after Finish the two rules run: no teacher's account outside the cast is added, changed or
+ * removed, and no number has two accounts. A violation fails the scenario; a database that is not the run's own
+ * reads NOT CHECKED in the evidence and never decides the verdict.
+ *
  * SIGNED REQUESTS. A Yes is acted on only when Meta's signature on the Flow request verifies (webhook-signature.js).
  * The lane's bot carries a placeholder WHATSAPP_APP_SECRET (config/local-lane.env); signedFetch signs the emulator's
  * endpoint requests with it, the way Meta signs with the app secret.
@@ -125,7 +131,10 @@ function makeItu({ api, sleep }) {
       await post('teacher_training_progress', { user_id: other.id, module_id: mod.id });
     }
     made.push(me.id, other.id);
-    return { u, me, phone: ph.me, card, other: { id: other.id, phone: ph.other }, name };
+    // set-up ends here: the data checks' "before", so every save the form makes (screen by screen, then Finish) is inside it
+    const keys = api.dataKeys();
+    const before = keys.ok ? await api.snapshot(keys.watch) : keys;
+    return { u, me, phone: ph.me, card, other: { id: other.id, phone: ph.other }, name, keys, before };
   }
 
   /** Open the card on the form named (v6 copy or the stored v5.1), type her name, search, pick the school. */
@@ -149,6 +158,7 @@ function makeItu({ api, sleep }) {
 
   /** Answer (when asked), pick a grade and subject, Finish, and collect what the bot sends after it. */
   async function finish(t, answer) {
+    const { keys, before } = t;
     if (answer) {
       await t.u.flowClick(ANSWER[answer], { exact: true, settleMs: 300 });
       await t.u.flowClick('Next', { exact: true, settleMs: 2000 });
@@ -174,7 +184,9 @@ function makeItu({ api, sleep }) {
     const me = await user(`id=eq.${t.me.id}`);
     const other = await user(`id=eq.${t.other.id}`);
     const audit = await get(`leader_roster_audit?select=action,detail&actor_user_id=eq.${t.me.id}&order=created_at.desc`);
-    return { teachingScreen: teaching.screen, welcomed: Boolean(greetAt), greeting: greeting.trim(), welcome: welcome.slice(-400), me, other, audit };
+    const rules = before.ok ? await api.dataRules(keys.watch, [t.me.id, t.other.id], before.snap) : before;
+    return { teachingScreen: teaching.screen, welcomed: Boolean(greetAt), greeting: greeting.trim(), welcome: welcome.slice(-400), me, other, audit,
+      data: dataVerdict(rules) };
   }
 
   /** Put the switch back and take the QA school off every account made here, so purge-school can drop it and a
@@ -191,6 +203,15 @@ function makeItu({ api, sleep }) {
 }
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
+
+/** The data part of a scenario from api.dataRules' answer: ok unless a rule is broken. Off the run's own database it is
+ *  NOT CHECKED, which never fails a scenario and never passes the data part either: the evidence says which. */
+function dataVerdict(rules) {
+  // on the run's own database a check that cannot run fails: a broken check must never stay green
+  if (rules && rules.error) return { ok: false, data: 'ERROR: ' + rules.error };
+  if (!rules || !rules.ok) return { ok: true, data: 'NOT CHECKED: ' + ((rules && rules.notChecked) || 'no answer') };
+  return { ok: !rules.owner.length && !rules.duplicates.length, data: 'checked', owner: rules.owner, duplicates: rules.duplicates };
+}
 const kept = (f, t) => Boolean(f.me && f.other && f.me.phone_number === t.phone && !f.me.deleted_at && f.other.phone_number === t.other.phone);
 const escalated = (f) => (f.audit.find((a) => a.action === 'edit_phone_escalated') || {}).detail || null;
 
@@ -202,9 +223,9 @@ async function reviewRow(it, n, name, opts, answer, reason) {
   const f = await it.finish(t, answer);
   const esc = escalated(f);
   const ok = Boolean(f.me && f.me.registration_completed) && kept(f, t) && f.greeting.endsWith(CHECKED)
-    && Boolean(esc && esc.reason === reason);
+    && Boolean(esc && esc.reason === reason) && f.data.ok;
   return [ok, { answer, completed: f.me && f.me.registration_completed, numbersKept: kept(f, t), escalation: esc && esc.reason,
-    wantReason: reason, greetingEnd: f.greeting.slice(-120) }];
+    wantReason: reason, greetingEnd: f.greeting.slice(-120), data: f.data }];
 }
 
 const NAMES = {
@@ -256,8 +277,8 @@ async function drive({ api, rec, sleep, want }) {
       const linked = Boolean(f.other && f.other.phone_number === t.phone && f.other.registration_completed === true);
       const retired = Boolean(f.me && f.me.deleted_by === 'registration_claim' && f.me.deleted_at && f.me.phone_number !== t.phone);
       const audited = f.audit.some((a) => a.action === 'edit_phone');
-      return V(linked && retired && audited && f.greeting.endsWith(LINKED),
-        { linked, retired, audited, greetingEnd: f.greeting.slice(-120), escalation: (escalated(f) || {}).reason || null });
+      return V(linked && retired && audited && f.greeting.endsWith(LINKED) && f.data.ok,
+        { linked, retired, audited, greetingEnd: f.greeting.slice(-120), escalation: (escalated(f) || {}).reason || null, data: f.data });
     });
     await run('R26', async () => {
       const a = await reviewRow(it, 3, 'Rabia Aslam', {}, 'not_sure', 'not_sure');
@@ -271,8 +292,8 @@ async function drive({ api, rec, sleep, want }) {
       const f = await it.finish(t, 'no');
       const untouched = kept(f, t) && f.other.registration_completed !== true && !f.audit.length;
       const usual = f.welcomed && !f.welcome.includes(LINKED) && !f.welcome.includes(CHECKED);
-      return V(Boolean(f.me && f.me.registration_completed) && untouched && usual,
-        { completed: f.me && f.me.registration_completed, untouched, usualWelcome: usual, audit: f.audit.map((x) => x.action), greetingEnd: f.greeting.slice(-120) });
+      return V(Boolean(f.me && f.me.registration_completed) && untouched && usual && f.data.ok,
+        { completed: f.me && f.me.registration_completed, untouched, usualWelcome: usual, audit: f.audit.map((x) => x.action), greetingEnd: f.greeting.slice(-120), data: f.data });
     });
     await run('R28', async () => {
       const t = await it.newTeacher(6, 'Farah Naz', { otherLastMessageDaysAgo: 3 });
@@ -287,8 +308,8 @@ async function drive({ api, rec, sleep, want }) {
       const f = await it.finish(t, null);
       const asBefore = Boolean(f.me && f.me.registration_completed) && kept(f, t) && f.other.registration_completed !== true
         && f.welcomed && !f.welcome.includes(LINKED) && !f.welcome.includes(CHECKED);
-      return V(asBefore, { afterSchool: p.screen, completed: f.me && f.me.registration_completed, numbersKept: kept(f, t),
-        greetingEnd: f.greeting.slice(-120) });
+      return V(asBefore && f.data.ok, { afterSchool: p.screen, completed: f.me && f.me.registration_completed, numbersKept: kept(f, t),
+        greetingEnd: f.greeting.slice(-120), data: f.data });
     });
   } finally {
     await it.tearDown();
@@ -296,4 +317,4 @@ async function drive({ api, rec, sleep, want }) {
   return r;
 }
 
-module.exports = { drive, deferChromeLane, makeItu, phonesFor, envValue, signedFetch, cardOn, leaks, LINKED, CHECKED, ANSWER, V6_FLOW_ID };
+module.exports = { drive, deferChromeLane, dataVerdict, makeItu, phonesFor, envValue, signedFetch, cardOn, leaks, LINKED, CHECKED, ANSWER, V6_FLOW_ID };

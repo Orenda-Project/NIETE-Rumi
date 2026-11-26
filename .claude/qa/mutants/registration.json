@@ -1,0 +1,68 @@
+{
+ "mutants": [
+  {
+   "id": "reg-writes-everyone-else",
+   "lane": "mock",
+   "features": [
+    "registration"
+   ],
+   "why": "the sign-up's save lands on every OTHER account instead of hers",
+   "expect": "killed",
+   "edits": [
+    {
+     "file": "bot/shared/handlers/flow-response.handler.js",
+     "find": "      .eq('id', userId);\n\n    if (updateError) {",
+     "replace": "      .neq('id', userId);\n\n    if (updateError) {"
+    }
+   ]
+  },
+  {
+   "id": "reg-name-not-saved",
+   "lane": "mock",
+   "features": [
+    "registration"
+   ],
+   "why": "the name she typed is not saved on her account",
+   "expect": "survived",
+   "edits": [
+    {
+     "file": "bot/shared/handlers/flow-response.handler.js",
+     "find": "        ...(setIf(fullName) ? { name: fullName } : {}),",
+     "replace": ""
+    }
+   ]
+  },
+  {
+   "id": "reg-not-completed",
+   "lane": "mock",
+   "features": [
+    "registration"
+   ],
+   "why": "Finish does not mark her registration complete",
+   "expect": "survived",
+   "edits": [
+    {
+     "file": "bot/shared/handlers/flow-response.handler.js",
+     "find": "        registration_completed: true,\n        registration_completed_at: new Date().toISOString(),\n        registration_pending_name: false,",
+     "replace": "        registration_completed_at: new Date().toISOString(),\n        registration_pending_name: false,"
+    }
+   ]
+  },
+  {
+   "id": "reg-screen-save-writes-everyone-else",
+   "lane": "mock",
+   "features": [
+    "registration"
+   ],
+   "why": "the form's screen-by-screen save (name, completion) lands on every OTHER account instead of hers",
+   "expect": "killed",
+   "edits": [
+    {
+     "file": "bot/shared/routes/registration-endpoint.js",
+     "find": "    const { error } = await supabase.from('users').update(clean).eq('id', userId);",
+     "replace": "    const { error } = await supabase.from('users').update(clean).neq('id', userId);"
+    }
+   ]
+  }
+ ]
+}
