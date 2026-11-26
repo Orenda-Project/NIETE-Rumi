@@ -1,0 +1,2 @@
+{"ts":"2026-11-26T23:56:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,leader-portal spec_sync=true","sha":"a563e73b953a","branch":"q374-probe2","user":""}
+{"ts":"2026-11-26T23:56:43Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe,attendance owe their Gherkin","sha":"a563e73b953a","branch":"q374-probe2","user":""}
