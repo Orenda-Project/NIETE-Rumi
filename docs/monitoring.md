@@ -216,9 +216,10 @@ Axiom; every message is a fixed template filled with counts. No model is called 
 | `portal_5xx` | portal 5xx ≥50 in 15 min | ≤15 in 15 min |
 | `rate_limited` | 429s (model provider or Meta) ≥20 in 15 min | ≤5 in 15 min |
 
-One incident is one top-level post with a colour bar (the most severe rule leads). Other rules that fire
-while it is open go in its thread; a "Still happening" update goes there at most every 30 minutes; the
-all-clear goes in the thread and to the channel. A problem back within an hour continues the same thread.
+One incident is one top-level post of one line (what broke, how many, since when, one link; the most
+severe rule leads). Other rules that fire
+while it is open go in its thread; a one-line "Still on" update goes there at most every 30 minutes; a
+one-line "Resolved" goes in the thread and to the channel. A problem back within an hour continues the same thread.
 A second check, every 30 minutes, reads the OpenRouter key's usage (`GET /api/v1/key`, never a completion)
 and warns once a day when under 10% is left or under 3 days at the 7-day burn rate; again at 3% or 1 day.
 

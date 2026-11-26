@@ -108,16 +108,20 @@ describe('replaying 25 Nov 2026 (key limit at 10:05 PKT)', () => {
     run = await replay({ from: utc('04:30'), to: utc('06:30'), bins: FIX.outage.bins });
   });
 
-  it('posts ONE top-level message, in the 05:05-05:10 check, naming OpenRouter and the key limit', () => {
+  it('posts ONE top-level message, in the 05:05-05:10 check: one line — what broke, how many, since when, one link', () => {
     const top = run.posts.filter((p) => !p.thread_ts);
     expect(top).toHaveLength(1);
     expect(top[0].at).toBe('05:10');
-    expect(top[0].text).toMatch(/OpenRouter is refusing calls: key limit reached/);
-    expect(top[0].text).toMatch(/403 Key limit exceeded \(total limit\)/);
-    expect(top[0].text).toMatch(/\$2000\.07 of \$2000\.00 used/);
-    expect(top[0].text).toMatch(/does not reset/);
-    expect(top[0].text).toMatch(/Since 10:05 PKT/);
-    expect(top[0].color).toBe(W.COLOR.red);
+    expect(top[0].text).toBe('🔴 OpenRouter refusing calls (key limit): 24 since 10:05 PKT · <https://openrouter.ai/settings/keys|keys>');
+    expect(top[0].color).toBeFalsy();
+  });
+
+  it('every post is one short line: no headers, no explanations, no second line', () => {
+    expect(run.posts.length).toBeGreaterThanOrEqual(4);
+    for (const p of run.posts) {
+      expect(p.text).not.toMatch(/\n/);
+      expect(p.text.replace(/<[^|>]+\|([^>]+)>/g, '$1').length).toBeLessThanOrEqual(90);
+    }
   });
 
   it('never posts the key URL or anything but the extracted status, phrase and amounts', () => {
@@ -128,14 +132,14 @@ describe('replaying 25 Nov 2026 (key limit at 10:05 PKT)', () => {
 
   it('puts the job failures in that thread', () => {
     const top = run.posts.find((p) => !p.thread_ts);
-    const jobs = run.posts.find((p) => p.thread_ts && /Also: job failures/i.test(p.text));
+    const jobs = run.posts.find((p) => p.thread_ts && /^🟠 Jobs failing: \d+ since 10:05 PKT$/.test(p.text));
     expect(jobs).toBeDefined();
     expect(jobs.thread_ts).toBe(top.ts);
     expect(jobs.at <= '05:15').toBe(true);
   });
 
   it('gives an update at most every 30 minutes', () => {
-    const updates = run.posts.filter((p) => /Still happening/.test(p.text));
+    const updates = run.posts.filter((p) => /^Still on: \d+ refusals, \d+ failed jobs$/.test(p.text));
     expect(updates.length).toBeGreaterThanOrEqual(1);
     const mins = updates.map((p) => Number(p.at.slice(0, 2)) * 60 + Number(p.at.slice(3)));
     for (let i = 1; i < mins.length; i += 1) expect(mins[i] - mins[i - 1]).toBeGreaterThanOrEqual(30);
@@ -144,15 +148,11 @@ describe('replaying 25 Nov 2026 (key limit at 10:05 PKT)', () => {
 
   it('posts the all-clear in the thread (and to the channel) after the last refusal at 05:44', () => {
     const top = run.posts.find((p) => !p.thread_ts);
-    const clear = run.posts.filter((p) => /All clear/.test(p.text));
+    const clear = run.posts.filter((p) => /^✅ Resolved after \d+ min$/.test(p.text));
     expect(clear).toHaveLength(1);
     expect(clear[0].thread_ts).toBe(top.ts);
     expect(clear[0].broadcast).toBe(true);
     expect(clear[0].at > '05:44').toBe(true);
-    expect(clear[0].color).toBe(W.COLOR.green);
-    expect(clear[0].text).toMatch(/238 provider refusals/);
-    // 149 `❌ Job failed` rows from 05:05 to 05:51; the one at 06:11 is after the all-clear.
-    expect(clear[0].text).toMatch(/149 job failures/);
   });
 
   it('leaves no incident open at the end', async () => {
@@ -272,9 +272,8 @@ describe('a service that stops answering', () => {
     const top = posts.filter((p) => !p.thread_ts);
     expect(top).toHaveLength(1);
     expect(top[0].at).toBe('10:05');
-    expect(top[0].text).toMatch(/Portal is not answering/);
-    expect(top[0].text).toMatch(/2 checks in a row/);
-    const clear = posts.find((p) => /All clear/.test(p.text));
+    expect(top[0].text).toBe('🔴 Portal down: /health failed 2× since 15:00 PKT');
+    const clear = posts.find((p) => /^✅ Resolved/.test(p.text));
     expect(clear.at).toBe('10:15');
   });
 });
@@ -359,7 +358,7 @@ describe('one incident, one thread', () => {
     await W.tick({ now: NOW, cfg: W.config({}), query: fixtureQuery({ bins: burst('refusal:key_limit', 3, NOW) }), store, post, env: 'production', dataset: 'niete-logs' });
     expect(post).toHaveBeenCalledTimes(1);
     expect(post.mock.calls[0][0]).toMatchObject({ type: 'reopen', thread_ts: '3.3', broadcast: true });
-    expect(post.mock.calls[0][0].text).toMatch(/Back again/);
+    expect(post.mock.calls[0][0].text).toMatch(/^🔁 Back: 🔴 OpenRouter refusing calls \(key limit\): 3 since 14:57 PKT · </);
   });
   it('a failed top-level post opens nothing, so the next check tries again', async () => {
     const store = memStore();
@@ -397,24 +396,20 @@ describe('the OpenRouter key budget', () => {
   it('a key with no limit never warns', () => {
     expect(W.keyBudgetVerdict(reading({ limit: null, remaining: null }), NOW, cfg)).toBeNull();
   });
-  it('the message is a fixed template: %, amounts, burn, run-out day, whether it resets', () => {
+  it('the warning is one line: how much is used, how long is left, the link', () => {
     const v = W.keyBudgetVerdict(reading({}), NOW, cfg);
     const m = W.buildKeyBudget(reading({}), v, NOW);
-    expect(m.text).toMatch(/OpenRouter key at 91% of its limit · about 3 days left/);
-    expect(m.text).toMatch(/\$1,824 of \$2,000 used/);
-    expect(m.text).toMatch(/about \$62 a day/);
-    expect(m.text).toMatch(/does not reset/);
-    expect(m.color).toBe(W.COLOR.yellow);
+    expect(m.text).toBe('🟡 OpenRouter key 91% used, ~3 days left · <https://openrouter.ai/settings/keys|keys>');
+    const crit = reading({ usage: 1700, remaining: 300, weekly: 2800 });
+    expect(W.buildKeyBudget(crit, W.keyBudgetVerdict(crit, NOW, cfg), NOW).text)
+      .toBe('🔴 OpenRouter key 85% used, <1 day left · <https://openrouter.ai/settings/keys|keys>');
   });
   it('a key already at its limit says so plainly (calls are being refused), not "days left"', () => {
     const spent = reading({ limit: 300, usage: 300.3, remaining: 0, weekly: 0 });
     const v = W.keyBudgetVerdict(spent, NOW, cfg);
     expect(v.level).toBe('critical');
     const m = W.buildKeyBudget(spent, v, NOW, cfg);
-    expect(m.text).toMatch(/has reached its limit · calls are being refused/);
-    expect(m.text).toMatch(/\$300 of \$300 used · does not reset/);
-    expect(m.text).not.toMatch(/days? left|before then/);
-    expect(m.color).toBe(W.COLOR.red);
+    expect(m.text).toBe('🔴 OpenRouter key at its limit: calls refused · <https://openrouter.ai/settings/keys|keys>');
   });
   it('posts at most once a day per level, logs every reading', async () => {
     const store = memStore();
@@ -489,20 +484,27 @@ describe('run(): the switch and the one-replica claim', () => {
 
 // ── 8 · what reaches Slack ────────────────────────────────────────────────────
 
-describe('privacy: only counts and scrubbed, code-authored text', () => {
-  it('scrubs phone-like digit runs, emails and ids out of a top line', () => {
-    const s = W.scrubLine('Send failed for 923001234567 (a@b.co) quiz 0b8f3c1e-1111-4aaa-8aaa-aaaaaaaaaaaa');
-    expect(s).not.toMatch(/923001234567|a@b\.co|0b8f3c1e/);
+describe('each rule, one line', () => {
+  const inc = (first) => ({ totals: { job_failed: 9, error: 400, portal_5xx: 600, rate_429: 25 }, first, rules: {} });
+  const at = new Date('2026-11-26T10:05:00Z').toISOString();
+  const line = (rule, ev) => W.buildOpen(rule, ev, { incident: inc({ job_failed: at, refusal: at }), cfg: W.config({}), axiomOrg: 'org-x', linkApl: "['ds'] | take 1" }).text;
+  it('jobs, errors, 5xx, 429s, crash loop: count, window or since, and a logs link', () => {
+    expect(line('job_failures', { count: 6 })).toMatch(/^🟠 Jobs failing: 9 since 15:05 PKT · <https:\/\/app\.axiom\.co\/org-x\/query\?initForm=[^|]+\|logs>$/);
+    expect(line('error_rate', { count: 102, usual: 16 })).toMatch(/^🟠 Errors: 102 in 15 min \(usual 16\) · <[^|]+\|logs>$/);
+    expect(line('portal_5xx', { count: 544, usual: 0 })).toMatch(/^🟠 Portal 5xx: 544 in 15 min · <[^|]+\|logs>$/);
+    expect(line('rate_limited', { count: 25 })).toMatch(/^🟠 429s: 25 in 15 min · <[^|]+\|logs>$/);
+    expect(line('crash_loop', { count: 9, service: 'sqs-worker' })).toMatch(/^🔴 sqs-worker restarting in a loop: 9 restarts in 30 min · <[^|]+\|logs>$/);
   });
-  it('folds ids and tokens out of portal paths', () => {
-    expect(W.normPath('/teacher/lessons/0b8f3c1e-1111-4aaa-8aaa-aaaaaaaaaaaa?x=1')).toBe('/teacher/lessons/:id');
-    expect(W.normPath('/go/AbCdEfGhIjKlMnOpQrStUvWx123')).toBe('/go/:id');
+  it('a refusal links to the thing to fix, not the logs, when OpenRouter says what it is', () => {
+    expect(line('provider_refusal', { count: 3, sub: 'credits' })).toMatch(/^🔴 OpenRouter refusing calls \(out of credits\): 3 since .* · <https:\/\/openrouter\.ai\/settings\/credits\|credits>$/);
+    expect(line('provider_refusal', { count: 3, sub: 'bad_key' })).toMatch(/^🔴 Model provider refusing calls \(bad key\): 3 since .* · <[^|]+\|logs>$/);
   });
-  it('extracts status, phrase and amounts from a refusal; nothing else', () => {
-    expect(W.refusalFacts(FIX.outage.refusalSample)).toEqual({
-      status: '403', phrase: 'Key limit exceeded (total limit)', used: '2000.07', limit: '2000.00', noReset: true,
-    });
-    expect(W.refusalFacts('weird text')).toEqual({});
+  it('a service down links to the /health it checked', () => {
+    const ev = { targets: [{ name: 'bot', fails: 2, failedAt: [at], url: 'https://bot.example/health' }] };
+    expect(line('health_down', ev)).toBe('🔴 Bot down: /health failed 2× since 15:05 PKT · <https://bot.example/health|/health>');
+  });
+  it('without an Axiom org there is no link, never a broken one', () => {
+    expect(W.buildOpen('portal_5xx', { count: 60 }, { incident: inc({}), cfg: W.config({}) }).text).toBe('🟠 Portal 5xx: 60 in 15 min');
   });
 });
 
