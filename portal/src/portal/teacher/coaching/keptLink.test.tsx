@@ -250,4 +250,19 @@ describe("a teacher's kept recording belongs to its own attempt", () => {
     openAt(COACHING_HOME);
     expect(await screen.findByTestId("dc-kept-unlinked")).toBeInTheDocument();
   });
+
+  it("two lessons cut minutes ago: the newest on the Continue block, the other on its card — its card reopens THAT one", async () => {
+    sw.on = true;
+    const a = kept("rec-a", { link: dc("att-a-000001"), agoMin: 1, elapsedMin: 20 });
+    const b = kept("rec-b", { link: dc("att-b-000002"), agoMin: 5, elapsedMin: 12 });
+    phone([a, b]);
+    openAt(COACHING_NEW);
+    await screen.findByText("Your recording was paused abruptly.");
+    fireEvent.click(await screen.findByTestId("dc-kept-paused")); // lesson B's own card
+    await waitFor(() => expect(session.restore).toHaveBeenCalledTimes(1));
+    const arg = session.restore.mock.calls[0][0] as unknown as { kept: { meta: { id: string } }; beat: { attemptId?: string } };
+    expect(arg.kept.meta.id).toBe("rec-b");
+    expect(arg.beat.attemptId).toBe("att-b-000002");
+    expect(screen.queryByTestId("dc-recording")).toBeNull(); // continued, never attached as a finished take
+  });
 });
