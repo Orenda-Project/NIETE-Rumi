@@ -13,6 +13,7 @@ import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
 import { deleteRecording, latestUnsent, type KeptRecording } from '../../lib/recordingStore';
+import { keptOffer } from '../../lib/keptOffer';
 import { useRecordingResume } from '../../lib/recordingResume';
 import { tellSent } from '../../lib/recordingBeat';
 import { withDuration } from '../../lib/webmDuration';
@@ -333,9 +334,22 @@ export function NewObservationPage() {
   useEffect(() => {
     if (resumeOn !== true || triedRestore.current || !session || session.active || audio || phase !== 'idle') return;
     triedRestore.current = true;
-    Promise.resolve().then(() => latestUnsent()).then((k) => {
+    Promise.resolve().then(() => latestUnsent()).then(async (k) => {
       if (!mounted.current || !k || k.meta.ext !== '.webm' || session.active) return;
+      // bd-91htd2 (queue #292): only a lesson cut by a kill, reopened soon, comes back paused. One she stopped, or one
+      // from hours before, is never resumed (Resume joined today's lesson onto it): 15+ min is hers to send, as Stop gives.
+      const offer = keptOffer(k, Date.now());
+      if (offer === 'none') return;
       setUnsent(null);
+      if (offer === 'send') {
+        const blob = await withDuration(k.blob, k.meta.ext, k.meta.elapsedMs);
+        if (!mounted.current) return;
+        setAudio((a) => a || {
+          blob, filename: lessonFilename(k.meta.ext, new Date(k.meta.startedAt)), durationMs: k.meta.elapsedMs || null,
+          recordingId: k.meta.id, source: 'resumed', size: blob.size, startedAt: k.meta.startedAt,
+        });
+        return;
+      }
       session.restore({ returnTo: COACHING_NEW, kept: k, beat: { kind: 'dc' } });
       setRestored(k.meta.startedAt);
       setPhase('recording');
