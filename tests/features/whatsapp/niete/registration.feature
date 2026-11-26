@@ -358,6 +358,9 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
   # made; any other Yes, and every "Not sure", asks a person to check; No changes nothing. Drafts until v6 is
   # published on a tier and the fixtures exist (workbench n3-fixture.js); each needs the switch on for the tester.
 
+  # Data steps (bd-5b3u70.8, data E2E): "no other teacher's account is added, changed or removed" and "no number has two
+  # accounts" are read from the run's own database around Finish; her new account and the "other account" are the
+  # scenario's own. Off the run's own database they read NOT CHECKED in the evidence and never decide the verdict.
   @e2e @wip @draft @flow @P1 @destructive @R24
   Scenario: A first-time registrant next to an unused account in her name is asked "Is this you?"
     Given the NIETE bot chat is open
@@ -374,6 +377,8 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     Then registration completes on that account, which now opens with my number
     And the welcome ends "This number is now linked to your existing account."
     And the empty account my phone had just made is retired
+    And no other teacher's account is added, changed or removed
+    And no number has two accounts
 
   @e2e @wip @draft @flow @P2 @R26
   Scenario Outline: An answer that cannot be acted on safely asks for a check and moves nothing
@@ -381,6 +386,8 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     When I answer "<answer>" and finish the Flow
     Then registration completes on my own account and both accounts keep their numbers
     And the welcome ends "I've asked for that account to be checked. If it's yours, it will be linked to this number."
+    And no other teacher's account is added, changed or removed
+    And no number has two accounts
 
     Examples:
       | the account                              | answer         |
@@ -393,6 +400,8 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     When I answer "No, it's someone else's" and finish the Flow
     Then registration completes on my own account and the other account is unchanged
     And the welcome is the usual one, with no line about another account
+    And no other teacher's account is added, changed or removed
+    And no number has two accounts
 
   @e2e @wip @draft @flow @negative @P2 @R28
   Scenario: An account used in the last 30 days is never offered
@@ -406,3 +415,5 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     Given I opened the registration Flow before v6 was published, and my school has an unused account in my name
     When I pick that school and finish the Flow
     Then the next screen after the school is the classes screen, and registration completes as before
+    And no other teacher's account is added, changed or removed
+    And no number has two accounts
