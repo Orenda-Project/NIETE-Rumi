@@ -10,3 +10,5 @@
 {"ts":"2026-11-24T01:10:18Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.1","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
 {"ts":"2026-11-25T00:47:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
 {"ts":"2026-11-25T00:47:06Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-26T01:40:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
+{"ts":"2026-11-26T01:40:23Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"601fc42bfcbf","branch":"bd-zrdvmi.55-main","user":""}
