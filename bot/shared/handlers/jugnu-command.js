@@ -30,6 +30,9 @@ const { resolveUx } = require('../config/ux-strings');
 const { isSchoolLeader } = require('../services/observe/observe-gate');
 const { isTeacherRole } = require('../services/teacher-audience');
 
+// A person on a log line is their keyed reference, never the raw id (tests/setup/log-raw-ids.test.js).
+const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
+
 /**
  * The main bot's matching: trim, lowercase, collapse inner spaces, strip trailing `.!?؟۔`, Arabic ي→ی ك→ک ة→ہ, remove
  * tatweel (U+0640) and ZWNJ (U+200C). Applied to the typed text AND to every listed word, so both meet in one form.
@@ -63,11 +66,11 @@ function isJugnuWord(text) {
   return t !== '' && JUGNU_COMMANDS.includes(t);
 }
 
-async function send(from, text, what, userId) {
+async function send(from, text, what, ref) {
   try {
     return Boolean(await WhatsAppService.sendMessage(from, text));
   } catch (error) {
-    logToFile('[jugnu] reply send failed', { what, userId, error: error.message }, 'error');
+    logToFile('[jugnu] reply send failed', { what, tk: ref, error: error.message }, 'error');
     return false;
   }
 }
@@ -104,16 +107,16 @@ async function handleJugnuCommand({ user, from, text, language, typingController
     try { opens = (await opensFor(user.id)) === true; } catch (_) { opens = false; }
   }
   if (!opens) {
-    logToFile('[jugnu] not on for this account', { userId: user.id, role: user.role || null, leader });
-    await send(from, resolveUx('jugnuNotOn', { language: lang }), 'not_on', user.id);
+    logToFile('[jugnu] not on for this account', { tk: teacherRef(user.id), role: user.role || null, leader });
+    await send(from, resolveUx('jugnuNotOn', { language: lang }), 'not_on', teacherRef(user.id));
     return true;
   }
 
   let sent = false;
   try { sent = await sendLink({ userId: user.id, from, language: lang, reason: 'jugnu_word' }); } catch (_) { sent = false; }
   if (sent) return true;
-  logToFile('[jugnu] Learning Assessment link not sent; told the leader where to find it', { userId: user.id }, 'error');
-  await send(from, resolveUx('jugnuNoLink', { language: lang }), 'no_link', user.id);
+  logToFile('[jugnu] Learning Assessment link not sent; told the leader where to find it', { tk: teacherRef(user.id) }, 'error');
+  await send(from, resolveUx('jugnuNoLink', { language: lang }), 'no_link', teacherRef(user.id));
   return true;
 }
 

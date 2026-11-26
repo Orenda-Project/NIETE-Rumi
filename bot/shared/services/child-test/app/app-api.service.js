@@ -124,7 +124,10 @@ async function learningAssessmentOpensFor(userId, deps) {
     }
     return await portalSaOnFor(userId, d);
   } catch (error) {
-    d.logError('child_test.app.opens_for failed', { userId, error: error && error.message });
+    // the person as their keyed reference, never the raw id (tests/setup/log-raw-ids.test.js)
+    let tk = null;
+    try { tk = require('../../quiz/web-quiz-kid').tk(userId); } catch (_) { tk = null; } // eslint-disable-line global-require
+    d.logError('child_test.app.opens_for failed', { tk, error: error && error.message });
     return false;
   }
 }
