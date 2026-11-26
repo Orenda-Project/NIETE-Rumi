@@ -177,7 +177,7 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null, book
 }
 
 /** { url, asset_kind, version_stamp } for a ready GB plan, else null. No answer keys in this lane. */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson') {
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', _userId = null, { download = false } = {}) {
   if (assetKind !== 'lesson' || !isGbLessonId(lessonId)) return null;
   const { data: seg, error } = await supabase.from(SEGMENTS).select(SEG_COLUMNS)
     .eq('segment_id', lessonId).eq('curriculum', NBF_SNC).maybeSingle();
@@ -188,7 +188,11 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson') {
     .eq('segment_id', lessonId).eq('lang', authorLanguage(seg)).eq('template_version', tv).maybeSingle();
   if (rErr) throw new Error(rErr.message);
   if (!row || row.status !== 'ready' || !row.r2_key) return null;
-  return { url: await getPresignedUrl(buildR2PublicUrl(row.r2_key)), asset_kind: 'lesson', version_stamp: tv };
+  // bd-zrdvmi.70 — the app's Download PDF: an attachment the phone saves (no internet needed to open it later).
+  const url = download
+    ? await getPresignedUrl(buildR2PublicUrl(row.r2_key), 3600, { disposition: 'attachment', filename: `${lessonId}.pdf` })
+    : await getPresignedUrl(buildR2PublicUrl(row.r2_key));
+  return { url, asset_kind: 'lesson', version_stamp: tv };
 }
 
 module.exports = { isGbLessonId, listGrades, listSubjects, listChapters, listLessons, lessonPdfUrl };

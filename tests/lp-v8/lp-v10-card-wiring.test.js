@@ -130,3 +130,28 @@ describe('app Open (and share)', () => {
     expect(mockCard.servedFor).not.toHaveBeenCalled();
   });
 });
+
+// bd-zrdvmi.70 (sheet rows 986, 984) — the app's Download PDF asks for a link that SAVES the plan on her phone (an
+// attachment), so she can open it with no internet. Every other caller keeps today's bare signing.
+describe('Download PDF (a copy to keep)', () => {
+  const R2 = require('../../bot/shared/storage/r2');
+
+  test('download: the served file, signed as an attachment named for the lesson', async () => {
+    mockCard.servedFor.mockResolvedValue(CARD);
+    await Browse.lessonPdfUrl(LESSON, 'lesson', 'u1', { download: true });
+    expect(R2.getPresignedUrl).toHaveBeenCalledWith(expect.stringContaining('card.pdf'), 3600,
+      { disposition: 'attachment', filename: `${LESSON}.pdf` });
+  });
+
+  test('the answer key downloads under its own name', async () => {
+    mockTables.niete_lp_assets = [{ ...V9, id: 'a-key', asset_kind: 'answer_key', r2_key: 'key.pdf' }];
+    await Browse.lessonPdfUrl(LESSON, 'answer_key', 'u1', { download: true });
+    expect(R2.getPresignedUrl).toHaveBeenCalledWith(expect.stringContaining('key.pdf'), 3600,
+      { disposition: 'attachment', filename: `${LESSON}-answer-key.pdf` });
+  });
+
+  test('no download: signed exactly as before (one argument)', async () => {
+    await Browse.lessonPdfUrl(LESSON, 'lesson', 'u1');
+    expect(R2.getPresignedUrl.mock.calls[0]).toHaveLength(1);
+  });
+});
