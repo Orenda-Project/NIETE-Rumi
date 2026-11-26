@@ -517,4 +517,4 @@ function createCoachingReportRouter(opts = {}) {
   return router;
 }
 
-module.exports = { createCoachingReportRouter, loadReport };
+module.exports = { createCoachingReportRouter, loadReport, createReportQuizClient, createBotCaller };
