@@ -1251,7 +1251,9 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_child_quiz_home" is false, missing or unreadable
     When a child sends "/quiz"
     Then the message and its "Open" button are today's, word for word
-    # flags() fails closed: a read error is OFF. @wip.
+    And in Urdu, each quiz's date in the list it opens and on the quiz's own screen is in Urdu digits («۲۵ نومبر»); English is unchanged
+    # flags() fails closed: a read error is OFF. The date: student-quiz-flow-endpoint dateLabel converts it for ur.
+    # Unit: bot/tests/qfix-forward/forward-urdu-flow-digits.test.js. @wip.
 
   @e2e @quiz @config-gated @wip @draft @P1 @T708
   Scenario Outline: A child's "portal" opens their home, the same one button as "quiz"
