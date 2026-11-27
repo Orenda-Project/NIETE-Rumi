@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T06:46:46Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"4441df6113d3","branch":"bd-7rnfvn-61072","user":""}
 {"ts":"2026-11-27T06:46:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"4441df6113d3","branch":"bd-7rnfvn-61072","user":""}
 {"ts":"2026-11-27T06:46:52Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-7rnfvn-61072: training spec: NOT UPDATED e2e: missing (the run was refused: the scenarios for this change were not written first (SPEC FIRST))","sha":"4441df6113d3","branch":"bd-7rnfvn-61072","user":""}
+{"ts":"2026-11-27T06:46:52Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"4441df6113d3","branch":"bd-7rnfvn-61072","user":""}
