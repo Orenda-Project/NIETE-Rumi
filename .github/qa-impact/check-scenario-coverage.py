@@ -12,6 +12,10 @@ BOTH DIRECTIONS, because both drift:
   E-NOSCENARIO  a driver id with no scenario — an id that outlived a deleted or renamed scenario
   E-DUPID       two scenarios carrying one id — the driver records one result for the id, so the
                 other scenario vanishes from every run (bd-7g913e: @COA72 and @COA84, twice each)
+  E-NOID        a live @e2e scenario with no id tag — no driver can record it, so it is never driven
+                and, before this, never reported either (bd-kbo9h0.8: 83 on NIETE sandbox, 2026-11-20;
+                the lp612 receipt step went stale inside one). Live = not @wip/@draft/@obsolete/@manual
+                and not @no-mock-driver. Keyed on the scenario name, so --base tells two of them apart.
 
 ENROLMENT IS IMPLICIT. A feature is checked once its spec carries id tags. An untagged spec reports
 I-NOTENROLLED and cannot fail. Backfilling nine specs in one commit would make this red on arrival
@@ -73,6 +77,9 @@ PRIORITY_TAGS = frozenset({"p0", "p1", "p2", "p3"})
 # otherwise, and would surface as phantom scenarios the driver 'records'.
 RECORDED_ID_RE = re.compile(r"\b[A-Za-z_$][\w$]*\(\s*'([A-Z]{1,5}(?:\d{1,3}|-[a-z]+))'")
 NO_DRIVER_TAG = "no-mock-driver"
+# Scenarios not meant to run on any lane today. E-NOID skips them: on NIETE they are 165 untagged scenarios
+# nobody intends to drive, and listing them would bury the 83 live ones (bd-kbo9h0.8).
+NOT_LIVE_TAGS = frozenset({"wip", "draft", "obsolete", "manual"})
 
 
 def _finding(code, feature, sid, msg):
@@ -123,6 +130,24 @@ def _spec_scenarios_text(text, prefix_hint=""):
     return out
 
 
+def _unidentified_live_text(text):
+    """Names of live @e2e scenarios with no id tag: no driver can record them, so no run ever sees them."""
+    out, tags = [], []
+    for ln in text.splitlines():
+        t = ln.strip()
+        if t.startswith("@"):
+            tags = t.split()
+        elif t.startswith("Scenario:") or t.startswith("Scenario Outline:"):
+            bare = {x[1:].lower() for x in tags}
+            ids = [c for c in bare if ID_TAG_RE.match(c) and c not in PRIORITY_TAGS]
+            if "e2e" in bare and not ids and NO_DRIVER_TAG not in bare and not bare & NOT_LIVE_TAGS:
+                out.append(t.split(":", 1)[1].strip())
+            tags = []
+        elif t and not t.startswith("#"):
+            tags = []
+    return out
+
+
 def driver_ids(path):
     if not os.path.isfile(path):
         return set()
@@ -164,11 +189,22 @@ def check_feature(root, feature, read=None):
                                 "%d scenarios carry @%s (%s) — a run records one result for the id, "
                                 "so the others are absent. Give each its own unused id."
                                 % (len(names), sid, "; ".join(repr(n) for n in names))))
+    # E-NOID carries the scenario's name, not an id: it is what tells two of them apart in the --base ratchet.
+    used = [int(m.group(1)) for i in set(by_id) | existing
+            for m in [re.match(r"^%s(\d+)$" % re.escape(px), i, re.I)] if m]
+    nxt = max(used or [0]) + 1
+    for name in _unidentified_live_text(spec_text):
+        out.append(dict(_finding("E-NOID", feature, None,
+                                 "%r is @e2e but has no id tag, so no driver can record it and no run ever sees "
+                                 "it. Tag it (next free id: @%s%02d) and drive it, or mark it @%s / @wip."
+                                 % (name, px.upper(), nxt, NO_DRIVER_TAG)), scenario=name))
+        nxt += 1
     if driver_text is None:
         return [_finding("E-NODRIVERFILE", feature, None,
                          "%d tagged scenario(s) but no driver at %s. Create one: "
                          "python3 .claude/qa/engine/bin/scaffold-driver.py %s"
-                         % (len(scen), os.path.relpath(driver, root), feature))]
+                         % (len(scen), os.path.relpath(driver, root), feature))] + \
+            [f for f in out if f["code"] == "E-NOID"]
 
     for sid, name, excused in scen:
         if sid in have:
@@ -210,7 +246,7 @@ def features(root, only=None, rev=None):
 
 
 def _key(f):
-    return (f["code"], f["feature"], f["id"])
+    return (f["code"], f["feature"], f["id"] or f.get("scenario"))
 
 
 def main(argv=None):
