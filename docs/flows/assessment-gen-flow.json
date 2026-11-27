@@ -1220,6 +1220,34 @@
               "title": "PDF — ready to print"
             }
           ]
+        },
+        "show_pages": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "page_choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "none",
+              "title": "No limit"
+            },
+            {
+              "id": "2",
+              "title": "2 pages"
+            }
+          ]
         }
       },
       "layout": {
@@ -1231,7 +1259,8 @@
             "init-values": {
               "output_format": "pdf",
               "answer_lines": true,
-              "save_paper": false
+              "save_paper": false,
+              "page_limit": "none"
             },
             "children": [
               {
@@ -1260,6 +1289,14 @@
                 "label": "Save paper: smaller print, more questions on each page"
               },
               {
+                "type": "Dropdown",
+                "name": "page_limit",
+                "label": "Most pages",
+                "required": false,
+                "visible": "${data.show_pages}",
+                "data-source": "${data.page_choices}"
+              },
+              {
                 "type": "Footer",
                 "label": "Make my paper",
                 "on-click-action": {
@@ -1268,6 +1305,7 @@
                     "output_format": "${form.output_format}",
                     "answer_lines": "${form.answer_lines}",
                     "save_paper": "${form.save_paper}",
+                    "page_limit": "${form.page_limit}",
                     "extension_message_response": "${data.extension_message_response}"
                   }
                 }
