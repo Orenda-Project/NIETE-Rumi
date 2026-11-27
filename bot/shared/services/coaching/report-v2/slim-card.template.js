@@ -7,7 +7,7 @@
  * (the .19 button sent after it). Labels follow the teacher's language, as the page does. Fonts come from the
  * hero template, base64-embedded: no network at render time (Lexend stands in for the template's Inter).
  *
- * vm = { language, header: { name, meta, date, pct }, wells: [string], thing: { text, step: {name,index}|null, why } }
+ * vm = { language, header: { name, meta, date, pct, source }, wells: [string], thing: { text, step: {name,index}|null, why } }
  * buildSlimCardHtml(vm) → HTML for an image renderer (selector '.report', width 480).
  */
 
@@ -63,7 +63,7 @@ function buildSlimCardHtml(vm) {
   .full{text-align:center;font-size:14px;font-weight:700;color:#3d5bd6;padding:2px 0 4px;line-height:${ur ? '2' : '1.4'}}
   </style></head><body>
   <div class="report">
-    <div class="hd"><div><div class="nm">${T(h.name || '')}</div>${meta ? `<div class="mt">${T(meta)}</div>` : ''}</div>${h.pct != null ? `<div class="sc"><bdi>${esc(h.pct)}%</bdi></div>` : ''}</div>
+    <div class="hd"><div><div class="nm">${T(h.name || '')}</div>${meta ? `<div class="mt">${T(meta)}</div>` : ''}${h.source ? `<div class="mt src">${T(h.source)}</div>` : ''}</div>${h.pct != null ? `<div class="sc"><bdi>${esc(h.pct)}%</bdi></div>` : ''}</div>
     ${wells.length ? `<div class="panel"><div class="h3">${esc(w.well)}</div><ul class="well">${wells.map((x) => `<li><span class="tick">✓</span><span>${T(x)}</span></li>`).join('')}</ul></div>` : ''}
     ${t.text ? `<div class="try"><div class="h3">${esc(w.tryh)}${chip ? w.inStep(chip) : ''}</div><p class="move">${T(t.text)}</p>${t.why ? `<p class="why">${T(t.why)}</p>` : ''}<p class="time">${esc(w.check)}</p></div>` : ''}${vm.videoStrip ? require('../video-reco/strip').stripHtml(vm.videoStrip, { language: vm.language, T, width: 480 }) : ''}
     <div class="full">${esc(w.full)}</div>

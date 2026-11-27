@@ -97,6 +97,8 @@ function withDefaults(deps = {}) {
     // Does the principal app's switch (portal_principal_app) name this principal? (the portal's rule)
     principalApp: () => require('./principal-app-switch').isOnPrincipalApp,
     log: () => require('../../utils/logger').logToFile,
+    // bd-r2uzg1.23.12 — named events (Axiom), e.g. observe.report_note.sent.
+    events: () => require('../../utils/structured-logger').logEvent,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
     // bd-tfya0m — the wait before the report's one more ask of the queue (tests pass 0).
@@ -1151,8 +1153,14 @@ async function previewReport({ userId, coachingSessionId }, deps) {
   return { status: 'ok' };
 }
 
-/** "Send to <teacher>": the deliver phase, for a preview she has seen. */
-async function sendReport({ userId, coachingSessionId }, deps) {
+/**
+ * "Send to <teacher>": the deliver phase, for a preview she has seen.
+ * bd-r2uzg1.23.12 (queue #274, call 28): `note` is the note under the report as she left it on Send (pre-filled with
+ * the one made from her talk); an edit replaces the stored one, with who, when, how much and her optional
+ * `noteReason` kept beside it (observe-report-note). Every send logs observe.report_note.sent. No `note` (an older
+ * app): the stored note goes, as before.
+ */
+async function sendReport({ userId, coachingSessionId, note, noteReason }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
@@ -1160,7 +1168,10 @@ async function sendReport({ userId, coachingSessionId }, deps) {
   if (td.status !== 'awaiting_confirm' || !td.report_key || !td.teacher_phone) return notReady('preview_first');
 
   const coach = await loadCoach(d, userId);
-  await d.send.mergeTeacherDelivery(coachingSessionId, { send_requested_at: d.now().toISOString(), channel: 'portal' });
+  const at = d.now().toISOString();
+  const { patch, event } = require('./observe-report-note').noteEdit(td, note, noteReason, { by: userId, role: (coach && coach.role) || null, at });
+  await d.send.mergeTeacherDelivery(coachingSessionId, { send_requested_at: at, channel: 'portal', ...patch });
+  try { d.events('observe.report_note.sent', { coachingSessionId, ...event }); } catch (_) { /* telemetry never blocks a send */ }
   const queued = await queueReportPhase(d, coachingSessionId, { from: coach && coach.phone_number, phase: 'deliver', channel: 'portal' });
   if (!queued) return { status: 'queue_failed', coachingSessionId };
   await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');

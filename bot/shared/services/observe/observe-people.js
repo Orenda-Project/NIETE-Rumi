@@ -31,11 +31,12 @@ async function _person(userId) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('id, name, phone_number')
+      .select('id, name, phone_number, role')
       .eq('id', userId)
       .maybeSingle();
     if (error || !data) return null;
-    return { userId: data.id, name: _s(data.name), phone: _s(data.phone_number) };
+    // role (bd-r2uzg1.23.12): the report caption names the observer as coach or principal.
+    return { userId: data.id, name: _s(data.name), phone: _s(data.phone_number), role: _s(data.role) };
   } catch (err) {
     logToFile('⚠️ observe-people: users lookup failed', { userId, error: err.message });
     return null;

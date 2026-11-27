@@ -1442,8 +1442,11 @@ export const leader = {
     return response.data;
   },
 
-  sendReport: async (id: string): Promise<{ success: boolean }> => {
-    const response = await api.post(`/leader/observe/${id}/report/send`);
+  // bd-r2uzg1.23.12 (call 28): `body` only when she changed the note under the report; without it the stored note goes.
+  sendReport: async (id: string, body?: { note: string; reason: string | null }): Promise<{ success: boolean }> => {
+    const response = body
+      ? await api.post(`/leader/observe/${id}/report/send`, { note: body.note, ...(body.reason ? { note_reason: body.reason } : {}) })
+      : await api.post(`/leader/observe/${id}/report/send`);
     return response.data;
   },
 };
