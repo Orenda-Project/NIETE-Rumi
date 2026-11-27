@@ -574,7 +574,7 @@ describe('failure words: the page names the cause, and a model fault can be trie
   });
 });
 
-describe('a closed quiz is shown as closed (A178 n5 (1))', () => {
+describe('a closed quiz is shown as closed', () => {
   const SENT = { ...HELD, status: 'sent', language: 'en', meta: { step: 'sent', made_via: 'page', student_message: 'Hello class\nhttps://portal.example/q/ABC234',
     share_code: 'ABC234', share_code_id: 'sc-1', pdf_key: 'k.pdf' } };
   test.each([
@@ -605,7 +605,7 @@ describe('a closed quiz is shown as closed (A178 n5 (1))', () => {
   });
 });
 
-describe('the edit form and an Urdu quiz on an English page (A178 n5 (2))', () => {
+describe('the edit form and an Urdu quiz on an English page', () => {
   const { renderQuizBlock } = require('../../dashboard/services/report-quiz-page');
   const EDIT = { ok: true, language: 'ur', edit_v: 3, locked: false, n: 7, min: 6, questions: [{ qid: 'q1', text: 'سوال', key: 'A',
     editable: {}, options: [{ slot: 'A', text: 'ایک' }, { slot: 'B', text: 'دو' }] }] };

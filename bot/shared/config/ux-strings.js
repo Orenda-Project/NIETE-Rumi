@@ -5023,7 +5023,7 @@ const UX_STRINGS = {
     en: 'We tried a few times and could not make a quiz from this lesson.',
     ur: 'ہم نے کئی بار کوشش کی، مگر اس سبق سے کوئز نہیں بن سکا۔',
   },
-  // a made quiz whose children's code no longer opens: no Copy, Send or Try (A178 n5)
+  // a made quiz whose children's code no longer opens: no Copy, Send or Try
   qfix_offers_cq_closed: {
     en: 'This quiz is now closed to children. Its questions are below.',
     ur: 'یہ کوئز اب بچوں کے لیے بند ہے۔ اس کے سوالات نیچے ہیں۔',

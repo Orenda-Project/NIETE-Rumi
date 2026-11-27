@@ -1756,7 +1756,7 @@ Feature: NIETE (ICT) Teacher Training
     And in the edit form each answer's whole row selects it, at least 48 pixels tall
     And a long answer's field grows to show all of its words
     # report-quiz-page renderQuizBlock: lang="ur" on .qmsg and details.qq when the quiz is ur and the page is not;
-    # label.qeopt wraps the radio; textarea.qopttext auto-height (A178 n5).
+    # label.qeopt wraps the radio; textarea.qopttext auto-height.
 
   # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
   # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
