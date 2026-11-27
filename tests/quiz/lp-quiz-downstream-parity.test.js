@@ -418,9 +418,11 @@ describe.each([
   });
 
   test('the forwardable message dates the quiz by the lesson it was made for', () => {
-    // Both fixtures teach on the same school day, so both messages carry it.
+    // Both fixtures teach on the same school day, so both messages carry it. A child reads the
+    // Urdu message, so its date is in Urdu digits ("۲۲ ستمبر").
     const { formatLessonDate } = require('../../bot/shared/services/quiz/transcript-quiz-language');
-    const day = formatLessonDate(`${LESSON_DAY}T12:00:00+05:00`, language);
+    const { digitsFor } = require('../../bot/shared/config/ux-strings');
+    const day = digitsFor(formatLessonDate(`${LESSON_DAY}T12:00:00+05:00`, language), language);
     expect(transcript.forwardable).toContain(day);
     expect(lp.forwardable).toContain(day);
   });

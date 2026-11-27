@@ -3235,9 +3235,11 @@ Feature: NIETE (ICT) Teacher Training
     When the message to forward to my class arrives
     Then it opens «کوئز کا وقت!», says «… پر کوئز بھیجا ہے» and «یہاں دبائیں», with the link the only Latin in it
     And the library quiz's message says «تقریباً ۱۰ منٹ» in Urdu digits
+    And the lesson's date is in Urdu digits too («۲۵ نومبر», next to «۵ منٹ»), so the link is the only place with 0–9
     And the English message is unchanged
     # ux-strings.js tqStudentMessage, tqStudentMessageWeb, vqClassMessage (ur). A quiz made earlier keeps the message
-    # stored with it. Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-messages.test.js.
+    # stored with it. The date: studentMessage converts it; formatLessonDate keeps 0–9 for its teacher callers.
+    # Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-urdu-digits.test.js, forward-messages.test.js.
 
   # @T945 was @T1244 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
   @e2e @quiz @copy @wip @draft @P2 @T945
