@@ -71,7 +71,7 @@ const ids = (...n) => n.map(String);
 /** loadAnalyticsLists' answer (dashboard/lib/analytics-lists.js, the v8 shared contract). */
 function lists(extra = {}) {
   return {
-    fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3']),
+    fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3', 'E-s4']),
     primary: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['b1', 'Sihala']]),
     midHigh: new Map([['m1', 'Urban-I'], ['m2', 'Urban-I'], ['m4', 'Urban-I'], ['b1', 'Tarnol']]),
     coaches: [],
@@ -96,6 +96,8 @@ function baseRows() {
     levels: LEVELS,
     schools: [
       school('s1', 'B.K'), school('s2', 'Urban-I'), school('s3', 'Sihala'), school('x9', 'B.K'),
+      // on the programme list but in none of the six sectors: her members are in noSector
+      school('s4', 'Pilot'),
       // v7's rule (used only when the school list is missing) does not count these
       school('t1', 'B.K', { is_probable_test: true }), school('t2', 'Durbeen'),
     ],
@@ -106,11 +108,11 @@ function baseRows() {
       mem('p1', { ...P, school_id: 's1', cert_levels: ids(1, 2, 3, 4) }),
       mem('p2', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(2) }),
       // her school is not on FDE's list: a "No school" row in her sector
-      mem('p3', { ...P, school_id: 'x9', cert_levels: ids(1, 2) }),
+      mem('p3', { ...P, school_id: 's1', cert_levels: ids(1, 2) }),
       mem('p4', { ...P, school_id: 's3', active_levels: ids(1) }),
       // a principal with no allocation sector, and someone with nothing at all and no school
-      mem('p5', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(1) }),
-      mem('p6', { ...P }),
+      mem('p5', { ...P, school_id: 's4', cert_levels: ids(1), active_levels: ids(1) }),
+      mem('p6', { ...P, school_id: 's4' }),
       // Mid/High
       mem('m1', {
         ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_mask: 127, ox_cert: true, ox_active: true,
@@ -120,7 +122,7 @@ function baseRows() {
         ...MH, high_band: true, school_id: 's2', cert_levels: ids(3), active_levels: ids(4), ox_mask: 7, ox_active: true,
         bh_active: true, isaps_assigned: true, isaps_mask: 3, isaps_active: true,
       }),
-      mem('m3', { ...MH, high_band: true, isaps_assigned: true }),
+      mem('m3', { ...MH, high_band: true, school_id: 's4', isaps_assigned: true }),
       // a migrated Oxbridge certificate with no session on record; not assigned I-SAPS
       mem('m4', { ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_cert: true }),
     ],
@@ -173,53 +175,11 @@ describe('Primary — the RDF primary-programme population, certificates passed,
     }
   });
 
-  it("schools are FDE's list: a member at a school off the list is her sector's 'No school' row (the shared no-school id)", () => {
+  it("schools are FDE's list: one row per programme school in the six sectors (bd-tsa15l: no 'No school' rows)", () => {
     expect(out.schools.map((s) => [s.region, s.schoolId, s.name, s.noSchool, s.teachers, s.passedAll])).toEqual([
-      ['B.K', 's1', 'School s1', false, 2, 1],
-      ['B.K', 'no-school:B.K', null, true, 1, 0],
+      ['B.K', 's1', 'School s1', false, 3, 1],
       ['Sihala', 's3', 'School s3', false, 1, 0],
     ]);
-    const none = out.schools.find((s) => s.noSchool);
-    expect(none).toMatchObject({ emis: null });
-    expect(none.levels.map((l) => [l.levelOrder, l.passed, l.teachers])).toEqual([[0, 1, 1], [1, 1, 1], [2, 0, 1], [3, 0, 1]]);
-  });
-
-  it("sectorByUser (every allocation-file user, any role) places a principal outside both teacher Maps in her RDF sector", () => {
-    const rows = baseRows();
-    // p5 is a principal: in neither teacher Map, on the allocation file in Nilore
-    rows.lists = lists({ sectorByUser: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['p5', 'Nilore']]) });
-    const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'Nilore')).toMatchObject({ teachers: 1 });
-    expect(lvl(out.regions.find((r) => r.region === 'Nilore'), 0).passed).toBe(1);
-    expect(out.noSector.teachers).toBe(1);
-    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toContainEqual(['Nilore', 's1', 1]);
-  });
-
-  it('sectorByUser wins over the teacher Maps (it is the RDF\'s uid2sect); null falls back to them', () => {
-    const rows = baseRows();
-    rows.members = [mem('b1', { ...P, cert_levels: ids(1) })];
-    rows.lists = lists({ sectorByUser: new Map([['b1', 'Urban-II']]) });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Urban-II').teachers).toBe(1);
-    rows.lists = lists({ sectorByUser: null });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-  });
-
-  it('sectorByUser stands even when a teacher Map is missing; with neither, v7\'s school sector', () => {
-    const rows = baseRows();
-    rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false },
-      sectorByUser: new Map([['p5', 'Tarnol']]) });
-    const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
-    // the rest are not on the allocation file: the RDF's "no sector"
-    expect(out.noSector.teachers).toBe(5);
-  });
-
-  it('the sector comes from the primary Map first, then midHigh', () => {
-    const rows = baseRows();
-    rows.members = [mem('b1', { ...P, mh_cohort: true, cert_levels: ids(1) })];
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-    rows.lists = lists({ primary: new Map() });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
   });
 });
 
@@ -267,7 +227,7 @@ describe('Mid/High — the RDF middle/high-programme population', () => {
 
   it('a member of both programmes counts in both tabs', () => {
     const rows = baseRows();
-    rows.members = [mem('b1', { primary_cohort: true, mh_cohort: true, cert_levels: ids(1, 2, 3, 4) })];
+    rows.members = [mem('b1', { school_id: 's1', primary_cohort: true, mh_cohort: true, cert_levels: ids(1, 2, 3, 4) })];
     expect(summarizeTrainingLevels(rows, { band: 'primary' }).overview).toMatchObject({ teachers: 1, passedAll: 1 });
     expect(summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.teachers).toBe(1);
   });
@@ -298,43 +258,36 @@ describe('empty and odd input', () => {
     expect(out.noSector.teachers).toBe(0);
   });
 
-  it('lists not usable (null, FAIL-CLOSED): v7 rules — sector = her counted school\'s region, rows = counted schools; never zeros', () => {
+  it("lists not usable (null, FAIL-CLOSED): v7's school rule — a member counts at a counted school (active, not a test, in the six); never zeros", () => {
     for (const theLists of [MISSING, undefined]) {
       const rows = baseRows();
       rows.lists = theLists;
       rows.members = rows.members.concat([mem('p7', { ...P, school_id: 't1', cert_levels: ids(1) }), mem('p8', { ...P, school_id: 't2' })]);
       const out = summarizeTrainingLevels(rows, { band: 'primary' });
-      // the population and its numbers do not depend on the lists
-      expect(out.overview.teachers).toBe(8);
-      expect(lvl(out.overview, 0).passed).toBe(5);
-      expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
+      // a school outside the six (s4, t2), a probable-test school (t1) and no school (bd-tsa15l) count for nobody
+      expect(out.overview.teachers).toBe(4);
+      expect(lvl(out.overview, 0).passed).toBe(3);
+      expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
       expect(out.regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-      // no school (p6), a probable-test school (p7), a school outside the six (p8)
-      expect(out.noSector.teachers).toBe(3);
-      expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
-        ['B.K', 'School s1', 3], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
-      ]);
+      expect(out.noSector.teachers).toBe(0);
+      expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([['B.K', 'School s1', 3], ['Sihala', 'School s3', 1]]);
     }
   });
 
-  it('only the school list missing: the RDF sectors stand, every counted school is a row', () => {
+  it('only the school list missing: every counted school is a row', () => {
     const rows = baseRows();
     rows.lists = lists({ fdeSchoolEmis: null, missing: { schools: true, teachers: false, coaches: false } });
     const out = summarizeTrainingLevels(rows, { band: 'primary' });
     expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
-    expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
-      ['B.K', 'School s1', 2], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
-    ]);
+    expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([['B.K', 'School s1', 3], ['Sihala', 'School s3', 1]]);
   });
 
-  it('only the teacher lists missing: sectors from the counted school, FDE\'s list still decides the rows', () => {
+  it("the allocation lists no longer matter: sectors are the school's with or without them", () => {
     const rows = baseRows();
     rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false } });
     const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
-    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toEqual([
-      ['B.K', 's1', 3], ['B.K', 'no-school:B.K', 1], ['Sihala', 's3', 1],
-    ]);
+    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
+    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toEqual([['B.K', 's1', 3], ['Sihala', 's3', 1]]);
   });
 
   it('carries no member identity', () => {
@@ -346,15 +299,15 @@ describe('empty and odd input', () => {
 describe('the members read (set-based; one statement)', () => {
   const code = trainingStatesSql().replace(/--[^\n]*/g, '');
 
-  it('the population is the RDF\'s: an ACTIVE niete_primary / niete_middle_high assignment, live users, any role or school', () => {
+  it('the population is the RDF\'s: an ACTIVE niete_primary / niete_middle_high assignment, live teacher users, not test accounts', () => {
     expect(code).toMatch(/'niete_primary'/);
     expect(code).toMatch(/'niete_middle_high'/);
     expect(code).toMatch(/a\.is_active/);
     expect(code).toMatch(/u\.deleted_at IS NULL/);
     expect(code).toMatch(/NOT LIKE 'merged%'/);
-    expect(code).not.toMatch(/u\.role = 'teacher'/);
-    expect(code).not.toMatch(/is_test_user/);
-    expect(code).not.toMatch(/u\.school_id IS NOT NULL/);
+    // bd-tsa15l: and only teachers, not test accounts (the canonical ICT teacher)
+    expect(code).toMatch(/u\.role = 'teacher'/);
+    expect(code).toMatch(/u\.is_test_user IS NOT TRUE/);
   });
 
   it('Passed is the certificate: cert_levels from training_certificates; the rule\'s states only feed active_levels', () => {
@@ -550,6 +503,7 @@ describe('Mid/High partners — I-SAPS', () => {
   const MODULES = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` }));
   const ALL9 = 0b111111111;
   let n = 0;
+  const SCHOOL_OF = { 'B.K': 's1', Sihala: 's3', Tarnol: 's5' };
   /** `count` Mid/High members alike, at a sector (by sectorByUser), assigned I-SAPS unless said otherwise. */
   const pr = (sector, {
     middle = true, high = false, isaps = 0, active = false, cert = false, assigned = true, extra = {},
@@ -557,7 +511,7 @@ describe('Mid/High partners — I-SAPS', () => {
     n += 1;
     return mem(`i${n}`, {
       mh_cohort: true, middle_band: middle, high_band: high, isaps_assigned: assigned, isaps_mask: isaps,
-      isaps_active: active || isaps !== 0 || cert, isaps_cert: cert, _sector: sector, ...extra,
+      isaps_active: active || isaps !== 0 || cert, isaps_cert: cert, school_id: SCHOOL_OF[sector], ...extra,
     });
   });
   function rows(extra = []) {
@@ -581,7 +535,8 @@ describe('Mid/High partners — I-SAPS', () => {
       ...r,
       partners: [{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }, { partner: 'beaconhouse', bit: 1, name: 'English' }, ...MODULES],
       members,
-      lists: lists({ sectorByUser: new Map(members.map((m) => [m.user_id, m._sector])) }),
+      schools: [...r.schools, school('s5', 'Tarnol')],
+      lists: lists({ fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3', 'E-s4', 'E-s5']) }),
     };
   }
 

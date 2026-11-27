@@ -237,14 +237,14 @@ describe('GET /analytics/training-levels — the answer', () => {
     tableStates.app_settings = flag([VIEWER]);
     const { payload } = await call('get', ROUTE, { userId: VIEWER, query: { band: 'primary' } });
     expect(payload.overview.levels.map((l) => [l.name, l.passed, l.inProgress, l.notStarted, l.teachers, l.pctPassed])).toEqual([
-      ['Aspiring Teacher', 2, 0, 1, 3, 66.7],
-      ['Emerging Practitioner', 1, 1, 1, 3, 33.3],
-      ['Skilled Practitioner', 1, 0, 2, 3, 33.3],
-      ['Teacher Leader', 1, 0, 2, 3, 33.3],
+      ['Aspiring Teacher', 2, 0, 0, 2, 100],
+      ['Emerging Practitioner', 1, 1, 0, 2, 50],
+      ['Skilled Practitioner', 1, 0, 1, 2, 50],
+      ['Teacher Leader', 1, 0, 1, 2, 50],
     ]);
-    expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 3 });
-    // the member with no allocation sector is the noSector block, so the parts still sum to the whole
-    expect(payload.noSector).toMatchObject({ teachers: 1, passedAll: 0 });
+    // bd-tsa15l: p3 sits at a school off FDE's programme list, so she is in no number
+    expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 2 });
+    expect(payload.noSector).toMatchObject({ teachers: 0, passedAll: 0 });
   });
 
   it('Mid/High: Skilled Practitioner and Teacher Leader only, over MIDDLE or HIGH teachers', async () => {
