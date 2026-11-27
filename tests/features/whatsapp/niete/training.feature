@@ -1231,7 +1231,9 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_child_quiz_home" is false, missing or unreadable
     When a child sends "/quiz"
     Then the message and its "Open" button are today's, word for word
-    # flags() fails closed: a read error is OFF. @wip.
+    And in Urdu, each quiz's date in the list it opens and on the quiz's own screen is in Urdu digits («۲۵ نومبر»); English is unchanged
+    # flags() fails closed: a read error is OFF. The date: student-quiz-flow-endpoint dateLabel converts it for ur.
+    # Unit: bot/tests/qfix-forward/forward-urdu-flow-digits.test.js. @wip.
 
   @e2e @quiz @config-gated @wip @draft @P1 @T708
   Scenario Outline: A child's "portal" opens their home, the same one button as "quiz"
@@ -3072,9 +3074,11 @@ Feature: NIETE (ICT) Teacher Training
     When the message to forward to my class arrives
     Then it opens «کوئز کا وقت!», says «… پر کوئز بھیجا ہے» and «یہاں دبائیں», with the link the only Latin in it
     And the library quiz's message says «تقریباً ۱۰ منٹ» in Urdu digits
+    And the lesson's date is in Urdu digits too («۲۵ نومبر», next to «۵ منٹ»), so the link is the only place with 0–9
     And the English message is unchanged
     # ux-strings.js tqStudentMessage, tqStudentMessageWeb, vqClassMessage (ur). A quiz made earlier keeps the message
-    # stored with it. Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-messages.test.js.
+    # stored with it. The date: studentMessage converts it; formatLessonDate keeps 0–9 for its teacher callers.
+    # Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-urdu-digits.test.js, forward-messages.test.js.
 
   @e2e @quiz @wip @draft @P1 @T1184
   Scenario: A class quiz is pitched at the grade the teacher saved on their profile
