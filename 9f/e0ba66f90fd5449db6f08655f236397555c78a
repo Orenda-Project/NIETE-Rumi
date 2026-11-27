@@ -3,3 +3,4 @@
 {"ts":"2026-11-27T14:31:30Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coaching,child-test spec_sync=true","sha":"9fe0ba66f90f","branch":"bd-zrdvmi.87-89381","user":""}
 {"ts":"2026-11-27T14:44:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (only the pic-LP to generic-picture fallback in image-message.handler changed; coaching photo gates run earlier and are untouched)","sha":"9fe0ba66f90f","branch":"bd-zrdvmi.87-89381","user":""}
 {"ts":"2026-11-27T14:44:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (child-test image claim runs before pic-LP and is untouched)","sha":"9fe0ba66f90f","branch":"bd-zrdvmi.87-89381","user":""}
+{"ts":"2026-11-27T14:44:50Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"bdd7e94e-c38c-47fc-9da2-09ae615f6a51","sha":"9fe0ba66f90f","branch":"bd-zrdvmi.87-89381","user":""}
