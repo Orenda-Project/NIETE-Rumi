@@ -548,6 +548,13 @@ class SQSCoachingWorker {
             jobType,
             error: error.message
           });
+
+          // bd-brblff: the job says another delivery cannot succeed (e.g. a recording no transcriber can
+          // decode). Remove the message now rather than leave it for SQS to run again at the end of its
+          // visibility window: same bytes, same paid failure, and the teacher told again each time.
+          if (error && error.permanent) {
+            await this._removePermanentFailure(job, error);
+          }
         })
         .finally(() => {
           // Remove from active jobs
@@ -1152,6 +1159,35 @@ class SQSCoachingWorker {
   async _handBackUnstarted(jobs) {
     const entries = jobs.map((j) => [j.receiptHandle, { sourceQueue: j.sourceQueue || 'main', jobType: j.body && j.body.jobType }]);
     return this._releaseInFlight(entries, 'received after shutdown began: not started');
+  }
+
+  /**
+   * bd-brblff: a job that failed with `error.permanent` (handleJobFailure has already recorded it). Its message is
+   * deleted so SQS does not deliver it again. A message handed back at shutdown is left alone: it may be another
+   * replica's now. A failed delete is logged and swallowed; the message then returns as before.
+   */
+  async _removePermanentFailure(job, error) {
+    const { receiptHandle, body, sourceQueue } = job;
+    const { sessionId, jobType } = body || {};
+    if (this.releasedHandles.has(receiptHandle) || this.handedBackHandles.has(receiptHandle)) return;
+    try {
+      if (sourceQueue === 'video') {
+        await SQSQueueService.completeVideoJob(receiptHandle);
+      } else if (sourceQueue === 'quiz') {
+        await SQSQueueService.completeQuizJob(receiptHandle);
+      } else {
+        await SQSQueueService.completeJob(receiptHandle);
+      }
+      this.stats.messagesDeleted++;
+      logToFile('🛑 Job failed permanently — message removed, not delivered again', {
+        workerId: this.workerId, replicaId: REPLICA_ID, messageId: job.messageId, sessionId, jobType,
+        receiveCount: job.receiveCount || null, reason: error.permanentReason || null,
+      });
+    } catch (err) {
+      logToFile('⚠️ Could not remove the permanently failed job; SQS will deliver it again', {
+        workerId: this.workerId, messageId: job.messageId, sessionId, jobType, error: err.message,
+      });
+    }
   }
 
   /**
