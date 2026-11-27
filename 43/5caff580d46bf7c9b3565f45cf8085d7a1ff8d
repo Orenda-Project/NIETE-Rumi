@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T12:21:27Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"435caff580d4","branch":"bd-l30sfz.8-staging","user":""}
+{"ts":"2026-11-27T12:21:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"435caff580d4","branch":"bd-l30sfz.8-staging","user":""}
