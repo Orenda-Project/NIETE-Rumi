@@ -43,7 +43,7 @@ function voiceManifest(bank) {
     }
     // A W3 one-at-a-time task holds its items on the task (items[]); a practice item's model is a chain.
     const w3Ear = t.w3 ? /letter_|words4/.test(t.task || '') : false;
-    for (const it of [...((t.tap && t.tap.items) || []), ...(t.w3 && !t.tap ? t.items || [] : []), ...(t.practice || []), ...(t.practice_v2 || []), ...(sc.demo_item ? [sc.demo_item] : [])]) {
+    for (const it of [...((t.tap && t.tap.items) || []), ...(t.w3 && !t.tap ? t.items || [] : []), ...(t.practice || []), ...(t.practice_v2 || []), ...((t.practice_r28 && t.practice_r28.practice) || []), ...(sc.demo_item ? [sc.demo_item] : [])]) {
       if (it.say) (it.say.lang ? one(it.say, 'item', ear) : both(it.say, 'item'));
       if (it.model) any(it.model, 'feedback', w3Ear);
       if (it.prompt) both(it.prompt, 'problem');
