@@ -178,7 +178,8 @@ async function ta25(page, ctx) {
   const prevLang = await setLang(ctx, 'en');
   try {
     const items = [editItem('a', 1, 'MCQs', 'Remember'), editItem('b', 2, 'MCQs', 'Apply'), editItem('c', 3, 'Short Questions', 'Remember'), editItem('d', 4, 'Short Questions', 'Understand')];
-    await editor(page, ctx, { grade: 7, subject: 'Science', subjectKey: 'science', chapterNumber: 1, questionCount: 4, marks: 4 }, items);
+    // urdu: her stored language is read for real here (this scenario switches it), so the English pin stays off
+    await editor(page, ctx, { grade: 7, subject: 'Science', subjectKey: 'science', chapterNumber: 1, questionCount: 4, marks: 4, urdu: true }, items);
     await page.getByTestId('edit-summary').waitFor({ timeout: 15000 });
     const tags = (await page.getByTestId('bloom-tag').allInnerTexts()).map((t) => t.trim());
     expect(JSON.stringify(tags) === '["Remember","Apply","Remember","Understand"]', 'each question should show its level, got ' + JSON.stringify(tags));
