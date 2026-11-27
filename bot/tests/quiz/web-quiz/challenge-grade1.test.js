@@ -517,6 +517,31 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
     expect(ex.draw).toEqual({ outcome: 'served' });
   });
 
+  // bd-7rnfvn (q380): prod has web_quiz_challenge_period off; every G1 serve logged its draw with period_id NULL and
+  // challenge_draws (period_id NOT NULL) refused it — web_quiz.ch_draw_log_failed 23502, 80 in 7 days. The G2-5 serve logs
+  // the calendar period whatever the switch (serveV2 drawRow); G1 does the same, and with no period at all it logs nothing.
+  test('period rule off: the G1 draw row still carries the calendar period, as the G2-5 draw does; the run row stays NULL', async () => {
+    const { logError } = require('../../../shared/utils/logger');
+    on(V2, G1, ...CANON_ON);
+    db.challenge_draws = [];
+    await Ch.exercise(hub(), 'numbers', D);
+    expect(runs()[0]).toMatchObject({ period_id: null, record: null });
+    expect(db.challenge_draws).toEqual([expect.objectContaining({ run_id: runs()[0].id, period_id: '2026-11', served_id: 'G1A' })]);
+    expect(logError.mock.calls.filter((c) => c[0] === 'web_quiz.ch_draw_log_failed')).toEqual([]);
+  });
+
+  test('no period holds now: no draw row is attempted (the NOT NULL column would refuse it); meta.draw keeps the copy', async () => {
+    const { logError } = require('../../../shared/utils/logger');
+    on(V2, G1, ...CANON_ON);
+    db.challenge_draws = [];
+    db.challenge_periods = [];
+    Ch.__reset();
+    await Ch.exercise(hub(), 'numbers', D);
+    expect(db.challenge_draws).toEqual([]);
+    expect(runs()[0].meta.draw).toMatchObject({ outcome: 'served' });
+    expect(logError.mock.calls.filter((c) => c[0] === 'web_quiz.ch_draw_log_failed')).toEqual([]);
+  });
+
   test('one ch_open and one ch_start each, and with events v2 on ch_start goes through the measurement envelope (kid rides)', async () => {
     process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48);
     process.env.WEB_QUIZ_KID_KEY_V = '1';
