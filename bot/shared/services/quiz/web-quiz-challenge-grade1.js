@@ -156,9 +156,6 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     const Bank = bank();
     const served = items();
     const pid = await periodId(now);
-    // the draw log's period is the calendar period whatever the period rule, as the G2-5 serve logs it (serveV2 drawRow):
-    // challenge_draws.period_id is NOT NULL, so with the rule off a NULL pid was refused on every serve (bd-7rnfvn)
-    const drawPid = pid || D.periodIdFor(new Date(now), await D.periods());
     const canonicalId = await canonicalOf(w.studentId);
     const [rows, pick, fixed, classId] = await Promise.all([D.childRows(canonicalId, [w.studentId]),
       D.pickOf({ sessionId: w.sessionId || null, canonicalId, device }), D.fixedGradeOf(canonicalId, w.grade), D.activeClassOf([canonicalId, w.studentId])]);
@@ -174,7 +171,7 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     const runId = crypto.randomUUID();
     const seed = crypto.randomBytes(16).toString('hex');
     const at = new Date(now).toISOString();
-    const drawLog = { draw_id: crypto.randomUUID(), canonical_id: canonicalId, period_id: drawPid, stop: EXERCISE, lang: w.lang, fixed_grade_band: 'G1',
+    const drawLog = { draw_id: crypto.randomUUID(), canonical_id: canonicalId, period_id: pid, stop: EXERCISE, lang: w.lang, fixed_grade_band: 'G1',
       drawn_at: at, weights_v: 'w1', open_band: null, band: null, band_reason: 'anchor', eligible: [{ id: BLOCK, w: 1 }], eligible_n: 1,
       ref_eligible: false, p: 1, served_id: BLOCK, outcome: 'served', seed };
     const row = {
@@ -195,8 +192,10 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     // stored as practice by insertRun (a second record of this stop this period): the run follows it
     if (stored === 'practice') Object.assign(rec, { mode: 'practice', record: false });
     else if (stored !== 'stored') fail(503, 'unavailable');
-    // no period holds now: no draw row (its period_id is NOT NULL); meta.draw is the copy
-    if (drawPid) await D.logDraw({ ...drawLog, run_id: runId });
+    // challenge_draws.period_id is NOT NULL: with the period rule off (or no period holding now) the row was refused on
+    // every serve (bd-7rnfvn, 80 a week on prod). No period, no draw row, as the G2-5 serve logs none off its pool rule;
+    // meta.draw keeps the copy.
+    if (pid) await D.logDraw({ ...drawLog, run_id: runId });
     // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
     if (rec.record === true && rec.mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
     const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
