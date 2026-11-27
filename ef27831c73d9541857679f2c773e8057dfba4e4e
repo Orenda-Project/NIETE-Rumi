@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T13:16:09Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"ef27831c73d9","branch":"bd-65zx8c-qfk1","user":"Haroon Yasin"}
+{"ts":"2026-11-27T13:16:26Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (QF-K1 un-gates the quiz-edit PDF remake only; no training or teacher-visible flow change while the switch is on; commit trailer says the same)","sha":"ef27831c73d9","branch":"bd-65zx8c-qfk1","user":"Haroon Yasin"}
