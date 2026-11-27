@@ -223,7 +223,9 @@ async function paperCopyOr(r2Key) {
     const { headObject } = require('../storage/r2');
     const head = await headObject(paperKey(r2Key));
     return head && head.exists ? paperKey(r2Key) : r2Key;
-  } catch (_) {
+  } catch (error) {
+    // Print still opens the plan; the failed lookup is a warning, never silent (pre-merge class f).
+    require('../utils/logger').logWarn('lp.v8.paper_copy_lookup_failed', { r2Key, error: error && error.message });
     return r2Key;
   }
 }
