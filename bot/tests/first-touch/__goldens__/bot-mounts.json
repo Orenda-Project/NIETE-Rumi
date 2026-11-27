@@ -335,6 +335,50 @@
   },
   {
     "m": "use",
+    "path": "/api/internal/wqedit",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "path": "/quiz/:quizId",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/save",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/pdf",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
     "path": "/api/internal/th",
     "handlers": [
       {

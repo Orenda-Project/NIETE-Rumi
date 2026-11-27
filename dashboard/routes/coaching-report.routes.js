@@ -36,6 +36,8 @@ const videoReco = require('../services/video-reco-events');
 const pageTime = require('../services/report-page-time');
 const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
 const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
+const { fetchFrom: pageQuizSwitch, LANGS: QUIZ_LANGS, SURFACES: QUIZ_SURFACES } = require('../../bot/shared/services/quiz/report-page-quiz');
+const { renderQuizPage, renderQuizBlock, BEACON_EVENTS, NOTICE } = require('../services/report-quiz-page');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -99,6 +101,44 @@ async function loadReport(supabase, sessionId, userId) {
   return { session, language, quizMessage, firstName, trend };
 }
 
+/**
+ * qfix offers: the bot's /api/internal/rq (report-quiz-internal.routes.js), reached as every portal → bot call is
+ * (MAIN_BOT_URL + INTERNAL_API_KEY, read per call). Resolves { status, body }; never throws past a refusal or a timeout.
+ */
+function createReportQuizClient(options = {}) {
+  const call = createBotCaller(options);
+  return (op, body) => call('POST', `/api/internal/rq/${op}`, body);
+}
+
+/** One portal → bot call (method, path, JSON body). Resolves { status, body }; a refusal or a timeout is { 503 }. */
+function createBotCaller({ fetchImpl = (...a) => fetch(...a), timeoutMs = 4000 } = {}) {
+  return async (method, pathname, body) => {
+    const base = String(process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
+    const key = process.env.INTERNAL_API_KEY || '';
+    if (!base || !key) return { status: 503, body: null };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      const res = await fetchImpl(`${base}${pathname}`, {
+        method, headers: { 'content-type': 'application/json', accept: 'application/json', 'x-api-key': key },
+        ...(method === 'GET' ? {} : { body: JSON.stringify(body || {}) }), signal: ctl.signal,
+      });
+      let json = null;
+      try { json = await res.json(); } catch (_) { json = null; }
+      return { status: res.status, body: json };
+    } catch (_) {
+      return { status: 503, body: null };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+// The /cr report shows the page block for an offer held for a closed window or a quiz made in the page; a quiz made in
+// WhatsApp keeps the report's own section.
+const crShowsBlock = (quiz) => Boolean(quiz && (quiz.state === 'held' || (quiz.page && quiz.state !== 'none')));
+// the ?e= line a save or a refusal left, only one the page knows
+const noticeOf = (query) => (query && typeof query.e === 'string' && Object.prototype.hasOwnProperty.call(NOTICE, query.e) ? query.e : null);
+
 function createCoachingReportRouter(opts = {}) {
   const db = () => require('../config/supabase');
   const load = opts.load || ((sessionId, userId) => loadReport(db(), sessionId, userId));
@@ -112,6 +152,27 @@ function createCoachingReportRouter(opts = {}) {
   const switchCache = cachedSwitch({ ttlMs: 30 * 1000, off: () => ({ ...deliveryFixes.OFF }), read: () => deliveryFixes.fetchFrom(db()) });
   const readSwitch = opts.deliverySwitch || ((now) => switchCache.get(now));
   const timeOnPage = async () => { try { return (await readSwitch()).timeOnPage === true; } catch (_) { return false; } };
+  // qfix offers: quiz_offer_closed_window.report_page, the "Make a quiz" block for an offer held for a closed window.
+  const quizSwitchCache = cachedSwitch({ ttlMs: 30 * 1000, off: false, read: () => pageQuizSwitch(db()) });
+  const quizPageOn = async () => { try { return (await quizSwitchCache.get()) === true; } catch (_) { return false; } };
+  const botNumber = () => String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+  const reportQuiz = opts.reportQuiz || createReportQuizClient();
+  // The bot's quiz edit routes (/api/internal/wqedit, quiz-teacher-edit.routes.js; switch web_quiz_teacher_edit,
+  // off → 404). The PDF remake renders inline, so it gets longer than a page read.
+  const callBot = opts.callBot || createBotCaller();
+  const callBotSlow = opts.callBotSlow || opts.callBot || createBotCaller({ timeoutMs: 25000 });
+  /** The bot's view of the quiz for its teacher (questions with qid and key, locked, edit_v, min, pdf), or null. */
+  const editView = async (model, userId) => {
+    if (!model || model.state !== 'ready' || !model.quizId) return null;
+    const r = await callBot('GET', `/api/internal/wqedit/quiz/${encodeURIComponent(model.quizId)}?t=${encodeURIComponent(userId)}`);
+    return r.status === 200 && r.body && r.body.editable !== false && Array.isArray(r.body.questions) ? r.body : null;
+  };
+  /** The bot's state for the quiz block, or null (switch off, the bot unreachable, not this teacher's). */
+  const quizModel = async (sessionId, userId) => {
+    if (!(await quizPageOn())) return null;
+    const r = await reportQuiz('state', { sessionId, userId });
+    return r.status === 200 && r.body && r.body.state ? r.body : null;
+  };
   const router = express.Router();
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -163,6 +224,13 @@ function createCoachingReportRouter(opts = {}) {
     const state = USEFUL_STATES.has(req.query.useful) ? req.query.useful : undefined;
     const group = await groupOf(userId);
     if (COACH_GROUPS.has(group)) links.coach = `${REPORT_PATH}/${token}/coach`;
+    const quiz = await quizModel(sessionId, userId);
+    if (crShowsBlock(quiz)) {
+      const edit = await editView(quiz, userId);
+      links.quizBlock = renderQuizBlock(quiz, {
+        language: view.language, base: `/cq/${token}`, surface: 'cr', bot: botNumber(), heading: true, edit, notice: noticeOf(req.query),
+      });
+    }
     const coachState = COACH_STATES.has(req.query.coach) ? req.query.coach : undefined;
     if (!state) log({ coachingSessionId: sessionId, userId, group, channel: 'page' }, 'coaching.useful.asked');
     return send(renderReportPage(view, process.env, links, state, coachState));
@@ -254,6 +322,198 @@ function createCoachingReportRouter(opts = {}) {
   router.get(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, coachPage);
   // 2 MB: a 20-second voice note arrives as base64 in the form.
   router.post(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '2mb' }), coachAnswer);
+
+  // qfix offers: /cq/:token, the quiz-only page the closed-window report's button opens for a teacher who does not get
+  // the new report, and the actions of the quiz block on it and on /cr (dashboard/services/report-quiz-page.js; bot
+  // quiz/report-page-quiz.js). The /cr token and its checks; switch off → 404, the link not complete.
+  //   GET  /cq/:token          the page            POST /cq/:token/make   the tap (303 back, or JSON)
+  //   GET  /cq/:token/state    the poll (JSON)     POST /cq/:token/lang   the language picked
+  //   GET  /cq/:token/pdf      302 to the PDF      GET  /cq/:token/try    302 to the student's view
+  //   POST /cq/:token/e        one beacon: copy | share | view_questions | make_timeout (204)
+  const quizGate = async (req, res) => {
+    if (!(await quizPageOn())) {
+      res.status(404).type('html').send(renderMessagePage('not_found'));
+      return null;
+    }
+    return verified(String(req.params.token || ''), res);
+  };
+  const surfaceOf = (b) => (QUIZ_SURFACES.includes(b && b.surface) ? b.surface : 'cq');
+  const backTo = (token, surface) => (surface === 'cr' ? `${REPORT_PATH}/${token}#quiz` : `/cq/${token}`);
+  // back to the page with the outcome's line and the question in view
+  const backWith = (token, surface, code, qid) => `${surface === 'cr' ? `${REPORT_PATH}/${token}` : `/cq/${token}`}?e=${code}${qid ? `#q-${qid}` : ''}`;
+  const wantsJson = (req) => /application\/json/i.test(String(req.get('accept') || ''));
+  const quizEvent = (name, v, props) => log({ coachingSessionId: v.sessionId, userId: v.userId, ...props }, name);
+
+  const quizPage = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    let data;
+    try {
+      data = await load(v.sessionId, v.userId);
+    } catch (_) {
+      log({ outcome: 'error', sessionId: v.sessionId, userId: v.userId, screen: 'quiz' });
+      return res.status(503).type('html').send(renderMessagePage('error'));
+    }
+    if (!data) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const language = data.language === 'ur' ? 'ur' : 'en';
+    // The bot unreachable: the made quiz's message as the report has it, else the /quiz door.
+    const model = (await quizModel(v.sessionId, v.userId))
+      || (data.quizMessage ? { state: 'ready', message: data.quizMessage, questions: [], pdf: false, preview: null } : { state: 'none' });
+    log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: model.state });
+    const topic = data.session && data.session.analysis_data && data.session.analysis_data.topic;
+    const token = String(req.params.token);
+    const edit = await editView(model, v.userId);
+    return res.status(200).type('html').send(renderQuizPage({ language, topic, model, base: `/cq/${token}`, bot: botNumber(), edit, notice: noticeOf(req.query) }));
+  };
+
+  /** make / lang: the bot's answer, then 303 back to the page the form was on (or the state as JSON). */
+  const quizAction = (op, bodyOf) => async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const b = req.body || {};
+    const surface = surfaceOf(b);
+    const r = await reportQuiz(op, { sessionId: v.sessionId, userId: v.userId, surface, ...bodyOf(b) });
+    if (r.status === 404) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    if (r.status !== 200 || !r.body) return res.status(503).type('html').send(renderMessagePage('error'));
+    if (wantsJson(req)) return res.status(200).json(r.body);
+    return res.redirect(303, backTo(String(req.params.token), surface));
+  };
+
+  const quizState = async (req, res) => {
+    if (!(await quizPageOn())) return res.status(404).json({ error: 'off' });
+    const v = verifyReportLink(String(req.params.token || ''));
+    if (!v.ok) return res.status(404).json({ error: 'not_found' });
+    const model = await quizModel(v.sessionId, v.userId);
+    return model ? res.status(200).json({ state: model.state }) : res.status(503).json({ error: 'unavailable' });
+  };
+
+  const quizPdf = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const surface = surfaceOf(req.query);
+    const r = await reportQuiz('pdf', { sessionId: v.sessionId, userId: v.userId });
+    if (r.status === 200 && r.body && typeof r.body.url === 'string') {
+      quizEvent('transcript_quiz.page_pdf', v, { surface });
+      return res.redirect(302, r.body.url);
+    }
+    // No stored PDF (an edit drops it): the bot makes it again from the edited quiz, then the same 1-hour link.
+    const model = await quizModel(v.sessionId, v.userId);
+    if (!model || model.state !== 'ready' || !model.quizId) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const made = await callBotSlow('POST', '/api/internal/wqedit/pdf', { quizId: model.quizId, teacherUserId: v.userId });
+    if (made.status === 404 || made.status === 403) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    if (made.status === 200 && made.body && made.body.pdf === 'ready') {
+      const again = await reportQuiz('pdf', { sessionId: v.sessionId, userId: v.userId });
+      if (again.status === 200 && again.body && typeof again.body.url === 'string') {
+        quizEvent('transcript_quiz.page_pdf', v, { surface, remade: true });
+        return res.redirect(302, again.body.url);
+      }
+    }
+    // not ready yet (a slow render, a later save, a failure the bot logged): the page says so; Download again later
+    quizEvent('transcript_quiz.page_pdf', v, { surface, remade: 'pending' });
+    return res.redirect(303, backWith(String(req.params.token), surface, 'pdf_pending'));
+  };
+
+  /**
+   * POST /cq/:token/edit — one question's form. The teacher is the token's (never the form's); the quiz is the
+   * session's own (the bot's state); the form is diffed against the bot's view into one ops array and sent with the edit_v
+   * the page was drawn with. After the first child answer only the right answer is sent. Back to the page with the line.
+   */
+  const EDIT_REASONS = new Set(['locked', 'floor', 'stale', 'too_long', 'empty', 'not_text', 'not_editable']);
+  const keyOf = (x) => [...new Set((Array.isArray(x) ? x : [x]).filter((k) => typeof k === 'string' && k))].sort().join(',');
+  const quizEdit = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const b = req.body || {};
+    const surface = surfaceOf(b);
+    const token = String(req.params.token);
+    const model = await quizModel(v.sessionId, v.userId);
+    const view = await editView(model, v.userId);
+    if (!view) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const it = view.questions.find((x) => x && x.qid === b.qid);
+    if (!it) return res.status(400).type('html').send(renderMessagePage('not_found'));
+    // the page always sends the version it was drawn with; without it a save could land over a newer one
+    const drawn = Number.parseInt(String(b.v), 10);
+    if (!Number.isFinite(drawn) || drawn < 0) return res.status(400).type('html').send(renderMessagePage('not_found'));
+    const ed = it.editable || {};
+    const slots = new Set((it.options || []).map((o) => o.slot));
+    const ops = [];
+    let held = false; // a wording change kept out: by the lock, or by what the item allows
+    const changed = (x, was) => typeof x === 'string' && x.trim() !== String(was == null ? '' : was);
+    if (b.do === 'remove') {
+      if (view.locked || ed.remove === false) held = true;
+      else ops.push({ op: 'remove', qid: it.qid });
+    } else {
+      if (changed(b.text, it.text)) {
+        if (view.locked || ed.text === false || it.picture) held = true;
+        else ops.push({ op: 'text', qid: it.qid, text: b.text.trim() });
+      }
+      for (const o of it.options || []) {
+        if (!changed(b[`opt_${o.slot}`], o.text)) continue;
+        if (view.locked || ed.options === false || o.picture) held = true;
+        else ops.push({ op: 'option', qid: it.qid, slot: o.slot, text: b[`opt_${o.slot}`].trim() });
+      }
+      // one slot (a radio), or several for a "pick all that apply" item (checkboxes), sent as "A,C"
+      const key = b.key === undefined ? null : keyOf(b.key);
+      if (key !== null && key !== keyOf(String(it.key || '').split(','))) {
+        if (!key || key.split(',').some((k) => !slots.has(k)) || (!it.multi && key.includes(','))) {
+          return res.status(400).type('html').send(renderMessagePage('not_found'));
+        }
+        if (ed.key !== false) ops.push({ op: 'key', qid: it.qid, slot: key });
+      }
+    }
+    if (!ops.length) return res.redirect(303, backWith(token, surface, held ? (view.locked ? 'locked' : 'not_editable') : 'none', it.qid));
+    // the page drew v; the bot refuses a save over a newer one (stale)
+    const r = await callBotSlow('POST', '/api/internal/wqedit/save', {
+      quizId: model.quizId, teacherUserId: v.userId, v: drawn, ops, surface,
+    });
+    const why = r.body && typeof r.body.reason === 'string' ? r.body.reason : null;
+    const code = r.status === 200 && r.body && r.body.ok ? 'saved' : why === 'no_change' ? 'none' : EDIT_REASONS.has(why) ? why : 'failed';
+    // the bot logs transcript_quiz.page_edit per saved field; this is the page's own outcome, once per save
+    quizEvent('transcript_quiz.page_edit_result', v, {
+      quizId: model.quizId, outcome: code, fields: ops.map((o) => o.op).join(','), locked: Boolean(view.locked), surface,
+    });
+    return res.redirect(303, backWith(token, surface, code, it.qid));
+  };
+
+  const quizTry = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const model = await quizModel(v.sessionId, v.userId);
+    if (!model || model.state !== 'ready' || typeof model.preview !== 'string') return res.status(404).type('html').send(renderMessagePage('not_found'));
+    quizEvent('transcript_quiz.page_try', v, { surface: surfaceOf(req.query) });
+    return res.redirect(302, model.preview);
+  };
+
+  const BEACON = { copy: 'page_copy', share: 'page_share', view_questions: 'page_view_questions', make_timeout: 'page_make_failed' };
+  const quizBeacon = async (req, res) => {
+    const v = await quizGate(req, res);
+    if (!v) return undefined;
+    const b = req.body || {};
+    if (!BEACON_EVENTS.includes(b.ev)) return res.status(400).json({ error: 'bad_event' });
+    const props = { surface: surfaceOf(b) };
+    // the page's beacon is form-encoded ("true"); a JSON body says true
+    const yes = (x) => x === true || x === 'true';
+    if (b.ev === 'copy') {
+      props.fallback = yes(b.fallback);
+      if (yes(b.manual)) props.manual = true;
+    }
+    if (b.ev === 'make_timeout') props.reason = 'timeout';
+    quizEvent(`transcript_quiz.${BEACON[b.ev]}`, v, props);
+    return res.status(204).end();
+  };
+
+  const form = express.urlencoded({ extended: false, limit: '4kb' });
+  const json = express.json({ limit: '2kb' });
+  router.get('/cq/:token', privateHeaders, limiter, quizPage);
+  router.get('/cq/:token/state', privateHeaders, limiter, quizState);
+  router.post('/cq/:token/make', privateHeaders, limiter, form, json, quizAction('make', () => ({})));
+  router.post('/cq/:token/lang', privateHeaders, limiter, form, json,
+    quizAction('lang', (b) => ({ language: QUIZ_LANGS.includes(b.language) ? b.language : null })));
+  router.get('/cq/:token/pdf', privateHeaders, limiter, quizPdf);
+  router.get('/cq/:token/try', privateHeaders, limiter, quizTry);
+  router.post('/cq/:token/e', privateHeaders, limiter, form, json, quizBeacon);
+  // a question's text and four answers fit well inside 16 kB
+  router.post('/cq/:token/edit', privateHeaders, limiter, express.urlencoded({ extended: false, limit: '16kb' }), quizEdit);
   return router;
 }
 
