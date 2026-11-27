@@ -392,6 +392,20 @@ describe('one quiz per lesson, whichever door', () => {
     expect(WhatsApp.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 
+  // A /cq token from WhatsApp can post surface=portal itself: with the block's row off, the portal door makes nothing new.
+  test.each([
+    ['row missing', [ON]],
+    ['row off', [ON, { key: 'quiz_portal_report_block', value: { on: false } }]],
+  ])('block %s: a make posted as the portal on a lesson with no quiz queues nothing; its poll says none', async (_n, settings) => {
+    seed({ settings, quizzes: FRESH });
+    const { token, req } = await start();
+    const t = token();
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'portal', shell: 'embed' } });
+    expect(jobs('quiz_offer')).toHaveLength(0);
+    expect(JSON.parse((await req('GET', `/cq/${t}/state?surface=portal`)).body)).toEqual({ state: 'none' });
+    expect(mockDb.tables.quizzes.filter((q) => q.coaching_session_id === SID)).toHaveLength(0);
+  });
+
   test('the poll asks as the portal: /state?surface=portal names the fresh lesson held; without it, none', async () => {
     seed({ settings: [ON, PORTAL_ON()], quizzes: FRESH });
     const { token, req } = await start();

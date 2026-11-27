@@ -263,12 +263,14 @@ async function stateOf(d, q) {
 
 /**
  * The portal's coaching screen offers a quiz for any lesson that can take one, not only one a closed window held: a
- * lesson with no quiz row yet, that the offer itself would take (quizEligibleSession), reads as held there. /cq and
- * /cr are unchanged.
+ * lesson with no quiz row yet, that the offer itself would take (quizEligibleSession), reads as held there, while
+ * quiz_portal_report_block is on. /cq and /cr are unchanged.
  */
 async function freshForPortal(d, { q, sessionId, userId, surface }) {
   if (surface !== 'portal' || q) return false;
   try {
+    // any /cq token can post surface=portal: the door opens only while the block's own row is on (a failed read = off)
+    if (!(await fetchPortalBlock(d.db())).on) return false;
     return Boolean(await d.eligible({ coachingSessionId: sessionId, userId }));
   } catch (_) {
     return false;
