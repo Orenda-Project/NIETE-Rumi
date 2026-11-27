@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T15:23:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
+{"ts":"2026-11-27T15:23:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
+{"ts":"2026-11-27T15:23:56Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"quiz-funnel-watch=none-needed (cherry-pick of #6200 via #6205: operator-only Slack monitor; no teacher- or child-facing change)","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
