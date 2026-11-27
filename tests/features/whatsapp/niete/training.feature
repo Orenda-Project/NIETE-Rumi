@@ -1706,6 +1706,60 @@ Feature: NIETE (ICT) Teacher Training
     # reviveHeld moves only a row still skipped for that reason (atomic filter). Events transcript_quiz.skipped
     # {held_path}, transcript_quiz.held_revived. @wip.
 
+  # ── The quiz made in the page: when it fails, and when it has closed (ADDED 2026-11-27, bd-pdwwk4.2.8) ──
+  # The page the closed-window report opens (/cq, and the block on /cr) makes the quiz with no WhatsApp message at any
+  # step. Behind app_settings "quiz_offer_closed_window".report_page (missing = off: the routes 404).
+  # @no-mock-driver: the page is a portal route over the bot's /api/internal/rq/*, and a model fault cannot be forced
+  # on the mock lane. Executed with the bot route and the portal wired together in
+  # tests/qfix-offers/report-page-make.test.js (describes 'failure words', 'a closed quiz is shown as closed',
+  # 'the edit form and an Urdu quiz on an English page').
+  @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @P1 @T113
+  Scenario: When making my quiz in the page fails for a fault on our side, I can try again
+    Given I tapped "Make a quiz" in the page my coaching report opens
+    And making it failed because the model or a check on its answers failed
+    When I open the page again
+    Then it says the quiz could not be made just now and to try again in a few minutes, with a "Try again" button
+    When I tap "Try again"
+    Then the page says the quiz is being made, and no WhatsApp message comes
+    And the quiz is saved as being made again, with this try counted
+    And two quick taps make it once
+    # report-page-quiz stateOf: failed + reason in RETRY_REASONS + meta.page_remakes < 2 -> retry; retryFromPage
+    # moves the row back to held only while its status is unchanged, queues quiz_offer {page, remakes}, and
+    # processOffer carries page_remakes onto the revived row. Event transcript_quiz.page_make_tap {retry: true}.
+
+  @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @negative @P1 @T114
+  Scenario: After two more tries, or when the lesson itself is the reason, the page offers no "Try again"
+    Given I made my quiz in the page and it failed for a fault on our side after I had already tried again twice
+    When I open the page
+    Then it says it tried a few times and could not make a quiz from this lesson
+    And it has no "Try again" button
+    When instead making it failed because of the lesson, such as a subject we do not make quizzes for
+    Then the page says so and points me to /quiz on WhatsApp for another lesson, with no "Try again"
+    # capped: meta.page_remakes >= 2. Lesson causes (subject_not_allowed, transcript too short, ...) keep
+    # qfix_offers_cq_failed_subject / qfix_offers_cq_failed and the /quiz door.
+
+  @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @P2 @T115
+  Scenario: A quiz whose children's code has closed is shown as closed, with its questions and PDF kept
+    Given I made a quiz in the page and its children's code has since been switched off or has expired
+    When I open the page
+    Then it says the quiz is now closed to children and its questions are below
+    And I can still read the questions and download the PDF
+    But there is no Copy, no "Send it to your class on WhatsApp" and no "Try it as a student"
+    And it tells me to send /quiz to make a new quiz
+    And opening the old "Try it as a student" link answers "not found"
+    # stateOf ready + quiz_share_codes.active false or expires_at past -> closed: true; /cq/:t/try 404s when closed.
+    # A failed read of the code counts as open, as before.
+
+  @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @P3 @T116
+  Scenario: An Urdu quiz on an English page reads in Nastaliq, and each answer row is one large tap target
+    Given my page is in English and the quiz I made is in Urdu
+    When I open the quiz's questions, or its edit form
+    Then the class message and the questions are marked as Urdu and shown in Nastaliq
+    And in the edit form each answer's whole row selects it, at least 48 pixels tall
+    And a long answer's field grows to show all of its words
+    # report-quiz-page renderQuizBlock: lang="ur" on .qmsg and details.qq when the quiz is ur and the page is not;
+    # label.qeopt wraps the radio; textarea.qopttext auto-height.
+
   # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
   # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
   # (x-api-key). These scenarios are the API contract the page relies on; @no-mock-driver until the

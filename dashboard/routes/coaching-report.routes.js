@@ -479,7 +479,7 @@ function createCoachingReportRouter(opts = {}) {
     const v = await quizGate(req, res);
     if (!v) return undefined;
     const model = await quizModel(v.sessionId, v.userId);
-    if (!model || model.state !== 'ready' || typeof model.preview !== 'string') return res.status(404).type('html').send(renderMessagePage('not_found'));
+    if (!model || model.state !== 'ready' || model.closed || typeof model.preview !== 'string') return res.status(404).type('html').send(renderMessagePage('not_found'));
     quizEvent('transcript_quiz.page_try', v, { surface: surfaceOf(req.query) });
     return res.redirect(302, model.preview);
   };

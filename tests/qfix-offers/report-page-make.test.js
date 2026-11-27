@@ -96,7 +96,7 @@ function withQuizIndex(db) {
   };
 }
 
-function seed({ settings = [ON], quizzes = [{ ...HELD, meta: { ...HELD.meta } }], language = 'en', questions = [] } = {}) {
+function seed({ settings = [ON], quizzes = [{ ...HELD, meta: { ...HELD.meta } }], language = 'en', questions = [], codes = [] } = {}) {
   mockDb = withQuizIndex(makeDb({
     users: [{ id: UID, name: 'Sadia Noor', phone_number: PHONE, preferred_language: language },
       { id: OTHER_UID, name: 'Other', phone_number: '923330000099', preferred_language: 'en' }],
@@ -108,6 +108,7 @@ function seed({ settings = [ON], quizzes = [{ ...HELD, meta: { ...HELD.meta } }]
     }],
     quizzes,
     quiz_questions: questions,
+    quiz_share_codes: codes,
   }));
 }
 
@@ -485,5 +486,148 @@ describe('no block, the door, and the gates (the switch, the token)', () => {
     const r = await req('GET', `/cr/${token()}`);
     expect(r.body).toContain('Making your quiz');
     expect(jobs('quiz_offer')[0][2].surface).toBe('cr');
+  });
+});
+
+describe('failure words: the page names the cause, and a model fault can be tried again (≤2)', () => {
+  const FAILED = (meta) => ({ ...HELD, status: 'failed', meta: { step: 'failed', made_via: 'page', ...meta } });
+  const retryForm = (t) => new RegExp(`<form method="post" action="/cq/${t}/make"[^>]*>[\\s\\S]*?>Try again</button>`);
+
+  test('a model fault in the real chain → "Try again"; the tap re-holds the row and queues the offer once, with page_make_tap{retry}', async () => {
+    seed();
+    const { token, req } = await start();
+    const t = token();
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    Digest.run.mockRejectedValue(new Error('provider 529 overloaded'));
+    await runOfferJob();
+    expect((await quizRow()).meta.skip_reason).toBe('model_failed');
+
+    const failed = await req('GET', `/cq/${t}`);
+    expect(failed.body).toContain('We could not make it just now. Try again in a few minutes.');
+    expect(failed.body).toMatch(retryForm(t));
+    expect(failed.body).not.toContain('send /quiz');
+
+    Queue.queueJob.mockClear();
+    const tap = await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    expect(tap.status).toBe(303);
+    expect(jobs('quiz_offer')).toHaveLength(1);
+    expect(jobs('quiz_offer')[0][2]).toEqual(expect.objectContaining({ page: true, accepted: true, remakes: 1 }));
+    expect(botEvents('transcript_quiz.page_make_tap')).toEqual(expect.arrayContaining([expect.objectContaining({ retry: true, surface: 'cq' })]));
+    const q = await quizRow();
+    expect(q.status).toBe('skipped');
+    expect(q.meta.skip_reason).toBe('window_closed');
+    expect((await req('GET', `/cq/${t}`)).body).toContain('Making your quiz');
+
+    // a double tap while it is being made queues nothing more
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    expect(jobs('quiz_offer')).toHaveLength(1);
+
+    // the retry runs the same chain and carries its count
+    Digest.run.mockResolvedValue(DIGEST('urdu'));
+    await runOfferJob();
+    const after = await quizRow();
+    expect(after.status).toBe('generating');
+    expect(after.meta.page_remakes).toBe(1);
+    noWhatsApp();
+  });
+
+  test.each([['model_failed'], ['validator_failed'], ['key_conflict'], ['queue_failed']])('a failed row with %s → Try again', async (error) => {
+    seed({ quizzes: [FAILED({ error })] });
+    const { token, req } = await start();
+    const r = await req('GET', `/cq/${token()}`);
+    expect(r.body).toMatch(retryForm(token()));
+  });
+
+  test('after 2 retries: a true line, no Try again, no /quiz promise, and a posted make queues nothing', async () => {
+    seed({ quizzes: [FAILED({ error: 'model_failed', page_remakes: 2 })] });
+    const { token, req } = await start();
+    const t = token();
+    const r = await req('GET', `/cq/${t}`);
+    expect(r.body).toContain('We tried a few times and could not make a quiz from this lesson.');
+    expect(r.body).not.toContain('>Try again<');
+    expect(r.body).not.toContain('/quiz');
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    expect(jobs('quiz_offer')).toHaveLength(0);
+  });
+
+  test('a lesson cause (too few learning points) keeps today\'s line and the /quiz door; a posted make queues nothing', async () => {
+    seed({ quizzes: [{ ...HELD, meta: { step: 'skipped', skip_reason: 'too_few_slos', made_via: 'page' } }] });
+    const { token, req } = await start();
+    const t = token();
+    const r = await req('GET', `/cq/${t}`);
+    expect(r.body).toContain('We could not make a quiz from this lesson.');
+    expect(r.body).not.toContain('>Try again<');
+    await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
+    expect(jobs('quiz_offer')).toHaveLength(0);
+  });
+
+  test('Urdu: the retry line and button, button ≤ 20 code points, no Latin digits', async () => {
+    seed({ quizzes: [FAILED({ error: 'model_failed' })], language: 'ur' });
+    const { token, req } = await start();
+    const r = await req('GET', `/cq/${token()}`);
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+    const button = resolveUx('qfix_offers_cq_retry', { language: 'ur' });
+    expect([...button].length).toBeLessThanOrEqual(20);
+    expect(r.body).toContain(button);
+    expect(r.body).toContain(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' }));
+    expect(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' })).not.toMatch(/[0-9]/);
+  });
+});
+
+describe('a closed quiz is shown as closed', () => {
+  const SENT = { ...HELD, status: 'sent', language: 'en', meta: { step: 'sent', made_via: 'page', student_message: 'Hello class\nhttps://portal.example/q/ABC234',
+    share_code: 'ABC234', share_code_id: 'sc-1', pdf_key: 'k.pdf' } };
+  test.each([
+    ['inactive', { id: 'sc-1', code: 'ABC234', active: false }],
+    ['expired', { id: 'sc-1', code: 'ABC234', active: true, expires_at: '2026-01-01T00:00:00Z' }],
+  ])('code %s → the closed line; no Copy, Send or Try; the questions and PDF stay; a new quiz through /quiz', async (_n, code) => {
+    seed({ quizzes: [SENT], codes: [code], questions: QUESTIONS });
+    const { token, req } = await start();
+    const t = token();
+    const r = await req('GET', `/cq/${t}`);
+    expect(r.body).toContain('This quiz is now closed to children.');
+    // the elements, not the page script's selectors
+    expect(r.body).not.toMatch(/<button[^>]*data-copy/);
+    expect(r.body).not.toMatch(/<a[^>]*data-share/);
+    expect(r.body).not.toContain(`/cq/${t}/try`);
+    expect(r.body).toContain('See the questions (8)');
+    expect(r.body).toContain(`href="/cq/${t}/pdf"`);
+    expect(unAmp(r.body)).toContain('href="https://wa.me/923206281951?text=%2Fquiz"');
+  });
+
+  test('an open code → today\'s ready block (Copy and Send)', async () => {
+    seed({ quizzes: [SENT], codes: [{ id: 'sc-1', code: 'ABC234', active: true, expires_at: '2099-01-01T00:00:00Z' }], questions: QUESTIONS });
+    const { token, req } = await start();
+    const r = await req('GET', `/cq/${token()}`);
+    expect(r.body).toContain('data-copy');
+    expect(r.body).toContain('data-share');
+    expect(r.body).not.toContain('This quiz is now closed');
+  });
+});
+
+describe('the edit form and an Urdu quiz on an English page', () => {
+  const { renderQuizBlock } = require('../../dashboard/services/report-quiz-page');
+  const EDIT = { ok: true, language: 'ur', edit_v: 3, locked: false, n: 7, min: 6, questions: [{ qid: 'q1', text: 'سوال', key: 'A',
+    editable: {}, options: [{ slot: 'A', text: 'ایک' }, { slot: 'B', text: 'دو' }] }] };
+  const html = () => renderQuizBlock({ state: 'ready', message: 'پیغام', language: 'ur' }, { language: 'en', base: '/cq/t', edit: EDIT });
+
+  test('each answer radio sits inside a 48-px label that wraps its row', () => {
+    const rows = html().match(/<label class="qeopt">[\s\S]*?<\/label>/g) || [];
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row).toMatch(/<input type="radio" name="key"/);
+    expect(html()).toMatch(/\.qeopt\{[^}]*min-height:48px/);
+  });
+
+  test('an Urdu quiz carries lang="ur" on its content, and the block styles :lang(ur) in Nastaliq', () => {
+    expect(html()).toMatch(/<div class="qmsg"[^>]*lang="ur"/);
+    expect(html()).toMatch(/<details class="qq"[^>]*lang="ur"/);
+    expect(html()).toMatch(/\.qz \[lang="ur"\]\{font-family:"Noto Nastaliq Urdu"/);
+    const en = renderQuizBlock({ state: 'ready', message: 'Hello', language: 'en' }, { language: 'en', base: '/cq/t' });
+    expect(en).not.toMatch(/\slang="ur"/); // an attribute; the block's CSS names [lang="ur"] always
+  });
+
+  test('answer fields are multi-line and grow with their text', () => {
+    expect(html()).toMatch(/<textarea name="opt_A" rows="1"[^>]*class="qopttext"/);
+    expect(html()).not.toMatch(/<input type="text" name="opt_/);
   });
 });
