@@ -15,6 +15,8 @@
  *      (reason 'unreadable_audio'), so the worker removes the message instead of letting SQS deliver it again;
  *   2. anything short of that (one provider timing out, a network error) is NOT permanent: retried as before;
  *   3. the session is still marked failed, and the teacher is still told once, on this delivery.
+ *      bd-8sr958 (queue #320): that failure is now failed_step 'damaged_audio' and the ONE message is the catalog's
+ *      "damaged, we're trying to recover it" (never "try again"); the team gets one Slack post.
  */
 
 const mockSendMessage = jest.fn(async () => true);
@@ -119,8 +121,9 @@ describe('bd-brblff — a recording no transcriber can decode fails permanently'
   test('the session is still marked failed and the teacher is told once on this delivery', async () => {
     await runWith(UNFINISHED_M4A_27NOV());
     expect(mockMarkAsFailed).toHaveBeenCalledTimes(1);
-    expect(mockMarkAsFailed.mock.calls[0][1]).toBe('transcription');
+    expect(mockMarkAsFailed.mock.calls[0][1]).toBe('damaged_audio');
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(String(mockSendMessage.mock.calls[0][1])).not.toMatch(/try again|record again|دوبارہ/i);
   });
 });
 

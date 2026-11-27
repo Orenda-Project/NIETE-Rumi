@@ -126,9 +126,20 @@ describe('handleDamagedFailure', () => {
     expect(m.db.calls.find((c) => c.patch.audio_hash)).toBeTruthy();
   });
 
-  test('her own portal recording: the page shows it, nothing goes to WhatsApp, the team is still told once', async () => {
+  test("her own portal recording still gets the ONE message (the page may be off the flag), and the team is told once", async () => {
     const m = mk(session({ audio_url: 'https://r2.example/b/classroom_audio/u1/2026-11/portal_abc-123.m4a' }));
     await Damaged.handleDamagedFailure({ coachingSessionId: 's1', error: error({ source: 'portal' }), deps: m.deps });
+    expect(m.sendMessage).toHaveBeenCalledTimes(1);
+    expect(m.postToSlack).toHaveBeenCalledTimes(1);
+  });
+
+  test('a coach\'s portal observation: the portal shows it, nothing goes to her WhatsApp, the team is still told once', async () => {
+    const m = mk(session({ observation_type: 'leader_observation', audio_url: 'https://r2.example/b/classroom_audio/u1/2026-11/portal_abc-123.m4a', observer_user_id: 'coach-1' }));
+    const portalSvc = require('../../shared/services/coaching/portal-coaching.service');
+    const spy = jest.spyOn(portalSvc, 'isPortalObservation').mockReturnValue(true);
+    try {
+      await Damaged.handleDamagedFailure({ coachingSessionId: 's1', error: error({ source: 'portal' }), deps: m.deps });
+    } finally { spy.mockRestore(); }
     expect(m.sendMessage).not.toHaveBeenCalled();
     expect(m.postToSlack).toHaveBeenCalledTimes(1);
   });

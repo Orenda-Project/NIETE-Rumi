@@ -119,7 +119,10 @@ async function repairBeforeTranscription({ session, coachingSessionId, audioData
 
   const source = sourceOf(session);
   const info = inspectRecording(audioData);
-  if (info.kind === 'ok' || info.kind === 'unchecked') return { audioData, repaired: false };
+  // Only a file we can PROVE is damaged (empty, or an MP4/M4A with no moov / no mdat / a torn media box) is repaired.
+  // Any other container, or bytes we do not recognise, go to the transcribers as they always have (and to the damaged
+  // handler if all three of them refuse the bytes).
+  if (!['empty', 'no_moov', 'torn_tail', 'no_mdat'].includes(info.kind)) return { audioData, repaired: false };
 
   const { computeAudioHash } = require('../audio-hash-cache');
   const audioHash = computeAudioHash(audioData);
@@ -236,7 +239,9 @@ async function handleDamagedFailure({ coachingSessionId, error, phoneNumber, dep
     if (hash) await d.supabase.from('coaching_sessions').update({ audio_hash: hash }).eq('id', coachingSessionId);
 
     const portal = require('../portal-coaching.service');
-    const quiet = !session || portal.isPortalObservation(session) || portal.isPortalTeacherSession(session);
+    // A coach's portal observation is followed in the portal: nothing to her WhatsApp. A teacher's own portal recording
+    // still gets the ONE message, as the generic failure message always reached her (the page may be off the flag).
+    const quiet = !session || portal.isPortalObservation(session);
     const to = phoneNumber || (session && session.users && session.users.phone_number);
 
     if (details.repeat) {

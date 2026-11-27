@@ -200,6 +200,7 @@ describe('GET /config — features.newUi', () => {
       // bd-o15qnr.27 (v6) — the flow switch for a principal on the principal app, a real false unless both name her.
       'principalFlowV2',
       // bd-ma9jiy (queue #262) — the teacher's kept DC recording reopens paused: a real false unless portal_recording_resume names her.
+      'recordingRepair', // bd-8sr958 (queue #320) — damaged-recording check at the pick; a real false unless app_settings.recording_repair is true.
       'recordingResume',
       'roleSwitch', 'schoolCard', 'selfObservation',
       // The activity Home and My journey: real false unless portal_teacher_home_activity / portal_teacher_journey name her.
