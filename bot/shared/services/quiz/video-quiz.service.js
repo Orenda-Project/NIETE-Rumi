@@ -429,12 +429,23 @@ async function startSession({ phone, userId, quizId, videoId, language, delivery
     }
   }
 
-  const { data: questions, error } = await supabase
+  // Each row carries its review statuses in the same request: a question a reviewer held is never asked, even from a
+  // link sent before the review (bd-g2baes.3). The embed unreadable → the plain read, every row, logged.
+  const Keys = require('./quiz-key-review.service');
+  const readBank = (cols) => supabase
     .from('quiz_questions')
-    .select('id, external_id, sort_order')
+    .select(cols)
     .eq('quiz_id', quizId)
     .order('external_id', { ascending: true })
     .order('sort_order', { ascending: true });
+  let { data: bank, error } = await readBank(`id, external_id, sort_order, ${Keys.REVIEW_EMBED}`);
+  if (error) {
+    logEvent('quiz_keys.serve_hold_unread', { quizId, channel: 'whatsapp', error: error.message || String(error) });
+    ({ data: bank, error } = await readBank('id, external_id, sort_order'));
+  }
+  const reviewed = Keys.servedAfterReview(bank || []);
+  if (reviewed.held.length) logEvent('quiz_keys.serve_held_skipped', { quizId, channel: 'whatsapp', n: reviewed.held.length, qids: reviewed.held });
+  const questions = bank ? reviewed.rows : bank;
 
   if (error || !questions || !questions.length) {
     logToFile('❌ video-quiz: no questions for quiz', { quizId, error: error?.message });
