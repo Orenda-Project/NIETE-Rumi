@@ -588,7 +588,7 @@ const scenarios = [
     { id: 'SHF02', a: ['A rejection needs a reason, and a rejected plan is never listed'] },
   ].map(({ id, a: [title] }) => ({ id, title, run: asTeacher({ portal_lp_own_shelf: true }, async () => ({ blocked:
     'needs a teacher\'s own plan the AI reviewer passed: making one needs the model (no cassette answer on this lane), and no seed '
-    + 'of an AI-passed niete_lp612_own_plans row with its PDF is written yet; the spec\'s reviewer 03000000939 is not in the demo network' })) })),
+    + 'of an AI-passed niete_lp612_own_plans row with its PDF is written yet; the spec\'s reviewer is a sandbox teacher, not one of the demo network' })) })),
 ];
 
 module.exports = scenarios;

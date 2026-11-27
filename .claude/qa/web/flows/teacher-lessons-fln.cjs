@@ -11,7 +11,6 @@
 const L = require('./lessons-lib.cjs');
 
 const BAND = /Reading Hour & Numeracy/;
-const GHOST_TEACHER = '03000000930';
 
 // What every scenario ends with when the corpus is not there; a loaded corpus has no driver code yet: say so plainly.
 async function corpusOr(page, ctx, done) {
@@ -76,13 +75,15 @@ const scenarios = [
       L.watch(page);
       const { open, signIn, PASSWORD, settledPath } = require('../lib.cjs');
       // she has no portal password in the seed: the demo teacher's is lent to her for the scenario, then taken back
-      const ghost = L.e164(GHOST_TEACHER);
+      // read from the run's database (the one teacher of the ghost school, emis DEMO-004), never written in this file
+      const ghost = await ctx.sql("select u.phone_number from users u join schools s on s.id = u.school_id where s.emis = 'DEMO-004' and u.role = 'teacher' limit 1");
+      L.expect(ghost, 'the demo network has no ghost-school teacher');
       const had = await ctx.sql('select coalesce(portal_password_hash, \'\') from users where phone_number = ' + L.q(ghost));
       await ctx.sql('update users set portal_password_hash = (select portal_password_hash from users where phone_number = '
         + L.q(L.e164(L.DEMO.teacher)) + ') where phone_number = ' + L.q(ghost));
       try {
         await open(page, ctx);
-        await signIn(page, GHOST_TEACHER, PASSWORD);
+        await signIn(page, '0' + ghost.slice(2), PASSWORD);
         await settledPath(page, '/portal/login');
         await L.go(page, ctx, '/portal/teacher/lessons/new');
         await L.seeText(page, /Foundational reading and maths · Grades 1–5/, 'the band\'s line');
