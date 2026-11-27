@@ -8,7 +8,7 @@
  * The bug (production, 26-27 Nov 2026, web_quiz.audio_probe): the `error` class of lost clips is MEDIA_ERR_SRC_NOT_SUPPORTED
  * on old Android browsers (VivoBrowser on Android 8, Samsung Internet 7), and the probe's winning cell is
  * `r2 206 audio/ogg` = 8 phones: the bytes arrive and the media element refuses them. Today that child gets the words
- * and no voice for every clip of the sitting. Fix (a) of A169 (2): fetch the clip whole and decode it with
+ * and no voice for every clip of the sitting. The fix: fetch the clip whole and decode it with
  * decodeAudioData; once one plays, the sitting's clips go that way; once one will not decode, the sitting never tries again.
  */
 const fs = require('fs');
