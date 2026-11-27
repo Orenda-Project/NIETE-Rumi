@@ -1,3 +1,4 @@
 {"ts":"2026-11-26T04:15:15Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,teacher-lessons,portal-smoke spec_sync=true","sha":"127ac5b4ad0d","branch":"bd-zrdvmi.70-main","user":""}
 {"ts":"2026-11-27T01:57:54Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"127ac5b4ad0d","branch":"bd-zrdvmi.70-main","user":""}
 {"ts":"2026-11-27T01:57:54Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"127ac5b4ad0d","branch":"bd-zrdvmi.70-main","user":""}
+{"ts":"2026-11-27T01:57:54Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"127ac5b4ad0d","branch":"bd-zrdvmi.70-main","user":""}
