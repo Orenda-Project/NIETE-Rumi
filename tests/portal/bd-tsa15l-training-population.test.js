@@ -43,3 +43,13 @@ describe('the Trainings population is the canonical ICT teacher', () => {
     expect(out.regions.find((r) => r.region === 'Tarnol').teachers).toBe(0);
   });
 });
+
+describe('I-SAPS "assigned" follows the portal/bot band gate (Grades 9-12 only)', () => {
+  const code = trainingStatesSql().replace(/--[^\n]*/g, '');
+  it('through a band programme only for a HIGH teacher or one with earned work; the pilot is not gated', () => {
+    expect(code).toMatch(/isaps_work AS MATERIALIZED/);
+    expect(code).toMatch(/upper\(btrim\(gb\.v\)\) = 'HIGH'/);
+    expect(code).toMatch(/gp\.key NOT IN \('niete_primary', 'niete_middle_high'\)/);
+    expect(code).toMatch(/a\.user_id IN \(SELECT user_id FROM isaps_work\)/);
+  });
+});

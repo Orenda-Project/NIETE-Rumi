@@ -583,13 +583,29 @@ function trainingStatesSql() {
     -- each I-SAPS module's exam (the active grand quiz 900 + N of course "Module N"), its bit N - 1 (9 on prod)
     SELECT im.quiz_id, im.bit FROM (${ISAPS_MODULES('SELECT id FROM isaps_levels')}) im
   ),
+  isaps_work AS MATERIALIZED (
+    -- earned I-SAPS work is never taken away (vendor-band-gate.rules.js): a certificate, an attempt or a unit done
+    SELECT c.user_id FROM training_certificates c WHERE c.level_id IN (SELECT id FROM isaps_levels)
+    UNION SELECT a.user_id FROM training_assessment_attempts a WHERE a.level_id IN (SELECT id FROM isaps_levels)
+    UNION SELECT p.user_id FROM teacher_training_progress p
+            JOIN training_modules tm ON tm.id = p.module_id
+            JOIN training_courses tc ON tc.id = tm.course_id
+           WHERE tc.level_id IN (SELECT id FROM isaps_levels)
+  ),
   isaps_assigned AS MATERIALIZED (
-    -- assigned I-SAPS: an active assignment whose programme scopes the I-SAPS vendor (niete_middle_high, the pilot)
+    -- assigned I-SAPS: an active assignment whose programme scopes the I-SAPS vendor, as the portal and the bot show
+    -- it (bd-tsa15l): through a band programme (niete_primary / niete_middle_high) only for a HIGH teacher or one with
+    -- earned I-SAPS work (Grades 9-12 only, vendor-band-gate.rules.js); the pilot programme is an explicit choice.
     SELECT DISTINCT a.user_id
       FROM teacher_training_assignments a
+      JOIN training_programs gp ON gp.id = a.program_id
       JOIN training_program_scopes s ON s.program_id = a.program_id
       JOIN isaps_levels il ON il.vendor_id = s.vendor_id
+      JOIN users gu ON gu.id = a.user_id
      WHERE a.is_active AND ${scoped('il')}
+       AND (gp.key NOT IN ('${PROGRAMME_KEYS.primary}', '${PROGRAMME_KEYS.midhigh}')
+            OR EXISTS (SELECT 1 FROM unnest(gu.teacher_level) AS gb(v) WHERE upper(btrim(gb.v)) = 'HIGH')
+            OR a.user_id IN (SELECT user_id FROM isaps_work))
   ),
   member_facts AS MATERIALIZED (
     SELECT f.user_id,
