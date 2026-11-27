@@ -191,6 +191,21 @@ exports.run = async ({ api, rec, want = () => true }) => {
   const brief = (m) => ({ txt: (m.txt || '').slice(0, 500), btns: m.btns, img: m.img || undefined, doc: m.doc || undefined,
     flow: isFlow(m) || undefined, template: m.template || undefined, list: m.list ? m.list.rows.map((r) => r.title) : undefined });
   const UR = /[؀-ۿ]/;
+  const isGate = (m) => (m.btns || []).includes('No') && /photo|lesson plan/i.test(m.txt || '');
+  // Upload a classroom recording and keep the WHOLE reply group, not only its last message. The observe path
+  // sends its photo gate right after the capture ack (bd-9hzdn parity port: "observe path — coach photo gate
+  // sent"); on the mock lane the cassette transcribes instantly, so the gate lands ~150 ms after the ack, inside
+  // upload()'s settle window, and becomes up.txt. A freshReset() after the upload then threw the gate away
+  // unanswered, the analysis waited on it for ever and no FICO form came (run 20261126-2322: 16 BLOCKED,
+  // OBS34/OBS29/OBS39 FAIL). freshReset BEFORE the upload, then read the group back with fresh().
+  const uploadAll = async (file) => {
+    await api.freshReset();
+    const up = await api.upload(file, 'Audio', 180000);
+    const got = await api.fresh();
+    const batch = got.length ? got : [{ txt: up.txt || '', btns: up.btns || [] }];
+    return { up, batch, txt: batch.map((x) => x.txt || '').join('\n'),
+      ack: batch.find((x) => (x.btns || []).some((b) => /cancel/i.test(b))) || null, gate: batch.find(isGate) || null };
+  };
   // Poll the chat until `stop(msg)` or the deadline. Photo / lesson-plan prompts of the capture gates
   // are answered "No" on the way when `answer` is set, so an analysis runs without fixture photos.
   const collect = async (ms, stop, answer = false) => {
@@ -199,7 +214,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
       for (const m of await api.fresh()) {
         seen.push(m);
         if (stop && !hit && stop(m)) hit = m;
-        if (answer && (m.btns || []).includes('No') && /photo|lesson plan/i.test(m.txt || '')) { await api.freshReset(); await api.tapAndWait('No', 60000); }
+        if (answer && isGate(m)) { await api.freshReset(); await api.tapAndWait('No', 60000); }
       }
       if (hit) return { hit, seen };
       await new Promise((r) => setTimeout(r, 2500));
@@ -232,13 +247,18 @@ exports.run = async ({ api, rec, want = () => true }) => {
     await api.flowClick('Record the lesson now', { settleMs: 2500 });
     await api.flowClick('Start observation', { settleMs: 3000 });
     const armed = await api.flowComplete(60000);
-    const up = await api.upload(MEDIA + '/' + audio, 'Audio', 180000);
-    await api.freshReset();
+    const U = await uploadAll(MEDIA + '/' + audio);
+    const up = U.up;
     // The refusal for a re-sent recording comes AFTER the "got the recording" ack, and in the coach's language:
     // stop on it in either language rather than waiting the full ten minutes for a form (run 20261006-2011, OBS38).
     const REFUSED = /already been analy|پہلے ہی کیا جا چکا/;
-    const got = REFUSED.test(up.txt || '') ? { hit: null, seen: [] } : await collect(600000, (x) => isForm(x) || REFUSED.test(x.txt || ''), true);
-    return { armed: (armed.txt || '').slice(0, 200), upload: { txt: (up.txt || '').slice(0, 300), btns: up.btns, raw: up },
+    let got = { hit: null, seen: [] };
+    if (!REFUSED.test(U.txt)) {
+      // the photo gate already in the upload's reply group is answered here; later gates inside collect()
+      if (U.gate) { await api.freshReset(); await api.tapAndWait('No', 60000); }
+      got = await collect(600000, (x) => isForm(x) || REFUSED.test(x.txt || ''), true);
+    }
+    return { armed: (armed.txt || '').slice(0, 200), upload: { txt: U.txt.slice(0, 300), btns: up.btns, raw: up },
       form: got.hit && isForm(got.hit) ? got.hit : null, seen: got.seen.map(brief) };
   };
   // Open the FICO form card, optionally edit the first rating + evidence on the first scored screen,
@@ -536,16 +556,16 @@ exports.run = async ({ api, rec, want = () => true }) => {
         else {
           await api.flowClick('Record the lesson now', { settleMs: 2500 }); await api.flowClick('Start observation', { settleMs: 3000 });
           await api.flowComplete(60000);
-          const up = await api.upload(MEDIA + '/hameeda_11min.m4a', 'Audio', 180000);
-          await api.freshReset();
+          const U = await uploadAll(MEDIA + '/hameeda_11min.m4a');
           // collect the gate prompts WITHOUT answering, so their buttons are the old buttons OBS29 taps
-          const gates = await collect(120000, (x) => (x.btns || []).includes('Yes') && /photo/i.test(x.txt || ''));
+          // (the photo gate is often already in the upload's reply group — see uploadAll)
+          const gates = U.gate ? { seen: [] } : await collect(120000, (x) => (x.btns || []).includes('Yes') && /photo/i.test(x.txt || ''));
           const oldBtns = [];
-          for (const x of [up.raw ? up.raw : null, ...gates.seen].filter(Boolean)) {
+          for (const x of [...U.batch, ...gates.seen]) {
             const raw = x.raw && x.raw.interactive;
             for (const bt of ((raw && raw.action && raw.action.buttons) || [])) oldBtns.push({ id: bt.reply.id, title: bt.reply.title });
           }
-          const cancelBtn = (up.btns || []).find((x) => /cancel/i.test(x));
+          const cancelBtn = ((U.ack && U.ack.btns) || U.up.btns || []).find((x) => /cancel/i.test(x));
           await api.freshReset();
           const cx0 = cancelBtn ? await api.tapAndWait(cancelBtn, 60000) : { ok: false, txt: '', btns: [] };
           const yes = (cx0.btns || []).find((x) => /yes/i.test(x));
@@ -601,7 +621,9 @@ exports.run = async ({ api, rec, want = () => true }) => {
               // ── OBS23 · the harmful debrief: a concern, no praise, no card ──
               await api.freshReset();
               const hd = await api.upload(MEDIA + '/debrief/debrief_harmful.ogg', 'Audio', 180000);
-              const hdMore = await collect(300000, (x) => /concern|respect|harm|careful/i.test(x.txt || '') && !/Got|listening/i.test(x.txt || ''));
+              // the concern's heading is observe-strings coach_concern_title (en / ur / sw); the older words stay as a fallback
+              const CONCERN = /Something worth naming|کھل کر کہنے کی بات|Jambo la kuzungumza kwa uwazi|concern|respect|harm|careful/i;
+              const hdMore = await collect(300000, (x) => CONCERN.test(x.txt || '') && !/Got|listening/i.test(x.txt || ''));
               await new Promise((r) => setTimeout(r, 15000));
               const hdTail = (await api.fresh());
               const hdAll = [hd, ...hdMore.seen, ...hdTail];
@@ -669,9 +691,10 @@ exports.run = async ({ api, rec, want = () => true }) => {
         await api.flowPick('Bilal Ahmed'); await api.flowClick('Continue', { settleMs: 3000 });
         await api.flowClick('Record the lesson now', { settleMs: 2500 }); await api.flowClick('Start observation', { settleMs: 3000 });
         const armed = await api.flowComplete(60000);
-        const up = await api.upload(MEDIA + '/' + LONG, 'Audio', 180000);
-        ok = /observing \*?Bilal/i.test(armed.txt || '') && /Got the recording|FICO/i.test(up.txt || '') && !COACHING.test(up.txt || '') && !/Whose observation/i.test(up.txt || '');
-        ev = { ...ev, armed: (armed.txt || '').slice(0, 160), reply: (up.txt || '').slice(0, 200) };
+        // the whole reply group: the capture ack is followed by the observe path's photo gate (see uploadAll)
+        const U = await uploadAll(MEDIA + '/' + LONG);
+        ok = /observing \*?Bilal/i.test(armed.txt || '') && /Got the recording|FICO/i.test(U.txt) && !COACHING.test(U.txt) && !/Whose observation/i.test(U.txt);
+        ev = { ...ev, armed: (armed.txt || '').slice(0, 160), reply: U.txt.slice(0, 300) };
       } else ev.err = 'visit Flow did not open: ' + (op && op.err);
     }
     rec('OBS34', 'A principal who HAS started an observation still captures it as an observation', ...V(ok, ev), Date.now() - s);

@@ -33,7 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `FeatureTiles.tsx` ← `portal/src/portal/teacher/home/look/FeatureTiles.test.tsx`
-- `LanguagePill.tsx` ← `portal/src/portal/teacher/home/look/LanguagePill.test.tsx`
+- `LanguagePill.tsx` ← `portal/src/portal/teacher/help/howToPill.test.tsx` · `portal/src/portal/teacher/home/look/LanguagePill.test.tsx`
 - `LookCard.tsx` ← `portal/src/portal/teacher/home/look/LookCard.test.tsx`
 - `LookHome.tsx` ← `portal/src/portal/teacher/home/look/LookHome.activity.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx`
 - `LookScores.tsx` ← `portal/src/portal/teacher/home/look/LookScores.test.tsx`

@@ -15,6 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g1_ch16/` | Hosted v9 pages, Grade 1 chapter 16 (3 segs: Urdu 3) → `g1_ch16/CLAUDE.md` |
 | `g1_ch17/` | Hosted v9 pages, Grade 1 chapter 17 (3 segs: Urdu 3) → `g1_ch17/CLAUDE.md` |
 | `g1_ch18/` | Hosted v9 pages, Grade 1 chapter 18 (3 segs: Urdu 3) → `g1_ch18/CLAUDE.md` |
+| `g1_ch3/` | (no description yet) → `g1_ch3/CLAUDE.md` |
 | `g1_ch4/` | Hosted v9 pages, Grade 1 chapter 4 (21 segs: English 8, Maths 6, Urdu 7) → `g1_ch4/CLAUDE.md` |
 | `g1_ch5/` | Hosted v9 pages, Grade 1 chapter 5 (26 segs: English 8, Maths 11, Urdu 7) → `g1_ch5/CLAUDE.md` |
 | `g1_ch6/` | Hosted v9 pages, Grade 1 chapter 6 (22 segs: English 6, Maths 9, Urdu 7) → `g1_ch6/CLAUDE.md` |
@@ -30,6 +31,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g2_ch16/` | Hosted v9 pages, Grade 2 chapter 16 (3 segs: Urdu 3) → `g2_ch16/CLAUDE.md` |
 | `g2_ch17/` | Hosted v9 pages, Grade 2 chapter 17 (2 segs: Urdu 2) → `g2_ch17/CLAUDE.md` |
 | `g2_ch18/` | Hosted v9 pages, Grade 2 chapter 18 (2 segs: Urdu 2) → `g2_ch18/CLAUDE.md` |
+| `g2_ch3/` | (no description yet) → `g2_ch3/CLAUDE.md` |
 | `g2_ch4/` | Hosted v9 pages, Grade 2 chapter 4 (17 segs: English 7, Math 4, Urdu 6) → `g2_ch4/CLAUDE.md` |
 | `g2_ch5/` | Hosted v9 pages, Grade 2 chapter 5 (20 segs: English 7, Math 7, Urdu 6) → `g2_ch5/CLAUDE.md` |
 | `g2_ch6/` | Hosted v9 pages, Grade 2 chapter 6 (17 segs: English 7, Math 4, Urdu 6) → `g2_ch6/CLAUDE.md` |
@@ -45,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g3_ch16/` | Hosted v9 pages, Grade 3 chapter 16 (2 segs: Urdu 2) → `g3_ch16/CLAUDE.md` |
 | `g3_ch17/` | Hosted v9 pages, Grade 3 chapter 17 (2 segs: Urdu 2) → `g3_ch17/CLAUDE.md` |
 | `g3_ch18/` | Hosted v9 pages, Grade 3 chapter 18 (2 segs: Urdu 2) → `g3_ch18/CLAUDE.md` |
+| `g3_ch3/` | (no description yet) → `g3_ch3/CLAUDE.md` |
 | `g3_ch4/` | Hosted v9 pages, Grade 3 chapter 4 (22 segs: English 9, Math 7, Urdu 6) → `g3_ch4/CLAUDE.md` |
 | `g3_ch5/` | Hosted v9 pages, Grade 3 chapter 5 (20 segs: English 9, Math 5, Urdu 6) → `g3_ch5/CLAUDE.md` |
 | `g3_ch6/` | Hosted v9 pages, Grade 3 chapter 6 (23 segs: English 9, Math 8, Urdu 6) → `g3_ch6/CLAUDE.md` |
@@ -60,6 +63,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g4_ch16/` | Hosted v9 pages, Grade 4 chapter 16 (2 segs: Urdu 2) → `g4_ch16/CLAUDE.md` |
 | `g4_ch17/` | Hosted v9 pages, Grade 4 chapter 17 (2 segs: Urdu 2) → `g4_ch17/CLAUDE.md` |
 | `g4_ch18/` | Hosted v9 pages, Grade 4 chapter 18 (2 segs: Urdu 2) → `g4_ch18/CLAUDE.md` |
+| `g4_ch3/` | (no description yet) → `g4_ch3/CLAUDE.md` |
 | `g4_ch4/` | Hosted v9 pages, Grade 4 chapter 4 (23 segs: English 9, Math 7, Urdu 7) → `g4_ch4/CLAUDE.md` |
 | `g4_ch5/` | Hosted v9 pages, Grade 4 chapter 5 (25 segs: English 9, Math 10, Urdu 6) → `g4_ch5/CLAUDE.md` |
 | `g4_ch6/` | Hosted v9 pages, Grade 4 chapter 6 (28 segs: English 8, Math 14, Urdu 6) → `g4_ch6/CLAUDE.md` |
@@ -73,6 +77,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g5_ch14/` | Hosted v9 pages, Grade 5 chapter 14 (10 segs: English 7, Urdu 3) → `g5_ch14/CLAUDE.md` |
 | `g5_ch15/` | Hosted v9 pages, Grade 5 chapter 15 (3 segs: Urdu 3) → `g5_ch15/CLAUDE.md` |
 | `g5_ch16/` | Hosted v9 pages, Grade 5 chapter 16 (3 segs: Urdu 3) → `g5_ch16/CLAUDE.md` |
+| `g5_ch3/` | (no description yet) → `g5_ch3/CLAUDE.md` |
 | `g5_ch4/` | Hosted v9 pages, Grade 5 chapter 4 (24 segs: English 7, Math 10, Urdu 7) → `g5_ch4/CLAUDE.md` |
 | `g5_ch5/` | Hosted v9 pages, Grade 5 chapter 5 (26 segs: English 7, Math 9, Urdu 10) → `g5_ch5/CLAUDE.md` |
 | `g5_ch6/` | Hosted v9 pages, Grade 5 chapter 6 (29 segs: English 7, Math 14, Urdu 8) → `g5_ch6/CLAUDE.md` |

@@ -1,6 +1,6 @@
 # share — Four 'Send on WhatsApp' share templates (en and ur) used by the teacher app
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/share kg=25d18ecf8311 gen=100b8e5f45be overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/share kg=d09525065933 gen=2324dc345ae2 overflow=0 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — template list, variables, no-footer/no-button rule
@@ -11,6 +11,8 @@
 | path | purpose |
 |---|---|
 | `clip/` | → (no door; 2 files) |
+| `link/` | (no description yet) → `link/CLAUDE.md` |
+| `quiz-page/` | (no description yet) → `quiz-page/CLAUDE.md` |
 | `README.md` | Explains the four 'Send on WhatsApp' share templates (en and ur) sent by share-send.service.js, with variables |
 | `submit.js` | Submits or lists the status of the share templates on one WABA, selected by WHATSAPP_TOKEN and WABA_ID env vars |
 | `share_dc_report_v1_en.json` | English UTILITY template carrying a coaching (DC) report to a teacher on Send on WhatsApp |

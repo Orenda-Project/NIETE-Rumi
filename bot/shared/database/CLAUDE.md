@@ -1,7 +1,7 @@
 # database — Supabase helpers for users and sessions, dashboard queries, original schema
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=daa661828df1 gen=983e382814f8 overflow=45 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=ab5e1f7b73e7 gen=47f50ae7e3ea overflow=45 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `bot-helpers.js` — getOrCreateUser, sessions, conversations
@@ -17,8 +17,8 @@ Full index: `CLAUDE.index.md`
 | `schema.sql` | Original v3.0 Rumi bot Postgres schema (Nov 2025: users, conversations, sessions); historical baseline only |
 
 ## Who reads this (generated)
-- table `users` (written by `bot-helpers.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
-- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+203)
+- table `users` (written by `bot-helpers.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+221)
+- column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+205)
 - column `users.phone_number` (written by `bot-helpers.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/handlers/observe-visit-flow.handler.js:1249:9e1a4c71` (+103)
 - column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:247:774e00e5` (+70)
 - table `lesson_plans` (written by `bot-helpers.js`) ← read by `bot/scripts/recover-lost-lp-feedback.js:42:65cbde1e`? · `bot/shared/routes/quiz-flow-endpoint.js:163:611f2601`? (+17)

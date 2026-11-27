@@ -56,6 +56,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `wq-moment.js` | WQMoment: instant feedback after every reading effort (words, speed jar, stars, own last read); read_feedback |
 | `wq-pace.css` | Styles for the live reading pace meter (track, fill, light marks); only with web_quiz_live_meter |
 | `wq-pace.js` | WQPace: live reading meter; grade-based full pace (G1-2 35, G3 50, G4-5 60) and sustained-pace level from words read |
+| `wq-practice.js` | (unmapped) |
 | `wq-read-live.js` | WQLive: live read-aloud word lighting; JS port of bot scoring/text-norm.js clean/same/align plus a prefix tracker |
 | `wq-readalong-listen.js` | Grown-up preview of a practice story at hub #listen/<passage_id>: stored clip with word highlight, no run or mic |
 | `wq-readalong.js` | WQReadAlong: Jugnu reads and one pill moves word to word from a timing object; play/pause/seek/slow |
@@ -70,6 +71,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `wq-trail.js` | WQTRAIL: Challenge page v2 (web_quiz_challenge_v2): 'someone helping?' question, mic notice card, trail of stops |
 | `wq-welcome.css` | Styles for the first-open welcome layer: dim scrim with spotlight hole, Skip row, Jugnu and hand pointer (wq-welcome.js) |
 | `wq-welcome.js` | Child welcome 'Jugnu says hello' (web_quiz_child_welcome): 4-step layer over home with Skip, nudge, recorded voice |
+| `wq-words.js` | (unmapped) |
 | `wq.css` | Base stylesheet for every child web page: NIETE brand tokens (server overrides per brand), cards, buttons, options |
 | `wq.js` | Web child quiz page /q/<code>: WQI item renderer, offline answer queue, /api/wq/* calls, results and scorecard |
 
@@ -78,6 +80,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `wq-digits.js` ← `dashboard/tests/web-quiz-preview-urdu-digits.service.test.js`
+- `wq-words.js` ← `dashboard/tests/web-quiz-word-help.service.test.js`
 - `wq.js` ← `dashboard/tests/qfix-voice/web-quiz-letters-capitals.service.test.js` · `dashboard/tests/qfix-voice/web-quiz-read-self.service.test.js` · `dashboard/tests/qfix-voice/web-quiz-voice-design.service.test.js` · `dashboard/tests/web-quiz-items.service.test.js` · `dashboard/tests/web-quiz-look-latin-feedback.service.test.js` · `dashboard/tests/web-quiz-look-latin-polish.service.test.js` (+7: `python3 kg/kg.py who-reads dashboard/public/wq/wq.js`)
 
 ## Related (all, generated)

@@ -1,7 +1,7 @@
 # teacher — Teacher app v2 (portal_teacher_v2): frame, menu, route registry, Urdu/English layer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=01cce0853d6b gen=ea1f69ef9be4 overflow=140 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=e7736e55683a gen=3eac20211de8 overflow=146 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — registry: globs ./*/routes.tsx into TEACHER_ROUTES; App.tsx wraps each in TeacherGate
@@ -16,9 +16,9 @@ Full index: `CLAUDE.index.md`
 | … | 51 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `i18n.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:8:0f66c8aa` · `portal/src/portal/auth/AnalyticsLogin.tsx:9:b07c182e` (+352)
+- `i18n.ts` ← imported by `portal/src/portal/analytics/SchoolsAnalytics.tsx:8:0f66c8aa` · `portal/src/portal/auth/AnalyticsLogin.tsx:9:b07c182e` (+359)
 - `TeacherPage.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:4:fab0408f` · `portal/src/portal/coach/card/SessionReportPage.tsx:3:e8f36f5c` (+69)
-- `routes.tsx` ← imported by `portal/src/App.tsx:16:a9c609d6` · `portal/src/portal/pages/LeaderHome.tsx:12:e4d9854a` (+45)
+- `routes.tsx` ← imported by `portal/src/App.tsx:16:a9c609d6` · `portal/src/portal/pages/LeaderHome.tsx:12:e4d9854a` (+46)
 - … 10 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/TeacherNavigation.coach.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, menu.ts)
 - `portal/src/portal/teacher/frame.ur.test.tsx` (TeacherNavigation.tsx, TeacherPage.tsx, copy.ts, format.ts)
-- … 110 more → `CLAUDE.index.md`
+- … 116 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

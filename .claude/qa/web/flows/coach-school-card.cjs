@@ -58,8 +58,8 @@ const scenarios = [
       const home = await visit(page, ctx, '/portal/coach');
       await shown(page, 'coach-home-slim', 'slim Coach Home');
       const tiles = await page.getByTestId('feature-tiles').locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-      // Training Library, My schools, then Coach Training (bd-rlxkkt.2: the tile came to the slim Home, card/switchOn.test.tsx).
-      expect(JSON.stringify(tiles) === JSON.stringify(['/portal/coach/training', '/portal/coach/people', '/portal/coach/coach-training']), 'Home tiles are ' + JSON.stringify(tiles));
+      // My schools, Coach Training, then Training Library: the operator's order (bd-39qx8x, 18 Nov; SlimHome.tsx, card/switchOn.test.tsx).
+      expect(JSON.stringify(tiles) === JSON.stringify(['/portal/coach/people', '/portal/coach/coach-training', '/portal/coach/training']), 'Home tiles are ' + JSON.stringify(tiles));
       const menu = await page.getByTestId('teacher-nav').locator('a').evaluateAll((as) => as.map((a) => a.textContent.trim()));
       expect(JSON.stringify(menu) === JSON.stringify(['Home', 'Lesson Plans', 'More']), 'the menu is ' + JSON.stringify(menu));
       const landed = [];

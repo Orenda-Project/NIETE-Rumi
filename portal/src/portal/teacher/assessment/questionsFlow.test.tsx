@@ -162,8 +162,11 @@ describe('Questions', () => {
     const tray = await screen.findByTestId('types-tray');
     expect(tray.className).toContain('max-h-[calc(100dvh');
 
+    // bd-q8wt5e.15: the sheet's own body is the one scroller; the list is inside it and the count + Done row is not.
+    const body = within(tray).getByTestId('tray-body');
+    expect(body.className.split(' ')).toContain('overflow-y-auto');
     const list = within(tray).getByTestId('types-list');
-    for (const c of ['min-h-0', 'flex-1', 'overflow-y-auto']) expect(list.className.split(' ')).toContain(c);
+    expect(body.contains(list)).toBe(true);
     for (const name of [C.objective, C.written]) {
       expect(within(list).getByText(name).className.split(' ')).toContain('sticky');
     }
@@ -174,6 +177,7 @@ describe('Questions', () => {
     const foot = within(tray).getByTestId('types-foot');
     expect(foot.className.split(' ')).toContain('shrink-0');
     expect(list.contains(foot)).toBe(false);
+    expect(body.contains(foot)).toBe(false);
     expect(within(foot).getByText(C.typesCap(1, 4))).toBeTruthy(); // 1 of the 4 types this subject offers
     expect(within(foot).getByRole('button', { name: C.done })).toBeTruthy();
   });

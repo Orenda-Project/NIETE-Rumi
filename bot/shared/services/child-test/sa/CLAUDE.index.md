@@ -29,7 +29,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `level.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:73:a093766f`
 - `review-store.js` ← imported by `bot/shared/services/child-test/app/sa-review.service.js:37:2ae41dd9`
 - `reviewed-lines.js` ← imported by `bot/shared/services/child-test/sa/build.js:21:e282362f`
-- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:751:dfafea0e` · `bot/whatsapp-bot.js:3096:1f15208c`
+- `score.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:779:dfafea0e` · `bot/whatsapp-bot.js:3101:1f15208c`
 - `scripts.js` ← imported by `dashboard/routes/sa-battery-switches.js:229:36bc0454` · `bot/shared/services/child-test/sa/build-w3.js:21:e8856283` · `bot/shared/services/child-test/sa/build.js:19:41b0657a`
 - `set-aside.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:75:e5ebbf41` · `bot/shared/services/child-test/app/sa-review.service.js:20:e5ebbf41` · `bot/shared/services/child-test/sa-store.js:289:2ca04ca8` · `bot/shared/services/child-test/sa/score.js:123:1d2f1506`
 - `ur-tashdeed.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:99:46fcd804`
@@ -54,10 +54,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `build.js` ← `bot/tests/child-test/sa-bank-wording.test.js` · `bot/tests/child-test/sa-bank.test.js` · `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-reviewed-lines.test.js` · `bot/tests/child-test/sa-runtime.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/build.js`)
 - `counts.js` ← `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-r28-base-served.test.js` · `bot/tests/child-test/sa-r28-ceiling.test.js` · `bot/tests/child-test/sa-r28-words-prompt.test.js`
 - `last-word-hint.js` ← `bot/tests/child-test/sa-last-word-hint.test.js`
-- `level.js` ← `bot/tests/child-test/sa-r20-level.test.js` · `bot/tests/child-test/sa-r28-base-served.test.js` · `bot/tests/child-test/sa-r28-ceiling.test.js` · `bot/tests/child-test/sa-r28-mcq-gate.test.js` · `bot/tests/child-test/sa-r28-mcq-of-all.test.js` · `bot/tests/child-test/sa-r28-mcq-readers.test.js`
+- `level.js` ← `bot/tests/child-test/sa-counts-served-form.test.js` · `bot/tests/child-test/sa-r20-level.test.js` · `bot/tests/child-test/sa-r28-base-served.test.js` · `bot/tests/child-test/sa-r28-ceiling.test.js` · `bot/tests/child-test/sa-r28-mcq-gate.test.js` · `bot/tests/child-test/sa-r28-mcq-of-all.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/level.js`)
 - `review-store.js` ← `bot/tests/child-test/sa-review-store.test.js`
 - `reviewed-lines.js` ← `bot/tests/child-test/sa-r10-lines.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-reviewed-lines.test.js` · `bot/tests/child-test/sa-reviewer-answers.test.js` · `bot/tests/child-test/sa-reviewer-drafts.test.js`
-- `score.js` ← `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-r28-base-served.test.js` · `bot/tests/child-test/sa-r28-ceiling-no-response.test.js` · `bot/tests/child-test/sa-r28-ceiling-words-prompt.test.js` · `bot/tests/child-test/sa-r28-ceiling.test.js` · `bot/tests/child-test/sa-r28-child-only-answer.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/score.js`)
+- `score.js` ← `bot/tests/child-test/sa-counts-served-form.test.js` · `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-r28-base-served.test.js` · `bot/tests/child-test/sa-r28-ceiling-no-response.test.js` · `bot/tests/child-test/sa-r28-ceiling-words-prompt.test.js` · `bot/tests/child-test/sa-r28-ceiling.test.js` (+25: `python3 kg/kg.py who-reads bot/shared/services/child-test/sa/score.js`)
 - `scripts.js` ← `bot/tests/child-test/sa-reading.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js` · `dashboard/tests/sa-r12-intro-once.service.test.js` · `dashboard/tests/sa-r13-oral-rule.service.test.js` · `dashboard/tests/sa-r13-whole-stop.service.test.js`
 - `set-aside.js` ← `bot/tests/child-test/sa-restart.test.js`
 - `ur-tashdeed.js` ← `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-voice-tashdeed.test.js`

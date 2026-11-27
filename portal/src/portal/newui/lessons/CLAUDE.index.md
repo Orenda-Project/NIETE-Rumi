@@ -22,12 +22,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LoadStatus.tsx` ← imported by `portal/src/portal/newui/lessons/LessonPlanPages.tsx:22:45665a4c` · `portal/src/portal/newui/lessons/NewLessonPlans.tsx:17:45665a4c`
 - `NewLessonPlans.tsx` ← imported by `portal/src/portal/pages/PortalCurriculum.tsx:51:4a89704d`
 - `RecentPlans.tsx` ← imported by `portal/src/portal/newui/lessons/NewLessonPlans.tsx:15:0fc662c2`
-- `lessonPlansApi.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:7:1a1a4623` · `portal/src/portal/teacher/coaching/NewObservation.tsx:22:0f0b92bd` · `portal/src/portal/teacher/coaching/libraryPick.ts:2:d4185e0b` · `portal/src/portal/teacher/lessons/ChaptersPage.tsx:2:0f0b92bd` (+14: `python3 kg/kg.py who-reads lessonPlansApi.ts`)
+- `lessonPlansApi.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:7:1a1a4623` · `portal/src/portal/teacher/coaching/NewObservation.tsx:29:0f0b92bd` · `portal/src/portal/teacher/coaching/libraryPick.ts:2:d4185e0b` · `portal/src/portal/teacher/lessons/ChaptersPage.tsx:2:0f0b92bd` (+14: `python3 kg/kg.py who-reads lessonPlansApi.ts`)
 - `shared.ts` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:4:e5dbc0df` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:6:e5dbc0df` · `portal/src/portal/coach/pages/CoachReports.tsx:9:e5dbc0df` · `portal/src/portal/fln/FlnBandBody.tsx:31:d7deee28` (+40: `python3 kg/kg.py who-reads shared.ts`)
 
 ## Tests (all, generated)
 - `NewLessonPlans.tsx` ← `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx`
-- `lessonPlansApi.ts` ← `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` · `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` · `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx` (+30: `python3 kg/kg.py who-reads portal/src/portal/newui/lessons/lessonPlansApi.ts`)
+- `lessonPlansApi.ts` ← `portal/src/portal/coach/pages/CoachCheckSend.picker40.test.tsx` · `portal/src/portal/fln/tests/fln-ab-isolation.client.test.ts` · `portal/src/portal/fln/tests/golden.flagOff.test.tsx` · `portal/src/portal/fln/tests/hiddenBand.page.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/newui/lessons/gbOnRequest.test.tsx` (+33: `python3 kg/kg.py who-reads portal/src/portal/newui/lessons/lessonPlansApi.ts`)
 
 ## Related (all, generated)
 - docs: `portal/src/portal/newui/DESIGN.md`?

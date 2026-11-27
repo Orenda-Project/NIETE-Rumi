@@ -64,6 +64,18 @@ const RX = {
   sendAsDoc    : /send (it|the recording) as a document|document instead|بطور دستاویز/i,
   reflectNudge : /Continue Now|Get Report Now/i,
 };
+// What the walker keeps of the photo offer, and COA56's reading of it (exported for tests/e2e-mock).
+// The WHOLE text: with a previous commitment the offer opens with the reminder and her commitment in English, which
+// pushed «… شامل کریں؟» past character 240 (run 20261126-2322-par, COA56). Evidence fields shorten it themselves.
+const photoPromptRecord = (x, btns) => ({ txt: String(x == null ? '' : x), btns });
+// COA30 needs the lesson's move list: without it lp-fidelity stops at lp_absent before the no-timestamps guard runs,
+// so the scenario cannot be judged (the local seed lacks niete_lp_fidelity_moves rows until it is re-published).
+const lpMovesMissing = (fid) => (fid && fid.status === 'lp_absent'
+  ? 'lp_fidelity stopped at lp_absent: the local DB has no niete_lp_fidelity_moves row for the linked lesson, so the no-timestamps guard never ran (re-publish the seed: supabase/baseline/seed-release.txt)'
+  : null);
+const GENDERED_UR = /چاہیں گے|چاہتے ہوں|کریں گے|چاہتی ہوں|کرتے ہیں|کرتی ہیں/;
+const photoOfferNeutral = (txt) => /شامل کریں؟/.test(String(txt || '')) && !GENDERED_UR.test(String(txt || ''));
+
 const PASTE_PLAN = [
   'Lesson Plan: Grade 5 Maths — Equivalent Fractions (40 minutes)',
   'Objectives: students identify equivalent fractions with strips and explain why 1/2 = 2/4.',
@@ -193,7 +205,7 @@ module.exports.run = async function runExt(ctx) {
         const m = RX.stepAny.exec(x); const stepNo = m && (m[1] || m[2] || m[3]);
         if (stepNo && !obs.steps.includes(stepNo)) { obs.steps.push(stepNo); note('step' + stepNo, r); }
         if (!obs.photoPrompt && RX.photoPrompt.test(x) && (r.btns || []).length) {
-          obs.photoPrompt = { txt: short(x, 240), btns: r.btns }; note('photoPrompt', r);
+          obs.photoPrompt = photoPromptRecord(x, r.btns); note('photoPrompt', r);
           if (o.photo === 'no') { const rep = await tapRow(r, RX.no); obs.photoReply = short(rep && rep.txt, 200); }
           else if (o.photo === 'ignore') { obs.photoAt = t(); }
           else if (o.photo === 'yes' || o.photo === 'screenshot') {
@@ -437,9 +449,9 @@ module.exports.run = async function runExt(ctx) {
       if (btnOf(dc, RX.yesAnalyze)) { await fresh(); await api.tapAndWait(btnOf(dc, RX.yesAnalyze), 90000); }
       const c = await collect((r) => RX.duplicate.test(r.txt || ''), 45000); dupTxt = (c.hit && c.hit.txt) || '';
     }
-    const gendered = /چاہیں گے|چاہتے ہوں|کریں گے|چاہتی ہوں|کرتے ہیں|کرتی ہیں/;
+    const gendered = GENDERED_UR;
     const photoTxt = (r3.photoPrompt && r3.photoPrompt.txt) || ''; const commitTxt = (r3.commit && r3.commit.txt) || ''; const lpTxt = (r3.lpPrompt && r3.lpPrompt.txt) || '';
-    const checks = { photoOffer: { txt: short(photoTxt, 120), neutral: /شامل کریں؟/.test(photoTxt) && !gendered.test(photoTxt) },
+    const checks = { photoOffer: { txt: short(photoTxt, 120), neutral: photoOfferNeutral(photoTxt) },
       commitment: { txt: short(commitTxt, 160), neutral: /عہد کریں؟/.test(commitTxt) && !gendered.test(commitTxt) },
       lpPrompt: { txt: short(lpTxt, 120), neutral: !!lpTxt && !gendered.test(lpTxt) },
       duplicate: { txt: short(dupTxt, 160), neutral: !!dupTxt && !gendered.test(dupTxt) } };
@@ -519,7 +531,10 @@ module.exports.run = async function runExt(ctx) {
     const a = (r5.session && r5.session.analysis) || {}; const fid = a.lp_fidelity || {};
     const txt = r5.reportText && r5.reportText.ok ? r5.reportText.text : '';
     const pctInLp = (txt.match(/[Ll]esson [Pp]lan[\s\S]{0,400}?(\d+\s*%)/) || [])[1] || null;
-    set('COA30', ...(r5.report && r5.session.has_lesson_plan
+    const movesMissing = lpMovesMissing(fid);
+    set('COA30', ...(r5.report && r5.session.has_lesson_plan && movesMissing
+      ? B(movesMissing, { status: fid.status, lpSectionPercent: pctInLp, transcriptHasStamps: /\[\d\d:\d\d\]/.test(String(r5.session.transcript_head || '')) })
+      : r5.report && r5.session.has_lesson_plan
       ? V(fid.status === 'ok' && (fid.fidelity_pct === null || fid.fidelity_pct === undefined) && fid.recording_unusable === true && String((fid.moderators || {}).note || fid.unusable_guard || '').length > 0 && !fid.model && !pctInLp,
           { status: fid.status, fidelity_pct: fid.fidelity_pct, recording_unusable: fid.recording_unusable, moderators: fid.moderators, unusable_guard: fid.unusable_guard, model: fid.model, runs: fid.runs, lpSectionPercent: pctInLp, framework: a.framework, analysisKeys: Object.keys(a), transcriptHasStamps: /\[\d\d:\d\d\]/.test(String(r5.session.transcript_head || '')), transcriptHead: short(r5.session.transcript_head, 120) })
       : B(r5.stalled || (r5.report ? 'lesson plan not linked on run 5' : 'no report on run 5 (the stamp-less ASR answer may have broken transcription)'), { steps: r5.steps, lp: r5.lpReply, faultsLeft: SC.faultsLeft() })));
@@ -854,6 +869,9 @@ module.exports.run = async function runExt(ctx) {
   try { api.db('cancel-stuck'); api.db('purge-nudges'); SC.clearFaults(); await api.setUser({ preferred_language: 'en', name: 'E2E Driver', conversation_state: null, conversation_state_expires_at: null }); } catch (_) {}
   return out;
 };
+module.exports.photoPromptRecord = photoPromptRecord;
+module.exports.photoOfferNeutral = photoOfferNeutral;
+module.exports.lpMovesMissing = lpMovesMissing;
 module.exports.ALL_IDS = ['COA58', 'COA60', 'COA19', 'COA20', 'COA21', 'COA23', 'COA24', 'COA16', 'COA25', 'COA26', 'COA27', 'COA28', 'COA29', 'COA30', 'COA31',
   'COA32', 'COA33', 'COA35', 'COA36', 'COA39', 'COA40', 'COA41', 'COA42', 'COA43', 'COA44', 'COA45', 'COA46', 'COA47', 'COA48', 'COA49',
   'COA50', 'COA51', 'COA52', 'COA53', 'COA54', 'COA55', 'COA56'];

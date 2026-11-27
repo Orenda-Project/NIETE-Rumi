@@ -112,6 +112,8 @@ describe('Pick from the book on Questions', () => {
     fireEvent.click(within(tray).getByRole('checkbox', { name: /What do plants need to grow\?/ }));
     fireEvent.click(within(tray).getByRole('checkbox', { name: /Plants can walk\./ }));
     expect(within(tray).getByText(C.picked(2))).toBeTruthy();
+    // bd-q8wt5e.15: the count and Done are under the scrolling body, never scrolled away with the list
+    expect(within(tray).getByTestId('tray-body').contains(within(tray).getByRole('button', { name: C.done }))).toBe(false);
     fireEvent.click(within(tray).getByRole('button', { name: C.done }));
     expect(await screen.findByTestId('book-picked')).toBeTruthy();
     expect(screen.getByTestId('book-picked').textContent).toContain(C.fromBookPicked(2));

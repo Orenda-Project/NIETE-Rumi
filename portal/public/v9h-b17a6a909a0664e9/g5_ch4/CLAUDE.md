@@ -1,7 +1,7 @@
 # g5_ch4 — Hosted v9 pages, Grade 5 chapter 4 (24 segs: English 7, Math 10, Urdu 7)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch4 kg=20f5dc764000 gen=fceafd16e6bc overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch4 kg=194e14921ee8 gen=fb9cbf0641c1 overflow=14 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch4_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `g5_ch4_Maths_seg10.v9.html` | Hosted v9 lesson page G5 Math ch4 seg10 (en): Connect & Create: Math-Builder Game |
 | `g5_ch4_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch4 seg2 (en): Prime & composite numbers + divisibility consolidation |
 | `g5_ch4_Maths_seg3.v9.html` | Hosted v9 lesson page G5 Math ch4 seg3 (en): HCF by prime factorization |
-| … | 13 more → `CLAUDE.index.md` |
+| … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

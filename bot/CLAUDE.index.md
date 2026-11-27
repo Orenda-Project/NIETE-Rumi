@@ -32,16 +32,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `whatsapp-bot.js` | Express entry point of the NIETE bot: Meta webhook (signature-checked), button/message routing to handlers, health |
 
 ## Who reads this (all, generated)
-- `package.json` ← imported by `bot/whatsapp-bot.js:2909:056c465a`
+- `package.json` ← imported by `bot/whatsapp-bot.js:2914:056c465a`
 - column `reading_assessments.comprehension_answers` (written by `whatsapp-bot.js`) ← read by `bot/shared/services/redis-comprehension.service.js:85:64fad2d6`
-- column `reading_assessments.comprehension_score` (written by `whatsapp-bot.js`) ← read by `dashboard/routes/portal.routes.js:8926:6033d135`
-- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:9001:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
+- column `reading_assessments.comprehension_score` (written by `whatsapp-bot.js`) ← read by `dashboard/routes/portal.routes.js:9007:6033d135`
+- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:9082:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:545:d2b02c3e`? · `bot/shared/services/feature-registration.service.js:152:7a0c163a`? (+2: `python3 kg/kg.py who-reads reading_assessments`)
 - table `broadcast_logs` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1755:d5d1db20`? · `bot/shared/services/fa-video/broadcast.js:96:bb1c0a61`?
 - table `broadcast_messages` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:1873:5e6ab800`? · `bot/shared/services/fa-video/broadcast.js:101:2d012da7`?
-- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:8925:4337985e`? · `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1796:4337985e`? (+10: `python3 kg/kg.py who-reads reading_assessments`)
+- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:9006:4337985e`? · `bot/shared/handlers/flow-response.handler.js:326:4337985e`? · `bot/shared/handlers/text-message.handler.js:1796:4337985e`? (+10: `python3 kg/kg.py who-reads reading_assessments`)
 - env `CALLS_REPLICA_COUNT` read at `bot/calls-server.js:65:3b9b933c`
-- env `INTERNAL_API_KEY` read at `bot/whatsapp-bot.js:2943:1b3e4b05`
-- env `NODE_ENV` read at `bot/whatsapp-bot.js:2929:3d55fed5`
+- env `INTERNAL_API_KEY` read at `bot/whatsapp-bot.js:2948:1b3e4b05`
+- env `NODE_ENV` read at `bot/whatsapp-bot.js:2934:3d55fed5`
 - env `OPERATOR_WHATSAPP` read at `bot/calls-server.js:86:4705b673`
 - env `PORT` read at `bot/calls-server.js:364:769700c7`
 - env `RAILWAY_REPLICA_COUNT` read at `bot/calls-server.js:65:3b9b933c`

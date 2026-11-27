@@ -1,7 +1,7 @@
 # coach — Coach app v2 root: gate, flag hook, shared UI, copy and time rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=0f8711760396 gen=a45a3165daae overflow=61 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach kg=9a942aa69a7f gen=b5fe26483a0f overflow=66 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachGate.tsx` — only a coach with portal_coach_v2 sees /portal/coach screens
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `ui.tsx` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:15:48115d2d` · `portal/src/portal/teacher/principal/MySchool.tsx:2:89e0875d` (+58)
-- `types.ts` ← imported by `portal/src/portal/services/api.ts:13:e1bc00c4` · `portal/src/portal/teacher/principal/NewVisit.tsx:6:f956b29a` (+28)
-- `time.ts` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:16:8ff16d19` · `portal/src/portal/teacher/principal/ObserveV6.tsx:21:8ff16d19` (+16)
+- `ui.tsx` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:16:48115d2d` · `portal/src/portal/teacher/principal/MySchool.tsx:2:89e0875d` (+60)
+- `types.ts` ← imported by `portal/src/portal/services/api.ts:14:e1bc00c4` · `portal/src/portal/teacher/principal/NewVisit.tsx:6:f956b29a` (+29)
+- `time.ts` ← imported by `portal/src/portal/teacher/principal/HomeV6.tsx:17:8ff16d19` · `portal/src/portal/teacher/principal/ObserveV6.tsx:21:8ff16d19` (+17)
 - … 4 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/CoachGate.test.tsx` (CoachGate.tsx, useCoachV2.ts)
 - `portal/src/portal/coach/flow/v6.test.tsx` (observeDraft.ts, time.ts)
-- … 45 more → `CLAUDE.index.md`
+- … 50 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/CLAUDE.md`? · `portal/src/portal/coach/home/CLAUDE.md`? · `portal/src/portal/hooks/CLAUDE.md`? · `portal/src/portal/services/CLAUDE.md`?

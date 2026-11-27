@@ -1,7 +1,7 @@
 # g5_ch5 — Hosted v9 pages, Grade 5 chapter 5 (26 segs: English 7, Math 9, Urdu 10)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch5 kg=7678c898e868 gen=d29d94e16159 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g5_ch5 kg=0e5bab005c29 gen=ee74cbe11da9 overflow=16 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `g5_ch5_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `g5_ch5_Maths_seg2.v9.html` | Hosted v9 lesson page G5 Math ch5 seg2 (en): Compare/order fractions consolidation |
 | `g5_ch5_Maths_seg3.v9.html` | Hosted v9 lesson page G5 Math ch5 seg3 (en): Add & subtract unlike fractions and mixed numbers |
 | `g5_ch5_Maths_seg4.v9.html` | Hosted v9 lesson page G5 Math ch5 seg4 (en): Add & subtract fractions practice |
-| … | 15 more → `CLAUDE.index.md` |
+| … | 16 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)
