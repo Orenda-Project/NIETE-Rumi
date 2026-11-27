@@ -55,6 +55,9 @@ const NO_BOARD = new RegExp([
   `${UR_B}\\s*کی\\s*ضرورت\\s*نہیں`,
   `${EN_B}-free\\b`,
   '\\b(?:sign|notice|score|chess|card|dart)[ -]?board\\b',
+  // bd-snkn32.58.17 — "the board is not there" (بورڈ دستیاب نہیں / موجود نہیں / نہیں ہے): the plan honouring no board.
+  `${UR_B}\\s*(?:دستیاب|موجود)?\\s*نہیں`,
+  `${EN_B}\\s*(?:is\\s+)?not\\s+available`,
 ].join('|'), 'gi');
 const usesBoard = (s) => BOARD.test(s.replace(NO_BOARD, ' '));
 /** bd-snkn32.77 — the words around what matched, so a refusal (log and repair round) shows the real use, not line 1. */

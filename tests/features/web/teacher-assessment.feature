@@ -314,3 +314,18 @@ Feature: Teacher assessment
     When the book picker is switched off
     Then Questions shows no "Select from the book" and the seen card is today's
     And a paper by pages, or a board-pattern paper, never shows "Select from the book"
+
+  @sandbox @real-paper
+  # bd-nr8mrm.4 — Notion FEAT-209 "EG page-count option" (Ramisha Riaz): the teacher says how many pages the paper may
+  # take. Behind app_settings assessment_page_fit (off = no box, papers print as before).
+  Scenario: Teacher sets a page limit and the paper is tightened to fit it, never cutting a question
+    Given the page-fit setting is on
+    And a teacher on Check and make for a Grade 4 Science paper of 15 MCQs and 5 Short Questions
+    Then Check shows a "Pages" box that is empty, reading "Empty = no limit"
+    When she types 7 in Pages
+    Then it reads "1 to 5 pages" and Make paper does not send
+    When she types 1 in Pages and makes the paper
+    Then the paper prints on 1 page if Save paper, two columns for choices and one line fewer on short answers can fit it
+    And every question she asked for is on the paper
+    When the page-fit setting is switched off
+    Then Check shows no "Pages" box and the paper prints as before

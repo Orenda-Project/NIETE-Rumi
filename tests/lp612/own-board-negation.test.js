@@ -30,6 +30,13 @@ const NEGATED = [
   'No board needed.',
   'Teach it without a board.',
   "Don't use the board; hold up the book.",
+  // bd-snkn32.58.17 (queue #381) — staging 27 Nov, G4 Urdu goal start with no board: the plan said the board is NOT
+  // there ("بورڈ دستیاب نہیں؛ استاد …") and the gate refused it as a board use (OWN_NEEDS_BOARD).
+  'بورڈ دستیاب نہیں؛ استاد الفاظ زبانی بولیں۔',
+  'بورڈ موجود نہیں، اس لیے استاد بول کر بتائیں۔',
+  'بورڈ نہیں ہے تو کتاب کا صفحہ دکھائیں۔',
+  'The board is not available, so say it aloud.',
+  'Board not available: hold up real objects.',
 ];
 const REAL = [
   'بورڈ پر لکھیں۔',
@@ -38,6 +45,7 @@ const REAL = [
   'Call three children to the blackboard.',
   'بورڈ کی بجائے کتاب دیکھیں، پھر بورڈ پر لکھیں۔',
   'Instead of the book, use the board.',
+  'بورڈ دستیاب نہیں تو کتاب دیکھیں، پھر بورڈ پر لکھیں۔',
 ];
 
 describe('board gate, no board: negated mentions pass', () => {

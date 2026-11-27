@@ -217,4 +217,22 @@ describe('the portal server forwards the new options', () => {
 
   test('seenCount', () => { expect(handler).toMatch(/seenCount:\s*body\.seenCount/); });
   test('totalMarks', () => { expect(handler).toMatch(/totalMarks:\s*body\.totalMarks/); });
+  // bd-nr8mrm.3: Save paper was ticked on the page but never left the portal server.
+  test('compact (Save paper)', () => { expect(handler).toMatch(/compact:\s*body\.compact === true \? true : undefined/); });
+  test('pageCount (FEAT-209)', () => { expect(handler).toMatch(/pageCount:\s*body\.pageCount \?\? undefined/); });
+});
+
+describe('POST /api/internal/assessment/create — page count (bd-nr8mrm.3, FEAT-209)', () => {
+  const ask = { ...BASE, contentSource: 'unseen', questionCount: 5, questionTypes: [{ id: 'MCQs', count: 5 }] };
+
+  test.each([[2, 2], ['1', 1], [5, 5]])('pageCount %p reaches the request as pages %p', async (v, n) => {
+    const { statusCode } = await invoke('/assessment/create', { ...ask, pageCount: v });
+    expect(statusCode).toBe(202);
+    expect(created.pages).toBe(n);
+  });
+
+  test.each([[undefined], [null], [0], [6], ['two']])('pageCount %p: no pages key, request as before', async (v) => {
+    await invoke('/assessment/create', { ...ask, pageCount: v });
+    expect(created).not.toHaveProperty('pages');
+  });
 });

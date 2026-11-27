@@ -89,7 +89,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-visit-flow.handler.js: INIT → SELECT_SCHOOL → SELECT_TEACHER (18/page,
     # bd-2431) → BRIEF. Data from observe/assignment/leader-source.js.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS97
   Scenario: /observe's Start asks for the recording and says a recorder-app file goes as a Document
     Given I opened the visit planner from /observe and picked a school and a teacher
     When I tap "Start observation" in the brief
@@ -183,7 +183,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # awaiting_form, sends the FICO Flow (OBSERVE_MEWAKA_FLOW_ID, flowToken
     # observerId:sessionId). buildScreenPrefill:87 binds s_/e_/i_ per domain screen.
 
-  @e2e @wip @content-driven @flow @destructive @config-gated @P1
+  @e2e @wip @content-driven @flow @destructive @config-gated @P1 @OBS98
   Scenario: Every Section B move on the form says why the grader rated it that way
     Given a leader observation has finished analysis with a measured Section B
     When the observer opens the FICO form's Section B screen
@@ -258,7 +258,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # processTeacherReport:544 generateHeroReport (brand heroBrandFor(fico)='niete',
     # teacher's market language) → R2 → deliver. FO sees exactly what the teacher gets (D33).
 
-  @e2e @wip @destructive @config-gated @P1
+  @e2e @wip @destructive @config-gated @P1 @OBS99
   Scenario: The send confirm names the teacher the report is going to
     Given an observation with completed observer review and debrief
     When I tap "Send report" and the report preview arrives
@@ -581,7 +581,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # one — the refusal above does not write the state, and the router would
     # ignore it if it somehow existed.
 
-  @e2e @observe @coaching @wip @draft @config-gated @P2
+  @e2e @observe @coaching @wip @draft @config-gated @P2 @OBS100
   Scenario: A principal's second recording after their own lesson was coached is asked whose it is
     Given the NIETE bot chat is open
     And my role is "principal"
@@ -593,7 +593,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # teacher's coaching state), so a later recording is no longer read as the same declared intent.
     # Before, the six-hour wait outlived the first recording and routed every later one to self-coaching.
 
-  @e2e @observe @coaching @wip @draft @config-gated @P3
+  @e2e @observe @coaching @wip @draft @config-gated @P3 @OBS101
   Scenario: With COACHING_RECORDING_ENDS_WAIT off a principal's second recording goes straight to their own coaching again
     Given COACHING_RECORDING_ENDS_WAIT is "off" on the bot service
     And my role is "principal"
@@ -603,7 +603,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the recording is analysed as MY OWN lesson
     # The behaviour before the recording ended the wait: the six-hour Classroom Coaching intent
     # still stands, so observe-audio-router routes the second recording to self-coaching.
-  @e2e @observe @i18n @wip @draft @P2
+  @e2e @observe @i18n @wip @draft @P2 @OBS102
   Scenario: In Urdu, the observe messages never guess the coach's or the teacher's gender
     Given the NIETE bot chat is open as a coach whose language is Urdu
     When I register as a school leader, start an observation of a named teacher, and reach the debrief and send steps
@@ -618,7 +618,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # a fixed sentence. Proven in tests/language/urdu-gender-neutral-copy.test.js and
     # bot/tests/observe/third-person-teacher.test.js. @wip.
 
-  @e2e @observe @wip @draft @P1
+  @e2e @observe @wip @draft @P1 @OBS103
   Scenario: Picking the teacher's lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open as a coach
     And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
@@ -635,7 +635,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # lessonPlan_confirm_prompt with lpconfirm_yes_{asset}_{session} / lpconfirm_no_{session}; the Yes tap
     # re-enters the unchanged link path. Unit: tests/coaching/bd-2c1gj-lp-select-confirm.test.js. @wip.
 
-  @e2e @observe @wip @draft @P1
+  @e2e @observe @wip @draft @P1 @OBS104
   Scenario: Changing the lesson plan links nothing and returns to the lesson-plan list
     Given the NIETE bot chat is open as a coach
     And I tapped a recent lesson plan on an observation and was asked to confirm it
@@ -666,20 +666,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # leader family; otherwise "/observe2" falls through like any text. Sandbox only for the pilot.
   # Copy: bot/shared/services/observe/observe2/strings.js. All @wip @draft until driven on sandbox.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS105
   Scenario: A coach's /observe2 opens the visit planner
     Given the NIETE bot chat is open on a LEADER account on sandbox
     When I send "/observe2"
     Then the bot responds with "Let's plan the /observe2 visit. Pick a school, then a teacher." and a "Plan my visit" CTA
     # observe2/start.js handleObserve2Command: the /observe visit Flow, token <userId>:observe2-visit.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS106
   Scenario: A visit scheduled from /observe2 points back to /observe2
     Given I opened the visit planner from /observe2
     When I schedule a visit and finish
     Then the bot confirms the visit and says to tap /observe2 to see my schedule
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS107
   Scenario: After Start, the coach chooses the period length
     Given I opened the visit planner from /observe2 and picked a school and a teacher
     When I tap "Start observation" in the brief
@@ -690,7 +690,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
     # A list, not buttons, since 25 joined (FICO pilot sheet R18, 14 Oct): WhatsApp allows three buttons.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS108
   Scenario: A Friday period of 25 minutes runs the form to minute 25
     Given I was asked how long the period is
     When I choose "25 minutes" from the list
@@ -699,13 +699,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # The ICT lead, 14 Oct: "classes on Fridays are conducted for 25 minutes". The list row arrives as a
     # list_reply with the same obs2_period:<form>:<minutes> id the buttons used; both branches route it.
 
-  @e2e @flow @config-gated @wip @draft @P2
+  @e2e @flow @config-gated @wip @draft @P2 @OBS109
   Scenario: A period button sent before the list still opens the form
     Given an older "How long is this period?" message with the three period buttons is in my chat
     When I tap "30 minutes" on it
     Then the bot sends the live form for a 30-minute period
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS110
   Scenario: The period button sends the live form with the steps before the lesson
     Given I was asked how long the period is
     When I tap "40 minutes"
@@ -718,14 +718,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
     # phone at 16 MB and never reaches the bot. A document can be up to 100 MB.
 
-  @e2e @flow @config-gated @wip @draft @negative @P1
+  @e2e @flow @config-gated @wip @draft @negative @P1 @OBS111
   Scenario: Part 1 refuses a number that cannot be right
     Given the live form is open on Part 1
     When I type 32 children present and 40 children who spoke, and tap "Part 1 done"
     Then the form stays on Part 1 with "Can't be more than the 32 children present." under "Children who spoke"
     And nothing is saved
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS112
   Scenario: A form reopened after Part 1 continues with Part 2
     Given I saved Part 1 of the live form and closed it
     When I tap "Open the form" again
@@ -734,7 +734,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
     # with Part 2: independent practice and the wrap-up, to minute 40." and "Continue" opens Part 2.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS113
   Scenario: Part 1 is up to and including guided practice, and Part 2 is independent practice and the wrap-up
     Given the live form is open on Part 1
     Then it says "Up to and including guided practice. When the children start independent practice, tap "Part 1 done""
@@ -746,7 +746,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # FICO pilot sheet R4 (a coach) and R10 (the ICT lead), 14 Oct: both parts asked about group practice; the
     # 5-step plan is warm-up, explanation, guided practice, independent practice, wrap-up. Form version 5.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS114
   Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
     Given the live form is open on Part 2
     When I choose "Every child had a task"
@@ -761,7 +761,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # "Asked children one by one" and "Re-explained a common mistake" since form version 6 (pilot sheet R4's
     # comment, round 7).
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS115
   Scenario: The teacher's checking moves during independent practice reach the levels they evidence
     Given the live form is open on Part 2
     When I choose "Every child had a task"
@@ -776,7 +776,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # re-explains"), so C2 is at least 2 and never more from it alone; asking each child is named on C2 and
     # C3 and sets no level. F1 and D5 are untouched; the 17 descriptors and the section sums are unchanged.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS116
   Scenario: Part 1 asks what materials were used, and they are named, not scored
     Given the live form is open on Part 1
     When I choose "The children used them" under "Who used books or materials?"
@@ -787,7 +787,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # scored alike. C8's level is still who used them (its descriptors are the rubric owner's); the kinds
     # are named on the check, in the record (the teacher's portal) and in the brief.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS117
   Scenario: Part 2 asks what the children's work showed: repeating, or reasoning
     Given the live form is open on Part 2
     Then it asks "What children's work showed" with "Repeated or copied it", "Explained why or how", "Solved a new problem", "Asked a question about it" and "Their own example or link"
@@ -797,7 +797,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # the ticks count toward D1 (reasoning) and D5 (own questions) as a confirmed moment does, and are
     # named on F3 and F4, which the coach picks.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS118
   Scenario: The check and the brief group the thinking indicators as "Thinking"
     Given I ticked "Explained why or how" and "Asked a question about it" in Part 2 and sealed the record
     When I reach the levels in the check
@@ -806,14 +806,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I submit the check
     Then the brief has a "Children's thinking:" block with what I saw, what the teacher did and what the children did
 
-  @e2e @flow @config-gated @wip @draft @P2
+  @e2e @flow @config-gated @wip @draft @P2 @OBS119
   Scenario: A form opened before the parts changed keeps its own Part 2
     Given I opened the live form before form version 5 was published, and saved Part 1
     When I fill Part 2's older questions and tap "Part 2 done"
     Then the part is saved and the lesson plan screen opens
     # observe2-form-endpoint.js: a part posted with no fv keeps the older fields (FIELDS_V4) and checks.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS120
   Scenario: A reopened form shows the notes I typed
     Given I typed "8 min: board wiped" in Part 1's "Anything else", saved Part 1 and closed the form
     When WhatsApp starts the form afresh and it opens on "Part 1 is saved"
@@ -821,7 +821,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Pilot sheet R13 (Riffat, 14 Oct): typed evidence "disappears after the form is saved". A reopened
     # form cannot go back to Part 1, so CONTINUE lists the notes by part (every form, old Flow or new).
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS121
   Scenario: Going back to Part 1 does not empty Part 2
     Given I saved Part 1 and Part 2 of the live form, with a note in Part 2's "Anything else"
     When I go back to Part 1 and tap "Part 1 done" again
@@ -835,7 +835,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # refused the string counts on 15 Oct. What sits inside an If ("While they worked, the teacher",
     # "When the work got hard", "How did the switch go?") is not pre-filled (it stays saved).
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS122
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
     Given I saved Part 2 of the live form
     Then the form shows "The lesson plan" with "Was there a lesson plan?"
@@ -850,7 +850,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js; the row
     # names come from lp-selection-format.js, as in /observe's list.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS123
   Scenario: A plan the teacher read in the app yesterday is in "Which plan?"
     Given the teacher I am observing opened a lesson plan in the teacher app yesterday, and was never sent it on WhatsApp
     And I saved Part 2 of the live form
@@ -863,7 +863,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # pinned at the form by tests/observe2/plan-list-app-plans.test.js (bd-eal7zn.2). The teacher is chosen
     # in the visit planner before the form, so the list is that teacher's own.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS124
   Scenario Outline: A plan the bot didn't give the teacher is added in the form as photos, a file, or typed text
     Given I saved Part 2 of the live form
     When I choose "Followed a lesson plan", pick "Upload new" and choose "<how>" for "How will you add it?"
@@ -879,7 +879,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Asked by the operator on 2 Oct: the same ways in as /observe (photo, PDF or Word, typed). Photos and
     # files are stored after the reply; typed text under 40 characters is refused (the extractor's floor).
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS125
   Scenario: An added plan is read and its steps checked after the recording, as /observe does
     Given I added the lesson plan as photos before sealing, and sent the recording
     When the "Check the moments" form opens and I tap "Next" on the last moments screen
@@ -888,7 +888,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # vision read), applies the same "is this a lesson plan?" check, then the orchestrator's uploaded-plan
     # path grades it. The pages of several photos are read in order as one plan.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS126
   Scenario: A PDF of the teacher's own Rumi plan is graded from that plan's own steps
     Given the teacher's Urdu lesson plan PDF from Rumi is on my phone
     And I added it with "Upload new" and "A PDF or Word file" before sealing, and sent the recording
@@ -900,7 +900,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (niete_lp_assets.content_hash), so it is linked and graded like a pick, never read
     # (observe2/added-plan.js matchRumiPlan; bd-eal7zn.2).
 
-  @e2e @flow @config-gated @wip @draft @P2
+  @e2e @flow @config-gated @wip @draft @P2 @OBS127
   Scenario Outline: An added plan that can't be read, or has no lesson steps, is named as such, with what to do next
     Given <what happened>
     When I submit the check
@@ -916,7 +916,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # provided" (debrief form, OBSERVE_FICO_FLOW_HAS_FIDELITY=editable). Both named the wrong state
     # (Rule 24d). observe2/brief.js plan_not_checked; observe-draft.service.js fidelityFallbackCopy.
 
-  @e2e @flow @config-gated @wip @draft @P2
+  @e2e @flow @config-gated @wip @draft @P2 @OBS128
   Scenario: No lesson plan goes on to the photos, then the seal
     Given I saved Part 2 of the live form
     When I choose "No plan for this lesson" and tap "Next"
@@ -924,7 +924,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I choose "No photos" and tap "Next"
     Then "Before you seal" says there was no lesson plan for this lesson, and no photos
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS129
   Scenario Outline: Classroom photos are taken now, or uploaded from the ones already on the phone
     Given I reached "How will you add photos?" in the live form
     Then the screen says the voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses
@@ -944,7 +944,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
       | Take photos now     | Take the photos     |
       | Upload saved photos | Upload saved photos |
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS130
   Scenario: Sealing locks the record and the chat says what to do with the recording
     Given I filled Part 1 and Part 2 of the live form
     When I pick what to work on first, tick the seal box and tap "Seal and send"
@@ -959,7 +959,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
     # three for coaches).
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS131
   Scenario: The coach picks one thing to work on first, up to two more, and can pick the plan's steps
     Given I filled Part 1 and Part 2 of the live form
     When I choose "Following the plan's steps" under "Work on first"
@@ -971,14 +971,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # "Also work on" and "And also" are optional and include "Nothing else". The plan's steps are
     # Section B, not a C, D or F indicator (observe2/fico17.js PLAN_FOCUS).
 
-  @e2e @flow @config-gated @wip @draft @negative @P2
+  @e2e @flow @config-gated @wip @draft @negative @P2 @OBS132
   Scenario: The same thing cannot be picked twice
     Given the live form is open on "Before you seal"
     When I choose "Real group work" under both "Work on first" and "Also work on", tick the seal box and tap "Seal and send"
     Then the form stays on "Before you seal" with "That is already your first pick. Choose another, or "Nothing else"." at the bottom
     And nothing is sealed
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS133
   Scenario: The check keeps all three picks, and the brief and the report follow the first
     Given I sealed with "Following the plan's steps" first and "Real group work" under "Also work on"
     And the "Check the moments" form is open
@@ -992,7 +992,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # the Flow published before this keeps its own screen. analysis.js focus_area for "plan" is Section B;
     # target-resolver.js resolves it for the report's one target.
 
-  @e2e @flow @config-gated @wip @draft @P1
+  @e2e @flow @config-gated @wip @draft @P1 @OBS134
   Scenario: "Work on first" offers the coaching focus areas coaches asked for, and says what each choice means
     Given the live form is open on "Before you seal"
     When I open "Work on first"
@@ -1005,7 +1005,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # FICO pilot sheet R20 and R21 (two coaches, 16 Oct). The five are coaching focus areas, not scored
     # indicators (fico17.js COACHING_FOCUS): no level, no section sum. Each title fits 30 code points.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS135
   Scenario: A coaching focus area carries through the check, the brief and the teacher's report
     Given I sealed with "Classroom management" first and "Wait time after a question" under "Also work on"
     And the "Check the moments" form is open
@@ -1022,7 +1022,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # sit as isolates. The record's focus_area is {indicator: "manage", domain: "high_leverage_practices"},
     # and target-resolver.js resolves it to the pick, never to the weakest row.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P2
+  @e2e @flow @config-gated @destructive @wip @draft @P2 @OBS136
   Scenario: A check opened on the older Flow keeps a sealed coaching focus area it cannot show
     Given I sealed with "An engaging warm-up" first and "Classroom rules" under "Also work on"
     And the "Check the moments" message was sent before the check Flow was republished
@@ -1034,7 +1034,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-check-endpoint.js: each published check (no cv, cv 2, cv 3) is pre-filled only with what its
     # lists have; a sealed pick its lists could not show is kept, first, as "Also work on".
 
-  @e2e @audio @config-gated @destructive @wip @draft @P1
+  @e2e @audio @config-gated @destructive @wip @draft @P1 @OBS137
   Scenario: The recording joins the sealed record and its moments come back to check
     Given my /observe2 record is sealed
     When I send a 30-minute lesson recording of about 30 MB from the recorder app as a Document
@@ -1044,7 +1044,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # capture-link.js links the recording to the open form; moments.js reads the timed transcript
     # (one model call) and opens the check because the record is sealed.
 
-  @e2e @audio @config-gated @destructive @wip @draft @P1
+  @e2e @audio @config-gated @destructive @wip @draft @P1 @OBS138
   Scenario: Every moment's words are in the recording, at the minute they were said
     Given my /observe2 record is sealed
     When I send the lesson recording and the moments come back to check
@@ -1054,7 +1054,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Pilot sheet R5 (14 Oct). quote-check.js (bd-eal7zn.3): what was dropped, repaired or re-timed
     # is stored in rumi_moments.verified and logged as "[observe2] moments checked against the transcript".
 
-  @e2e @audio @config-gated @destructive @wip @draft @P0
+  @e2e @audio @config-gated @destructive @wip @draft @P0 @OBS139
   Scenario: A recording sent while the form waits for it always reaches the form, never general chat
     Given my /observe2 record is sealed and has no recording yet
     And the visit planner's Start was more than two hours ago
@@ -1068,7 +1068,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # of 2 minutes or more (or one that looks like a classroom recording) is taken for it. A recording
     # started from /observe's own planner never joins an /observe2 form.
 
-  @e2e @audio @config-gated @destructive @wip @draft @P1
+  @e2e @audio @config-gated @destructive @wip @draft @P1 @OBS140
   Scenario: A recording that was already analysed is refused and the form keeps waiting
     Given my /observe2 record is sealed and has no recording yet
     When I send the recording of an earlier lesson that was already analysed
@@ -1077,7 +1077,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot says "Recording received" and the moments come back to check
     # audio-hash-cache.refuseDuplicateObservation + capture-link.releaseRefusedRecording.
 
-  @e2e @audio @config-gated @destructive @wip @draft @P1
+  @e2e @audio @config-gated @destructive @wip @draft @P1 @OBS141
   Scenario: A recording sent before the seal waits for it, and the plan attached afterwards is checked
     Given I started an /observe2 visit and sent the recording before filling the form
     When I attach the lesson plan and seal the record
@@ -1086,7 +1086,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
     # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
 
-  @e2e @audio @config-gated @destructive @wip @draft @P0
+  @e2e @audio @config-gated @destructive @wip @draft @P0 @OBS142
   Scenario: Record first: a lesson recording sent with no form open is saved as its own visit
     Given my latest observation was an /observe2 visit
     And no /observe2 form is waiting for a recording
@@ -1101,7 +1101,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # at capture (visit_context.recorded_first, period from the recording's length) and the capture
     # links it; the who-answer names the teacher on the form and as the observation's owner.
 
-  @e2e @config-gated @destructive @wip @draft @P0
+  @e2e @config-gated @destructive @wip @draft @P0 @OBS143
   Scenario: The teacher is not on "Which teacher did you observe?": the coach types the name
     Given a lesson recording of mine was saved and the bot asked "Which teacher did you observe?"
     And the teacher I observed is not among the teachers listed
@@ -1115,7 +1115,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (patch-resolver) and records the match exactly as a tap (schedule row, the /observe2 form's
     # teacher, the observation's owner). The wait is its own Redis key, 15 minutes, never the observe state.
 
-  @e2e @config-gated @destructive @wip @draft @P1
+  @e2e @config-gated @destructive @wip @draft @P1 @OBS144
   Scenario: A typed name that fits more than one teacher, or none
     Given I tapped "Someone else" on "Which teacher did you observe?"
     When I type a first name that two teachers in my schools share
@@ -1129,7 +1129,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot says I can type the name when I send the report
     And my next message is answered as usual chat
 
-  @e2e @config-gated @wip @draft @P1
+  @e2e @config-gated @wip @draft @P1 @OBS145
   Scenario: A command typed while the bot waits for a name is not taken as a name
     Given I tapped "Someone else" on "Which teacher did you observe?"
     When I send "/observe2"
@@ -1137,7 +1137,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # The same list is asked after a classic /observe capture with no teacher, so classic /observe gets
     # the typed name too; a recording with no /observe2 form only gets the schedule row, as a tap does.
 
-  @e2e @audio @config-gated @destructive @wip @draft @P0
+  @e2e @audio @config-gated @destructive @wip @draft @P0 @OBS146
   Scenario: Record first: two lessons back to back, each saved and named on its own
     Given my latest observation was an /observe2 visit
     When I send the recording of my first lesson and then the recording of my second lesson
@@ -1146,7 +1146,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then each visit is under its own teacher in "Complete the form"
     # The who-list rows carry the recording's own session id: an exact link, never "the oldest first".
 
-  @e2e @flow @config-gated @destructive @wip @draft @P0
+  @e2e @flow @config-gated @destructive @wip @draft @P0 @OBS147
   Scenario: Record first: the form is filled later, from the saved message or "Complete the form"
     Given a lesson recording of mine is saved as a visit and its teacher is named
     When I send "/observe2" and open "Complete the form"
@@ -1162,13 +1162,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # handleFillButton and sendLiveForm afterLesson, observe2-form-endpoint.js afterLesson. Only screen
     # data changes, so a form opened on the published Flow keeps working (no FORM_VERSION change).
 
-  @e2e @audio @config-gated @wip @draft @P1
+  @e2e @audio @config-gated @wip @draft @P1 @OBS148
   Scenario: Record first is for /observe2 coaches; a coach on classic /observe still gets "whose observation is this?"
     Given my latest observation was a classic /observe one
     When I send a 30-minute lesson recording with nothing armed
     Then the bot asks "Whose observation is this?" with my scheduled teachers at the top, as before
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS149
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
     Given I picked a lesson plan before sealing, and the "Check the moments" form is open
     When I answer the moments and tap "Next" on the last moments screen
@@ -1180,7 +1180,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
     # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
 
-  @e2e @flow @audio @config-gated @destructive @wip @draft @P1
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P1 @OBS150
   Scenario: Each moment is evidence about the teaching, and says why it was picked
     Given the "Check the moments" form is open for a lesson I recorded
     When I read the moments on each screen
@@ -1194,7 +1194,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Pilot sheet R5, R15 (14 Oct). moments.js prompt observe2-moments-v2 (bd-eal7zn.3); the
     # why is in each slot's description (observe2-check-endpoint.js describe), within 300 code points.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS151
   Scenario: A part of the lesson with no moment says so, never a blank question
     Given the "Check the moments" form is open and Rumi found no moment for "When children work, what do they do?"
     When I reach that screen
@@ -1205,7 +1205,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # hidden when a part has no moment. observe2-check-endpoint.js HEARD_INTRO, bound to
     # ${data.<screen>_intro} in evidence-check.flow.js (live once the check Flow is republished).
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS152
   Scenario: The check pre-fills every level and Submit asks about the debrief, as /observe does
     Given the "Check the moments" form is open
     When I answer each moment "Yes, this happened" or "No, or not like this" and tap through
@@ -1217,7 +1217,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-check-endpoint.js handOver: the session is saved as a submitted /observe form
     # (observer_review_complete, the FICO analysis from the 17 levels and the plan: observe2/analysis.js).
 
-  @e2e @flow @audio @config-gated @destructive @wip @draft @P0
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P0 @OBS153
   Scenario: The visit ends as /observe's does: the debrief recording, the coach card, the teacher's report
     Given I submitted the check of my /observe2 visit
     When I tap "Debrief now"
@@ -1232,7 +1232,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # here". From the check on, /observe's own code runs (observe-debrief, observe-send, observe-completion).
     # "Later" keeps the visit in /observe's list of debriefs to do.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS154
   Scenario: The brief carries every note I typed, by part
     Given I typed notes in Part 1, Part 2 and "Not in the recording", and "Why you changed" at the check
     When I tap "Debrief now"
@@ -1243,7 +1243,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # WhatsApp message. Notes stay out of the teacher's report: they are the coach's working notes and
     # can name a child or record an incident.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS155
   Scenario: My notes come with the "Record sealed" message, before I talk with the teacher
     Given I typed notes in Part 1, Part 2 and "Not in the recording"
     When I tick the seal box and tap "Seal and send"
@@ -1255,13 +1255,13 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-form-endpoint.js sendSealed; the brief's own section (observe2/brief.js notesSection), each
     # note clipped at 400 code points so it stays one message. "Why you changed" is typed later, at the check.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P2
+  @e2e @flow @config-gated @destructive @wip @draft @P2 @OBS156
   Scenario: With no notes typed, the "Record sealed" message is unchanged
     Given I left every notes box empty
     When I tick the seal box and tap "Seal and send"
     Then the bot's "Record sealed" message has the recording steps and no notes section
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS157
   Scenario: The check's "Work on first" screen shows my notes, read-only, above the picks
     Given I typed notes in Part 1 and Part 2 of the live form and sealed the record
     And the "Check the moments" form is open
@@ -1273,7 +1273,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # evidence-check.flow.js PRIORITY declares notes_v and notes_body. A check opened on the Flow published
     # before this ignores the two keys and keeps its own screen.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS158
   Scenario: The teacher's report names the thing I picked to work on first
     Given I picked "Real group work" to work on first and kept it at the check
     And my debrief brief said "Work on first: Real group work"
@@ -1285,7 +1285,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # title from the pick in code; a pick the coach couldn't judge (NA) still counts; a pick changed at
     # the check wins. Nothing in the debrief step records an area of its own.
 
-  @e2e @flow @config-gated @destructive @wip @draft @P1
+  @e2e @flow @config-gated @destructive @wip @draft @P1 @OBS159
   Scenario: Choosing someone else after the report preview shows a new preview for that teacher
     Given I tapped "Send report" and the preview for the observed teacher arrived
     When I tap "Someone else", choose to add a new teacher and type their name and number
@@ -1295,7 +1295,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (one key per session and phase). coaching-job-queue.service.js queueObserveTeacherReport now
     # tells previews apart by the teacher's number; the same teacher twice is still one job.
 
-  @e2e @flow @config-gated @destructive @wip @draft @negative @P1
+  @e2e @flow @config-gated @destructive @wip @draft @negative @P1 @OBS160
   Scenario: When WhatsApp refuses the list of my teachers, I am asked to type the details instead
     Given I tapped "Someone else" on the report preview
     And WhatsApp refuses the list of my teachers twice
@@ -1309,14 +1309,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Send buttons after the preview become a line saying the report is ready and to pick it from /observe;
     # a refused Regenerate button, the same news with the same way back.
 
-  @e2e @config-gated @wip @draft @negative @P2
+  @e2e @config-gated @wip @draft @negative @P2 @OBS161
   Scenario: A teacher's /observe2 is refused
     Given the NIETE bot chat is open on a TEACHER account on sandbox
     When I send "/observe2"
     Then the bot responds with "/observe2 is for coaches and school leaders."
     And no Flow is sent
 
-  @e2e @wip @draft @negative @P3
+  @e2e @wip @draft @negative @P3 @OBS162
   Scenario: /observe2 is plain text where its Flows are not configured
     Given the NIETE bot runs without OBSERVE2_FIELD_FORM_FLOW_ID or OBSERVE2_CHECK_FLOW_ID
     When a coach sends "/observe2"
@@ -1357,14 +1357,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # move or cancel is announced through the same observe-schedule.service
   # announce as a WhatsApp one, via POST /api/internal/observe/notify-teacher.
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS77
   Scenario: A visit booked on the portal sends the coach the same invite and the teacher the same message as one booked in WhatsApp
     Given OBSERVE_CALENDAR_ENABLED covers the coach, she has a work email in the coach directory, and the teacher notice is on
     When the coach books a visit for a teacher in her patch on the portal for a future date
     Then the coach receives one calendar invite for that date and time, and no one else is invited
     And the teacher receives one WhatsApp message naming the coach, her school, the date and the time
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS78
   Scenario: Moving or cancelling a portal visit updates the invite and tells the teacher, as WhatsApp does
     Given a coach has a future visit booked on the portal and holds its calendar invite
     When the coach moves the visit to a new date or time on the portal
@@ -1372,7 +1372,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach cancels the visit on the portal
     Then the invite is removed from the coach's calendar and the teacher receives a message that the visit is cancelled
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @OBS79
   Scenario: A portal visit booked or moved into the past sends nothing
     Given a coach is booking on the portal
     When the coach books a visit for a day that has passed, or moves a visit to a day that has passed
@@ -1385,7 +1385,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # the same functions WhatsApp uses (portal-observe.service.js). The row is the
   # WhatsApp capture's row; a portal row is recognised by its R2 key.
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS80
   Scenario: A lesson sent from the portal becomes a bound /observe observation
     Given a coach is in the portal_coach_observation pilot and the teacher is in her patch
     When the coach sends a recording of the teacher's lesson from the portal
@@ -1393,7 +1393,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And transcription and analysis run as for a WhatsApp /observe recording
     And the coach receives nothing on WhatsApp — no capture message, no "who did you observe?", no photo or lesson-plan prompt
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS81
   Scenario: The draft of a portal observation is checked in the portal, not in a WhatsApp form
     Given a portal observation whose analysis has finished
     When the coach opens the observation in the portal
@@ -1402,7 +1402,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach changes a rating and saves
     Then the observation is saved exactly as the review form's submit saves it
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS82
   Scenario: The talk with the teacher and the coach's own feedback happen in the portal
     Given the coach has saved the draft of a portal observation
     When the coach opens the talk, records her conversation with the teacher in the portal and sends it
@@ -1410,21 +1410,21 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And her feedback on the talk appears in the portal, and no feedback card or send buttons reach her WhatsApp
     And the report to the teacher can be prepared only after that feedback
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS83
   Scenario: The teacher's report is previewed and sent from the portal and reaches her WhatsApp
     Given the coach has her feedback on a portal observation
     When the coach previews the report in the portal and presses Send
     Then the teacher receives the report on WhatsApp — directly, or through the invite template when her window is closed
     And the coach receives no WhatsApp message about the send
 
-  @e2e @config-gated @negative @P1
+  @e2e @config-gated @negative @P1 @OBS84
   Scenario: A WhatsApp /observe observation is unchanged
     Given a coach records an observation on WhatsApp with /observe
     When the analysis finishes
     Then the review form is sent to her WhatsApp as before
     And the debrief, her feedback card and the send-report steps all happen on WhatsApp as before
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @OBS85
   Scenario: A failed portal observation is shown in the portal, not announced on WhatsApp
     Given a portal observation whose transcription or analysis fails
     When the failure is recorded
@@ -1478,7 +1478,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # reached by the portal through POST /api/internal/observe/teacher-edit, run
   # as the coach. School and Remove stay on commitAdd / commitRemovals.
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS86
   Scenario: A coach renames a teacher, sets her teaching levels and her role from the portal
     Given a coach is in the portal_coach_v2 pilot and the teacher is in her patch
     When the coach changes the teacher's name, ticks Primary and Middle, picks Principal and saves
@@ -1486,14 +1486,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And each change is written to the roster audit with the coach as actor
     And the screen says a principal can observe teachers before she saves
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @OBS87
   Scenario: Teaching level is Primary, Middle or High, and cannot change twice within 48 hours
     Given a coach is editing a teacher in her patch from the portal
     Then the teaching levels offered are Primary, Middle and High, and Early years is not offered
     When the coach saves a teaching level less than 48 hours after the last change
     Then the change is refused and the screen shows the hours left
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS88
   Scenario: A teacher's new number is checked before it is changed
     Given a coach is editing a teacher in her patch from the portal
     When the coach enters a new number and checks it
@@ -1501,14 +1501,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the coach confirms the change
     Then the teacher's number is changed, her booked visits follow it, and an account with no history on that number is retired, not deleted
 
-  @e2e @config-gated @negative @P1
+  @e2e @config-gated @negative @P1 @OBS89
   Scenario: A number that belongs to a teacher with history is refused
     Given a coach is editing a teacher in her patch from the portal
     When the coach checks a number whose account has certificates, attempts, training progress or coaching sessions
     Then the screen shows "Please wait while we fix your data" and no change can be confirmed
     And the refusal is written to the roster audit as edit_phone_escalated
 
-  @e2e @config-gated @negative @P1
+  @e2e @config-gated @negative @P1 @OBS90
   Scenario: A teacher outside the coach's patch cannot be edited
     Given a coach is in the portal_coach_v2 pilot
     When the coach tries to edit a teacher who is not in her patch, or at a school that is not hers
@@ -1516,7 +1516,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # bd-fmf24g.66 — the teacher's own lesson plan, attached by the COACH on Check and send in the portal (behind app_settings.portal_coach_v2).
   # Unit: tests/observe/bd-5rz1v.6-portal-observe.test.js (observationView lessonPlan); portal CoachOwnPlan.test.tsx.
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS91
   Scenario: A coach attaches the teacher's own plan as a file and sees what became of it
     Given a coach in the portal_coach_v2 pilot is on Check and send for a visit
     When the coach picks "Their own plan" and chooses a PDF, a Word file or a photo up to 25 MB
@@ -1524,14 +1524,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And the observation page shows a Lesson plan row that moves from Reading to Read with the topic found in the plan
     And the Feedback Form's lesson-plan part names "Their own plan" and scores each move from it
 
-  @e2e @config-gated @negative @P1
+  @e2e @config-gated @negative @P1 @OBS92
   Scenario: A file that is not a lesson plan, or cannot be read, shows Couldn't read and messages no one
     Given a coach in the portal_coach_v2 pilot sent an observation with a leave letter or an unreadable file as the plan
     When the plan has been read
     Then the observation page shows "Couldn't read" and the lesson-plan part is not scored
     And no WhatsApp message goes to the observed teacher or to the coach about it
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @OBS93
   Scenario: The plan picker refuses what the reader cannot open
     Given a coach in the portal_coach_v2 pilot is on Check and send
     When the coach chooses a ".doc" file, an image type other than JPG or PNG, or a file over 25 MB
@@ -1539,7 +1539,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # bd-snkn32.41 — the teacher's own Make my own plans in "Their recent plans" on Check and send.
   # Unit: tests/observe/bd-snkn32.41-coach-own-plans.test.js; portal CoachCheckSend.ownPlans.test.tsx.
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS94
   Scenario: A coach sends the observation with a plan the teacher made herself
     Given a coach in the portal_coach_v2 pilot is on Check and send for a teacher who made a plan with Make my own
     When the coach opens "Their recent plans"
@@ -1552,7 +1552,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   # bd-4alcjx: each own row ends with when she made it, by the Pakistan day ("today 8:05 am", "yesterday 9:00 pm",
   # "12 Nov, 2:40 pm"), so two plans for one lesson differ. Unit: tests/coaching/bd-4alcjx-own-plan-time.test.js.
   # Unit: tests/coaching/bd-snkn32.45-whatsapp-own-plans.test.js (lp-own-plans, lp-own-selection.handler).
-  @e2e @P1
+  @e2e @P1 @OBS95
   Scenario: A coach on WhatsApp picks the plan the teacher made with Make my own
     Given a coach observing on WhatsApp reaches the lesson-plan list for a teacher who made a plan with Make my own
     Then her ready plan is a row marked "Made by the teacher" (Urdu "ٹیچر کا بنایا ہوا") with its grade, subject and chapter, newest first among at most 8 plans
@@ -1563,7 +1563,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
 
   # bd-fmf24g.66 — the plan the coach attached is read by a job that runs at the same time as the analysis.
   # Unit: tests/coaching/bd-fmf24g.66-late-plan-recompute.test.js (analysis-processor _recomputeIfPlanLanded).
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @OBS96
   Scenario: A plan that finishes being read while the analysis runs still scores the lesson-plan part
     Given a coach in the portal_coach_v2 pilot sent an observation with a PDF as the teacher's plan
     When the plan finishes being read before the analysis finishes

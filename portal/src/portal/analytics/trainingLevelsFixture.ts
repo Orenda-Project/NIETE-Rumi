@@ -8,7 +8,7 @@
  * fixture never disagrees with itself.
  */
 import type {
-  TrainingBand, TrainingBandSplit, TrainingLevelCounts, TrainingLevelsResponse, TrainingLevelsSchool, TrainingPartnerCard,
+  TrainingBand, TrainingBandSplit, TrainingIsaps, TrainingLevelCounts, TrainingLevelsResponse, TrainingLevelsSchool, TrainingPartnerCard,
 } from '../types/portal';
 import { FIXTURE_SCHOOLS, REGION_ORDER } from './fixtures';
 
@@ -136,8 +136,22 @@ function partnersOf(schools: string[]): Partners {
       schoolPartners(0, 0));
 }
 
-/** The I-SAPS card counts the teachers assigned it, a few fewer than the programme's (v8). */
+/** The Teacher Development Programme counts the HIGH teachers, a few fewer than the programme's. */
 const isapsTeachers = (cohort: number) => cohort - Math.round(cohort * 0.03);
+
+const ISAPS_LEVEL_NAMES = ['Level 1: Novice', 'Level 2: Intermediate', 'Level 3: Advanced'];
+/** Its three levels, each with its own status (Hashir, 27 Nov 2026): fewer pass each level up. */
+const isapsOf = (p: { passed: number; inProgress: number }, cohort: number): TrainingIsaps => {
+  const n = isapsTeachers(cohort);
+  return {
+    teachers: n,
+    levels: ISAPS_LEVEL_NAMES.map((name, i) => {
+      const passed = Math.max(0, Math.round(p.passed / (i + 1)));
+      const inProgress = Math.min(n - passed, Math.round(p.inProgress / (i + 1)));
+      return { levelId: String(27 + i), levelOrder: i, name, passed, inProgress, notStarted: n - passed - inProgress, teachers: n, pctPassed: n ? round1((passed / n) * 100) : null };
+    }),
+  };
+};
 
 /** The programme's teachers the RDF gives no sector (v8): a block of their own, so the sectors add up. */
 function noSectorBlock(band: TrainingBand) {
@@ -152,7 +166,7 @@ function noSectorBlock(band: TrainingBand) {
   const ox = { passed: 9, inProgress: 4 };
   const bh = { passed: 5, inProgress: 6 };
   const is = { passed: 1, inProgress: 3 };
-  return { ...base, passedAll: 2, partners: { oxbridge: card(ox, n), beaconhouse: card(bh, n), isaps: card(is, isapsTeachers(n)) } };
+  return { ...base, passedAll: 2, partners: { oxbridge: card(ox, n), beaconhouse: card(bh, n), isaps: isapsOf(is, n) } };
 }
 
 /** A sector's teachers at no school on FDE's list (v8): one "No school" row, here in B.K. */
@@ -201,7 +215,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
         partners: {
           oxbridge: { ...card(o.ox, o.cohort), sessions: FIXTURE_SESSIONS.map((name, k) => ({ name, ...o.ox.sessions[k] })), completedAll: o.ox.completedAll },
           beaconhouse: { ...card(o.bh, o.cohort), levels: FIXTURE_BH_LEVELS.map((name, k) => ({ name, ...o.bh.levels[k] })) },
-          isaps: { ...card(o.is, isapsTeachers(o.cohort)), modules: FIXTURE_ISAPS_MODULES.map((name, k) => ({ name, ...o.is.modules[k] })), completedAll: o.is.completedAll },
+          isaps: isapsOf(o.is, o.cohort),
         },
       },
       regions: REGION_ORDER.map((region) => {
@@ -209,7 +223,7 @@ export function fixtureTrainingLevels(opts: { region?: string | null; band?: Tra
         const p = partnersOf(ids(rows));
         return {
           region, teachers: p.cohort, passedAll: p.passedAll, levels: sum(band, rows),
-          partners: { oxbridge: card(p.ox, p.cohort), beaconhouse: card(p.bh, p.cohort), isaps: card(p.is, isapsTeachers(p.cohort)) },
+          partners: { oxbridge: card(p.ox, p.cohort), beaconhouse: card(p.bh, p.cohort), isaps: isapsOf(p.is, p.cohort) },
         };
       }),
       noSector: noSectorBlock(band),

@@ -37,6 +37,13 @@ describe('plainReuseKey', () => {
     expect(key(change)).not.toBe(key());
   });
 
+  test('bd-nr8mrm.3: a page target changes the key; no target leaves every old key as it was', () => {
+    expect(key({ pages: undefined })).toBe(key());
+    expect(key({ pages: null })).toBe(key());
+    expect(key({ pages: 1 })).not.toBe(key());
+    expect(key({ pages: 1 })).not.toBe(key({ pages: 2 }));
+  });
+
   test('a missing question type list is the same as an empty one', () => {
     expect(key({ questionTypes: undefined })).toBe(key({ questionTypes: [] }));
   });

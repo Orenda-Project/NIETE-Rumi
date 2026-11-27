@@ -257,13 +257,22 @@ const isPartner = (key: string): key is 'oxbridge' | 'beaconhouse' | 'isaps' =>
   key === 'oxbridge' || key === 'beaconhouse' || key === 'isaps';
 
 /** What a sector passed, per series: a NIETE level by its order, or a partner. */
+function isapsLevelOf(r: SectorBlock, key: string) {
+  const m = /^isaps:(\d)$/.exec(key);
+  return m ? r.partners?.isaps.levels[Number(m[1])] ?? null : undefined;
+}
+
 function passedOf(r: SectorBlock, key: string): number {
+  const il = isapsLevelOf(r, key);
+  if (il !== undefined) return il?.passed ?? 0;
   if (isPartner(key)) return r.partners?.[key].passed ?? 0;
   return r.levels.find((l) => String(l.levelOrder) === key)?.passed ?? 0;
 }
 
 /** Of how many, per series: the sector's programme teachers; a partner's own (I-SAPS: those assigned it). */
 function teachersOf(r: SectorBlock, key: string): number {
+  const il = isapsLevelOf(r, key);
+  if (il !== undefined) return il?.teachers ?? 0;
   if (isPartner(key)) return r.partners?.[key].teachers ?? 0;
   return r.teachers;
 }
@@ -292,7 +301,12 @@ function seriesOf(c: TabProps['c'], data: TrainingLevelsResponse, midHigh: boole
     ...nieteLevels,
     { key: 'oxbridge', label: t.partners.oxbridgeShort, color: forChart ? SERIES_COLOR.oxbridge : ROW_COLOR.oxbridge },
     { key: 'beaconhouse', label: t.partners.beaconhouseShort, color: forChart ? SERIES_COLOR.beaconhouse : ROW_COLOR.beaconhouse },
-    { key: 'isaps', label: t.partners.isapsShort, color: forChart ? SERIES_COLOR.isaps : ROW_COLOR.isaps },
+    // the Teacher Development Programme has no overall status: one series per level
+    ...(data.overview.partners?.isaps.levels ?? []).map((l) => ({
+      key: `isaps:${l.levelOrder}`,
+      label: `${t.partners.isapsShort} ${l.name.split(':')[0]}`,
+      color: forChart ? SERIES_COLOR.isaps : ROW_COLOR.isaps,
+    })),
   ];
 }
 
