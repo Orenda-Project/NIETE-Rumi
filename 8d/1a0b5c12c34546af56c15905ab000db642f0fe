@@ -1,0 +1,1 @@
+{"ts":"2026-11-27T02:30:02Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"8d1a0b5c12c3","branch":"HEAD","user":""}
