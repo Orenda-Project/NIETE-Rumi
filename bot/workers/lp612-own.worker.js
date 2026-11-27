@@ -39,6 +39,7 @@ const { finishOwnDoc } = require('../shared/services/lp612-own-close');
 const { addK5Close } = require('../shared/services/lp-k5-own-close');
 const { addK5Children } = require('../shared/services/lp-k5-own-children');
 const { goalGate } = require('../shared/services/lp-own-goal-check');
+const { goalLabelsK5 } = require('../shared/services/lp-k5-own-goal');
 const { goalDay } = require('../shared/services/lp-own-unit-day');
 
 /** A shared lesson takes a median of ~3 min and up to ~10 to write; her fork waits that long for it, then gives up. */
@@ -122,11 +123,13 @@ function createOwnWorker(deps) {
   async function processK5(row, correlationId, startFrom) {
     const day = row.lesson_id ? await d.loadK5(row.lesson_id) : goalDay(row); // bd-snkn32.59.4: a goal unit day has no book day
     if (!day) throw stop('NO_PARENT', 'the day has no stored plan to start from');
-    const script = startFrom || day.script; // bd-snkn32.15: a change rewrites her latest plan; the day gives its meta
+    const noBook = !!(row.answers && row.answers.goal); // bd-snkn32.57: a goal start reads no book text, prints no pages
+    // bd-snkn32.15: a change rewrites her latest plan; the day gives its meta. bd-snkn32.58.17: a goal start's day
+    // carries HER goal as its outcome, so the writer is not held to the book day's outcome.
+    const script = startFrom || (noBook ? goalLabelsK5(day.script, row.answers.goal) : day.script);
     // bd-snkn32.12 — the gradual release is never dropped: a parent without every part is not a day to rewrite.
     const missing = require('../shared/services/lp-k5-own').missingGrr(script);
     if (missing.length) throw stop('INCOMPLETE_PARENT', `the day's plan has no ${missing.join(', ')}`);
-    const noBook = !!(row.answers && row.answers.goal); // bd-snkn32.57: a goal start reads no book text, prints no pages
     const pg = (row.answers && row.answers.pages) || day.pages || {};
     const bookText = noBook ? null : await textOf({ grade: day.grade, subject: day.subject, from: pg.start, to: pg.end });
     const ask = { script, answers: row.answers, edit: row.edit_request || undefined, lang: day.lang, grade: day.grade, subject: day.subject, dayPages: noBook ? null : day.pages || null, bookText, correlationId };

@@ -8,7 +8,8 @@
  *                grades 6–12 — "Today's goal: …" as the LAST objective, so no `ur_overlay` pointer moves
  *   check        lp612-own-accuracy.checkGoalPlan (facts + goal match per section), injected as `check(doc)`
  *   fix/refuse   a failed check → ONE fix rewrite fed the findings → re-check; still failing, or the fix failed →
- *                'refused' (the worker ends her row OWN_GOAL_UNSURE); an unreadable check is asked once more, then refused
+ *                'refused' (the worker ends her row OWN_GOAL_UNSURE); an unreadable check (first or re-check) is asked once more,
+ *                then refused
  *
  * Pure orchestration: the check and the fix are passed in.
  */
@@ -35,7 +36,8 @@ async function checkBeforeReady({ check, fix, doc }) {
   const findings = first.errors.length + first.offGoal.length;
   const fixed = await fix(first);
   if (!fixed || fixed.doc == null) return { verdict: 'refused', doc, findings };
-  const again = await check(fixed.doc);
+  let again = await check(fixed.doc);
+  if (again == null) again = await check(fixed.doc); // bd-snkn32.58.17: a cut-off re-check is asked once more too
   return passed(again) ? { verdict: 'fixed', doc: fixed.doc, findings } : { verdict: 'refused', doc, findings };
 }
 
