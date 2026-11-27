@@ -8815,6 +8815,20 @@ CREATE TABLE IF NOT EXISTS public.ab_card_lock (
   start_on    DATE NOT NULL,
   read_on     DATE NOT NULL CHECK (read_on >= start_on),
   ended_at    TIMESTAMPTZ,
+  description TEXT CHECK (description IS NULL OR length(description) BETWEEN 1 AND 300),
+  status      TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'running', 'concluded')),
+  winner      TEXT CHECK (winner IS NULL OR winner ~ '^[a-z0-9_]{1,24}$'),
+  default_arm TEXT CHECK (default_arm IS NULL OR default_arm ~ '^[a-z0-9_]{1,24}$'),
+  switch_key  TEXT CHECK (switch_key IS NULL OR switch_key ~ '^ab_[a-z0-9_]{1,60}$'),
+  owner       TEXT CHECK (owner IS NULL OR length(owner) BETWEEN 1 AND 80),
+  feature     TEXT CHECK (feature IS NULL OR length(feature) BETWEEN 1 AND 120),
+  arm_a       TEXT CHECK (arm_a IS NULL OR length(arm_a) BETWEEN 1 AND 200),
+  arm_b       TEXT CHECK (arm_b IS NULL OR length(arm_b) BETWEEN 1 AND 200),
+  launch_date DATE,
+  planned_n   INTEGER CHECK (planned_n IS NULL OR planned_n > 0),
+  current_n   INTEGER NOT NULL DEFAULT 0 CHECK (current_n >= 0),
+  call        TEXT CHECK (call IS NULL OR call ~ '^[a-z_]{1,40}$'),
+  called_at   TIMESTAMPTZ,
   first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -9078,6 +9092,111 @@ REVOKE ALL ON FUNCTION public.ab_tracker_upsert_rollup(uuid, jsonb) FROM PUBLIC,
 GRANT EXECUTE ON FUNCTION public.ab_tracker_upsert_rollup(uuid, jsonb) TO service_role;
 REVOKE ALL ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ab_tracker_refresh_close(uuid, text, jsonb) TO service_role;
+
+-- A/B ledger (migration V1.10.12, bd-9nb6s0.2): ab_card_lock carries each test's ledger columns, status planned ->
+-- running -> concluded, and four service_role functions (upsert at freeze, the call, the cron's advance, past tests).
+CREATE INDEX IF NOT EXISTS idx_ab_card_lock_status ON public.ab_card_lock (status);
+
+COMMENT ON TABLE public.ab_card_lock IS '[Internal] A/B tracker and ledger: one row per test from the moment it is frozen (planned -> running -> concluded), with its card hash, arms, default, switch, call and winner.';
+COMMENT ON COLUMN public.ab_card_lock.status IS 'planned (card frozen) -> running (first unit assigned) -> concluded (a call written). Moved by ab_ledger_advance.';
+COMMENT ON COLUMN public.ab_card_lock.default_arm IS 'The arm that ships when the call is not a roll-out; declared at freeze, before any result.';
+
+-- card.py freeze. p_row carries the card's fields; the row is inserted as planned. A test already running or
+-- concluded is left alone (the conflict update only touches a planned row), so a re-freeze can never rewind it.
+CREATE OR REPLACE FUNCTION public.ab_ledger_upsert(p_row jsonb) RETURNS text
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+DECLARE
+  v_status text;
+BEGIN
+  IF jsonb_typeof(p_row) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION 'ab_ledger_upsert: the row must be an object'; END IF;
+  INSERT INTO public.ab_card_lock AS c
+         (test_id, sha256, unit_kind, metric_ids, start_on, read_on, description, status, default_arm, switch_key,
+          owner, feature, arm_a, arm_b, launch_date, planned_n)
+  SELECT x.test_id, x.sha256, x.unit_kind, x.metric_ids, x.start_on, x.read_on, x.description, 'planned', x.default_arm,
+         x.switch_key, x.owner, x.feature, x.arm_a, x.arm_b, x.start_on, x.planned_n
+    FROM jsonb_to_record(p_row) AS x(test_id text, sha256 text, unit_kind text, metric_ids text[], start_on date,
+                                     read_on date, description text, default_arm text, switch_key text, owner text,
+                                     feature text, arm_a text, arm_b text, planned_n integer)
+  ON CONFLICT (test_id) DO UPDATE
+     SET sha256 = EXCLUDED.sha256, unit_kind = EXCLUDED.unit_kind, metric_ids = EXCLUDED.metric_ids,
+         start_on = EXCLUDED.start_on, read_on = EXCLUDED.read_on, description = EXCLUDED.description,
+         default_arm = EXCLUDED.default_arm, switch_key = EXCLUDED.switch_key, owner = EXCLUDED.owner,
+         feature = EXCLUDED.feature, arm_a = EXCLUDED.arm_a, arm_b = EXCLUDED.arm_b,
+         launch_date = EXCLUDED.launch_date, planned_n = EXCLUDED.planned_n, updated_at = now()
+   WHERE c.status = 'planned';
+  SELECT c.status INTO v_status FROM public.ab_card_lock c WHERE c.test_id = p_row ->> 'test_id';
+  RETURN v_status;
+END;
+$$;
+
+-- decide.py on the read date. Written once: the call is the data's, and nobody re-calls a test after seeing it.
+CREATE OR REPLACE FUNCTION public.ab_ledger_call(p_test_id text, p_call text, p_winner text) RETURNS void
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+BEGIN
+  UPDATE public.ab_card_lock AS c
+     SET call = p_call, winner = coalesce(p_winner, c.default_arm), called_at = now(), updated_at = now()
+   WHERE c.test_id = p_test_id AND c.call IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'ab_ledger_call: % is not in the ledger or already has a call', p_test_id;
+  END IF;
+END;
+$$;
+
+-- The tracker cron, after a rollup that ran. Counts each test's units, then moves the statuses. Returns the counts.
+CREATE OR REPLACE FUNCTION public.ab_ledger_advance() RETURNS jsonb
+  LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET statement_timeout = '15s'
+  AS $$
+DECLARE
+  v_counted integer;
+  v_running integer;
+  v_concluded integer;
+BEGIN
+  UPDATE public.ab_card_lock AS c
+     SET current_n = n.units, updated_at = now()
+    FROM (SELECT l.test_id, (SELECT count(*) FROM public.ab_assignment a WHERE a.test_id = l.test_id)::integer AS units
+            FROM public.ab_card_lock l WHERE l.status <> 'concluded') n
+   WHERE c.test_id = n.test_id AND c.current_n IS DISTINCT FROM n.units;
+  GET DIAGNOSTICS v_counted = ROW_COUNT;
+
+  UPDATE public.ab_card_lock AS c
+     SET status = 'running', updated_at = now()
+   WHERE c.status = 'planned' AND c.current_n > 0;
+  GET DIAGNOSTICS v_running = ROW_COUNT;
+
+  UPDATE public.ab_card_lock AS c
+     SET status = 'concluded', updated_at = now()
+   WHERE c.status = 'running' AND c.call IS NOT NULL;
+  GET DIAGNOSTICS v_concluded = ROW_COUNT;
+
+  RETURN jsonb_build_object('counted', v_counted, 'running', v_running, 'concluded', v_concluded);
+END;
+$$;
+
+-- find.py, before a new test: what past tests on the same feature or measure did. Newest first, at most 50.
+CREATE OR REPLACE FUNCTION public.ab_ledger_past_tests(p_feature text DEFAULT NULL, p_metric text DEFAULT NULL)
+  RETURNS jsonb
+  LANGUAGE sql STABLE SECURITY INVOKER SET statement_timeout = '30s'
+  AS $$
+  SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.launch_date DESC NULLS LAST, r.test_id), '[]'::jsonb)
+    FROM (SELECT c.test_id, c.description, c.status, c.feature, c.owner, c.arm_a, c.arm_b, c.default_arm, c.winner,
+                 c.call, c.called_at, c.launch_date, c.read_on, c.planned_n, c.current_n, c.metric_ids, c.switch_key
+            FROM public.ab_card_lock c
+           WHERE (p_feature IS NULL OR c.feature ILIKE '%' || p_feature || '%')
+             AND (p_metric IS NULL OR p_metric = ANY (c.metric_ids))
+           ORDER BY c.launch_date DESC NULLS LAST, c.test_id
+           LIMIT 50) r
+$$;
+
+REVOKE ALL ON FUNCTION public.ab_ledger_upsert(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_ledger_upsert(jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.ab_ledger_call(text, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_ledger_call(text, text, text) TO service_role;
+REVOKE ALL ON FUNCTION public.ab_ledger_advance() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_ledger_advance() TO service_role;
+REVOKE ALL ON FUNCTION public.ab_ledger_past_tests(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ab_ledger_past_tests(text, text) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- Answer-key review queue (bot/database/migrations/qfix_keys_quiz_item_reviews.sql)
