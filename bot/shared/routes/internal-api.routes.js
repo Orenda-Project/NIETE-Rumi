@@ -1444,7 +1444,10 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   let hit;
   try {
     // bd-zrdvmi.70 — `download: true`: the app's Download PDF, a link that saves the plan on her phone.
-    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null, { reader, ...(body.download === true ? { download: true } : {}) });
+    // bd-m8zwt1.23.2 — `paper: true`: the app's Print, the plan's A4 copy.
+    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null, {
+      reader, ...(body.download === true ? { download: true } : {}), ...(body.paper === true ? { paper: true } : {}),
+    });
   } catch (error) {
     // Her ask ended in a failure we caused: recorded (switch on only), then the 500 she always got.
     if (!reader) await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
