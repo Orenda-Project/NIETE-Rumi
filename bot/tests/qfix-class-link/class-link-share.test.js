@@ -133,7 +133,7 @@ describe('the quiz home: page', () => {
       expect(top).toBeGreaterThan(0);
       expect(cl).toBeGreaterThan(top);
       expect(cl).toBeLessThan(on.html.indexOf('id="th-confirm"'));
-      expect(on.html).toContain(Share().STRINGS[lang]['th.cl.head']);
+      expect(on.html).toContain(require('../../shared/services/first-touch/teacher-home.strings').str('th.cl.head', lang));
       const script = /<script>([\s\S]*?)<\/script>/.exec(on.html)[1];
       expect(script).toContain("function cls(){");
       expect(script).toContain('top();cls();under();');
@@ -153,9 +153,13 @@ describe('the quiz home: page', () => {
     expect(one.html).not.toMatch(/th-cl/);
   });
 
-  test('every word exists in both languages', () => {
-    const { STRINGS } = Share();
-    expect(Object.keys(STRINGS.ur).sort()).toEqual(Object.keys(STRINGS.en).sort());
-    Object.values(STRINGS.ur).forEach((v) => expect(v).toMatch(/[؀-ۿ]/));
+  test('every word exists in both languages, from the catalog', () => {
+    const { str } = require('../../shared/services/first-touch/teacher-home.strings');
+    for (const id of ['th.cl.head', 'th.cl.sub', 'th.cl.send', 'th.cl.sent', 'th.cl.again']) {
+      expect(str(id, 'en')).toMatch(/[A-Za-z]/);
+      expect(str(id, 'ur')).toMatch(/[؀-ۿ]/);
+    }
+    expect(Share().labelOf(3, 'A', 'en')).toBe('Class 3 A');
+    expect(Share().labelOf(5, null, 'ur')).toBe('کلاس 5');
   });
 });

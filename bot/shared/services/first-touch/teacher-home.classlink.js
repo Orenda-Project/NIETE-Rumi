@@ -13,30 +13,16 @@
  *                          (the URL only, ?f=1); null when off, not a UUID, or not this teacher's class.
  *   swap(script)           the page script with the section's drawing (cls()) swapped in, under its own hash.
  *   section(lang)          the shell's section (hidden until the home's answer has classes).
- *   STRINGS                its words, en + ur (teacher-facing Urdu keeps Western digits, like the app card).
+ *   Words: th.cl.* in teacher-home.strings.js, from the catalog (ux-strings.js qfix_class_link_share_*).
  */
 const crypto = require('crypto');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const STRINGS = Object.freeze({
-  en: Object.freeze({
-    'th.cl.head': 'Share with your class',
-    'th.cl.sub': "Children play the class quiz at home from this link. Send it once to your class group.",
-    'th.cl.send': 'Send to class group',
-    'th.cl.sent': 'Class link sent',
-    'th.cl.again': 'Send again',
-  }),
-  ur: Object.freeze({
-    'th.cl.head': 'اپنی کلاس کے ساتھ شیئر کریں',
-    'th.cl.sub': 'بچے اس لنک سے گھر پر کلاس کوئز کھیلتے ہیں۔ اسے ایک بار کلاس گروپ میں بھیجیں۔',
-    'th.cl.send': 'کلاس گروپ میں بھیجیں',
-    'th.cl.sent': 'کلاس لنک بھیجا گیا',
-    'th.cl.again': 'دوبارہ بھیجیں',
-  }),
-});
-const words = (lang) => STRINGS[lang === 'ur' ? 'ur' : 'en'];
-const labelOf = (grade, section, lang) => `${lang === 'ur' ? 'کلاس' : 'Class'} ${grade}${section ? ` ${section}` : ''}`;
+const { resolveUx } = require('../../config/ux-strings');
+
+/** The class's one label, "Class 3 A" / «کلاس 3 A» (the catalog's frame; Western digits on the teacher's pages). */
+const labelOf = (grade, section, lang) => resolveUx('qfix_class_link_share_class', { language: lang, params: { grade, section: section ? ` ${section}` : '' } });
 
 const App = () => require('../quiz/web-quiz-class-link-app');
 const Flags = () => require('../quiz/web-quiz-class-link-flags');
@@ -73,14 +59,13 @@ function swap(base, swapped) {
   return SCRIPTS.get(base);
 }
 
-function section(lang, esc) {
-  const w = words(lang);
+function section(lang, esc, str) {
   return `
 <section class="th-card" id="th-cl" data-section="class_link" hidden>
-<h2>${esc(w['th.cl.head'])}</h2>
-<p class="th-note">${esc(w['th.cl.sub'])}</p>
+<h2>${esc(str('th.cl.head', lang))}</h2>
+<p class="th-note">${esc(str('th.cl.sub', lang))}</p>
 <ul class="th-rows" id="th-cl-rows"></ul>
 </section>`;
 }
 
-module.exports = { forHome, sendHref, swap, section, words, STRINGS, SWAPS };
+module.exports = { forHome, sendHref, swap, section, labelOf, SWAPS };

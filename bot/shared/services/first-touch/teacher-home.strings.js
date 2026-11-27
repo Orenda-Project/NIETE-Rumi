@@ -88,6 +88,10 @@ const REUSED = Object.freeze({
   'th.rp.head': ['ux', 'qfix_report_home_head'], 'th.rp.of': ['uxf', 'qfix_report_home_of'], 'th.rp.n': ['uxf', 'qfix_report_home_n'],
   'th.rp.late': ['uxf', 'qfix_report_home_late'], 'th.rp.pending': ['ux', 'qfix_report_home_pending'],
   'th.rp.rounds': ['ux', 'qfix_report_home_rounds'],
+  // "Share with your class" (web_quiz_class_link_share, bd-pdwwk4.6.20)
+  'th.cl.head': ['ux', 'qfix_class_link_share_head'], 'th.cl.sub': ['ux', 'qfix_class_link_share_sub'],
+  'th.cl.send': ['ux', 'qfix_class_link_share_send'], 'th.cl.sent': ['ux', 'qfix_class_link_share_sent'],
+  'th.cl.again': ['ux', 'qfix_class_link_share_again'],
 });
 const FRAME_SLOTS = Object.freeze({ played: '{played}', of: '{of}', late: '{late}' });
 const FROM = Object.freeze({

@@ -484,7 +484,9 @@ const ONE_IDS = Object.freeze(['th.one.say']);
 const FORWARD_IDS = Object.freeze(['th.share.more']);
 // the "Quiz reports" section's: the script fills the row words; its heading and rounds line are the shell's own
 const REPORT_IDS = Object.freeze(['th.rp.of', 'th.rp.n', 'th.rp.late', 'th.rp.pending']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', 'th.rp.head', 'th.rp.rounds', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS, ...REPORT_IDS].includes(id)));
+// "Share with your class" (bd-pdwwk4.6.20): only on a page that carries its section (teacher-home.classlink.js CL_IDS)
+const CL_IDS = Object.freeze(['th.cl.head', 'th.cl.sub', 'th.cl.send', 'th.cl.sent', 'th.cl.again']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', 'th.rp.head', 'th.rp.rounds', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS, ...REPORT_IDS, ...CL_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
@@ -526,7 +528,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   if (oneId) ONE_IDS.forEach((id) => { s[id] = str(id, l); });
   if (rp) REPORT_IDS.forEach((id) => { s[id] = str(id, l); });
-  if (cl) Object.assign(s, ClassLink.words(l));
+  if (cl) ['th.cl.sent', 'th.cl.send', 'th.cl.again'].forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
     ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${sessionId ? `&amp;session=${sessionId}` : lessonKey ? `&amp;lesson=${encodeURIComponent(lessonKey)}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
@@ -539,7 +541,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <main class="th" id="th-main" data-screen="${oneId ? 'teacher_home_one' : 'teacher_home'}" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
 <p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
-<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>${cl ? ClassLink.section(l, esc) : ''}
+<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>${cl ? ClassLink.section(l, esc, str) : ''}
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>${rp ? `
 <section id="th-rp" hidden>

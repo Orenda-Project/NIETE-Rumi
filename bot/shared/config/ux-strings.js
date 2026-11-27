@@ -4822,6 +4822,35 @@ const UX_STRINGS = {
     ur: 'آج شام کا کوئز',
   },
 
+  // ── "Share with your class" on the teacher's quiz home (bd-pdwwk4.6.20, app_settings web_quiz_class_link_share):
+  // each class's standing link with one tap to the class group. The words match the teacher app's class link card
+  // (portal classlink/copy.ts); teacher-facing Urdu keeps Western digits in the class label. ──
+  qfix_class_link_share_head: {
+    en: 'Share with your class',
+    ur: 'اپنی کلاس کے ساتھ شیئر کریں',
+  },
+  qfix_class_link_share_sub: {
+    en: 'Children play the class quiz at home from this link. Send it once to your class group.',
+    ur: 'بچے اس لنک سے گھر پر کلاس کوئز کھیلتے ہیں۔ اسے ایک بار کلاس گروپ میں بھیجیں۔',
+  },
+  qfix_class_link_share_send: {
+    en: 'Send to class group',
+    ur: 'کلاس گروپ میں بھیجیں',
+  },
+  qfix_class_link_share_sent: {
+    en: 'Class link sent',
+    ur: 'کلاس لنک بھیجا گیا',
+  },
+  qfix_class_link_share_again: {
+    en: 'Send again',
+    ur: 'دوبارہ بھیجیں',
+  },
+  // {grade} the class's grade number, {section} " A" or empty
+  qfix_class_link_share_class: {
+    en: 'Class {grade}{section}',
+    ur: 'کلاس {grade}{section}',
+  },
+
   // ── qfix report: children who finish after the 12 h report, on the teacher's own pages (bd-5j1zaf, app_settings
   // quiz_teacher_home_reports). The teacher home's "Quiz reports" section (its digits are the home's own: Urdu digits
   // on the Urdu page) and the live report page's quiz tab (Western digits, as the class report's other numbers). No
