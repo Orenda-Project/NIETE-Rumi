@@ -660,7 +660,7 @@ async function buildPaper(job, user = {}) {
       : isTopic ? (a) => require('./topics/topic-exam').writeTopicExam(a, Generation.generateExam)
         : Generation.generateExam;
     // Re-serving (bd-h8zy3q), behind the same setting as board papers: a donor's paper and oral part, or null.
-    const reuseKey = PaperReuse.plainReuseKey({ grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks, seenCount, seenTypes, scope, compact, curriculum });
+    const reuseKey = PaperReuse.plainReuseKey({ grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks, seenCount, seenTypes, scope, compact, curriculum, pages });
     // Not when she has earlier questions to avoid: the writer runs with that list, as with the setting off.
     const donor = (!avoid.length && await isFlagEnabled('assessment_paper_reuse_plain')) ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
     const [generated, oral] = donor ? [{ examJson: donor.examJson, questionCount: donor.questionCount, tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 } }, null] : await Promise.all([writeExam({

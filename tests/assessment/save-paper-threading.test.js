@@ -126,6 +126,25 @@ describe('the choice reaches the job, and only when ticked', () => {
   });
 });
 
+describe('page count (bd-nr8mrm.3, FEAT-209) rides the job only when it is a real 1-5', () => {
+  const base = {
+    userId: 'u1', surface: 'portal', grade: 1, subject: 'english', textbookId: 'b',
+    chapterNumber: 1, pageRanges: '4-14', questionCount: 5,
+    questionTypes: [{ id: 'MCQs', count: 5, category: 'objective' }],
+  };
+
+  it('pages 2 → job.pages 2, no new column on the row', async () => {
+    await Request.createAndQueue({ ...base, pages: 2 });
+    expect(job().pages).toBe(2);
+    expect(Object.keys(inserted).some((k) => /page_?count|^pages$/.test(k))).toBe(false);
+  });
+
+  it.each([[undefined], [null], [0], [6], ['two']])('pages %p → no pages key on the job', async (v) => {
+    await Request.createAndQueue({ ...base, pages: v });
+    expect(job()).not.toHaveProperty('pages');
+  });
+});
+
 describe('the paper keeps it through edits', () => {
   const EXAM = { _print: { compact: true }, unseen: { objective: { MCQs: [{ question: 'a', options: ['1', '2'], marks: 1 }, { question: 'b', options: ['1', '2'], marks: 1 }] } } };
 

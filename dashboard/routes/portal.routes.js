@@ -3629,6 +3629,9 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // door it came through (bd-pw1ccr.1). Absent the same way, so a plain request is unchanged.
       topicIds: body.topicIds ?? undefined,
       origin: body.origin ?? undefined,
+      // Save paper (bd-ipoxhx.5) and the page count (bd-nr8mrm.3, FEAT-209): absent the same way.
+      compact: body.compact === true ? true : undefined,
+      pageCount: body.pageCount ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {
