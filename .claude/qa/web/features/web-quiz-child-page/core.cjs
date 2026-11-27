@@ -5,7 +5,7 @@
 const L = require('./lib.cjs');
 const { expect, WAIT, CODES, TOPIC, text, inner, boot, onScreen, healthy, openQuiz, startAsNew, current, tapAndNext, play } = L;
 
-const modes = { WQ01: 'off', WQ02: 'off', WQ03: 'off', WQ04: 'off', WQ05: 'off' };
+const modes = { WQ01: 'off', WQ02: 'off', WQ03: 'off', WQ04: 'off', WQ05: 'off', WQ286: 'off' };
 
 const runs = {
   WQ01: async (page, ctx) => {
@@ -126,6 +126,41 @@ const runs = {
     expect(/This quiz has closed/.test(await r2.text()), 'the expired code does not show the closed page');
     healthy(w, 'closed page');
     return { status: r.status(), lang, h1, expired: r2.status() };
+  },
+
+  // bd-7rnfvn (q380): production phones resumed week-old sittings with an expired session pass; every answer came back
+  // 401 and the page said "waiting for the internet" for ever. The saved pass's expiry is moved into the past (the page
+  // reads only its payload's exp; the signature is the server's), as a phone that kept the place for 8 days holds it.
+  WQ286: async (page, ctx) => {
+    await L.setMode(ctx, page, 'off');
+    const b = await startAsNew(page, ctx, CODES.OPEN, 'Hina');
+    await play(page, b.quiz.questions, 3, -1);
+    await page.waitForSelector(onScreen('M6') + ' .wq-opt', { state: 'visible', timeout: WAIT });
+    const aged = await page.evaluate((code) => {
+      const k = 'wq_s_' + code; const s = JSON.parse(localStorage.getItem(k));
+      const [body, sig] = String(s.st).split('.');
+      const p = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')));
+      p.exp = Math.floor(Date.now() / 1000) - 86400;
+      s.st = btoa(JSON.stringify(p)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.' + sig;
+      s.queue = [{ qid: b0(s), slot: 'A', ms: 900, seq: 99 }];
+      function b0(x) { return Object.keys(x.answers || {})[0]; }
+      localStorage.setItem(k, JSON.stringify(s));
+      return Object.keys(s.answers).length;
+    }, CODES.OPEN);
+    expect(aged === 3, 'the phone held ' + aged + ' answers, not 3');
+    const sent = []; page.on('request', (r) => { if (/\/api\/wq\/answers$/.test(r.url())) sent.push(r.url()); });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const w = L.watch(page);
+    await page.waitForFunction(() => { const m = document.getElementById('wq').getAttribute('data-m'); return m && m !== 'M3-continue' && !/^boot/.test(m); }, null, { timeout: WAIT });
+    const m = await page.$eval('#wq', (e) => e.getAttribute('data-m'));
+    const cont = await page.$('#wq-cont');
+    expect(!cont, 'the page still offers "' + (cont ? await cont.innerText() : '') + '" on an expired sitting');
+    await page.waitForTimeout(1500);
+    expect(sent.length === 0, sent.length + ' answers call(s) went out under the expired pass');
+    const kept = await page.evaluate((code) => JSON.parse(localStorage.getItem('wq_s_' + code)).st, CODES.OPEN);
+    expect(kept === null, 'the expired pass is still saved on the phone');
+    healthy(w, 'expired sitting');
+    return { screen: m, answersCalls: sent.length };
   },
 };
 

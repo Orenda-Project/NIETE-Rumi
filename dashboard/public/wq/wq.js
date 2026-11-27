@@ -882,6 +882,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (!S.answers) S.answers = {};
   if (!S.queue) S.queue = [];
   function save() { sset(SKEY, S); }
+  // A saved sitting the server can no longer take (bd-7rnfvn): the session token lives 7 days (the bot's
+  // web-quiz-token.js SYNC_TTL_S). Its payload is readable JSON (only the server checks the signature), so the page
+  // reads its own expiry; a token it cannot read is left to the server. A dead sitting is dropped, never retried:
+  // every answer and the finish would be refused (401) while the page said "waiting for the internet".
+  function stDead(st) {
+    try {
+      var b = String(st).split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+      var p = JSON.parse(atob(b + '==='.slice((b.length + 3) % 4)));
+      return Boolean(p && p.exp && p.exp * 1000 < Date.now());
+    } catch (e) { return false; }
+  }
+  function dropSitting(why) {
+    ev('stale_sitting', { why: why, i: Object.keys(S.answers || {}).length, q: (S.queue || []).length, pend: S.pending ? 1 : 0 });
+    S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null };
+    save();
+  }
   function kids() { return sget('wq_kids', []) || []; }
   function rememberKid(c) {
     if (!c || !c.chip) return;
@@ -983,7 +999,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     if (flushP) return flushP.then(function () { return S.queue.length ? flushQueue() : null; });
     if (!S.st || !S.queue.length) return Promise.resolve();
-    var batch = S.queue.slice(0, 20);
+    var batch = S.queue.slice(0, 20), batchSt = S.st;
     var progressed = false;
     flushP = api('POST', 'answers', { st: S.st, a: batch, since: PULSE.since }).then(function (r) {
       if (r.ok) {
@@ -996,6 +1012,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         save();
       } else if (r.status === 401) {
         ev('error', { err: 'answers_401' });
+        // the server refuses this sitting's token for good: drop it and start the child afresh, never retry it
+        if (S.st === batchSt) { dropSitting('answers_401'); landing(); }
       }
     }, function () {}).then(function () {
       flushP = null;
@@ -2747,8 +2765,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var finishing = null;
   function finish() {
     if (finishing) return finishing;
+    var st0 = S.st;
     finishing = flushQueue().then(function () {
       if (S.queue.length) throw new Error('queue_pending');
+      // the sitting was dropped while its answers were sent (401): the page has already moved on
+      if (st0 && !S.st) { var d = new Error('sitting_dropped'); d.dead = true; throw d; }
       return api('POST', 'finish', { st: S.st });
     }).then(function (r) {
       if (!r.ok) { finishing = null; var e = new Error('finish_' + r.status); e.r = r; throw e; }
@@ -2839,6 +2860,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (foldOn(res) && classDoors(res)) warmBoard();
       on('#wq-more', moreVideos);
     }, function (e) {
+      if (e && e.dead) return;
       var tooFew = e && e.r && e.r.status === 409;
       if (!tooFew && offlineLike(e) && answeredCount() >= Math.ceil(N / 2)) return pendingResults(fixed);
       var h = bar() + jug('notyet', tooFew ? T.tooFew : T.offline) +
@@ -3842,6 +3864,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Where this link came from: the child reminder (its url carries ?from=push; the reminder funnel's "played", reminders c1), a
     // friend's challenge code, the class table a child shared, a child's shared card, else the teacher's own.
     via: params.from === 'push' ? 'push' : B.challenge || B.invited ? 'invite' : B.view === 'class' ? 'table' : params.a ? 'card' : 'direct' });
+  if (S.st && !S.result && stDead(S.st)) dropSitting('expired');
   if (S.queue.length) flushQueue();
   // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
   // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)

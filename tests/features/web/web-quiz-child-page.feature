@@ -2294,3 +2294,10 @@ Feature: Web child quiz page on the portal
     But any other ex, a locked hub, a teacher's preview or a hub with no child picked shows the hub as today
     And with the class link off, /j/<code>?ex=missing is exactly the page an unknown /q/ code shows
 
+  @WQ286
+  Scenario: A quiz reopened after its saved place has expired starts fresh instead of pretending to save
+    Given a child answered 3 of 5 questions and the phone kept the place
+    And the saved place's session pass is more than 7 days old
+    When the link is opened again
+    Then the page does not offer "Go on: question 4 of 5"
+    And the child is on the landing with no answers sent under the expired pass
