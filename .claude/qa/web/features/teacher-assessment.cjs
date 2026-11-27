@@ -224,5 +224,10 @@ const scenarios = [
   { id: 'TA21', title: 'The stem choice offers "NIETE Teaching Assistant chooses", never "Rumi chooses"', run: stemChipLabel },
   { id: 'TA22', title: 'Paper ready asks the teacher to check the answers before she uses them', run: checkAnswersNote },
 ];
+// TA03–TA17 and the @sandbox scenarios (bd-q8wt5e.6.5): hand-written flows, joined here as gen_page_features.py EXTRA does.
+scenarios.push(...require("../flows/teacher-assessment-fde.cjs"));
+scenarios.push(...require("../flows/teacher-assessment-questions.cjs"));
+scenarios.push(...require("../flows/teacher-assessment-papers.cjs"));
+scenarios.push(...require("../flows/teacher-assessment-sandbox.cjs"));
 
 module.exports = { feature: "teacher-assessment", spec: 'tests/features/web/teacher-assessment.feature', scenarios };
