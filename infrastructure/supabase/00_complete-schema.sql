@@ -10327,9 +10327,12 @@ CREATE TABLE IF NOT EXISTS quiz_teacher_edits (
   answered     boolean     NOT NULL DEFAULT false,                     -- a child had answered the quiz when it was saved
   created_at   timestamptz NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE public.quiz_teacher_edits IS 'Teacher edits to their own quiz from the quiz page: one row per changed field, before and after. Owner quiz team; steward the NIETE bot team. Service role only. No names or phones.';
+COMMENT ON TABLE public.quiz_teacher_edits IS 'Teacher edits to their own quiz from the quiz page: one row per changed field, before and after. Owner quiz team; steward the NIETE bot team. Written by service_role only; read by service_role and analyst (read-only analysis); no client roles. No names or phones.';
 CREATE INDEX IF NOT EXISTS qte_quiz_idx ON public.quiz_teacher_edits (quiz_id, edit_v);
 ALTER TABLE public.quiz_teacher_edits ENABLE ROW LEVEL SECURITY;   -- no policy: service role only
+-- A tier whose default privileges grant new tables to client roles (staging grants anon arwdDxtm; TRUNCATE ignores RLS)
+-- keeps none of them here.
+REVOKE ALL ON TABLE public.quiz_teacher_edits FROM PUBLIC, anon, authenticated;
 
 -- A row's words as the children read them: the row's edited columns without the key and the feedback that names it
 -- (correct_option, explanation, misconception_feedback, distractor_misconceptions, option_feedback; in media.web:
