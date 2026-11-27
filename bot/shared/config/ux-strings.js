@@ -5009,6 +5009,29 @@ const UX_STRINGS = {
     en: 'We do not make quizzes for this subject yet. You can make one for another lesson on WhatsApp: send /quiz.',
     ur: 'اس مضمون کے کوئز ابھی نہیں بنتے۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
+  // a model or provider fault on a page-made quiz: the same make once more, at most twice (bd-pdwwk4.2.8)
+  qfix_offers_cq_failed_retry: {
+    en: 'We could not make it just now. Try again in a few minutes.',
+    ur: 'یہ کوئز ابھی نہیں بن سکا۔ چند منٹ بعد دوبارہ کوشش کریں۔',
+  },
+  qfix_offers_cq_retry: {
+    en: 'Try again',
+    ur: 'دوبارہ کوشش کریں',
+  },
+  // after the second retry also failed: what happened, and no promise of another way
+  qfix_offers_cq_failed_capped: {
+    en: 'We tried a few times and could not make a quiz from this lesson.',
+    ur: 'ہم نے کئی بار کوشش کی، مگر اس سبق سے کوئز نہیں بن سکا۔',
+  },
+  // a made quiz whose children's code no longer opens: no Copy, Send or Try (A178 n5)
+  qfix_offers_cq_closed: {
+    en: 'This quiz is now closed to children. Its questions are below.',
+    ur: 'یہ کوئز اب بچوں کے لیے بند ہے۔ اس کے سوالات نیچے ہیں۔',
+  },
+  qfix_offers_cq_closed_new: {
+    en: 'To make a new quiz, send /quiz to us.',
+    ur: 'نیا کوئز بنانے کے لیے ہمیں ⁦/quiz⁩ بھیجیں۔',
+  },
   // The teacher edits the quiz in the page (the bot's quiz edit routes, /api/internal/wqedit). One line per outcome.
   qfix_offers_cq_edit: {
     en: 'Edit',
