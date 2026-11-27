@@ -1,2 +1,3 @@
 {"ts":"2026-11-27T09:27:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"f5191afb360d","branch":"bd-zrdvmi.84.1-main","user":""}
 {"ts":"2026-11-27T09:27:08Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"f5191afb360d","branch":"bd-zrdvmi.84.1-main","user":""}
+{"ts":"2026-11-27T09:27:10Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py data_writes.py tenants_lite.py check-scenario-coverage.py","sha":"f5191afb360d","branch":"bd-zrdvmi.84.1-main","user":""}
