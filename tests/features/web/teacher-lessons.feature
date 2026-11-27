@@ -505,6 +505,16 @@ Feature: Teacher lesson plans
     Then the plan opens with her goal at the top and teaches subtraction
     And she does not see "We could not make a plan we are sure of for this goal."
 
+  # bd-snkn32.58.17 (queue #381, staging 27 Nov): a plan for a class with no board said so ("بورڈ دستیاب نہیں") and the
+  # board gate read that as a board use. Pinned by tests/lp612/own-board-negation.test.js.
+  @GOAL20 @draft @config-gated
+  Scenario: A Grade 4 Urdu goal plan that says the board is not there is not refused for using a board
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    And she has not ticked Board in her resources
+    When she makes a plan from the Grade 4 Urdu goal about hard everyday words
+    Then the plan opens with her goal at the top
+    And she does not see "لیسن پلان بار بار بورڈ استعمال کرتا رہا۔"
+
   # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
   @GOAL14 @draft @config-gated
   Scenario: Make my own's check screen names the subject, not its key
