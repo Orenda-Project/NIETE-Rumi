@@ -152,35 +152,28 @@ describe("Mid / High — the programmes, under NIETE's short names", () => {
       `Game-Based Teaching (GBTLA)${p.oxbridge.passed} passed · ${p.oxbridge.inProgress} in progress`,
       "NIETE TrainingsSkilled Practitioner & Teacher Leader",
       `AI-Powered Subject Pedagogy${p.beaconhouse.passed} passed · ${p.beaconhouse.inProgress} in progress`,
-      `Teacher Development Programme${p.isaps.passed} passed · ${p.isaps.inProgress} in progress`,
+      `Teacher Development Programme${p.isaps.levels.map((l) => `${l.name.split(":")[0]} ${l.passed} passed · ${l.inProgress} in progress`).join(" · ")}`,
     ]);
     for (const id of ["oxbridge", "niete", "beaconhouse", "isaps"]) expect(screen.getByTestId(`partner-${id}`)).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("Teacher Development Programme (I-SAPS): its card, the modules chart, the table ending with Completed all; the full NIETE name under What is this?", async () => {
+  it("Teacher Development Programme (I-SAPS): one card per level, Level 1, 2 and 3, no overall status", async () => {
     await midHigh();
-    // exactly one Teacher Development (I-SAPS) button, panel and card: #3065's card, now on the v8 rule — no second one
     expect(screen.getAllByTestId("partner-isaps")).toHaveLength(1);
     await userEvent.setup().click(screen.getByTestId("partner-isaps"));
     expect(screen.getAllByTestId("partner-panel-isaps")).toHaveLength(1);
-    expect(screen.getAllByTestId("partner-card-isaps")).toHaveLength(1);
+    expect(screen.queryByTestId("partner-card-isaps")).toBeNull();
     expect(screen.queryByText(/I-SAPS Training/)).toBeNull();
     const panel = screen.getByTestId("partner-panel-isaps");
     const is = mh().overview.partners!.isaps;
-    const card = within(panel).getByTestId("partner-card-isaps");
-    expect(within(card).getByTestId("level-name")).toHaveTextContent("Teacher Development Programme");
-    expect(within(card).getByTestId("count-passed")).toHaveTextContent(String(is.passed));
-    expect(within(card).getByTestId("count-inProgress")).toHaveTextContent(String(is.inProgress));
-    expect(within(panel).getByTestId("chart-isaps")).toBeInTheDocument();
-    const rows = within(panel).getAllByTestId("row-isaps");
-    expect(rows).toHaveLength(10);
-    expect(rows[0]).toHaveTextContent(`MODULE#1${is.modules[0].middle}${is.modules[0].high}${is.modules[0].total}`);
-    expect(rows[9]).toHaveTextContent(`Completed all${is.completedAll.middle}${is.completedAll.high}${is.completedAll.total}`);
-    expect(within(panel).getByRole("columnheader", { name: "Module" })).toBeInTheDocument();
-    await userEvent.setup().click(within(card).getByTestId("level-what"));
-    expect(within(card).getByTestId("level-definition")).toHaveTextContent("not part of “passed all levels”");
-    expect(within(card).getByTestId("definition-title")).toHaveTextContent("NIETE: Teacher Development Programme, 9-12 · delivered by I-SAPS");
-    expect(within(card).getByTestId("count-notStarted")).toHaveTextContent(String(is.notStarted));
+    expect(is.levels.map((l) => l.name)).toEqual(["Level 1: Novice", "Level 2: Intermediate", "Level 3: Advanced"]);
+    for (const l of is.levels) {
+      const card = within(panel).getByTestId(`partner-card-isaps-${l.levelOrder + 1}`);
+      expect(within(card).getByTestId("level-name")).toHaveTextContent(l.name);
+      expect(within(card).getByTestId("count-passed")).toHaveTextContent(String(l.passed));
+      expect(within(card).getByTestId("count-inProgress")).toHaveTextContent(String(l.inProgress));
+    }
+    expect(within(panel).queryByTestId("chart-isaps")).toBeNull();
   });
 
   it("Game-Based Teaching (GBTLA, Oxbridge): its card, the sessions chart, the table ending with Completed all; the full NIETE name", async () => {
@@ -247,20 +240,23 @@ describe("Mid / High — the programmes, under NIETE's short names", () => {
     await midHigh();
     const chart = screen.getByTestId("chart-trainingLevels");
     expect(within(chart).getAllByTestId("legend-item").map((i) => i.textContent)).toEqual([
-      "(NIETE) Skilled Practitioner", "(NIETE) Teacher Leader", "Game-Based Teaching (GBTLA)", "AI-Powered Subject Pedagogy", "Teacher Development Programme",
+      "(NIETE) Skilled Practitioner", "(NIETE) Teacher Leader", "Game-Based Teaching (GBTLA)", "AI-Powered Subject Pedagogy",
+      "Teacher Development Programme Level 1", "Teacher Development Programme Level 2", "Teacher Development Programme Level 3",
     ]);
     const r = mh().regions.find((x) => x.region === "Urban-I")!;
     expect(within(chart).getByTestId("bar-Urban-I-oxbridge").getAttribute("title")).toContain(`(${r.partners!.oxbridge.passed} of ${r.teachers} teachers)`);
-    // the Teacher Development Programme counts the teachers assigned it, not every middle/high teacher
+    // the Teacher Development Programme counts the HIGH teachers, one bar per level
     expect(r.partners!.isaps.teachers).not.toBe(r.teachers);
-    expect(within(chart).getByTestId("bar-Urban-I-isaps").getAttribute("title")).toContain(`(${r.partners!.isaps.passed} of ${r.partners!.isaps.teachers} teachers)`);
+    expect(within(chart).getByTestId("bar-Urban-I-isaps:2").getAttribute("title")).toContain(`(${r.partners!.isaps.levels[2].passed} of ${r.partners!.isaps.levels[2].teachers} teachers)`);
     const card = screen.getByTestId("sector-card-Urban-I");
     expect(within(card).getAllByTestId(/^sector-level-/).map((x) => x.textContent)).toEqual([
       `(NIETE) Skilled Practitioner${r.levels[0].passed} passed`,
       `(NIETE) Teacher Leader${r.levels[1].passed} passed`,
       `Game-Based Teaching (GBTLA)${r.partners!.oxbridge.passed} passed`,
       `AI-Powered Subject Pedagogy${r.partners!.beaconhouse.passed} passed`,
-      `Teacher Development Programme${r.partners!.isaps.passed} passed`,
+      `Teacher Development Programme Level 1${r.partners!.isaps.levels[0].passed} passed`,
+      `Teacher Development Programme Level 2${r.partners!.isaps.levels[1].passed} passed`,
+      `Teacher Development Programme Level 3${r.partners!.isaps.levels[2].passed} passed`,
     ]);
     expect(card).toHaveTextContent(`of ${r.teachers} teachers have passed all levels`);
     expect(within(card).getByTestId("passed-all")).toHaveTextContent(String(r.passedAll));
