@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T12:13:50Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"26d8bc84c522","branch":"bd-pdwwk4.3.2-81074","user":"Haroon Yasin"}
+{"ts":"2026-11-27T12:13:53Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"26d8bc84c522","branch":"bd-pdwwk4.3.2-81074","user":"Haroon Yasin"}
