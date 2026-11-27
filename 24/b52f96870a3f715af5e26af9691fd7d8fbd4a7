@@ -1,2 +1,3 @@
 {"ts":"2026-11-27T11:59:13Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"24b52f96870a","branch":"bd-7rnfvn-main-x","user":""}
 {"ts":"2026-11-27T11:59:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"24b52f96870a","branch":"bd-7rnfvn-main-x","user":""}
+{"ts":"2026-11-27T11:59:53Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py data_writes.py tenants_lite.py check-scenario-coverage.py","sha":"24b52f96870a","branch":"bd-7rnfvn-main-x","user":""}
