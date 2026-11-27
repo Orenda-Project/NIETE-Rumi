@@ -348,7 +348,7 @@ const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
  * features.recordingResume. Coaches and principals have it on by default, unswitched.
  */
 const PORTAL_RECORDING_RESUME_KEY = 'portal_recording_resume';
-/** bd-nr8mrm (FEAT-209) — fit a paper to the pages she asked for; one app-wide row, read by the bot's build and /config. */
+/** bd-nr8mrm — fit a paper to the pages she asked for; one app-wide row, read by the bot's build and /config. */
 const ASSESSMENT_PAGE_FIT_KEY = 'assessment_page_fit';
 
 /**

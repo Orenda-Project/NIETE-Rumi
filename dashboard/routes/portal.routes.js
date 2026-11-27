@@ -3631,7 +3631,7 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // door it came through (bd-pw1ccr.1). Absent the same way, so a plain request is unchanged.
       topicIds: body.topicIds ?? undefined,
       origin: body.origin ?? undefined,
-      // Save paper (bd-ipoxhx.5) and the page count (bd-nr8mrm.3, FEAT-209): absent the same way.
+      // Save paper (bd-ipoxhx.5) and the page count (bd-nr8mrm.3): absent the same way.
       compact: body.compact === true ? true : undefined,
       pageCount: body.pageCount ?? undefined,
     });
@@ -9766,7 +9766,7 @@ router.get('/config', async (req, res) => {
       // (Resume / Stop). Fail-closed: no row, false or a failed read = off; true = every teacher; a users.id list = those;
       // "teachers" = every teacher. Coaches' and principals' observation and debrief have it on by default (no switch).
       isFlagEnabledForUser(supabase, PORTAL_RECORDING_RESUME_KEY, userId),
-      // bd-nr8mrm.4 (FEAT-209) — the Pages box on a new paper; the same app-wide switch the bot's build reads.
+      // bd-nr8mrm.4 — the Pages box on a new paper; the same app-wide switch the bot's build reads.
       isFlagEnabled(supabase, ASSESSMENT_PAGE_FIT_KEY),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and

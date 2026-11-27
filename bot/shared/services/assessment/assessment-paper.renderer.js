@@ -354,7 +354,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  // FEAT-209 (bd-nr8mrm): the fit step stored on the paper, so a re-print lays out the same.
+  // bd-nr8mrm: the fit step stored on the paper, so a re-print lays out the same.
   const fit = examJson?._print?.fit || null;
   const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson), rtl,
     trimLines: fit?.trimLines === true };

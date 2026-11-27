@@ -2340,7 +2340,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     answerLines: body.answerLines !== false,
     // bd-ipoxhx.5 — Save paper; only a tick sends it, so every other request is unchanged.
     ...(body.compact === true ? { compact: true } : {}),
-    // bd-nr8mrm.3 (FEAT-209): the pages she wants it to fit; only a real 1-5 is sent.
+    // bd-nr8mrm.3: the pages she wants it to fit; only a real 1-5 is sent.
     ...(PageFit.pageTarget(body.pageCount) ? { pages: PageFit.pageTarget(body.pageCount) } : {}),
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),

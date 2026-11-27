@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Fit a paper to the pages a school allows (bd-nr8mrm, Notion FEAT-209, Ramisha Riaz).
+ * Fit a paper to the pages a school allows (bd-nr8mrm).
  *
  * The teacher asks for 1–5 pages. We print the paper, count the real pages, and tighten it one step
  * at a time until it fits. Every step keeps every question and a readable type size. When even the

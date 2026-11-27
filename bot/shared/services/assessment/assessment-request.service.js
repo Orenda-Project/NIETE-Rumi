@@ -85,7 +85,7 @@ async function createAndQueue(spec) {
     answerLines = true,
     // "Save paper" (bd-ipoxhx.5): a tighter A4 page. Job payload only, like totalMarks.
     compact = false,
-    // The page count she wants the paper to fit (bd-nr8mrm, FEAT-209). Job payload only, only a real 1-5.
+    // The page count she wants the paper to fit (bd-nr8mrm). Job payload only, only a real 1-5.
     pages = null,
     outputFormat = 'pdf',
     // A board-pattern paper: the pattern id and where its pages came from

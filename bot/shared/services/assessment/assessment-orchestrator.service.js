@@ -602,7 +602,7 @@ async function buildPaper(job, user = {}) {
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null, seenTypes = null,
     seenPicked = null, // AG row 21: the book questions she ticked; new jobs only
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
-    pages = null, // FEAT-209 (bd-nr8mrm): the page count she asked for, 1-5; fitted only behind assessment_page_fit
+    pages = null, // bd-nr8mrm: the page count she asked for, 1-5; fitted only behind assessment_page_fit
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -710,7 +710,7 @@ async function buildPaper(job, user = {}) {
     });
 
     const renderer = rendererFor(outputFormat);
-    // FEAT-209: a page target on a PDF is printed, counted and tightened until it fits (page-fit.js).
+    // a page target on a PDF is printed, counted and tightened until it fits (page-fit.js).
     const target = renderer.ext === 'pdf' ? Fit.pageTarget(pages) : null;
     const fitting = target !== null && await isFlagEnabled('assessment_page_fit');
     let buffer;
@@ -731,7 +731,7 @@ async function buildPaper(job, user = {}) {
         generated.examJson._print = { ...generated.examJson._print, pages: target };
         buffer = out.buffer;
         pageFit = { target, pages: out.pages, fits: out.fits, needs: out.needs };
-        logToFile('[assessment] page fit', { userId, requestId, paperId, ...pageFit, step: out.step });
+        logToFile('[assessment] page fit', { requestId, paperId, ...pageFit, step: out.step });
       } else {
         buffer = await renderer.render(htmlNow());
       }
