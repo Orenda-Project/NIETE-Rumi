@@ -9996,6 +9996,9 @@ CREATE TABLE IF NOT EXISTS public.ab_card_lock (
   current_n   INTEGER NOT NULL DEFAULT 0 CHECK (current_n >= 0),
   call        TEXT CHECK (call IS NULL OR call ~ '^[a-z_]{1,40}$'),
   called_at   TIMESTAMPTZ,
+  switch_state TEXT CHECK (switch_state IS NULL OR switch_state IN ('pending', 'flipped')),
+  switch_sql  TEXT CHECK (switch_sql IS NULL OR length(switch_sql) BETWEEN 1 AND 1000),
+  switched_at TIMESTAMPTZ,
   first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()

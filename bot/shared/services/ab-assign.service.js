@@ -81,7 +81,43 @@ function assignArm(test, opts = {}) {
     logOnce(log, test.flagKey, entry ? 'the salt is not this test\'s' : 'no registry entry for this flag');
     return test.controlArm;
   }
+  const sw = test.switch;
+  if (sw && typeof sw === 'object' && typeof sw.winner === 'string'
+      && Object.prototype.hasOwnProperty.call(test.sharesBp, sw.winner)) return sw.winner;
   return armFor(test.salt, test.unitId, test.sharesBp);
 }
 
-module.exports = { bucket, armFor, readRegistry, assignArm, _resetCache: () => cache.clear() };
+// The switch (bd-9nb6s0.6): once the ledger concludes a test, V1.10.13 writes {winner, test_id} under the flag's key.
+// test.switch = that value serves the winner to every unit of a registered test; any other value leaves the split.
+const switches = new Map();
+const SWITCH_TTL_MS = 60000;
+
+async function defaultReader(key) {
+  const { data, error } = await require('../config/supabase')
+    .from('app_settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? data.value : null;
+}
+
+// The flag's switch value, read at most once per ttl per key. Any failure reads as null (no switch).
+async function readSwitch(flagKey, { reader = defaultReader, ttlMs = SWITCH_TTL_MS, now = Date.now } = {}) {
+  const hit = switches.get(flagKey);
+  if (hit && now() - hit.at <= ttlMs) return hit.value;
+  let value = null;
+  try {
+    value = (await reader(flagKey)) ?? null;
+  } catch (e) {
+    value = null;
+  }
+  switches.set(flagKey, { value, at: now() });
+  return value;
+}
+
+async function assignArmLive(test, opts = {}) {
+  return assignArm({ ...test, switch: await readSwitch(test.flagKey, opts) }, opts);
+}
+
+module.exports = {
+  bucket, armFor, readRegistry, assignArm, readSwitch, assignArmLive,
+  _resetCache: () => { cache.clear(); switches.clear(); },
+};
