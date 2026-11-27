@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T10:33:59Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"66d24ba38e14","branch":"bd-l30sfz-fixedset-main","user":""}
+{"ts":"2026-11-27T10:34:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"66d24ba38e14","branch":"bd-l30sfz-fixedset-main","user":""}
+{"ts":"2026-11-27T10:35:12Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (66d24ba is the pre-amend copy of 1433bc7, on no branch; board-paper serving behind an off-by-default setting, no training change)","sha":"66d24ba38e14","branch":"bd-l30sfz-fixedset-main","user":""}
