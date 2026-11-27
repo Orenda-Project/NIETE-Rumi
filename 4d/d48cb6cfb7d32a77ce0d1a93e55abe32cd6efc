@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T10:49:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"4dd48cb6cfb7","branch":"bd-7rnfvn-main","user":""}
 {"ts":"2026-11-27T10:49:09Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,web-quiz-child-page spec_sync=true","sha":"4dd48cb6cfb7","branch":"bd-7rnfvn-main","user":""}
 {"ts":"2026-11-27T10:49:22Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (bot change is only the G1 challenge draw log row keeping its period; no Teacher Training change)","sha":"4dd48cb6cfb7","branch":"bd-7rnfvn-main","user":""}
+{"ts":"2026-11-27T10:49:23Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"web-quiz-child-page=none-needed (no further sync: commit 4dd48cb adds WQ286 for this change itself; validated OK)","sha":"4dd48cb6cfb7","branch":"bd-7rnfvn-main","user":""}
