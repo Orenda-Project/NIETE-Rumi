@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T10:48:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"19bc6402d9da","branch":"bd-7rnfvn-main","user":""}
+{"ts":"2026-11-27T10:48:47Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"19bc6402d9da","branch":"bd-7rnfvn-main","user":""}
+{"ts":"2026-11-27T10:54:16Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training,web-quiz-child-page=none-needed (superseded: 19bc640 is 4dd48cb before its message was amended, identical tree, on no branch; 4dd48cb carries WQ286 and a Spec-Sync trailer)","sha":"19bc6402d9da","branch":"bd-7rnfvn-main","user":""}
