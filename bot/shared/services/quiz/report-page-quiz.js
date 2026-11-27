@@ -135,6 +135,12 @@ async function quizOf(d, sessionId) {
   return data || null;
 }
 
+// A model or provider fault: making it again can come out differently (the set /quiz remakes, quiz-sources.js), so
+// the page offers "Try again", at most MAX_PAGE_RETRIES times per quiz. A lesson-side cause keeps the /quiz line.
+const RETRY_REASONS = new Set(['model_failed', 'validator_failed', 'key_conflict', 'key_disagreement', 'queue_failed', 'generate_failed']);
+const MAX_PAGE_RETRIES = 2;
+const failureReasonOf = (meta) => require('./quiz-sources').failureReasonOf(meta); // eslint-disable-line global-require
+
 const isHeld = (q) => Boolean(q && q.status === 'skipped' && q.meta && q.meta.skip_reason === HELD_REASON);
 const byPage = (q) => Boolean(q && q.meta && q.meta.made_via === 'page');
 
@@ -148,6 +154,19 @@ async function questionsOf(d, quizId) {
     options: ['a', 'b', 'c', 'd'].filter((k) => typeof r[`option_${k}`] === 'string' && r[`option_${k}`].trim())
       .map((k) => ({ key: k.toUpperCase(), text: r[`option_${k}`], correct: String(r.correct_option || '').toUpperCase() === k.toUpperCase() })),
   }));
+}
+
+/** True when the children's code no longer opens (switched off or past its expiry). A failed read = open, as today. */
+async function codeClosed(d, shareCodeId) {
+  if (!shareCodeId) return false;
+  try {
+    const { data, error } = await d.db().from('quiz_share_codes').select('active, expires_at').eq('id', shareCodeId).maybeSingle();
+    if (error || !data) return false;
+    const expiry = Date.parse(data.expires_at || '');
+    return data.active === false || (Number.isFinite(expiry) && expiry < d.now());
+  } catch (_) {
+    return false;
+  }
 }
 
 /**
@@ -176,10 +195,14 @@ async function stateOf(d, q) {
     return {
       state: 'ready', page, quizId: q.id, message: meta.student_message, topic: q.topic || null, language: q.language || null,
       questions: await questionsOf(d, q.id), pdf: Boolean(meta.pdf_key), preview: preview || null,
+      ...(await codeClosed(d, meta.share_code_id) ? { closed: true } : {}),
     };
   }
   if (page && (q.status === 'failed' || q.status === 'skipped')) {
-    return { state: 'failed', page, reason: meta.skip_reason || meta.error || 'generate_failed' };
+    const reason = q.status === 'failed' ? failureReasonOf(meta) : (meta.skip_reason || 'generate_failed');
+    if (!RETRY_REASONS.has(reason)) return { state: 'failed', page, reason };
+    return (Number(meta.page_remakes) || 0) < MAX_PAGE_RETRIES
+      ? { state: 'failed', page, reason, retry: true } : { state: 'failed', page, reason, capped: true };
   }
   return { state: 'none', page };
 }
@@ -206,6 +229,7 @@ async function makeFromPage({ sessionId, userId, surface }, deps = {}) {
   }
   const q = await quizOf(d, sessionId);
   const before = await stateOf(d, q);
+  if (before.state === 'failed' && before.retry) return retryFromPage(d, { q, session, sessionId, userId, where, reason: before.reason });
   if (before.state !== 'held') return before;
   const tapAt = new Date(d.now()).toISOString();
   if (isHeld(q)) {
@@ -217,6 +241,28 @@ async function makeFromPage({ sessionId, userId, surface }, deps = {}) {
     coachingSessionId: sessionId, userId, phone, accepted: true, page: true, tapAt, surface: where, source: 'offer',
   }, { delaySeconds: 0 });
   safeLog(d, 'transcript_quiz.page_make_tap', { coachingSessionId: sessionId, quizId: q ? q.id : null, surface: where });
+  return { state: 'making', page: true };
+}
+
+/**
+ * "Try again" after a model fault: the row goes back to held, marked as tapped, in one conditional write (a double tap
+ * moves it once), and the offer job is queued with the retry's count, which the offer carries onto the revived row.
+ */
+async function retryFromPage(d, { q, session, sessionId, userId, where, reason }) {
+  const meta = q.meta || {};
+  const remakes = (Number(meta.page_remakes) || 0) + 1;
+  const tapAt = new Date(d.now()).toISOString();
+  const { data: moved } = await d.db().from('quizzes').update({
+    status: 'skipped',
+    meta: { step: 'skipped', skip_reason: HELD_REASON, held_path: meta.held_path || null, made_via: 'page',
+      page_make_at: tapAt, page_surface: where, page_remakes: remakes, page_last_failure: reason },
+  }).eq('id', q.id).eq('status', q.status).select('id');
+  if (!moved || !moved.length) return stateOf(d, await quizOf(d, sessionId));
+  const phone = String((session.users && session.users.phone_number) || '').replace(/\D/g, '');
+  await d.queueJob(sessionId, 'quiz_offer', {
+    coachingSessionId: sessionId, userId, phone, accepted: true, page: true, tapAt, surface: where, source: 'offer', remakes,
+  }, { delaySeconds: 0 });
+  safeLog(d, 'transcript_quiz.page_make_tap', { coachingSessionId: sessionId, quizId: q.id, surface: where, retry: true, remakes });
   return { state: 'making', page: true };
 }
 

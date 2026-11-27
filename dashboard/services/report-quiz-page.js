@@ -11,7 +11,9 @@
  *   ask      the language, as two buttons (/cq/:token/lang)
  *   ready    the message for the class with Copy and "Send to your class on WhatsApp" in a bar that stays on screen,
  *            the questions with the key marked, Download PDF, Try it as a student
- *   failed   what happened, in the page's words, and the /quiz door
+ *   failed   what happened, in the page's words: a model fault offers Try again (the same make, at most twice);
+ *            a lesson cause, or the third failure, says so, the lesson cause with the /quiz door
+ *   closed   (ready, but the children's code no longer opens) says so: the questions and PDF, no Copy, Send or Try
  *   none     the /quiz door (the /cq page only; /cr shows nothing)
  * Taps the server does not see (copy, share, opening the questions, a make that takes too long) are sent to
  * /cq/:token/e as one beacon each. Pure HTML; every value escaped.
@@ -38,8 +40,12 @@ const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:
   // the edit form: every field and button a 48 px target
   + '.qedit summary{min-height:48px;padding:12px 0;cursor:pointer;color:var(--s3);font-weight:600}'
   + '.qform label,.qform legend{display:block;font-weight:600;margin:6px 0}.qform fieldset{border:0;padding:0;margin:0 0 8px}'
-  + '.qform textarea,.qform input[type=text]{width:100%;min-height:48px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}'
-  + '.qeopt{display:flex;gap:10px;align-items:center;min-height:48px;margin:0 0 6px}.qeopt input[type=radio]{width:24px;height:24px;flex:0 0 24px;margin:12px}'
+  + '.qform textarea{width:100%;min-height:48px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}'
+  + '.qeopt{display:flex;gap:10px;align-items:center;min-height:48px;margin:0 0 6px;cursor:pointer;font-weight:400}'
+  + '.qeopt input[type=radio],.qeopt input[type=checkbox]{width:24px;height:24px;flex:0 0 24px;margin:12px}'
+  + '.qform .qopttext{flex:1 1 auto;min-width:0;resize:none;overflow:hidden;field-sizing:content}'
+  // an Urdu quiz on an English page: its own words in Nastaliq
+  + '.qz [lang="ur"]{font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",system-ui,sans-serif;line-height:2.1}'
   + '.qsay{font-weight:600}</style>';
 
 const BEACON_EVENTS = Object.freeze(['copy', 'share', 'view_questions', 'make_timeout']);
@@ -63,6 +69,8 @@ function script(base, surface, state) {
     + "try{if(document.execCommand('copy')){done(true);return}}catch(_){}var h=document.getElementById('qmanual');if(h)h.hidden=false;ev('copy',{fallback:true,manual:true})}"
     + 'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(m.value).then(function(){done(false)},hand)}else{hand()}});'
     + "var sh=document.querySelector('[data-share]');if(sh)sh.addEventListener('click',function(){ev('share')});"
+    + "[].forEach.call(document.querySelectorAll('textarea.qopttext'),function(t){function fit(){t.style.height='auto';t.style.height=t.scrollHeight+'px'}"
+    + "t.addEventListener('input',fit);t.addEventListener('keydown',function(e){if(e.key==='Enter')e.preventDefault()});fit()});"
     + "var q=document.querySelector('details.qq');if(q){var seen=false;q.addEventListener('toggle',function(){if(q.open&&!seen){seen=true;ev('view_questions')}})}"
     + '})();</script>';
 }
@@ -86,9 +94,10 @@ function editForms(item, edit, { base, hidden, ux }) {
     // one right answer: a radio; "pick all that apply": checkboxes
     const radio = `<input type="${item.multi ? 'checkbox' : 'radio'}" name="key" value="${esc(o.slot)}"${keys.includes(o.slot) ? ' checked' : ''}${ed.key === false ? ' disabled' : ''} aria-label="${esc(o.picture ? o.slot : o.text)}">`;
     const field = wording && ed.options !== false && !o.picture
-      ? `<input type="text" name="opt_${esc(o.slot)}" value="${esc(o.text)}" dir="auto">`
+      ? `<textarea name="opt_${esc(o.slot)}" rows="1" dir="auto" class="qopttext">${esc(o.text)}</textarea>`
       : `<span dir="auto">${o.picture ? '🖼' : esc(o.text)}</span>`;
-    return `<div class="qeopt">${radio}${field}</div>`;
+    // the whole row is the radio's 48-px target
+    return `<label class="qeopt">${radio}${field}</label>`;
   }).join('');
   const save = `<form method="post" action="${esc(base)}/edit" class="qform">${ids}<input type="hidden" name="do" value="save">${text}`
     + `<fieldset><legend>${ux('qfix_offers_cq_edit_answers')}</legend>${opts}</fieldset>`
@@ -110,7 +119,7 @@ function fromEdit(edit) {
   });
 }
 
-function questionsList(questions, l, ux, { edit = null, base, hidden, open = false } = {}) {
+function questionsList(questions, l, ux, { edit = null, base, hidden, open = false, langAttr = '' } = {}) {
   const items = questions.map((q, i) => {
     const opts = (q.options || []).map((o) => (o.correct
       ? `<li class="qopt ok"><span dir="auto">${esc(o.text)}</span> <strong>✓ ${ux('qfix_offers_cq_correct')}</strong></li>`
@@ -121,7 +130,7 @@ function questionsList(questions, l, ux, { edit = null, base, hidden, open = fal
   }).join('');
   const n = esc(resolveUx('qfix_offers_cq_questions', { language: l, params: { n: digitsFor(questions.length, l) } }));
   const locked = edit && edit.locked ? `<p class="qnote">${ux('qfix_offers_cq_locked')}</p>` : '';
-  return `<details class="qq"${open ? ' open' : ''}><summary>${n}</summary>${locked}<ol class="qlist">${items}</ol></details>`;
+  return `<details class="qq"${langAttr}${open ? ' open' : ''}><summary>${n}</summary>${locked}<ol class="qlist">${items}</ol></details>`;
 }
 
 // The line a save, a refusal or a PDF remake leaves on the page (?e=<code>).
@@ -156,16 +165,27 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
     parts.push(choices.map((code) => `<form method="post" action="${esc(base)}/lang" onsubmit="this.querySelector('button').disabled=true">${hidden}`
       + `<input type="hidden" name="language" value="${esc(code)}"><button type="submit" class="btn">${esc(getLanguage(code).languageTitle)}</button></form>`).join(' '));
   } else if (m.state === 'ready' && typeof m.message === 'string' && m.message.trim()) {
+    // the quiz's own language, when it differs from the page's (an Urdu quiz on an English page)
+    const quizLang = (edit && edit.language) || m.language;
+    const langAttr = quizLang === 'ur' && l !== 'ur' ? ' lang="ur"' : '';
+    if (m.closed) {
+      parts.push(`<p>${ux('qfix_offers_cq_closed')}</p>`);
+      const shut = Array.isArray(m.questions) ? m.questions : [];
+      if (shut.length) parts.push(questionsList(shut, l, ux, { langAttr }));
+      if (m.pdf) parts.push(`<p><a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a></p>`);
+      parts.push(`<p>${ux('qfix_offers_cq_closed_new')}</p>${waQuiz(bot, ux)}`);
+      return `<section class="qz" id="quiz">${QZ_CSS}${parts.join('')}${script(base, where, 'closed')}</section>`;
+    }
     const share = `https://wa.me/?text=${encodeURIComponent(m.message)}`;
     const said = Object.prototype.hasOwnProperty.call(NOTICE, notice)
       ? esc(resolveUx(NOTICE[notice], { language: l, params: { n: digitsFor((edit && edit.min) || '', l) } })) : '';
     if (said) parts.push(`<p class="qsay" role="status">${said}</p>`);
     // shown: one line per line, each link one LTR run; copied: the stored message itself (the hidden field)
     const shown = m.message.split('\n').map((line) => esc(line).replace(/https?:\/\/[^\s<]+/g, (u) => `<bdi dir="ltr" class="qurl">${u}</bdi>`)).join('<br>');
-    parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><div class="qmsg" dir="auto">${shown}</div>`
+    parts.push(`<p>${ux('qfix_offers_cq_ready')}</p><div class="qmsg" dir="auto"${langAttr}>${shown}</div>`
       + `<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">${esc(m.message)}</textarea>`);
     const list = edit && Array.isArray(edit.questions) && edit.questions.length ? fromEdit(edit) : m.questions;
-    if (Array.isArray(list) && list.length) parts.push(questionsList(list, l, ux, { edit, base, hidden, open: Boolean(said) && notice !== 'pdf_pending' }));
+    if (Array.isArray(list) && list.length) parts.push(questionsList(list, l, ux, { edit, base, hidden, open: Boolean(said) && notice !== 'pdf_pending', langAttr }));
     const links = [m.pdf || edit ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
       m.preview ? `<a class="btn ghost" href="${esc(base)}/try">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');
     if (links) parts.push(`<p>${links}</p>`);
@@ -174,7 +194,15 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       + `<p id="qcopied" class="qnote" role="status" hidden>${ux('qfix_offers_cq_copied')}</p>`
       + `<p id="qmanual" class="qnote" hidden>${ux('qfix_offers_cq_copy_manual')}</p></div>`);
   } else if (m.state === 'failed') {
-    parts.push(`<p>${ux(m.reason === 'subject_not_allowed' ? 'qfix_offers_cq_failed_subject' : 'qfix_offers_cq_failed')}</p>${waQuiz(bot, ux)}`);
+    if (m.retry) {
+      parts.push(`<p>${ux('qfix_offers_cq_failed_retry')}</p>`
+        + `<form method="post" action="${esc(base)}/make" onsubmit="this.querySelector('button').disabled=true">${hidden}`
+        + `<button type="submit" class="btn">${ux('qfix_offers_cq_retry')}</button></form>`);
+    } else if (m.capped) {
+      parts.push(`<p>${ux('qfix_offers_cq_failed_capped')}</p>`);
+    } else {
+      parts.push(`<p>${ux(m.reason === 'subject_not_allowed' ? 'qfix_offers_cq_failed_subject' : 'qfix_offers_cq_failed')}</p>${waQuiz(bot, ux)}`);
+    }
   } else if (where === 'cq') {
     parts.push(`<p>${ux('qfix_offers_cq_none')}</p>${waQuiz(bot, ux)}`);
   } else {

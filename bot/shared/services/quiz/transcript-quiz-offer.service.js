@@ -244,7 +244,11 @@ async function processOffer(coachingSessionId, payload = {}) {
   // `page`: the tap was in the page the report opens (report-page-quiz.js). The teacher reads every step there, so
   // nothing below sends them a message; a skip is logged for the page to name, and the row carries made_via 'page'.
   const page = accepted && payload.page === true;
-  const pageMark = page ? { made_via: 'page', page_make_at: payload.tapAt || null, page_surface: payload.surface || null } : {};
+  const pageMark = page ? {
+    made_via: 'page', page_make_at: payload.tapAt || null, page_surface: payload.surface || null,
+    // a "Try again" on the page (report-page-quiz.js): its count rides onto the revived row, so the cap holds
+    ...(Number.isInteger(payload.remakes) && payload.remakes > 0 ? { page_remakes: payload.remakes } : {}),
+  } : {};
   if (!accepted && !payload.force && offerMode() === 'once' && await alreadyOffered(session.user_id)) {
     return { skipped: 'already_offered_once' };
   }
