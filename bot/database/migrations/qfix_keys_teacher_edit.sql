@@ -3,7 +3,8 @@
 -- when absent; service shared/services/quiz/quiz-teacher-edit.js).
 --
 -- NON-DESTRUCTIVE. One new table, three functions, and one widened CHECK (a superset: every row that passed it still does).
--- Owner: quiz team. Steward: the NIETE bot team. Read and written by the bot's service role only (RLS on, no policy).
+-- Owner: quiz team. Steward: the NIETE bot team. Written by the bot's service role only (RLS on, no policy, and no table
+-- privilege for PUBLIC, anon or authenticated, whatever the tier's default privileges grant). Production's analyst role reads it.
 --
 --   quiz_item_reviews.reason   + 'teacher_edit': the teacher corrected the key of an item children had already answered.
 --                              Written by quiz_teacher_edit_apply as status 'fixed', one row per item (a second fix
@@ -41,9 +42,12 @@ CREATE TABLE IF NOT EXISTS public.quiz_teacher_edits (
   answered     boolean     NOT NULL DEFAULT false,                     -- a child had answered the quiz when it was saved
   created_at   timestamptz NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE public.quiz_teacher_edits IS 'Teacher edits to their own quiz from the quiz page: one row per changed field, before and after. Owner quiz team; steward the NIETE bot team. Service role only. No names or phones.';
+COMMENT ON TABLE public.quiz_teacher_edits IS 'Teacher edits to their own quiz from the quiz page: one row per changed field, before and after. Owner quiz team; steward the NIETE bot team. Written by service_role only; read by service_role and analyst (read-only analysis); no client roles. No names or phones.';
 CREATE INDEX IF NOT EXISTS qte_quiz_idx ON public.quiz_teacher_edits (quiz_id, edit_v);
 ALTER TABLE public.quiz_teacher_edits ENABLE ROW LEVEL SECURITY;   -- no policy: service role only
+-- A tier whose default privileges grant new tables to client roles (staging grants anon arwdDxtm; TRUNCATE ignores RLS)
+-- keeps none of them here.
+REVOKE ALL ON TABLE public.quiz_teacher_edits FROM PUBLIC, anon, authenticated;
 
 -- A row's words as the children read them: the row's edited columns without the key and the feedback that names it
 -- (correct_option, explanation, misconception_feedback, distractor_misconceptions, option_feedback; in media.web:
@@ -211,3 +215,26 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY INVOKER SET search_path = public 
 $$;
 REVOKE ALL ON FUNCTION public.quiz_teacher_edit_pdf(uuid, integer, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.quiz_teacher_edit_pdf(uuid, integer, text) TO service_role;
+
+-- Guard: the apply fails (and, run in one transaction, rolls itself back) if a client role still holds any privilege on
+-- the audit table or EXECUTE on the three functions, or RLS is off. Roles a tier lacks are skipped.
+DO $guard$
+DECLARE bad text;
+BEGIN
+  SELECT string_agg(x, ', ' ORDER BY x) INTO bad FROM (
+    SELECT format('%s %s on quiz_teacher_edits', r.rolname, p) AS x
+    FROM pg_roles r CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS p
+    WHERE r.rolname IN ('anon', 'authenticated') AND has_table_privilege(r.oid, 'public.quiz_teacher_edits'::regclass, p)
+    UNION ALL
+    SELECT format('%s EXECUTE on %s', r.rolname, f.proname)
+    FROM pg_roles r CROSS JOIN pg_proc f JOIN pg_namespace n ON n.oid = f.pronamespace
+    WHERE r.rolname IN ('anon', 'authenticated') AND n.nspname = 'public'
+      AND f.proname IN ('quiz_teacher_edit_apply', 'quiz_teacher_edit_pdf', 'quiz_teacher_edit_words')
+      AND has_function_privilege(r.oid, f.oid, 'EXECUTE')
+    UNION ALL
+    SELECT 'RLS off on quiz_teacher_edits' FROM pg_class c
+    WHERE c.oid = 'public.quiz_teacher_edits'::regclass AND NOT c.relrowsecurity
+  ) z;
+  IF bad IS NOT NULL THEN RAISE EXCEPTION 'quiz_teacher_edits guard: %', bad; END IF;
+END
+$guard$;
