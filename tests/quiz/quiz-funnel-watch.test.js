@@ -230,6 +230,15 @@ describe('3 · what counts as something wrong', () => {
     expect(kinds({ counters: [{ k: 'rate_limited_retried', c60: 40, c120: 40, lag: 0 }] })).toEqual(['rate_limited']);
   });
 
+  test('a skipped reaction (best-effort, never retried by design) is not a lost message and raises no alert', () => {
+    // 27 Nov 2026 13:12Z: "3 messages given up on" — all three were emoji reactions the pacer skips on purpose.
+    expect(kinds({ counters: [{ k: 'rate_limited_skipped', c60: 3, c120: 3, lag: 0 }] })).toEqual([]);
+    const apl = W.aplFor({ env: 'production', dataset: 'niete-logs', now: new Date() }).counters;
+    expect(apl).toContain("msg == 'whatsapp.rate_limited' and level == 'error' and tostring(d.gaveUp) == 'true', 'rate_limited_gave_up'");
+    expect(apl.indexOf('rate_limited_skipped')).toBeGreaterThan(apl.indexOf('rate_limited_gave_up'));
+    expect(apl.indexOf('rate_limited_skipped')).toBeLessThan(apl.indexOf('rate_limited_retried'));
+  });
+
   test('coaching ran but no quiz was offered, in school hours', () => {
     const c = (analyses, offers) => [
       { k: 'analysis_completed', c60: analyses, c120: analyses, lag: 0 },

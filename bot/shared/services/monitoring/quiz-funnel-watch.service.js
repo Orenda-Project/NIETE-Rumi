@@ -84,8 +84,9 @@ const DEFAULTS = Object.freeze({
   reportHistoryD: 35,
   classCardFailMin: 3,
   // whatsapp.rate_limited is logged on every Meta refusal: warn while the send pacer
-  // retries, gaveUp:true when it stops. A give-up is a lost message (always an alert);
-  // retried refusals only matter when Meta is throttling hard.
+  // retries, error + gaveUp:true when it stops. That give-up is a lost message (always an
+  // alert); a warn-level give-up is a reaction or ack skipped by design (counted, never an
+  // alert); retried refusals only matter when Meta is throttling hard.
   rateLimitedGaveUpMin: 1, rateLimitedRetriedMin: 30,
   // ≥10 coaching analyses in 2 h and no quiz offer, 09–17 PKT. On 14 days of prod
   // this fires in exactly one stretch — 15 Sep 13:00–16:30, the real outage (250
@@ -203,7 +204,8 @@ const COUNTER_KEY = 'case('
   + "msg contains 'debrief-notes extraction failed', 'observe_degraded', "
   + "msg contains 'Question list send failed', 'child_send_failed', "
   + "msg contains 'video-quiz message not delivered', 'media_not_delivered', "
-  + "msg == 'whatsapp.rate_limited' and tostring(d.gaveUp) == 'true', 'rate_limited_gave_up', "
+  + "msg == 'whatsapp.rate_limited' and level == 'error' and tostring(d.gaveUp) == 'true', 'rate_limited_gave_up', "
+  + "msg == 'whatsapp.rate_limited' and tostring(d.gaveUp) == 'true', 'rate_limited_skipped', "
   + "msg == 'whatsapp.rate_limited', 'rate_limited_retried', "
   + "msg == 'quiz_funnel.offer_made' and tostring(d.channel) == 'coaching_offer', 'coaching_offers', "
   + "msg == 'quiz_funnel.scorecard_sent' and tostring(d.ok) == 'false', 'scorecard_fallback', "
@@ -609,8 +611,9 @@ function otherLine(rows) {
   }
   if (g('child_send_failed')) bits.push(`${g('child_send_failed')} child question sends failed`);
   if (g('media_not_delivered')) bits.push(`${g('media_not_delivered')} child media undelivered`);
-  if (g('rate_limited_retried') || g('rate_limited_gave_up')) {
-    bits.push(`Meta rate limits: ${g('rate_limited_retried')} retried, ${g('rate_limited_gave_up')} given up`);
+  if (g('rate_limited_retried') || g('rate_limited_gave_up') || g('rate_limited_skipped')) {
+    bits.push(`Meta rate limits: ${g('rate_limited_retried')} retried, ${g('rate_limited_gave_up')} given up`
+      + (g('rate_limited_skipped') ? `, ${g('rate_limited_skipped')} reactions skipped` : ''));
   }
   return bits.length ? `Other · ${bits.join(' · ')}` : null;
 }
