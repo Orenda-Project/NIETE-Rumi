@@ -1,6 +1,6 @@
 /**
  * A fixed, checked set of whole-book papers per subject for a board pattern. A full-book request is
- * served a set paper she has not had; once she has had them all, the one she had longest ago. Set
+ * served a set paper she has not had; once she has had them all, null, so she gets a fresh paper. Set
  * papers are the rows stamped `exam_json._reuse.set = '<pattern set>/<subject>'`; a copy served to a
  * teacher points back at its set paper through `_reuse.from`. Every read fails open (null), so the
  * caller falls back to today's path.
@@ -44,8 +44,8 @@ async function findSetPaper({ db, set, subject, userId }) {
         if (id && !(lastHad.get(id) >= r.created_at)) lastHad.set(id, r.created_at);
       }
     }
-    const pick = papers.find((p) => !lastHad.has(p.id))
-      || papers.reduce((a, b) => (lastHad.get(b.id) < lastHad.get(a.id) ? b : a));
+    const pick = papers.find((p) => !lastHad.has(p.id));
+    if (!pick) return null;
     return {
       id: pick.id,
       examJson: clean(pick.exam_json),
