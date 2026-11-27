@@ -51,8 +51,37 @@ test('an unknown key with no near-miss is left for the schema gate', () => {
 test('a near-miss whose real key is ALSO present is not renamed (nothing is overwritten)', () => {
   const doc = fresh();
   doc.page2.coaching_lookfer = 'duplicate';
-  expect(repairNearMissKeys(doc)).toEqual([]);
+  repairNearMissKeys(doc);
   expect(doc.page2.coaching_lookfor).toEqual(BASE.page2.coaching_lookfor);
+});
+
+/**
+ * bd-ehz254.17 — live, 27 Nov 2026 10:49Z: GB grade 3 Urdu nbf_snc_grade_3_urdu.c11.s001 came back with
+ * page2.coaching_lookfor AND a stray page2.coaching_lookfan in all four rounds (one schema error each round:
+ * the additional property only, no missing required key). The rename above cannot apply (the real key is
+ * there), so the schema refused, the render refused, and the teacher got no plan. The stray copy goes.
+ */
+test('the 27 Nov live case: a stray near-miss beside its present real key is dropped and the document validates', () => {
+  const doc = fresh();
+  doc.page2.coaching_lookfan = 'a second, misspelled copy';
+  expect(validateDoc(doc).ok).toBe(false);
+
+  const changed = repairNearMissKeys(doc);
+
+  expect(changed).toEqual([{ path: '/page2', from: 'coaching_lookfan', to: 'coaching_lookfor', dropped: true }]);
+  expect('coaching_lookfan' in doc.page2).toBe(false);
+  expect(doc.page2.coaching_lookfor).toEqual(BASE.page2.coaching_lookfor);
+  expect(validateDoc(doc).ok).toBe(true);
+});
+
+test('any stray near-miss of a present key is dropped; a key near nothing is left for the schema gate', () => {
+  const doc = fresh();
+  doc.page2.mistakez = 'x';   // near `mistakes` only, which is present
+  expect(repairNearMissKeys(doc)).toEqual([{ path: '/page2', from: 'mistakez', to: 'mistakes', dropped: true }]);
+  const doc2 = fresh();
+  doc2.page2.foo = 'x';       // near nothing
+  expect(repairNearMissKeys(doc2)).toEqual([]);
+  expect(validateDoc(doc2).ok).toBe(false);
 });
 
 test('distance is Levenshtein, capped', () => {
