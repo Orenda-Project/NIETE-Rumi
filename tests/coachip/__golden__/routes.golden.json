@@ -367,6 +367,7 @@
           "coachip": "boolean",
           "coachipDecode": "boolean",
           "coachipRm": "boolean",
+          "lessonPlanOpen": "boolean",
           "loginIntlNumbers": "boolean",
           "lpOwnGoalStart": "boolean",
           "lpOwnUnit": "boolean",

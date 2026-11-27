@@ -17,6 +17,7 @@ import { useRecordingClock, useRecordingSession, type RecordingSession } from ".
 import { useFlowV6 } from "../flow/useCoachFlowV2";
 import { FLOW_V6 } from "../flow/copy";
 import { useRecordingBackGuard } from "../../lib/useRecordingBackGuard";
+import { RecordPlanButton } from "./RecordPlanButton";
 import { rememberRecording } from "../../lib/coachObserve";
 import { SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import { clockText } from "../../components/coaching/coach/CoachRecorder";
@@ -116,6 +117,8 @@ function Recorder({ visit, onBlocked, kept = null }: { visit: CoachVisit; onBloc
         </>
       )}>
       <div className="flex flex-col items-center gap-6 pt-3">
+        {/* bd-kijmb8 — the plan attached (opens over this recording), or Attach lesson plan; portal_lesson_plan_open. Up here: the dock covers the bottom. */}
+        <RecordPlanButton visit={visit} recording />
         <div role="timer" aria-label={C.recordingTime}
           className="flex h-60 w-60 flex-col items-center justify-center gap-2.5 rounded-full border-[12px] border-[#fee4e2] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           {paused
@@ -254,6 +257,8 @@ function SessionRecorder({ visit, session, onBlocked, kept = null }: {
         </>
       )}>
       <div className="flex flex-col items-center gap-6 pt-3">
+        {/* bd-kijmb8 — the plan attached (opens over this recording), or Attach lesson plan; portal_lesson_plan_open. Up here: the dock covers the bottom. */}
+        <RecordPlanButton visit={visit} recording />
         <div role="timer" aria-label={C.recordingTime}
           className="flex h-60 w-60 flex-col items-center justify-center gap-2.5 rounded-full border-[12px] border-[#fee4e2] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           {session.paused ? <StatusChip text={C.paused} tone="info" /> : <StatusChip text={C.recording} tone="error" />}

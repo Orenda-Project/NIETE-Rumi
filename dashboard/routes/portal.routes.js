@@ -8032,6 +8032,21 @@ router.get('/coaching-session/:id/report-file', requirePortalAuth, async (req, r
   }
 });
 
+/**
+ * bd-kijmb8 (queue #318) — the lesson plan linked to a recording, from this origin (portal_lesson_plan_open).
+ * Same access as the page it opens from; see lib/session-lesson-plan-route.js.
+ */
+router.get('/coaching-session/:id/lesson-plan/file', requirePortalAuth, (req, res) => {
+  const SessionLessonPlan = require('../lib/session-lesson-plan-route');
+  return SessionLessonPlan.createLessonPlanFileHandler({
+    supabase,
+    isOn: (userId) => isFlagEnabledForUser(supabase, SessionLessonPlan.OPEN_KEY, userId),
+    resolveUrl: (key) => _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${key}`),
+    relay: relayLessonPlanPdf,
+    log: (msg, ids) => console.error(`❌ Portal ${msg}`, ids),
+  })(req, res);
+});
+
 router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
@@ -8188,6 +8203,8 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         reportPdfUrl: reportUrl,              // legacy key, same signed value
         lessonPlanUrl,
         hasLessonPlan: !!session.has_lesson_plan,
+        // bd-kijmb8 — what is linked and whether the page can open it (the button's only condition).
+        lessonPlan: (({ source, openable, fileKind, title }) => ({ source, openable, fileKind, title }))(require('../../bot/shared/services/coaching/session-lesson-plan').planRef(session)),
         photoUrls,
 
         // bd-fmf24g.10: the report's written part (headline, moments, strength, horizon, the per-section
@@ -9703,6 +9720,7 @@ router.get('/config', async (req, res) => {
       lpOwnUnitRaw,
       observeUploadOnly,
       recordingResumeRaw,
+      lessonPlanOpen,
       recordingRepairRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
@@ -9777,6 +9795,8 @@ router.get('/config', async (req, res) => {
       // (Resume / Stop). Fail-closed: no row, false or a failed read = off; true = every teacher; a users.id list = those;
       // "teachers" = every teacher. Coaches' and principals' observation and debrief have it on by default (no switch).
       isFlagEnabledForUser(supabase, PORTAL_RECORDING_RESUME_KEY, userId),
+      // bd-kijmb8 (queue #318) — the Lesson plan button on recordings and observations; per user, fail-closed.
+      isFlagEnabledForUser(supabase, 'portal_lesson_plan_open', userId),
       // bd-8sr958 (queue #320) — damaged-recording check at the pick and "Recovering" on the lesson page; fail-closed.
       isFlagEnabled(supabase, RECORDING_REPAIR_KEY),
     ]);
@@ -9845,6 +9865,8 @@ router.get('/config', async (req, res) => {
         // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
         recordingResume: recordingResumeRaw === true,
         recordingRepair: recordingRepairRaw === true,
+        // bd-kijmb8 — Lesson plan button (portal_lesson_plan_open, fail-closed; a real true only).
+        lessonPlanOpen: lessonPlanOpen === true,
         // bd-q261rec (queue #261) — the recording is sent in pieces that resume after a drop (portal_upload_pieces).
         uploadPieces,
       },

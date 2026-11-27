@@ -681,7 +681,8 @@ async function observationView({ userId, coachingSessionId }, deps) {
     rubric: require('../coaching/rubric-label').rubricLabelOf({ session: row }),
     teacher,
     lesson: { topic: ad.topic || null, subject: ad.subject || null, hasLessonPlan: !!row.has_lesson_plan },
-    lessonPlan: planOf(row),
+    // bd-kijmb8 — `openable` + `title`: the page's Lesson plan button (a library plan names no file here, the route reads it).
+    lessonPlan: (() => { const r = require('../coaching/session-lesson-plan').planRef(row); return { ...planOf(row), openable: r.openable, fileKind: r.fileKind, title: r.title }; })(),
     draft: { edited: !!ad.observer_edit_summary, summary: ad.observer_edit_summary || null },
     talk: {
       // Queue #255: a FICO 6-12 visit's notes without the lesson plan check (notes kept from before carry one).
