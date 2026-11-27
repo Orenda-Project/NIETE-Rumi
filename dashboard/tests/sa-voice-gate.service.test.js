@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-50'); // sa-50: the silence stop's own floor (sa-rec.js) and served_n on a one-at-a-time result (sa-core.js)
+    expect(sw.CORE).toBe('sa-core-sa-52'); // sa-52: the English letter-sound picker's j in place of d (SESSION v36)
   });
 });
 

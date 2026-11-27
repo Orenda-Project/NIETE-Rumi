@@ -443,6 +443,7 @@ function runtimeW3Task(t, lang, H) {
     ...(t.next_at_s ? { next_at_s: t.next_at_s } : {}), ...(t.say_on ? { say_on: t.say_on } : {}), stop: {}, ...(t.stop_note ? { stop_note: t.stop_note } : {}),
     ...(t.grid ? { grid: t.grid, direction: t.direction } : {}), ...(t.letter_rule ? { letter_rule: t.letter_rule } : {}), ...(t.chip ? { chip: t.chip[lang] } : {}),
     items: t.items.map(item), practice: t.practice.map(item),
+    ...(t.practice_r28 ? { practice_r28: { r28: t.practice_r28.r28, practice: t.practice_r28.practice.map(item) } } : {}),
     ...(t.ext_items ? { base_n: t.base_n, ext_items: t.ext_items.map(item), ...(t.ext_stop ? { ext_stop: t.ext_stop } : {}) } : {}),
     ...(t.r28_accept ? { r28_accept: true } : {}),
   };
@@ -458,6 +459,10 @@ function runtimeW3Task(t, lang, H) {
 //                          scorer's grid is unchanged; ext_stop is the first-row stop the scorer applies to an extended run
 //   accept (word_accept)   on the EN familiar words' items: the local forms that keep the same word, for the scorer only
 //                          (the task carries r28_accept; the route strips both from every served battery, OFF and ON)
+//   practice_r28           (names_practice) a one-at-a-time task's practice under one of the round's switches: the task
+//                          keeps today's practice; ON, the route serves practice_r28.practice in its place; OFF, it goes
+// The round's switched kinds (sa-battery-switches.js R28_KINDS: sa_r28_letter_pick, sa_r28_mcq).
+const R28_KIND_NAMES = ['letter_pick', 'mcq'];
 const R28_LINES = {
   // The picker intro by the TASK's language (its example: Urdu «بَ», English isolated /b/), in the battery's language.
   // On the other language's battery the example keeps its own script, and its clip splices the shipped token there
@@ -525,6 +530,18 @@ function r28Tasks(f, { r28 }, w3List, H, coreList = []) {
     const from = COUNTS_PLAN[id] && COUNTS_PLAN[id].add && COUNTS_PLAN[id].add.from;
     const src = from && coreList.find((x) => x.task === from);
     if (src && src.tap) Object.assign(src, { r28_accept: true, tap: { ...src.tap, items: src.tap.items.map(withAccept) } });
+  }
+  // A letter-names practice the round changes (the content owner's example letter), under the switch it names: built as
+  // the W3 builder builds that task's practice (the letter, its name, the carrier then the name as the model), kept beside
+  // today's practice, which stays on the task. The route serves one or the other (sa-battery-switches.js withR28).
+  for (const [id, np] of Object.entries(r28.names_practice || {})) {
+    const t = byId.get(id);
+    if (!t) continue;
+    if (!R28_KIND_NAMES.includes(np.r28)) throw new Error(`${id}: names_practice under an unknown switch kind ${np.r28}`);
+    const nameOf = (x) => (t.lang === 'ur' ? UR_LETTER_NAMES[x] || x : x);
+    const practice = np.practice.map((x, i) => ({ id: `${id}.p${i + 1}`, role: /^example/.test(x.role) ? 'example' : 'practice', show: x.item,
+      target: x.item, answer: nameOf(x.item), model: [spoken(MODEL.letter_names), said(t.lang, nameOf(x.item))], src: x.src }));
+    Object.assign(t, { practice_r28: { r28: np.r28, practice } });
   }
 
   for (const lang of ['ur', 'en']) {

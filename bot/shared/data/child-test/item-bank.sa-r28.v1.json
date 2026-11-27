@@ -118,17 +118,17 @@
      "authored": true
     },
     {
-     "target": "ف",
+     "target": "ا",
      "options": [
       "ق",
-      "ف",
+      "ا",
       "ب",
       "ک",
       "ل"
      ],
-     "say": "فَ",
-     "ipa": "/f/",
-     "src": "rwp2026:letterid_urd position 15 (target)",
+     "say": "اَ",
+     "ipa": "/ə/",
+     "src": "content owner review, 26 Nov 2026: replaces ف (target); the ف row's distractors kept",
      "authored": true
     },
     {
@@ -136,27 +136,27 @@
      "options": [
       "ج",
       "خ",
-      "ت",
+      "ٹ",
       "ل",
       "چ"
      ],
      "say": "چَ",
      "ipa": "/tʃ/",
-     "src": "rwp2026:letterid_urd position 30 (target)",
+     "src": "rwp2026:letterid_urd position 30 (target); content owner review, 26 Nov 2026: distractor ت -> ٹ (ت is the next item's target)",
      "authored": true
     },
     {
-     "target": "ٹ",
+     "target": "ت",
      "options": [
-      "ت",
+      "ج",
       "پ",
-      "ٹ",
+      "ت",
       "ب",
       "ن"
      ],
-     "say": "ٹَ",
-     "ipa": "/ʈ/",
-     "src": "rwp2026:letterid_urd position 29 (target)",
+     "say": "تَ",
+     "ipa": "/t̪/",
+     "src": "content owner review, 26 Nov 2026: replaces ٹ (target); the ٹ row with ت and ٹ swapped; content owner's picks, 27 Nov 2026: distractor ٹ -> ج (ٹ looks too close to ت)",
      "authored": true
     }
    ],
@@ -196,73 +196,73 @@
   "en": {
    "items": [
     {
-     "target": "l",
+     "target": "g",
      "options": [
-      "i",
-      "t",
-      "l",
-      "r",
-      "h"
+      "q",
+      "p",
+      "g",
+      "y",
+      "d"
      ],
-     "say": "la",
-     "ipa": "/l/",
-     "src": "rwp2026:letterid_eng position 1 (target); today's en.letter_sounds5 item",
+     "say": "ga",
+     "ipa": "/ɡ/",
+     "src": "content owner review, 26 Nov 2026: replaces l (target); options authored",
      "authored": true
     },
     {
-     "target": "z",
+     "target": "w",
      "options": [
-      "v",
       "z",
       "w",
-      "y",
-      "h"
-     ],
-     "say": "za",
-     "ipa": "/z/",
-     "src": "rwp2026:letterid_eng position 72 (target)",
-     "authored": true
-    },
-    {
-     "target": "r",
-     "options": [
-      "h",
-      "l",
+      "m",
       "u",
-      "r",
-      "i"
+      "y"
      ],
-     "say": "ra",
-     "ipa": "/r/",
-     "src": "rwp2026:letterid_eng position 4 (target); today's en.letter_sounds5 item",
+     "say": "wa",
+     "ipa": "/w/",
+     "src": "content owner review, 26 Nov 2026: replaces z (target); options authored; content owner's picks, 27 Nov 2026: distractor v -> z",
      "authored": true
     },
     {
-     "target": "n",
+     "target": "q",
      "options": [
-      "n",
-      "u",
-      "y",
-      "w",
-      "h"
+      "p",
+      "g",
+      "d",
+      "q",
+      "b"
      ],
-     "say": "na",
-     "ipa": "/n/",
-     "src": "rwp2026:letterid_eng position 9 (target); today's en.letter_sounds5 item; options tangerine_gh_sa:letters form.html:466",
+     "say": "kwa",
+     "ipa": "/kw/",
+     "src": "content owner review, 26 Nov 2026: replaces r (target); options authored",
      "authored": true
     },
     {
-     "target": "d",
+     "target": "x",
+     "options": [
+      "x",
+      "k",
+      "z",
+      "y",
+      "v"
+     ],
+     "say": "ks",
+     "ipa": "/ks/",
+     "src": "content owner review, 26 Nov 2026: replaces n (target); options authored",
+     "authored": true
+    },
+    {
+     "target": "j",
      "options": [
       "b",
       "p",
       "q",
       "t",
-      "d"
+      "j"
      ],
-     "say": "da",
-     "ipa": "/d/",
-     "src": "rwp2026:letterid_eng position 14 (target); today's en.letter_sounds5 item",
+     "say": "ja",
+     "ipa": "/dʒ/",
+     "src": "content owner review, 27 Nov 2026: replaces d (target; d did not match in the listening check); d's cards kept, d -> j",
      "authored": true
     },
     {
@@ -338,33 +338,33 @@
    ],
    "practice": [
     {
-     "target": "t",
+     "target": "b",
      "options": [
       "d",
-      "l",
-      "t",
-      "f",
-      "h"
+      "h",
+      "b",
+      "p",
+      "l"
      ],
      "role": "example",
-     "say": "ta",
-     "ipa": "/t/",
-     "src": "egra_tk2016:Annex H p.187 example letter T; options tangerine_gh_sa:letters form.html:437 with s replaced by h (A-4: f+s)",
+     "say": "ba",
+     "ipa": "/b/",
+     "src": "content owner review, 26 Nov 2026: replaces the example letter t; options authored",
      "authored": true
     },
     {
-     "target": "m",
+     "target": "k",
      "options": [
-      "r",
-      "u",
-      "m",
       "h",
-      "w"
+      "l",
+      "k",
+      "t",
+      "f"
      ],
      "role": "practice",
-     "say": "ma",
-     "ipa": "/m/",
-     "src": "egra_tk2016:Annex H p.187 practice letter M; options tangerine_gh_sa:letters form.html:289 with n replaced by h (A-4: m+n) and b by r (no /b/ beside /m/)",
+     "say": "ka",
+     "ipa": "/k/",
+     "src": "content owner review, 26 Nov 2026: replaces the practice letter m; options authored",
      "authored": true
     }
    ]
@@ -3255,6 +3255,20 @@
      "femli"
     ]
    }
+  }
+ },
+ "names_practice": {
+  "ur.letter_names5": {
+   "r28": "letter_pick",
+   "note": "the letter-names practice under the letter-sound picker's switch: ON, this example; OFF, the W3 bank's own (ث, the PRP-KP letter-page example)",
+   "practice": [
+    {
+     "item": "ک",
+     "role": "example",
+     "src": "v3:sets.A.reading.ur.letters.items[3]",
+     "why": "content owner review, 26 Nov 2026: the example letter ث replaced by ک (the Rawalpindi grid's own letter), modelled by its name «کاف»"
+    }
+   ]
   }
  }
 }
