@@ -20,6 +20,17 @@
  *  · marks + check Flow (emulated; needs recorded cassettes for Soniox/OpenRouter and the stored
  *    CHILD_TEST_CHECK_FLOW_ID fixture): CT07 CT08 CT17 CT18 CT27 CT01
  *
+ * VOICE NOTES AND PHOTOS (bd-q8wt5e.6.1). Child speech never lives in git and is never recorded into a cassette. With
+ * CHILD_TEST_FIXTURES_DIR unset, the notes and the strip photo are a synthetic stand-in (a tone, a blank card:
+ * fixtures/whatsapp/niete/media/child-test/make-stand-in-fixtures.sh) and every scoring call for them is a scripted
+ * vendor FAILURE (E2E_CASSETTE_FAULTS), never an invented transcript. So the conversation is driven for real (acks, the
+ * next step, the stored keys, the photo landing, done, the visit end) and a scenario whose Thens include the marks
+ * records its conversation half and stays BLOCKED on MARKS — a FAIL in that half is still a FAIL.
+ *
+ * v2 AND v3 (bd-q8wt5e.6.1). Each runs on its own synthetic coach (local database only): the visit key carries the
+ * coach, so each gets a fresh draw at the SIM school. v2 (defaults, CHILD_TEST_STEP_NUDGE_MS=15000): CT81–CT88.
+ * v3 (CHILD_TEST_BATTERY=v3): child 1 one note per task (CT51–CT53, CT56), child 2 the skip words (CT54).
+ *
  * BLOCKED with a stated reason even when the code is present:
  *  CT02 offer after observe2's brief — needs the observe2 field-form + check Flows walked first; their
  *       fixtures are not stored for the emulator yet.
@@ -282,16 +293,39 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
   const media = (rel) => (fixtures && fs.existsSync(path.join(fixtures, rel)) ? path.join(fixtures, rel) : null);
   const firstChildDir = () => { try { return fs.readdirSync(path.join(fixtures, 'real')).filter((d) => !d.startsWith('.')).sort()[0] || null; } catch (_) { return null; } };
   const kid = fixtures ? firstChildDir() : null;
-  const voice = (block) => (kid ? media(path.join('real', kid, block + '.ogg')) : null);
-  const strip = () => { try { const f = fs.readdirSync(path.join(fixtures, 'strips')).filter((x) => /\.(jpe?g|png)$/i.test(x)).sort()[0]; return f ? path.join(fixtures, 'strips', f) : null; } catch (_) { return null; } };
+  // Without CHILD_TEST_FIXTURES_DIR the conversation scenarios ride a synthetic stand-in (a tone, a blank card;
+  // fixtures/whatsapp/niete/media/child-test/make-stand-in-fixtures.sh): they check what the bot does with a note or a
+  // photo, never the marks. Its scoring is answered by a scripted vendor failure (STAND_IN_FAULTS), never a transcript.
+  const STAND_IN = path.resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media', 'child-test');
+  const standIn = (f) => (fs.existsSync(path.join(STAND_IN, f)) ? path.join(STAND_IN, f) : null);
+  const voice = (block) => (kid ? media(path.join('real', kid, block + '.ogg')) : standIn('stand-in-note.ogg'));
+  const strip = () => { try { const f = fs.readdirSync(path.join(fixtures, 'strips')).filter((x) => /\.(jpe?g|png)$/i.test(x)).sort()[0]; return f ? path.join(fixtures, 'strips', f) : standIn('stand-in-strip.jpg'); } catch (_) { return standIn('stand-in-strip.jpg'); } };
+  const usingStandIn = !kid;
+  // Child speech is never recorded into a cassette (sim-stack runs E2E_CASSETTE=off for it), so on this lane every
+  // scoring call for the stand-in is a scripted vendor FAILURE: the product's own "could not mark" path, and no
+  // E2E_CASSETTE_MISS. The scenarios that need real marks stay BLOCKED by name (MARKS below).
+  const STAND_IN_FAULTS = [
+    { kind: 'asr', match: '/./', times: 999, throw: 'e2e mock lane: child-test stand-in audio, scoring vendor answer is scripted to fail (child speech is never recorded)' },
+    { kind: 'llm', match: '/child|strip|Child no|maths/i', times: 999, throw: 'e2e mock lane: child-test stand-in, scoring vendor answer is scripted to fail' },
+  ];
+  const MARKS = 'needs real marks: child speech is never recorded into a cassette, so on this lane every scoring call for the stand-in note is a scripted vendor failure — drive on sandbox with sim-stack.sh (E2E_CASSETTE=off, real models); jest-proven';
 
   // One turn: everything the bot sent in reply, joined.
-  const turn = async (fn) => { await api.freshReset(); const r = await fn(); const rest = await api.fresh(); return { r, txt: [r && r.txt, ...rest.map((m) => m.txt)].filter(Boolean).join('\n'), list: (r && r.list) || (rest.find((m) => m.list) || {}).list || null, all: [r, ...rest].filter(Boolean) }; };
+  const turn = async (fn, a = api) => { await a.freshReset(); const r = await fn(); const rest = await a.fresh(); return { r, txt: [r && r.txt, ...rest.map((m) => m.txt)].filter(Boolean).join('\n'), list: (r && r.list) || (rest.find((m) => m.list) || {}).list || null, all: [r, ...rest].filter(Boolean), items: rest }; };
   const rowsOf = (list) => (list && (list.rows || (list.sections || []).flatMap((s) => s.rows || []))) || [];
   // L19 (CONTRACT §18): the row title is the child's full name; the roll, when the roster has one, leads the description.
   const ROLL = /^(?:Roll|رول)\s*([\d۰-۹]+)/;
   const t = () => Date.now();
+  // The SIM school's class teachers (classes → class_teachers → users), whose numbers the bot messages on "Send to …".
+  const simTeachers = async () => {
+    const cls = await get(`classes?select=id&school_id=eq.${sim.id}`);
+    if (!cls.length) return [];
+    const ct = await get(`class_teachers?select=teacher_user_id&is_active=eq.true&class_id=in.(${cls.map((c) => c.id).join(',')})`);
+    const ids = [...new Set(ct.map((x) => x.teacher_user_id))];
+    return ids.length ? get(`users?select=id,phone_number,preferred_language&id=in.(${ids.join(',')})`) : [];
+  };
   let s;
+  const clones = [];   // synthetic coaches made for the v2/v3 visits (local database only); unassigned in finally
 
   try {
     await api.resetFlow();
@@ -365,11 +399,33 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
 
     s = t();
     const aliasSame = [];
-    for (const cmd of ['بچوں کا ٹیسٹ', '/childtest']) { const r = await turn(() => api.sendWait(cmd)); aliasSame.push(JSON.stringify(rowsOf(r.list).map((x) => x.id)) === JSON.stringify(rows1.map((x) => x.id))); }
+    const aliasTurns = [];
+    for (const cmd of ['بچوں کا ٹیسٹ', '/childtest']) { const r = await turn(() => api.sendWait(cmd)); aliasTurns.push(r); aliasSame.push(JSON.stringify(rowsOf(r.list).map((x) => x.id)) === JSON.stringify(rows1.map((x) => x.id))); }
     record('CT10', ...V(aliasSame.every(Boolean), { aliasSame }), t() - s);
 
+    // ── CT62: no observation (CHILD_TEST_OBSERVE_LINK unset) → the drawn class's teacher is offered under the first list,
+    // once (the alias reopens above sent no second offer); the tap sends that teacher ONE message in list order.
+    s = t();
+    const offerOf = (r) => r.items.find((m) => (m.btns || []).some((x) => /^Send to /.test(x))) || null;
+    const offer = offerOf(L1);
+    if (!offer) record('CT62', 'FAIL', { reason: 'no "Send to <name>" offer under the first list', after: L1.items.map((m) => String(m.txt || '').slice(0, 60)) }, t() - s);
+    else {
+      const reoffers = aliasTurns.filter((r) => !!offerOf(r)).length;
+      const sendBtn = offer.btns.find((x) => /^Send to /.test(x));
+      const sent = await turn(() => api.tapAndWait(sendBtn));
+      const inbox = [];
+      for (const tc of await simTeachers()) { const got = await api.as(tc.phone_number).fresh(); if (got.length) inbox.push({ lang: tc.preferred_language, msgs: got.map((m) => m.txt || '') }); }
+      const names = main1.map((r) => String(r.title || '').replace(/\s*\(\d+ in this class\)\s*$/, ''));
+      const body = (inbox[0] && inbox[0].msgs[0]) || '';
+      const at = names.map((n) => body.indexOf(n));
+      record('CT62', ...V(/^Send to \S+/.test(sendBtn) && reoffers === 0 && inbox.length === 1 && inbox[0].msgs.length === 1
+        && at.every((x) => x >= 0) && at.every((x, i) => i === 0 || x > at[i - 1]) && /^Sent the order to .+\.$/m.test(sent.txt),
+        { button: sendBtn, offer: String(offer.txt || '').slice(0, 120), reoffersOnAliasReopen: reoffers, teachersMessaged: inbox.length, messages: inbox[0] && inbox[0].msgs.length, inOrder: at, reply: sent.txt.slice(0, 120) }), t() - s);
+    }
+
     // ── child 1: present → Urdu → English → maths (voice) → strip photo ──
-    const tapChild = (row) => turn(() => api.pickRowAndWait(row.title));
+    // By id: the list card can be many bubbles back by the time a later child is tapped (pickRowAndWait reads the last reply).
+    const tapChild = (row) => turn(async () => { await api.tapId('list', row.id, row.title); await api.sleep(4000); return null; });
     s = t();
     const c1 = main1[0];
     const p1 = await tapChild(c1);
@@ -381,59 +437,97 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     // CT23 — a voice note in the wrong state is not claimed. Only meaningful before child 1's
     // Urdu block opens, so it is driven with the next child instead (see below).
     const v = { urdu: voice('urdu'), english: voice('english'), maths: voice('maths') };
+    // A scenario whose Thens include the marks: its conversation half is checked here; a FAIL there is a FAIL, and
+    // when it holds the scenario stays BLOCKED on the marks (MARKS) with the conversation evidence beside the reason.
+    const half = (id, ok, ev, ms) => (ok ? record(id, 'BLOCKED', { reason: MARKS, conversationHalf: 'held', ...ev }, ms) : record(id, 'FAIL', ev, ms));
+    const isImg = (m) => !!(m && (m.img || m.type === 'image' || /image/.test(m.type || '')
+      || (m.raw && m.raw.interactive && m.raw.interactive.header && m.raw.interactive.header.type === 'image')));
+    // The list and presence lines flag a child whose first name the class shares with "(<n> in this class)" (L25);
+    // the steps, the done line and the resume line name the child without it.
+    const base = (n) => String(n || '').replace(/\s*\(\d+ in this class\)\s*$/, '').trim();
     if (!v.urdu || !v.english || !v.maths) {
-      for (const id of ['CT05', 'CT06', 'CT15', 'CT16', 'CT23', 'CT01', 'CT07', 'CT08', 'CT17', 'CT18', 'CT27'])
-        record(id, ...B('no fixture voice notes: set CHILD_TEST_FIXTURES_DIR to golive/fixtures (real/<child>/{urdu,english,maths}.ogg); child audio never lives in git'));
+      for (const id of ['CT05', 'CT06', 'CT14', 'CT15', 'CT16', 'CT23', 'CT40', 'CT01', 'CT07', 'CT08', 'CT17', 'CT18', 'CT27'])
+        record(id, ...B('no voice-note fixture: neither CHILD_TEST_FIXTURES_DIR nor the stand-in under fixtures/whatsapp/niete/media/child-test (make-stand-in-fixtures.sh)'));
     } else {
+      if (usingStandIn) { const f = await stack.faults(STAND_IN_FAULTS); if (!f || !f.ok) console.error('child-test: faults not written: ' + JSON.stringify(f)); }
+      // ── CT14: "No printed card" on child 1's Urdu block — ≤ 3 card images, then the count line; the next tap the next 3
+      s = t();
+      const fb1 = await turn(() => api.tapAndWait('No printed card'));
+      const fb2 = await turn(() => api.tapAndWait('No printed card'));
+      const imgs1 = fb1.items.filter(isImg).length, imgs2 = fb2.items.filter(isImg).length;
+      const cards1 = /Cards\s*1[–-]3 of (\d+)/.exec(fb1.txt), cards2 = /Cards\s*4[–-]6 of (\d+)|Cards\s*\d+[–-]\d+ of (\d+)/.exec(fb2.txt);
+      const [ub0] = sess1 ? await get(`child_test_blocks?select=audio_r2_key&session_id=eq.${sess1.id}&block=eq.urdu`) : [];
+      record('CT14', ...V(imgs1 >= 1 && imgs1 <= 3 && !!cards1 && imgs2 >= 1 && imgs2 <= 3 && !!cards2 && cards2[0] !== cards1[0] && !(ub0 && ub0.audio_r2_key),
+        { tap1: { images: imgs1, line: cards1 && cards1[0] }, tap2: { images: imgs2, line: cards2 && cards2[0] }, urduAudioBeforeNote: (ub0 && ub0.audio_r2_key) || null, reply1: fb1.txt.slice(0, 120) }), t() - s);
+
       s = t();
       const u = await turn(() => api.upload(v.urdu, 'Audio'));
+      // CT40: with the printed card (CHILD_TEST_INCHAT_CARDS not on), a block costs two messages: the ack and the next line.
+      record('CT40', ...V(u.items.length === 2 && RX.ack.test(u.items[0].txt || '') && RX.english.test(u.items[1].txt || ''),
+        { messages: u.items.length, texts: u.items.map((x) => String(x.txt || '').slice(0, 60)) }), t() - s);
       const e = await turn(() => api.upload(v.english, 'Audio'));
       const m = await turn(() => api.upload(v.maths, 'Audio'));
+      await new Promise((r) => setTimeout(r, 2500));
       const blocks1 = sess1 ? await get(`child_test_blocks?select=block,audio_r2_key,ai_status,ai_marks,ai_reason&session_id=eq.${sess1.id}`) : [];
       const urduRow = blocks1.find((b) => b.block === 'urdu') || {};
-      record('CT05', ...V(RX.ack.test(u.txt) && RX.english.test(u.txt) && RX.ack.test(e.txt) && RX.maths.test(e.txt)
-        && /\/urdu\.ogg$/.test(urduRow.audio_r2_key || ''), { urduAck: u.txt.slice(0, 80), urduKey: urduRow.audio_r2_key || null, urduStatus: urduRow.ai_status || null }), t() - s);
-
       const mathsRow = blocks1.find((b) => b.block === 'maths') || {};
-      const pic = strip();
-      if (!pic) record('CT06', ...B('no strip photo fixture under CHILD_TEST_FIXTURES_DIR/strips'));
-      else {
-        s = t();
-        const ph = await turn(() => api.upload(pic, 'Photos & videos'));
-        const [mb] = sess1 ? await get(`child_test_blocks?select=photo_r2_key,ai_status&session_id=eq.${sess1.id}&block=eq.maths`) : [];
-        record('CT06', ...V(RX.photoAsk.test(m.txt) && !mathsRow.ai_marks && RX.photoSaved.test(ph.txt) && /maths-strip\.jpg$/.test((mb && mb.photo_r2_key) || ''),
-          { ask: m.txt.slice(0, 120), mathsPendingBeforePhoto: mathsRow.ai_reason || mathsRow.ai_status || null, photoKey: (mb && mb.photo_r2_key) || null }), t() - s);
-      }
+      const ev5 = { urduAck: u.txt.slice(0, 80), urduKey: urduRow.audio_r2_key || null, urduStatus: urduRow.ai_status || null, urduReason: urduRow.ai_reason || null };
+      const ok5 = RX.ack.test(u.txt) && RX.english.test(u.txt) && RX.ack.test(e.txt) && RX.maths.test(e.txt) && /\/urdu\.ogg$/.test(urduRow.audio_r2_key || '');
+      if (usingStandIn) half('CT05', ok5, ev5, t() - s); else record('CT05', ...V(ok5 && ['scored', 'partial'].includes(urduRow.ai_status), ev5), t() - s);
 
-      // child 2: CT23 (voice before the child starts), CT15 (child 1's photo arrives later is covered
-      // by CT06 ordering on this lane), CT16 (no photo → force).
+      // child 2 starts BEFORE child 1's strip photo: CT23 (a note while nothing waits for one), CT15 (child 1's photo
+      // after child 2's Urdu note lands on child 1), CT06 (the ask, then the photo completes child 1), CT16 (no photo).
       const c2 = main1[1];
-      if (c2) {
+      const pic = strip();
+      if (!c2 || !pic) {
+        for (const id of ['CT06', 'CT15', 'CT16', 'CT23']) record(id, ...B(!c2 ? 'the list had fewer than 2 children' : 'no strip photo fixture (CHILD_TEST_FIXTURES_DIR/strips or the stand-in)'));
+      } else {
         s = t();
         const stray = await turn(() => api.upload(v.urdu, 'Audio'));
         const strayClaimed = RX.ack.test(stray.txt) && /Urdu|اردو/.test(stray.txt);
-        record('CT23', ...V(!strayClaimed, { reply: stray.txt.slice(0, 160) }), t() - s);
+        const keysAfterStray = sess1 ? (await get(`child_test_blocks?select=block,audio_r2_key&session_id=eq.${sess1.id}`)).map((b) => b.block + ':' + (b.audio_r2_key || '')).sort() : [];
+        record('CT23', ...V(!strayClaimed && JSON.stringify(keysAfterStray) === JSON.stringify(blocks1.map((b) => b.block + ':' + (b.audio_r2_key || '')).sort()),
+          { reply: stray.txt.slice(0, 160), child1KeysUnchanged: true }), t() - s);
         await api.freshReset();
-        record('CT15', ...B('driven as order only: the mock lane sends child 1\'s photo before child 2 starts (CT06); the after-next-child order needs L4\'s per-session photo state exposed — drive on chrome'));
         s = t();
         await tapChild(c2); await turn(() => api.tapAndWait('Present'));
-        await turn(() => api.upload(v.urdu, 'Audio')); await turn(() => api.upload(v.english, 'Audio')); await turn(() => api.upload(v.maths, 'Audio'));
-        const np = await turn(() => api.tapAndWait('No strip photo'));
+        const u2 = await turn(() => api.upload(v.urdu, 'Audio'));
+        const ph = await turn(() => api.upload(pic, 'Photos & videos'));
+        await new Promise((r) => setTimeout(r, 1500));
         const [sess2] = await get(`child_test_sessions?select=id&draw_id=eq.${drawIds[1]}`);
-        const [mb2] = sess2 ? await get(`child_test_blocks?select=ai_status,ai_marks&session_id=eq.${sess2.id}&block=eq.maths`) : [];
+        const [mb] = sess1 ? await get(`child_test_blocks?select=photo_r2_key,ai_status&session_id=eq.${sess1.id}&block=eq.maths`) : [];
+        const b2 = sess2 ? await get(`child_test_blocks?select=block,audio_r2_key,photo_r2_key&session_id=eq.${sess2.id}`) : [];
+        const c2photo = b2.some((b) => !!b.photo_r2_key), c2english = b2.find((b) => b.block === 'english');
+        const ok15 = RX.ack.test(u2.txt) && RX.english.test(u2.txt) && /maths-strip\.jpg$/.test((mb && mb.photo_r2_key) || '') && !c2photo && !(c2english && c2english.audio_r2_key);
+        const ev15 = { photoReply: ph.txt.slice(0, 200), child1PhotoKey: (mb && mb.photo_r2_key) || null, child2Photo: c2photo, child2EnglishAudio: !!(c2english && c2english.audio_r2_key) };
+        // "📷 Strip no. 1 saved for <child 1>" needs a strip whose child number is READ; the blank stand-in has none, so
+        // the read fails and the photo takes the next child in order (CT48's line). Where it lands is checked either way.
+        if (usingStandIn && !/📷\s*Strip no\.\s*1\b/.test(ph.txt)) record('CT15', ...(ok15 ? ['BLOCKED', { reason: 'needs a strip photo whose child number can be read (CT47\'s strips-childno fixtures + an OpenRouter cassette): the blank stand-in has none, so the reply is the unreadable-number line; the photo did land on child 1 with child 2 still on English', ...ev15 }] : ['FAIL', ev15]), t() - s);
+        else record('CT15', ...V(ok15 && /📷\s*Strip no\.\s*1\b/.test(ph.txt), ev15), t() - s);
+        const ok6 = RX.photoAsk.test(m.txt) && !mathsRow.ai_marks && mathsRow.ai_status === 'pending' && [null, 'awaiting_photo'].includes(mathsRow.ai_reason || null) && RX.photoSaved.test(ph.txt) && RX.allIn.test(ph.txt)
+          && /maths-strip\.jpg$/.test((mb && mb.photo_r2_key) || '');
+        const ev6 = { ask: m.txt.slice(0, 160), mathsBeforePhoto: { status: mathsRow.ai_status || null, reason: mathsRow.ai_reason || null }, photoReply: ph.txt.slice(0, 160), photoKey: (mb && mb.photo_r2_key) || null };
+        if (usingStandIn) half('CT06', ok6, ev6, t() - s); else record('CT06', ...V(ok6, ev6), t() - s);
+
+        s = t();
+        await turn(() => api.upload(v.english, 'Audio')); await turn(() => api.upload(v.maths, 'Audio'));
+        const np = await turn(() => api.tapAndWait('No strip photo'));
+        await new Promise((r) => setTimeout(r, 2500));
+        const [mb2] = sess2 ? await get(`child_test_blocks?select=ai_status,ai_marks,ai_reason&session_id=eq.${sess2.id}&block=eq.maths`) : [];
         const written = (mb2 && mb2.ai_marks && mb2.ai_marks.maths && mb2.ai_marks.maths.written) || [];
-        record('CT16', ...V(RX.noPhotoAck.test(np.txt) && !!mb2 && (mb2.ai_status === 'partial' || mb2.ai_status === 'scoring' || mb2.ai_status === 'pending')
-          && written.every((w) => w.verdict === 'unreadable'), { ack: np.txt.slice(0, 120), mathsStatus: mb2 && mb2.ai_status }), t() - s);
+        const ev16 = { ack: np.txt.slice(0, 120), mathsStatus: mb2 && mb2.ai_status, mathsReason: mb2 && mb2.ai_reason };
+        if (usingStandIn) half('CT16', RX.noPhotoAck.test(np.txt) && !!mb2 && mb2.ai_reason !== 'awaiting_photo', ev16, t() - s);
+        else record('CT16', ...V(RX.noPhotoAck.test(np.txt) && !!mb2 && mb2.ai_status === 'partial' && written.every((w) => w.verdict === 'unreadable'), ev16), t() - s);
       }
 
-      // Marks + check Flow: need recorded vendor answers (Soniox/OpenRouter) and the stored Flow fixture.
+      // Marks + check Flow: need real marks and the stored Flow fixture.
       const flowFixture = path.join(repo, '.claude', 'qa', 'fixtures', 'flows', 'CHILD_TEST_CHECK_FLOW_ID.json');
       const scored = sess1 ? (await get(`child_test_blocks?select=ai_status&session_id=eq.${sess1.id}`)).filter((b) => b.ai_status === 'scored' || b.ai_status === 'partial').length : 0;
       if (!fs.existsSync(flowFixture)) {
         const noFlow = B('no stored check Flow: register CHILD_TEST_CHECK_FLOW_ID on the sandbox WABA (L6/L0), then bot/scripts/e2e/flow-inventory.js fetch');
         record('CT07', ...noFlow); record('CT08', ...noFlow); record('CT17', ...noFlow); record('CT18', ...noFlow); record('CT01', ...noFlow);
       }
-      if (scored < 3) record('CT27', ...B(`child 1 has ${scored}/3 blocks scored on this lane — the vendor answers are not recorded (commit-e2e.sh --features child-test --record, sandbox only)`));
+      if (scored < 3) record('CT27', ...B(usingStandIn ? MARKS : `child 1 has ${scored}/3 blocks scored on this lane — the vendor answers are not recorded (commit-e2e.sh --features child-test --record, sandbox only)`));
       if (fs.existsSync(flowFixture) && scored === 3) {
         s = t();
         const op = await api.openFlow('جانچ کریں|Check');
@@ -445,6 +539,10 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     }
 
     // ── /cancel and /menu never release a drawn child (also clears a child left mid-block) ──
+    // CT28 is driven in its "Urdu block waiting" row (the state the known finding bd-q8wt5e.12 is about): with the voice
+    // notes now driven, no child is left mid-block here, so child 4 is put on its Urdu block first.
+    const c4 = main1[3];
+    if (c4) { await tapChild(c4); await turn(() => api.tapAndWait('Present')); }
     s = t();
     const statusBefore = await get(`child_test_draws?select=id,status&id=in.(${drawIds.join(',')})&order=id`);
     const cx = await turn(() => api.sendWait('/cancel'));
@@ -490,15 +588,280 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     const ur = await turn(() => api.sendWait('/egra'));
     record('CT19', ...V(!!ur.list && /[؀-ۿ]/.test(ur.txt) && !/Today's children/.test(ur.txt), { reply: ur.txt.slice(0, 120) }), t() - s);
 
+    await api.setUser({ preferred_language: me.preferred_language || 'en' });
+
+    // ── the v2 journey (CT81–CT88) and battery v3 (CT51–CT56) ── each on its OWN synthetic coach: the visit key is
+    // day:<coach>:<school>:<date>, so a second coach at the SIM school gets a fresh draw of 5 + 2 alternates while the
+    // driver's v1 draw above stays as its scenarios left it. Created only on the run's own local database.
+    const V2_IDS = ['CT81', 'CT82', 'CT83', 'CT84', 'CT85', 'CT86', 'CT87', 'CT88'];
+    const V3_IDS = ['CT51', 'CT52', 'CT53', 'CT54', 'CT55', 'CT56'];
+    const isLocal = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs')).dbCreds(env).kind === 'local';
+    const cloneCoach = async (tag) => {
+      const [row] = await get(`users?select=*&id=eq.${me.id}`);
+      if (!row) return { err: 'driver row unreadable' };
+      const phone = '9239' + String(Date.now()).slice(-7) + tag;
+      const body = { ...row, phone_number: phone, preferred_language: 'en' };
+      for (const k of ['id', 'created_at', 'updated_at']) delete body[k];
+      const r = await fetch(`${sbUrl}/rest/v1/users`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify(body) }).catch((e) => ({ ok: false, text: async () => e.message }));
+      if (!r.ok) return { err: 'users insert: ' + String(await r.text()).slice(0, 160) };
+      const [u] = await r.json();
+      const ext = 'E2E-CT-' + phone;
+      await write('POST', 'leader_schools', { leader_user_id: u.id, school_ext_id: ext, school_id: sim.id, school_name: sim.name, emis: sim.emis, source: 'niete_ict' });
+      clones.push({ id: u.id, ext });
+      return { user: u, phone, api: api.as(phone) };
+    };
+    const waitFor = async (a, re, ms) => { const end = Date.now() + ms; const seen = []; while (Date.now() < end) { await a.sleep(Math.min(15000, end - Date.now())); for (const m of await a.fresh()) { seen.push(m); if (re.test(m.txt || '')) return { hit: m, seen }; } } return { hit: null, seen }; };
+    const noteOf = (a) => turn(() => a.upload(voice('urdu'), 'Audio'), a);
+    const tapB = (a, label) => turn(() => a.tapAndWait(label), a);
+    const sayB = (a, text) => turn(() => a.sendWait(text), a);
+
+    if (want(V2_IDS)) {
+      if (!isLocal) for (const id of V2_IDS) record(id, ...B('needs a second synthetic coach (a fresh visit and draw); created only on the run\'s own local database, never on the shared sandbox'));
+      else if (!voice('urdu')) for (const id of V2_IDS) record(id, ...B('no voice-note fixture (stand-in missing)'));
+      else {
+        const V2 = { CHILD_TEST_ENABLED: 'true', CHILD_TEST_DRAW_SECRET: env.CHILD_TEST_DRAW_SECRET || 'e2e-mock-lane-only', CHILD_TEST_STEP_NUDGE_MS: '15000' };
+        const r2 = await stack.restart('bot', V2); await stack.restart('worker', V2);
+        const cb = r2 && r2.ok ? await cloneCoach('b') : { err: 'bot restart on the v2 defaults failed: ' + JSON.stringify(r2).slice(0, 100) };
+        if (cb.err) for (const id of V2_IDS) record(id, ...B('could not set up the v2 coach: ' + cb.err));
+        else {
+          const b = cb.api;
+          if (usingStandIn) await stack.faults(STAND_IN_FAULTS);
+          const L = await sayB(b, '/egra');
+          const listMsg = L.items.find((m) => RX.listV2Head.test(m.txt || '')) || {};
+          const rooms = (String(listMsg.txt || '').match(/^\*[^*\n]+\*\s*·\s*(?:Teacher:|ask the head teacher)/gm) || []);
+          const names = (String(listMsg.txt || '').match(/^\d+\.\s+(.+)$/gm) || []).map((x) => x.replace(/^\d+\.\s+/, '').replace(/\s*\(\d+ in this class\)$/, ''));
+          const sawCheck = [];   // CT86: no per-child check during the visit
+          const noteCheck = (r) => { for (const m of r.items) if (m.flow || /\bCheck\b|جانچ/.test((m.btns || []).join(' '))) sawCheck.push(String(m.txt || '').slice(0, 60)); return r; };
+
+          // CT81 — Send to the teachers
+          s = t();
+          const teachers = await simTeachers();
+          const tApis = teachers.map((tc) => ({ tc, ta: api.as(tc.phone_number) }));
+          for (const { ta } of tApis) await ta.freshReset();   // CT62 already messaged the Grade 3 teacher
+          const st = await tapB(b, 'Send to the teachers');
+          const got = [];
+          for (const { tc, ta } of tApis) { const out = await ta.fresh(); if (out.length) got.push({ teacher: tc.id, lang: tc.preferred_language, messages: out.length, children: (out[0].txt.match(/^\s*[\d۰-۹]+[.۔)]\s*(.+)$/gm) || []).length, ur: /[؀-ۿ]/.test(out[0].txt) }); }
+          const ev81 = { reply: st.txt.slice(0, 120), rooms: rooms.length, teachersMessaged: got };
+          const ok81 = /^Sent to .+\.$/m.test(st.txt) && got.length === rooms.length && got.every((g) => g.messages === 1 && g.ur === (g.lang !== 'en'));
+          if (rooms.length < 2) record('CT81', 'BLOCKED', { reason: 'the SIM school seeds one classroom per grade (seed-sandbox.js), so the two-room Given is not met; the one-room send is in the evidence', oneRoomHeld: ok81, ...ev81 }, t() - s);
+          else record('CT81', ...V(ok81, ev81), t() - s);
+
+          // CT82 — Start: the setup picture once, "Start with <first name>"
+          s = t();
+          const sp = noteCheck(await tapB(b, 'Start'));
+          const pic = sp.items.find(isImg) || sp.items.find((m) => /You need the \*/.test(m.txt || '')) || {};
+          const startWith = (pic.btns || [])[0] || '';
+          const okPic = isImg(pic) && /You need the \*(?:🟩 Green Grade 3|🟦 Blue Grade 5|Grade \d)\* cards/.test(pic.txt || '') && /^Start with \S+/.test(startWith) && (pic.btns || []).length === 1;
+          // CT83 — presence: "Child 1 of 5 · <name · class · teacher>", the greeting, three buttons; Absent → reason, alternate, next prompt
+          const pr = noteCheck(await tapB(b, startWith || 'Start with'));
+          const presRe = /^\*Child (\d+) of (\d+) · (.+) · (.+) · Teacher: (.+)\*\nBefore recording, say:\n.*«.+»/m;
+          const p1m = pr.items.find((m) => presRe.test(m.txt || '')) || {};
+          const presOk = (m) => presRe.test(m.txt || '') && JSON.stringify(m.btns || []) === JSON.stringify(['Here, start', 'Absent', "Doesn't want to"]);
+          const firstName = base((presRe.exec(p1m.txt || '') || [])[3]);
+          const ab = noteCheck(await tapB(b, 'Absent'));
+          const abTxt = ab.items.map((m) => m.txt || '').join('\n');
+          const p2m = ab.items.find((m) => presRe.test(m.txt || '')) || {};
+          record('CT83', ...V(presOk(p1m) && startWith === 'Start with ' + firstName.split(/\s+/)[0] && new RegExp(`${firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: absent\\.`).test(abTxt)
+            && /joins today's children\./.test(abTxt) && presOk(p2m) && /^\*Child 1 of/.test(p2m.txt || '') && !ab.items.some((m) => m.list),
+            { prompt: String(p1m.txt || '').split('\n')[0], buttons: p1m.btns, afterAbsent: abTxt.slice(0, 200) }), t() - s);
+
+          // CT84 / CT88 / CT87 / CT85 — child 1 (the promoted line-up's first): three plain steps, resume mid-child, the nudge, auto-advance
+          s = t();
+          const childName = base((presRe.exec(p2m.txt || '') || [])[3]);
+          const stepRe = (bn, part) => new RegExp(`^\\*${bn}\\/3 ${part} · ${childName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*`, 'm');
+          const plain = (m) => !(m.btns || []).length && !m.list && !m.flow;
+          const banned = /\broll\b|child no\.|\bForm [AB]\b|\bstrip\b|\bphoto\b/i;
+          const h = noteCheck(await tapB(b, 'Here, start'));
+          const s1 = h.items.find((m) => stepRe(1, 'Urdu story').test(m.txt || '')) || {};
+          const n1 = noteCheck(await noteOf(b));
+          const s2 = n1.items.find((m) => stepRe(2, 'English story').test(m.txt || '')) || {};
+          // CT88 — /egra on part 2: where the child is, Continue / Stop this child; Continue re-sends the English step
+          const t88 = t();
+          const rs = noteCheck(await sayB(b, '/egra'));
+          const rsm = rs.items.find((m) => /is on part 2\/3 \(English/.test(m.txt || '')) || {};
+          const co = noteCheck(await tapB(b, 'Continue'));
+          const last = co.items[co.items.length - 1] || {};
+          record('CT88', ...V(new RegExp(`^${childName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} is on part 2\\/3 \\(English`).test(rsm.txt || '') && JSON.stringify(rsm.btns || []) === JSON.stringify(['Continue', 'Stop this child'])
+            && stepRe(2, 'English story').test(last.txt || '') && plain(last), { resume: rsm.txt || rs.txt.slice(0, 120), buttons: rsm.btns, resent: String(last.txt || '').split('\n')[0] }), t() - t88);
+          const n2 = noteCheck(await noteOf(b));
+          const s3 = n2.items.find((m) => stepRe(3, 'Maths').test(m.txt || '')) || {};
+          const steps3 = [s1, s2, s3];
+          record('CT84', ...V(steps3.every((m) => m.txt && plain(m) && !banned.test(m.txt)) && /«.+»/.test(s1.txt || '') && /«.+»/.test(s2.txt || '')
+            && /pair \*A–D\*/.test(s3.txt || '') && /sum \*1–4\*/.test(s3.txt || '') && /word problem/i.test(s3.txt || '') && /🎧 Got it · Urdu/.test(n1.txt) && /🎧 Got it · English/.test(n2.txt),
+            { titles: steps3.map((m) => String(m.txt || '').split('\n')[0]), buttons: steps3.map((m) => (m.btns || []).length), banned: steps3.map((m) => (banned.exec(m.txt || '') || [])[0] || null) }), t() - s);
+          // CT87 — the maths step is the last bubble and no note comes: one nudge after CHILD_TEST_STEP_NUDGE_MS (15 s here), never repeated
+          s = t();
+          await b.freshReset();
+          const nd = await waitFor(b, /Did the recording stop\?/, 80000);
+          const again = await waitFor(b, /Did the recording stop\?/, 40000);
+          record('CT87', ...V(!!nd.hit && stepRe(3, 'Maths').test(nd.hit.txt || '') && /Look for an unsent voice note above the keyboard and press send\. If it's gone, record this part again\./.test(nd.hit.txt || '') && !again.hit,
+            { nudge: nd.hit && nd.hit.txt, repeated: !!again.hit, nudgeMs: 15000 }), t() - s);
+          // CT85 — the maths note: scored at once, no photo; "✅ <name> done. Thank the child." above the next prompt
+          s = t();
+          const n3 = noteCheck(await noteOf(b));
+          await new Promise((r) => setTimeout(r, 2000));
+          const drawB = (await get(`child_test_sessions?select=id,status,draw_id&coach_user_id=eq.${cb.user.id}&order=created_at`));
+          const sessB = drawB[0];
+          const [mB] = sessB ? await get(`child_test_blocks?select=ai_status,ai_reason,photo_r2_key&session_id=eq.${sessB.id}&block=eq.maths`) : [];
+          const doneMsg = n3.items.find((m) => /^✅ .+ done\. Thank the child\./.test(m.txt || '')) || {};
+          record('CT85', ...V(!!mB && mB.ai_reason !== 'awaiting_photo' && mB.ai_status !== 'pending' && !/strip|photo/i.test(n3.txt) && n3.items.length === 1
+            && new RegExp(`^✅ ${childName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} done\\. Thank the child\\.\\n\\n\\*Child 2 of`).test(doneMsg.txt || '') && presOk(doneMsg),
+            { reply: String(doneMsg.txt || n3.txt).slice(0, 160), messages: n3.items.length, maths: mB || null, session: sessB && sessB.status }), t() - s);
+          // CT82 (second half) — Start again later in the visit: no picture, the next child's prompt
+          const sp2 = noteCheck(await turn(async () => { await b.tapId('button', 'ctst_start', 'Start'); await b.sleep(4000); return null; }, b));
+          record('CT82', ...V(okPic && !sp2.items.some(isImg) && sp2.items.some((m) => presOk(m) && /^\*Child 2 of/.test(m.txt || '')),
+            { caption: String(pic.txt || '').split('\n')[0], image: isImg(pic), button: startWith, secondStart: sp2.items.map((m) => String(m.txt || '').split('\n')[0]) }), t() - s);
+          // CT86 — the rest of the visit: every child here, three notes each; the visit end once, no per-child check
+          s = t();
+          let endMsg = null, kids = 1;
+          for (let k = 0; k < 6 && !endMsg; k++) {
+            const hs = noteCheck(await tapB(b, 'Here, start'));
+            if (!hs.items.some((m) => /^\*1\/3 /.test(m.txt || ''))) break;
+            noteCheck(await noteOf(b)); noteCheck(await noteOf(b));
+            const fin = noteCheck(await noteOf(b));
+            kids += 1;
+            endMsg = fin.items.find((m) => /^🎉 All \d+ children done \(\d+ min\)\. Thank the teachers\./.test(m.txt || '')) || null;
+          }
+          // the summary waits (off the critical path) for every child's marks; on this lane the stand-in's scoring fails
+          // and is retried to its terminal state, so the summary comes after the retries (≤ ~3 min)
+          const tail = endMsg ? await waitFor(b, /not scored|Results:|answers need your ear|—/, 240000) : { hit: null, seen: [] };
+          const ev86 = { end: endMsg && endMsg.txt, children: kids, perChildChecks: sawCheck, summary: tail.hit ? String(tail.hit.txt).slice(0, 200) : null, after: tail.seen.length };
+          if (!endMsg || sawCheck.length) record('CT86', 'FAIL', ev86, t() - s);
+          else record('CT86', 'BLOCKED', { reason: MARKS + ' (the summary "once the marks are in" and the review need real marks)', conversationHalf: 'held', ...ev86 }, t() - s);
+        }
+      }
+    }
+
+    if (want(V3_IDS)) {
+      if (!isLocal) for (const id of V3_IDS) record(id, ...B('needs a third synthetic coach (a fresh visit and draw); created only on the run\'s own local database, never on the shared sandbox'));
+      else if (!voice('urdu')) for (const id of V3_IDS) record(id, ...B('no voice-note fixture (stand-in missing)'));
+      else {
+        const V3 = { CHILD_TEST_ENABLED: 'true', CHILD_TEST_DRAW_SECRET: env.CHILD_TEST_DRAW_SECRET || 'e2e-mock-lane-only', CHILD_TEST_BATTERY: 'v3', CHILD_TEST_STEP_NUDGE_MS: '15000' };
+        const r3 = await stack.restart('bot', V3); await stack.restart('worker', V3);
+        const cc = r3 && r3.ok ? await cloneCoach('c') : { err: 'bot restart with CHILD_TEST_BATTERY=v3 failed: ' + JSON.stringify(r3).slice(0, 100) };
+        if (cc.err) for (const id of V3_IDS) record(id, ...B('could not set up the v3 coach: ' + cc.err));
+        else {
+          const c = cc.api;
+          if (usingStandIn) await stack.faults(STAND_IN_FAULTS);
+          await sayB(c, '/egra');
+          const sp = await tapB(c, 'Start');
+          const sw = ((sp.items.find((m) => (m.btns || []).some((x) => /^Start with /.test(x))) || {}).btns || [])[0];
+          const pr = await tapB(c, sw || 'Start with');
+          const presRe = /^\*Child (\d+) of (\d+) · (.+?) · /m;
+          const pm = pr.items.find((m) => presRe.test(m.txt || '')) || {};
+          const nm = base((presRe.exec(pm.txt || '') || [])[3]);
+          const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const head = (blk, k, n, title, who = nm) => new RegExp(`^\\*${esc(who)}\\* · ${blk} ${k} of ${n} · ${esc(title)}`, 'm');
+          const headOf = (m) => (m && /^\*.+?\* · ((?:Urdu|English|Maths) \d+ of \d+) · ([^\n]+)/m.exec(m.txt)) || null;
+          const HARDER_ADD = /^(?:Harder addition|Addition, harder)$/;   // the step's title is the bank's ("Addition, harder")
+          /** One child through the v3 battery. `act(title)` → null (send a note) or the text to type instead. */
+          const runChild = async (who, act, onStep = async () => {}) => {
+            const stepOf = (r) => r.items.filter((m) => new RegExp(`^\\*${esc(who)}\\* · (Urdu|English|Maths) \\d+ of \\d+ · `, 'm').test(m.txt || '') && !/Did the recording stop\?/.test(m.txt || '')).pop() || null;
+            const o = { order: [], acks: [], gaps: [], typed: [], steps: {}, first: null, done: null, next: null };
+            let cur = stepOf(await tapB(c, 'Here, start'));
+            o.first = cur;
+            for (let i = 0; i < 24 && cur; i++) {
+              const hd = headOf(cur); if (!hd) break;
+              o.order.push(hd[1] + ' · ' + hd[2]);
+              if (!o.steps[hd[2]]) o.steps[hd[2]] = cur;
+              await onStep(hd, cur);
+              const typed = act(hd[2]);
+              const nx = typed ? await sayB(c, typed) : await noteOf(c);
+              const txt = nx.items.map((m) => m.txt || '').join('\n');
+              if (typed) o.typed.push({ word: typed, title: hd[2], replies: nx.items.length, first: (nx.items[0] || {}).txt || '' });
+              else o.acks.push({ task: hd[2], ok: new RegExp(`🎧 Got it · ${esc(hd[2])}`).test(txt), last: false });
+              for (const g of txt.match(/⏭️ [^\n]+: not part of this test yet, so it is skipped\./g) || []) o.gaps.push(g);
+              o.done = nx.items.find((m) => new RegExp(`^✅ ${esc(who)} done\\. Thank the child\\.`).test(m.txt || '')) || null;
+              if (o.done) { if (!typed && o.acks.length) o.acks[o.acks.length - 1].last = true; o.next = base((presRe.exec(o.done.txt) || [])[3]) || null; }
+              cur = o.done ? null : stepOf(nx);
+            }
+            return o;
+          };
+          // child 1: one note per step (CT51), the timed and untimed steps (CT52, CT53), the nudge and resume at Letters (CT56)
+          let resume = null, nudge = null;
+          const k1 = await runChild(nm, () => null, async (hd) => {
+            if (hd[2] !== 'Letters' || !/^Urdu/.test(hd[1]) || nudge !== null) return;
+            await c.freshReset();
+            const nd = await waitFor(c, /Did the recording stop\?/, 80000);
+            const rs = await sayB(c, '/egra');
+            const co = await tapB(c, 'Continue');
+            nudge = nd.hit || false;
+            resume = { line: (rs.items.find((m) => /is on Urdu \d+ of \d+ \(Letters\)/.test(m.txt || '')) || {}), resent: co.items[co.items.length - 1] || {} };
+          });
+          const { order, acks, gaps, first, done } = k1;
+          const letters = k1.steps.Letters || null;
+          const bigger = k1.steps['Which is bigger'] || null;
+          // child 2 (CT54): "skip" with no step open is not the child test's; «چھوڑیں», "next", «اگلا» on Urdu 1–3; "skip" at harder addition
+          let k2 = null, idle = null;
+          const k2seen = new Set();   // child 2 types each alias once: on Urdu 1–3 only, not on English's same-named tasks
+          if (k1.next) {
+            idle = await sayB(c, 'skip');
+            const words = { Listening: 'چھوڑیں', Letters: 'next', 'Made-up words': 'اگلا' };
+            k2 = await runChild(k1.next, (title) => (HARDER_ADD.test(title) ? 'skip' : (words[title] && !k2seen.has(title) ? (k2seen.add(title), words[title]) : null)));
+          }
+          const sessC = (await get(`child_test_sessions?select=id&coach_user_id=eq.${cc.user.id}&order=created_at&limit=1`))[0];
+          const rowsC = sessC ? await get(`child_test_blocks?select=block,audio_r2_key,ai_status,ai_marks&session_id=eq.${sessC.id}`) : [];
+          const want18 = [...Array(5)].map((_, i) => `Urdu ${i + 1} of 5`).concat([...Array(5)].map((_, i) => `English ${i + 1} of 5`), [...Array(8)].map((_, i) => `Maths ${i + 1} of 8`));
+          const seenPos = order.map((o) => o.split(' · ')[0]);
+          const gapCount = gaps.length;
+          // CT51: every position in order (a gap task is named by its line instead of a step), one note each, the done line
+          record('CT51', ...V(!!first && head('Urdu', 1, 5, 'Listening').test(first.txt || '') && !(first.btns || []).length
+            && want18.filter((x) => seenPos.includes(x)).join('|') === seenPos.join('|') && seenPos.length + gapCount === 18 && acks.filter((a) => !a.last).every((a) => a.ok)
+            && rowsC.filter((r) => r.audio_r2_key).length === seenPos.length && rowsC.filter((r) => r.audio_r2_key).every((r) => r.ai_status && r.ai_status !== 'pending') && !!done,
+            { order, gaps, acks: acks.filter((a) => a.ok).length + '/' + acks.filter((a) => !a.last).length, scoringStarted: rowsC.filter((r) => r.audio_r2_key && r.ai_status !== 'pending').length, rows: rowsC.length, withAudio: rowsC.filter((r) => r.audio_r2_key).length, done: done && done.txt.split('\n')[0] }), 0);
+          // CT52: the Urdu letters step (timed). The words to the child come verbatim from the item bank's script (spec,
+          // L36 header), so the lines are read from the bank on the commit under test, not copied into this driver.
+          const L52 = String((letters && letters.txt) || '').replace(/[\u2066-\u2069]/g, '');
+          let sc = {}, practice = [];
+          try { const bk = JSON.parse(fs.readFileSync(path.join(root, 'bot/shared/data/child-test/item-bank.v3.json'), 'utf8')); const ls = bk.sets.A.reading.ur.letters; sc = Object.fromEntries(Object.entries(ls.script || {}).map(([k, x]) => [k, (x && x.ur) || x])); practice = ls.practice || []; } catch (_) { sc = {}; }
+          const q = (x) => `«${x}»`;
+          record('CT52', ...V(!!sc.begin && /📖 Urdu booklet, page 1: letters/.test(L52) && L52.includes(`Before recording, say:\n   ${q(sc.intro)}`) && L52.includes(q(sc.instructions))
+            && (!practice.length || /Practice row first \(not recorded\)/.test(L52)) && /Tap 🎤 and slide up to lock\./.test(L52) && L52.includes(q(sc.begin))
+            && L52.includes(`Stuck for 3 seconds? Point to the next one and say:\n   ${q(sc.go_on)}`) && L52.includes(`At *1:00* on the mic, say:\n   ${q(sc.stop)}`)
+            && /Send ➤ at about \*1:05\*\./.test(L52) && L52.includes(`_Nothing right in the first row? Say ${q(sc.early_stop || sc.stop)} and send._`),
+            { bank: { begin: sc.begin, go_on: sc.go_on, stop: sc.stop, early_stop: sc.early_stop, practice: practice.length }, step: L52.slice(0, 900) }), 0);
+          // CT53: which is bigger (untimed)
+          const L53 = (bigger && bigger.txt) || '';
+          record('CT53', ...V(/Maths 2 of 8 · Which is bigger/.test(L53) && /📖 Maths booklet Grade \d, page 2/.test(L53) && /Record the whole task\./.test(L53)
+            && /«اگلا»/.test(L53) && /Stop after 4 wrong in a row/.test(L53) && !/1:00|1:05/.test(L53) && L53.indexOf('Practice') > -1 && L53.indexOf('Practice') < L53.indexOf('Record the whole task'),
+            { step: L53.slice(0, 600) }), 0);
+          // CT54: skip — "skip" at harder addition (child 2), the three aliases, and "skip" with no step open
+          const sessC2 = k2 ? (await get(`child_test_sessions?select=id&coach_user_id=eq.${cc.user.id}&order=created_at&offset=1&limit=1`))[0] : null;
+          const rows2 = sessC2 ? await get(`child_test_blocks?select=block,audio_r2_key,ai_status,ai_marks&session_id=eq.${sessC2.id}`) : [];
+          const sk = k2 && k2.typed.find((x) => x.word === 'skip');
+          const aliases = k2 ? k2.typed.filter((x) => x.word !== 'skip') : [];
+          const skRow = rows2.find((r) => r.block === 'ma.add2') || {};
+          const skippedRows = rows2.filter((r) => r.ai_marks && r.ai_marks.skipped_by_coach === true && !r.audio_r2_key).map((r) => r.block);
+          if (!k2) record('CT54', ...B('child 1 did not finish on this run, so there was no next child to skip on'));
+          else record('CT54', ...V(!!sk && new RegExp(`^⏭️ Skipped: ${esc(sk.title)}\\.\\n\\*${esc(k1.next)}\\* · Maths 7 of 8 · `).test(sk.first) && sk.replies === 1
+            && !skRow.audio_r2_key && !!(skRow.ai_marks && skRow.ai_marks.skipped_by_coach)
+            && aliases.length === 3 && aliases.every((x) => new RegExp(`^⏭️ Skipped: ${esc(x.title)}\\.\\n`).test(x.first) && x.replies === 1)
+            && ['ur.listening', 'ur.letters', 'ur.nonwords'].every((b2) => skippedRows.includes(b2)) && !!idle && !/⏭️/.test(idle.txt),
+            { skip: sk && sk.first.split('\n').slice(0, 2), aliases: aliases.map((x) => x.word + ' → ' + x.first.split('\n')[0]), idleSkip: idle && idle.txt.slice(0, 120),
+              row: { block: skRow.block, audio: !!skRow.audio_r2_key, aiStatus: skRow.ai_status || null, marks: skRow.ai_marks || null }, skippedRows }), 0);
+          // CT55: a gap task (only when the bank on this commit marks one)
+          if (!gapCount) record('CT55', ...B('the item bank on this commit marks no v3 task as a gap, so there is nothing to skip'));
+          else {
+            const gRows = rowsC.filter((r) => r.ai_marks && r.ai_marks.gap);
+            record('CT55', ...V(gRows.length === gapCount && gRows.every((r) => r.ai_marks.skipped_by_coach === true && !r.audio_r2_key), { gaps, rows: gRows.map((r) => r.block) }), 0);
+          }
+          // CT56
+          const rl = (resume && resume.line && resume.line.txt) || '';
+          record('CT56', ...V(!!nudge && head('Urdu', 2, 5, 'Letters').test(nudge.txt || '') && /Did the recording stop\?/.test(nudge.txt || '')
+            && new RegExp(`^${esc(nm)} is on Urdu 2 of 5 \\(Letters\\)\\.`).test(rl) && JSON.stringify((resume.line && resume.line.btns) || []) === JSON.stringify(['Continue', 'Stop this child'])
+            && head('Urdu', 2, 5, 'Letters').test((resume.resent && resume.resent.txt) || ''), { nudge: nudge && nudge.txt.split('\n')[0], resume: rl, resent: String((resume && resume.resent && resume.resent.txt) || '').split('\n')[0] }), 0);
+        }
+      }
+    }
+
     record('CT02', ...B('needs the observe2 field-form + check Flows walked to the brief; their fixtures are not stored for the emulator'));
     record('CT13', ...B('needs a child_test_sessions row ≥ 42 days old for the SIM school (no seed helper yet)'));
-    record('CT14', ...B('the mock cannot tell an album collage from separate images; the ≤ 3-in-a-row rule is a chrome check'));
     record('CT24', ...B('needs a forged WhatsApp timestamp earlier than the English prompt; the mock stamps inbound messages now'));
     record('CT25', ...B('needs a failing media send; the mock has no fault injection on POST /media'));
     record('CT26', ...B('needs a failing Supabase write; the harness has no DB fault injection'));
     record('CT31', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes 3 extra SIM children per run; set CT_DEEP=1'));
     // Five-minute protocol scenarios (L11): spec'd, drive not written yet — recorded honestly as BLOCKED.
-    record('CT33', ...B('drive not written yet: needs the SIM class teacher to be the observed teacher and an outbound send to a second synthetic number'));
+    record('CT33', ...B('needs an observe2 visit of the drawn class\'s teacher with CHILD_TEST_OBSERVE_LINK=true; the observe2 field-form and check Flows are not stored for the emulator (as CT02). The no-observation send is CT62'));
     record('CT34', ...B('drive not written yet: needs strip photos sent out of order across two children'));
     record('CT35', ...B('drive not written yet: a 4-minute fixture note per block (the guard is a unit test in tests/child-test/L11)'));
     record('CT36', ...B('drive not written yet: needs CHILD_TEST_QUICK_SUMS_SECONDS set on the local stack'));
@@ -507,7 +870,6 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     record('CT37', ...B('drive not written yet: needs three notes sent inside one store window (L13 sim-burst-mode.patch does it outside this driver)'));
     record('CT38', ...B('drive not written yet: needs a fourth note after all three blocks are claimed'));
     record('CT39', ...B('needs a failing R2 upload; the harness has no fault injection on the media store'));
-    record('CT40', ...B('drive not written yet: needs per-block outbound send counts from the mock'));
     // Restart recovery and pre-fill modes (L17, L16): proven by tests/child-test/L17 + L16 and the L17 kill/restart mock run.
     record('CT41', ...B('needs the bot killed between audio_saved and scoring; done outside this driver by lanes/L17/killproof.sh'));
     record('CT42', ...B('needs a scorer that keeps failing; the harness has no fault injection on the scorer'));
@@ -526,42 +888,23 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     record('CT50', ...B(env.CT_DEEP === '1' ? 'CT_DEEP drive not written yet' : 'consumes an alternate per run; set CT_DEEP=1'));
     // L21 (bd-s1oo0.27/.28): proven by tests/child-test/L21 (check-message, teacher-offer).
     record('CT61', ...B('needs recorded vendor answers and the stored check Flow fixture, as CT07'));
-    record('CT62', ...B('drive not written yet: needs a SIM class_teachers row and an outbound send to a second synthetic number, as CT33'));
     // bd-s1oo0.43: proven by tests/child-test/L0/check-count-inputs.test.js; the client-side check needs a real WhatsApp client.
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
-    // L26 (bd-s1oo0.46.2): v2 is proven by tests/child-test/L26 (journey-v2 + integration-l3-v2). The v1
-    // scenarios above are driven with CHILD_TEST_BATTERY=v1 + CHILD_TEST_MATHS_MODE=strip on the stack; of v2 only
-    // the list (CT80, with CT09) is driven, on the defaults, before the switch.
-    record('CT81', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT82', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT83', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT84', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT85', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT86', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT87', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
-    record('CT88', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
     // L28 (bd-s1oo0.46.4): proven by tests/child-test/L28 (review.test.js). The drive needs L26's end-of-visit
     // call to sendReview and the review Flow PUBLISHED on sandbox (CHILD_TEST_REVIEW_FLOW_ID); its submit is an nfm_reply.
-    record('CT90', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
-    record('CT91', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
-    record('CT92', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
-    record('CT93', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
-    record('CT94', ...B('drive not written yet: needs L26 wiring and the review Flow published on sandbox; jest-proven in tests/child-test/L28'));
+    record('CT90', ...B('needs real marks — which answers are doubtful comes from the scorer, and child speech is never recorded into a cassette — and the review Flow stored for the emulator (no fixtures/flows/CHILD_TEST_REVIEW_FLOW_ID.json); the v2 visit end is driven in CT86; jest-proven in tests/child-test/L28'));
+    record('CT91', ...B('needs real marks — which answers are doubtful comes from the scorer, and child speech is never recorded into a cassette — and the review Flow stored for the emulator (no fixtures/flows/CHILD_TEST_REVIEW_FLOW_ID.json); the v2 visit end is driven in CT86; jest-proven in tests/child-test/L28'));
+    record('CT92', ...B('needs real marks — which answers are doubtful comes from the scorer, and child speech is never recorded into a cassette — and the review Flow stored for the emulator (no fixtures/flows/CHILD_TEST_REVIEW_FLOW_ID.json); the v2 visit end is driven in CT86; jest-proven in tests/child-test/L28'));
+    record('CT93', ...B('needs real marks above every confidence bar; on this lane the stand-in\'s scoring is a scripted failure, so its parts read "not scored" (CT86 evidence); jest-proven in tests/child-test/L28'));
+    record('CT94', ...B('needs real marks — which answers are doubtful comes from the scorer, and child speech is never recorded into a cassette — and the review Flow stored for the emulator (no fixtures/flows/CHILD_TEST_REVIEW_FLOW_ID.json); the v2 visit end is driven in CT86; jest-proven in tests/child-test/L28'));
     // L34 (bd-s1oo0.47, CONTRACT §20): proven by tests/child-test/L34 (reach, comprehension-reach, step-reach,
     // coach-card-reach, review-reach). The drive needs fixtures of a child stopping before a question's line.
-    record('CT95', ...B('drive not written yet: needs a full-story reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
-    record('CT96', ...B('drive not written yet: needs an early-stop reader fixture and the review Flow on sandbox; jest-proven in tests/child-test/L34'));
-    record('CT97', ...B('drive not written yet: needs an early-stop reader fixture with all 3 questions asked; jest-proven in tests/child-test/L34'));
-    // L36 (bd-s1oo0.50.2): proven by tests/child-test/L36 (journey-v3). The drive needs the bot restarted with
-    // CHILD_TEST_BATTERY=v3, L35's bank and V1.6.1 on sandbox, and 18 fixture notes per child (L39's synthetic_v3).
-    record('CT51', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
-    record('CT52', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
-    record('CT53', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
-    record('CT54', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and synthetic_v3 notes; jest-proven in tests/child-test/L36'));
-    record('CT55', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a bank with a gap task; jest-proven in tests/child-test/L36'));
-    record('CT56', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 on the stack and a 4-minute wait; jest-proven in tests/child-test/L36'));
-    record('CT57', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3 and V1.6.1 on the stack and synthetic_v3 notes (coach.js --battery v3); jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
-    record('CT58', ...B('v3 drive not written yet: needs CHILD_TEST_BATTERY=v3, V1.6.1 and CHILD_TEST_REVIEW_FLOW_ID on the stack; jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
+    record('CT95', ...B('needs real marks — reach and the comprehension answers are read off the transcript, and child speech is never recorded into a cassette — plus a reader stopping before a question\'s line; jest-proven in tests/child-test/L34'));
+    record('CT96', ...B('needs real marks — reach and the comprehension answers are read off the transcript, and child speech is never recorded into a cassette — plus a reader stopping before a question\'s line; jest-proven in tests/child-test/L34'));
+    record('CT97', ...B('needs real marks — reach and the comprehension answers are read off the transcript, and child speech is never recorded into a cassette — plus a reader stopping before a question\'s line; jest-proven in tests/child-test/L34'));
+    // L36/L39 (bd-s1oo0.50.2, .50.5): the v3 visit is driven above (CT51–CT56); the results and the review need marks.
+    record('CT57', ...B('needs real marks for every task (rates, ≈ provisional, answers asked); on this lane the stand-in\'s scoring is a scripted failure; the v3 visit itself is driven in CT51–CT56; jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
+    record('CT58', ...B('needs real marks (the unsettled items come from the scorer) and the review Flow stored for the emulator (no fixtures/flows/CHILD_TEST_REVIEW_FLOW_ID.json); jest-proven in tests/child-test/L39 + tests/e2e-mock/child-test-v3-visit'));
 // L25 (bd-s1oo0.46.1): proven by tests/child-test/L25 (draw-v2, list-identity, no-roll). The drive needs a SIM
     // roster with two sections, two class teachers, an evening class and a namesake pair.
     record('CT70', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
@@ -573,6 +916,7 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     record('CT76', ...B('drive not written yet: needs a two-room SIM roster with class teachers, an evening class and a namesake pair; jest-proven in tests/child-test/L25'));
 } finally {
     await unassignSim();
+    for (const c of clones) await write('DELETE', `leader_schools?school_ext_id=eq.${c.ext}`);
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
     blockRest('not reached: an earlier step stopped the run');
   }
