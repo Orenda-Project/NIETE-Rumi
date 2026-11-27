@@ -16,7 +16,7 @@ import { dropForm, heldForm, keepForm, restoreOver } from "./formKeep";
 import { countChanges, initialValues, isObs612Draft, rungName, titleOf, type Values } from "./formModel";
 import { OBSERVATION_STEPS, SCREEN_STEP } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
-import { PlanSource } from "../observe/PlanState";
+import { LessonPlanOpen, PlanSource } from "../observe/PlanState";
 import { V6Part } from "./V6Parts";
 import { MIN_REASON, v6Notes, v6Problems, type V6Problems } from "./v6Model";
 import Obs612Form from "./Obs612Form";
@@ -304,6 +304,7 @@ export default function FeedbackForm() {
   const movesPart = (s: Extract<DraftSection, { kind: "moves" }>, d: ObservationDraft, v7look = false) => (
     <>
       <PlanSource lp={view?.lessonPlan} />
+      <LessonPlanOpen lp={view?.lessonPlan} sessionId={id} />
       {s.header && <p className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{s.header}</p>}
       {s.moves.length === 0 && s.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{s.fallback}</p>}
       {s.moves.map((m) => moveCard(m, s.moves.length, d.fidelityScale, v7look))}

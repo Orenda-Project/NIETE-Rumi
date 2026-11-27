@@ -39,7 +39,27 @@ export function shouldOpenInApp(recording: boolean, mode: InAppMode = IN_APP_LES
 export type LessonPlanSource =
   | { lane: 'k5'; lessonId: string; assetKind: 'lesson' | 'answer_key' }
   | { lane: 'g612'; renderId: string }
-  | { lane: 'paper'; paperId: string; artifact: 'paper' | 'answer_key' };
+  | { lane: 'paper'; paperId: string; artifact: 'paper' | 'answer_key' }
+  // bd-kijmb8 (queue #318) — the plan linked to a recording, from the portal's server; `fileKind` says how to draw it.
+  | { lane: 'session'; sessionId: string; fileKind: PlanFileKind }
+  // bd-kijmb8 — a plan she has picked on this phone and not sent yet (a photo, a PDF or a Word file).
+  | { lane: 'local'; file: File; fileKind: PlanFileKind };
+
+export type PlanFileKind = 'pdf' | 'image' | 'word';
+
+/** How a source is drawn: the lanes that serve plans are PDFs; a session's or a local file's kind is its own. */
+export function fileKindOfSource(source: LessonPlanSource): PlanFileKind {
+  return source.lane === 'session' || source.lane === 'local' ? source.fileKind : 'pdf';
+}
+
+/** 'pdf' | 'image' | 'word' for a picked file, by its type, else its name. */
+export function planFileKindOf(file: { name?: string; type?: string }): PlanFileKind {
+  const t = String(file.type || '').toLowerCase();
+  const n = String(file.name || '').toLowerCase();
+  if (t.startsWith('image/') || /\.(jpe?g|png|heic|webp)$/.test(n)) return 'image';
+  if (t.includes('word') || /\.docx?$/.test(n)) return 'word';
+  return 'pdf';
+}
 
 /**
  * What the viewer is opened with, in the history entry (so Back closes it). `crumb` is the new
@@ -57,6 +77,8 @@ export type OpenOptions = { crumb?: string; replace?: boolean; page?: string; st
 export const LESSON_PLAN_PAGE = '/portal/curriculum';
 
 export function sourceKey(source: LessonPlanSource): string {
+  if (source.lane === 'session') return `session:${source.sessionId}`;
+  if (source.lane === 'local') return `local:${source.file.name}:${source.file.size}:${source.file.lastModified}`;
   if (source.lane === 'paper') return `paper:${source.paperId}:${source.artifact}`;
   return source.lane === 'k5' ? `k5:${source.lessonId}:${source.assetKind}` : `g612:${source.renderId}`;
 }
@@ -72,12 +94,25 @@ export class LessonPlanNotReady extends Error {
   constructor() { super('lesson plan not ready'); this.name = 'LessonPlanNotReady'; }
 }
 
+/** A picked file's bytes. FileReader, not Blob.arrayBuffer(): the older Android WebViews teachers use lack the latter. */
+function readFileBytes(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error || new Error('could not read the file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 /** The PDF's bytes, from the portal's own server. */
 export async function fetchLessonPlanPdf(
   source: LessonPlanSource,
   onProgress?: (percent: number) => void,
 ): Promise<ArrayBuffer> {
-  const path = source.lane === 'k5'
+  if (source.lane === 'local') return readFileBytes(source.file);
+  const path = source.lane === 'session'
+    ? `/coaching-session/${encodeURIComponent(source.sessionId)}/lesson-plan/file`
+    : source.lane === 'k5'
     ? `/curriculum/lp/${encodeURIComponent(source.lessonId)}/file`
     : source.lane === 'paper'
       ? `/assessment/paper/${encodeURIComponent(source.paperId)}/file`
@@ -107,6 +142,8 @@ export async function fetchLessonPlanPdf(
  */
 export async function lessonPlanFileUrl(source: LessonPlanSource, { download = false, paper = false }: { download?: boolean; paper?: boolean } = {}): Promise<string | null> {
   if (source.lane === 'paper') return paperLink(source);
+  // bd-kijmb8 — a session's or a local plan has no share link.
+  if (source.lane === 'session' || source.lane === 'local') return null;
   // bd-zrdvmi.70 — `download`: the SAVE link (an attachment the phone keeps, so the plan opens with no internet).
   const dl = download ? { download: 1 } : {};
   if (source.lane === 'k5') {
@@ -123,6 +160,7 @@ export async function lessonPlanFileUrl(source: LessonPlanSource, { download = f
 export function lessonPlanShareId(source: LessonPlanSource): string {
   // A paper is shared as a paper (share kind 'paper', by its id), never through the lesson plan share route.
   if (source.lane === 'paper') return source.paperId;
+  if (source.lane === 'session' || source.lane === 'local') return '';
   return source.lane === 'k5' ? `k5:${source.lessonId}:${source.assetKind}` : `g612:${source.renderId}`;
 }
 
@@ -131,6 +169,18 @@ export function lessonPlanShareId(source: LessonPlanSource): string {
  * API says there is nothing to open (yet); throws on a real failure.
  */
 export async function openLessonPlanOutside(source: LessonPlanSource): Promise<'opened' | 'not_ready'> {
+  if (source.lane === 'local') {
+    window.open(URL.createObjectURL(source.file), '_blank', 'noopener');
+    return 'opened';
+  }
+  if (source.lane === 'session') {
+    const { data } = await api.get(`/coaching-session/${encodeURIComponent(source.sessionId)}/lesson-plan/file`, { params: { link: 1 } });
+    if (data?.available && data.url) {
+      window.open(data.url as string, '_blank', 'noopener');
+      return 'opened';
+    }
+    return 'not_ready';
+  }
   if (source.lane === 'paper') {
     const url = await paperLink(source);
     if (!url) return 'not_ready';

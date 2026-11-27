@@ -299,7 +299,7 @@ const CoachObservation = () => {
             {classRecording}
           </div>
 
-          <LessonPlanRow lp={view?.lessonPlan} />
+          <LessonPlanRow lp={view?.lessonPlan} sessionId={id} />
           {rubricLabel}
         </>
       )}
@@ -337,7 +337,7 @@ const CoachObservation = () => {
           {/* bd-ra8xu.40 — the rubric this visit was scored with, very small (an FDE block prints its own). */}
           {rubricLabel}
 
-          <LessonPlanRow lp={view?.lessonPlan} />
+          <LessonPlanRow lp={view?.lessonPlan} sessionId={id} />
 
           {stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">

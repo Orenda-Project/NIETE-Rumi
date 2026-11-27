@@ -25,6 +25,7 @@ import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
 import { VideoRecoCard } from './VideoRecoCard';
 import { Obs612Block } from '../../components/coaching/Obs612Block';
+import { SessionLessonPlanButton } from '../../components/SessionLessonPlanButton';
 import { LessonQuizButton } from '../home/LessonQuizButton';
 import { usePrincipalAppState } from '../principal/usePrincipalApp';
 import { DcGuideButton } from './dcGuide/DcGuide';
@@ -222,6 +223,9 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
           <AudioPlayer src={detail.lessonAudioUrl} label={C.yourRecording} copy={C.audio} />
         </>
       ) : null}
+
+      {/* bd-kijmb8 — the plan this recording was taught from, one tap (portal_lesson_plan_open; nothing when none is linked). */}
+      {ready ? <SessionLessonPlanButton sessionId={id} lessonPlan={detail?.lessonPlan} /> : null}
 
       <Reflection r={r} />
 

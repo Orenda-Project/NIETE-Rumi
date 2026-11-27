@@ -27,6 +27,9 @@ import { sameObservation } from "../../lib/recordingLink";
 import { extOf, recordingFilename } from "../../lib/saveRecording";
 import { withDuration } from "../../lib/webmDuration";
 import { holdFile, isFileRefused, tellUnreadablePick } from "../../lib/pickedRead";
+import { clearHeldPlan, getHeldPlan, setHeldPlan, type HeldPlan } from "../observePlan";
+import { lessonPlanOpenOn } from "../../lib/lessonPlanSwitch";
+import { peekConfig } from "../../lib/useNewUi";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
 import { lengthShort, madeWhen, planKindLabel } from "../observe/format";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
@@ -83,9 +86,7 @@ import type { CoachVisit } from "../types";
  * (the kit's ChosenSoFar: which choice, its title, its line) with Change (that choice's tray again) and Remove plan.
  */
 
-type Plan =
-  | { kind: "library"; pick: LibraryPick; title: string; sub: string }
-  | { kind: "file"; file: File; title: string; sub: string };
+type Plan = HeldPlan;
 
 type PlanSource = "camera" | "gallery" | "files";
 
@@ -157,7 +158,9 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const kit = useKitCopy();
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  // bd-kijmb8 — the plan attached on the recording page (held per visit) is already here; what she picks here is held back.
+  const [plan, setPlan] = useState<Plan | null>(() => (lessonPlanOpenOn(peekConfig()) ? getHeldPlan(visit.id) : null));
+  useEffect(() => { setHeldPlan(visit.id, plan); }, [plan, visit.id]);
   const [planError, setPlanError] = useState<"wrong_type" | "too_large" | "wont_open" | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -288,7 +291,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
   /** A recent plan picked (today's tray or the NIETE one): the same pick as always. */
   const pickRecent = (p: ObserveRecentPlan) => {
-    setPlan({ kind: "library", pick: isOwnPlan(p) ? { ownId: p.ownId } : { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C, kit) });
+    setPlan({ kind: "library", pick: isOwnPlan(p) ? { ownId: p.ownId } : { assetId: p.assetId }, title: p.topic || C.lessonPlan, sub: planSub(p, C, kit), lessonId: p.lessonId });
     setRecentOpen(false);
     setNieteOpen(false);
   };
@@ -316,7 +319,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   };
 
   const onLibraryPick = useCallback((p: PickedPlan) => {
-    setPlan({ kind: "library", pick: p.pick, title: p.title, sub: p.sub });
+    setPlan({ kind: "library", pick: p.pick, title: p.title, sub: p.sub, lessonId: "lessonId" in p.pick ? p.pick.lessonId : null });
     setStage("check");
   }, []);
 
@@ -341,6 +344,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       waitHref: routes.sending(visit.id),
       observationHref: (obsId) => routes.observation(obsId),
     });
+    clearHeldPlan(visit.id); // sent: the visit's held plan goes with it (bd-kijmb8)
     navigate(routes.sending(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
   };
 

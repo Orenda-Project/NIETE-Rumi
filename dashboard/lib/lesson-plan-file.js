@@ -84,7 +84,11 @@ function refuse(res, status, error) {
  * Fetch `url` from storage and stream it into `res` as a PDF.
  * Answers 502 (refused host, storage error), 413 (too large) or 504 (timeout) itself.
  */
-async function relayLessonPlanPdf(url, res, { fetchImpl = globalThis.fetch } = {}) {
+/** bd-kijmb8 — the kinds a session's plan can be served as; anything else is sent as a PDF, as before. */
+const SERVED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+
+async function relayLessonPlanPdf(url, res, { fetchImpl = globalThis.fetch, contentType = 'application/pdf' } = {}) {
   if (!isLessonPlanStorageUrl(url)) {
     console.error('❌ Lesson plan relay refused a non-storage URL', { host: (() => { try { return new URL(url).hostname; } catch { return null; } })() });
     return refuse(res, 502, 'Lesson plan storage refused');
@@ -115,7 +119,7 @@ async function relayLessonPlanPdf(url, res, { fetchImpl = globalThis.fetch } = {
   }
 
   res.status(200);
-  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Type', SERVED_TYPES.has(contentType) ? contentType : 'application/pdf');
   if (Number.isFinite(length) && length > 0) res.setHeader('Content-Length', String(length));
   res.setHeader('Content-Disposition', 'inline');
   res.setHeader('Cache-Control', 'private, no-store');
