@@ -873,6 +873,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
   // web_quiz_voice_v2 (the hub's switch cache, no read): no clip leaves the child in silence; iPhones get mp3 (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('voiceV2')) out.voice_v2 = true;
+  // web_quiz_voice_webaudio (the hub's switch cache, no read): a clip the browser refused to decode plays via Web Audio (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('voiceWa')) out.voice_wa = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // web_quiz_challenge_line_sent (the hub's switch cache, no read): the challenge line breaks only between its sentences (wq.js)
@@ -2314,7 +2316,8 @@ const EVENT_BOOLS = ['ok'];
 // from (never its address), its format, the page's view state, ms since the child last touched the page (gms; -1 none),
 // and what the phone can play; audio_probe (the sitting's first media_err_4, sent after its audio_fallback): what a
 // 2-byte fetch of that clip got back (fst: the HTTP status, or opaque / net / timeout / err; fct: type/subtype only).
-const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow', 'audio_probe']);
+// audio_wa (web_quiz_voice_webaudio): a refused clip's Web Audio play, its outcome (ok), how and the step that failed.
+const VOICE_EVENTS = new Set(['audio_fallback', 'audio_retry', 'audio_format', 'audio_slow', 'audio_probe', 'audio_wa']);
 const VOICE_PROPS = Object.freeze({ host: /^(self|r2|other)$/, fmt: /^(ogg|mp3|m4a|aac|wav|other)$/, vis: /^(hidden|visible)$/, can: /^ogg[01]mp3[01]$/,
   fst: /^([1-5][0-9]{2}|opaque|net|timeout|err)$/, fct: /^[a-z]+\/[a-z0-9.+-]{1,40}$/ });
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
