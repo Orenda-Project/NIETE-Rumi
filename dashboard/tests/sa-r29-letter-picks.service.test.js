@@ -52,7 +52,8 @@ const PICKS = [
 // ک is the letter-names practice example, modelled by its name «کاف».
 const KAF = { take: 'C', key: 'sa/v4/ur/4283e5e14e7a.mp3', named: 'sa/v1/ur/4283e5e14e7a.mp3', sha256: 'AqR7qSQcsUwKotdKDiKUTnW5q8DEAhPNPxyIUipd2IQ=' };
 
-// Every picker row's five cards, as the batteries serve them; only the ت and w rows differ from the staged branch.
+// Every picker row's five cards, as the batteries serve them; only the ت and w rows differ from the staged branch, and
+// the English j row is d's row with d -> j (27 Nov).
 const CARDS = {
   'ur.letter_pick10': {
     items: [['ب', ['ت', 'ب', 'پ', 'ٹ', 'ن']], ['م', ['ت', 'ف', 'ق', 'م', 'ل']], ['ک', ['ک', 'گ', 'ل', 'ٹ', 'د']],
@@ -63,7 +64,7 @@ const CARDS = {
   },
   'en.letter_pick10': {
     items: [['g', ['q', 'p', 'g', 'y', 'd']], ['w', ['z', 'w', 'm', 'u', 'y']], ['q', ['p', 'g', 'd', 'q', 'b']],
-      ['x', ['x', 'k', 'z', 'y', 'v']], ['d', ['b', 'p', 'q', 't', 'd']], ['f', ['f', 'l', 'v', 'h', 't']],
+      ['x', ['x', 'k', 'z', 'y', 'v']], ['j', ['b', 'p', 'q', 't', 'j']], ['f', ['f', 'l', 'v', 'h', 't']],
       ['b', ['p', 'b', 'q', 'd', 'h']], ['a', ['d', 'c', 'q', 'g', 'a']], ['p', ['b', 'q', 'p', 'd', 'g']],
       ['o', ['c', 'q', 'd', 'o', 'g']]],
     practice: [['b', ['d', 'h', 'b', 'p', 'l']], ['k', ['h', 'l', 'k', 't', 'f']]],
