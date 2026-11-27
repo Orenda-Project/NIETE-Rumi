@@ -1194,6 +1194,60 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // (17–20 Nov: those browsers were 6.4% of page sessions and 67% of refusals).
   var shared = null;
   var SILENT = 'data:audio/mpeg;base64,//MgxAAAAANIAAAAAExBTUUzLjk5LjVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zIsQnAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//MgxE8AAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zIMR2AAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU='; // 50 ms of silence (ffmpeg anullsrc, mp3)
+  // web_quiz_voice_webaudio (the answer's voice_wa; default off): a clip the browser fetched and then refused
+  // (media_err_4: VivoBrowser on Android 8, Samsung Internet 7; audio_probe 26 Nov 2026, 8 phones, r2 206 audio/ogg) is
+  // fetched whole and played through Web Audio (decodeAudioData). Once one plays, the sitting's clips skip the element;
+  // once one will not decode, or the browser has no Web Audio, the sitting never tries again. audio_wa says which.
+  var VOICE_WA = Boolean(typeof B !== "undefined" && B && B.voice_wa);
+  var wa = { on: false, dead: false, ctx: null, src: null };
+  function waCtx() {
+    if (wa.ctx) return wa.ctx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    try { if (AC) wa.ctx = new AC(); } catch (e) { wa.ctx = null; }
+    return wa.ctx;
+  }
+  // The child's tap wakes a context the browser suspended (autoplay rules); nothing is made before the first refused clip.
+  function waWake() { try { if (wa.ctx && wa.ctx.state === 'suspended' && wa.ctx.resume) wa.ctx.resume(); } catch (e) {} }
+  // h.play() when it starts, h.end() when it ends, h.fail(step) once if it cannot (fetch | decode | ctx | timeout | play).
+  // A line stopped meanwhile (voiceGen) neither plays nor fails.
+  function playWa(url, gen, h) {
+    var over = false, t = null, c = waCtx(), stage = 'fetch';
+    function fail(step, dead) {
+      if (over) return;
+      over = true;
+      try { clearTimeout(t); } catch (e) {}
+      if (dead) wa.dead = true;
+      if (gen === voiceGen) h.fail(step);
+    }
+    function good(ab) {
+      if (over) return;
+      if (gen !== voiceGen || c.state === 'suspended') { fail('ctx', false); return; }
+      try {
+        var s = c.createBufferSource();
+        s.buffer = ab; s.connect(c.destination);
+        s.onended = function () { if (wa.src === s) wa.src = null; if (gen === voiceGen) h.end(); };
+        s.start(0);
+        over = true; clearTimeout(t); wa.src = s; wa.on = true;
+        h.play();
+      } catch (e) { fail('play', true); }
+    }
+    if (!c || !c.decodeAudioData || !c.createBufferSource || typeof fetch !== 'function') { fail('ctx', true); return; }
+    t = setTimeout(function () { fail('timeout', false); }, CLIP_GIVEUP_MS);
+    waWake();
+    try {
+      var u = new URL(url, location.origin), same = u.origin === location.origin;
+      fetch(u.href, { method: 'GET', credentials: same ? 'same-origin' : 'omit', mode: same ? 'same-origin' : 'cors' }).then(function (r) {
+        if (!r || !r.ok || !r.arrayBuffer) throw new Error('fetch');
+        return r.arrayBuffer();
+      }).then(function (buf) {
+        if (over) return;
+        if (gen !== voiceGen) { fail('ctx', false); return; }
+        stage = 'decode';
+        var p = c.decodeAudioData(buf, good, function () { fail('decode', true); });
+        if (p && p.then) p.then(good, function () { fail('decode', true); });
+      }).catch(function () { fail(stage, false); });
+    } catch (e) { fail('fetch', false); }
+  }
   function unlock() {
     if (shared || !VOICE_V2) return;
     try {
@@ -1209,6 +1263,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     document.addEventListener('pointerdown', function () { lastGesture = Date.now(); }, true);
     document.addEventListener('keydown', function () { lastGesture = Date.now(); }, true);
     if (VOICE_V2) document.addEventListener('click', replayOnTap, true);
+    if (VOICE_WA) document.addEventListener('pointerdown', waWake, true);
   } catch (e) {}
   // A screen change or an answer stops the voice and forgets the held lines; a line replaced by the next part does not.
   function stopVoice() {
@@ -1226,6 +1281,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function hush() {
     voiceGen += 1;
     try { if (player) { player.pause(); player = null; } } catch (e) {}
+    try { if (wa.src) { var ws = wa.src; wa.src = null; ws.onended = null; ws.stop(); } } catch (e) {}
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
   }
   // What audio_fallback says about a clip (always on), so a failure can be traced to its cause: where it came from
@@ -1325,6 +1381,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     function said(ok) { if (retry) ev('audio_retry', { part: (meta && meta.part) || 'line', qid: meta ? meta.qid : undefined, ok: ok, ms: Date.now() - t0 }); }
     // V2: the phone will read a line its clip could not (one voice on: only with GAP_PHONE and a voice for the language)
     function phoneReads() { return Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance) && (!ONE_VOICE || (GAP_PHONE && hasVoice())); }
+    if (url && VOICE_WA && wa.on && !wa.dead) {
+      // web_quiz_voice_webaudio: this sitting's element refuses clips that Web Audio plays, so the element is skipped. One
+      // that fails here is a lost clip (audio_fallback, err wa_<step>) and the child gets the words, as today.
+      playWa(url, gen, {
+        play: function () { if (retry) { said(true); try { ROOT.classList.remove('wq-tap'); ROOT.classList.remove('wq-novoice'); } catch (e) {} } },
+        end: end,
+        fail: function (step) {
+          var fw = clipFacts(url);
+          fw.reason = 'error'; fw.err = 'wa_' + step; fw.part = (meta && meta.part) || 'line'; fw.qid = meta ? meta.qid : undefined; fw.ms = Date.now() - t0;
+          ev('audio_fallback', fw);
+          said(false);
+          speakTts(text, end);
+        },
+      });
+      return;
+    }
     if (url) {
       // A clip that errors, will not play here, or stalls for more than 2 s counts as missing:
       // that line falls back to the phone's own voice, and we log why.
@@ -1350,15 +1422,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
           var pf = { err: fx.err, part: fx.part, qid: fx.qid, host: fx.host, fmt: fx.fmt, vis: fx.vis, net: fx.net, ms: fx.ms, gms: fx.gms };
           probeSrc(url, function (p) { for (var k in p) pf[k] = p[k]; ev('audio_probe', pf); });
         }
-        said(false);
-        var aborted = why === 'reject' && err && err.name === 'AbortError';
-        // V2: a refused start, or a stall or error the phone will not read, is held for the child's next tap (once)
-        if (VOICE_V2 && !retry && ((why === 'reject' && !aborted) || ((why === 'stalled' || why === 'error') && !phoneReads()))) {
-          holdForTap(text, url, meta); end(); return;
+        var rest = function () {
+          said(false);
+          var aborted = why === 'reject' && err && err.name === 'AbortError';
+          // V2: a refused start, or a stall or error the phone will not read, is held for the child's next tap (once)
+          if (VOICE_V2 && !retry && ((why === 'reject' && !aborted) || ((why === 'stalled' || why === 'error') && !phoneReads()))) {
+            holdForTap(text, url, meta); end(); return;
+          }
+          if (why === 'stalled' && !GAP_SLOW) { end(); return; }
+          if (why === 'reject' && !(GAP_SLOW && aborted)) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
+          speakTts(text, end);
+        };
+        // web_quiz_voice_webaudio: the element would not decode what it fetched, so Web Audio plays the same clip
+        if (VOICE_WA && fx.err === 'media_err_4' && !wa.dead) {
+          var wf = { how: 'rescue', part: fx.part, qid: fx.qid, host: fx.host, fmt: fx.fmt };
+          playWa(url, gen, {
+            play: function () {
+              wf.ok = true; wf.ms = Date.now() - t0; ev('audio_wa', wf);
+              if (retry) said(true);
+              try { ROOT.classList.remove('wq-tap'); ROOT.classList.remove('wq-novoice'); } catch (e) {}
+            },
+            end: end,
+            fail: function (step) { wf.ok = false; wf.step = step; wf.ms = Date.now() - t0; ev('audio_wa', wf); rest(); },
+          });
+          return;
         }
-        if (why === 'stalled' && !GAP_SLOW) { end(); return; }
-        if (why === 'reject' && !(GAP_SLOW && aborted)) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
-        speakTts(text, end);
+        rest();
       };
       try {
         var probe = document.createElement('audio');
