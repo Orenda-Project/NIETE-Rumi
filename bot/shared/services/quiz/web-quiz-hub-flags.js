@@ -95,6 +95,9 @@ const VIDEO_CLEAN_KEY = 'web_quiz_video_clean_start';
 // web_quiz_voice_v2 (JSON true only, default off): a refused or stalled clip is retried on the child's next
 // tap, and a phone that cannot play Ogg Opus gets the same clip as mp3 (wq.js VOICE_V2, routes/web-quiz-clip-mp3.js)
 const VOICE_V2_KEY = 'web_quiz_voice_v2';
+// web_quiz_voice_webaudio (JSON true only, default off): a clip the browser fetched and refused (media_err_4) plays
+// through Web Audio, and the sitting's later clips go the same way (wq.js VOICE_WA)
+const VOICE_WA_KEY = 'web_quiz_voice_webaudio';
 // The quiz page in the child's language (web-quiz-page-lang.js): the quiz and hub answers say `page_lang`, JSON true only.
 const PAGE_LANG_KEY = 'web_quiz_page_lang';
 // The wordless first paint (web-quiz-plain-paint.js) rides this read on the hub, so a child's home adds no settings read.
@@ -274,6 +277,7 @@ const SWITCHES = Object.freeze([
   [null,           SHARE_KEY,             'read'],
   ['videoClean',   VIDEO_CLEAN_KEY,       'json'],
   ['voiceV2',      VOICE_V2_KEY,          'json'],
+  ['voiceWa',      VOICE_WA_KEY,          'json'],
   ['home',         HOME_KEY,              'json'],
   ['hops',         HOPS_KEY,              'json'],
   ['waitUx',       WAIT_UX_KEY,           'json'],
@@ -581,6 +585,7 @@ async function hubLink(studentIds, caller) {
 // one export per line, in name order (two changes that add an export touch different lines)
 module.exports = {
   VOICE_V2_KEY,
+  VOICE_WA_KEY,
   ADV_KEY,
   advNow,
   BACK_NAV_KEY,
