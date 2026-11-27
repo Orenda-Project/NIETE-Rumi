@@ -75,6 +75,8 @@ export type Picks = {
   answerLines: boolean;
   /** bd-ipoxhx.5 — "Save paper": a tighter A4 page. Absent or false = the ordinary page. */
   compact?: boolean;
+  /** bd-nr8mrm (FEAT-209) — the pages the paper may take, 1–5. Absent or null = no limit; anything else is not sent. */
+  pageCount?: number | null;
   /** The FDE door (or the side-door card) asked for a board-pattern paper: the pattern id, kept across Class. */
   patternIntent?: string | null;
   /** 'fde' = the board pattern; 'own' = the teacher's own paper after picking it; null = a plain New paper. */
@@ -301,6 +303,11 @@ export function checkPages(from: string, to: string, last: number | null): PageC
   return { ok: true, from: a, to: b };
 }
 
+/** bd-nr8mrm — the most pages a paper may be fitted to. */
+export const MAX_PAGE_COUNT = 5;
+/** A page target the bot accepts: a whole number 1–5. */
+export const isPageCount = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_PAGE_COUNT;
+
 /** The body for POST /api/portal/assessment/generate (the bot's create route reads every field). */
 export type V2Spec = {
   grade: number;
@@ -320,6 +327,8 @@ export type V2Spec = {
   outputFormat: 'pdf';
   /** Save paper is on. Absent = the ordinary page (today's request). */
   compact?: true;
+  /** bd-nr8mrm — fit the paper to this many pages (1–5). Absent = no limit (today's request). */
+  pageCount?: number;
   /** A topic paper: the ticked topics of its one chapter. Absent = the whole chapter (today's request). */
   topicIds?: string[];
   /** bd-pw1ccr.1 — made from the A/B report button. Absent = any other paper. */
@@ -385,6 +394,7 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     ...(onTopics ? { topicIds: [...(p.topicIds as string[])] } : {}),
     ...(p.origin === 'report' ? { origin: 'report' as const } : {}),
     ...(p.compact ? { compact: true as const } : {}),
+    ...(isPageCount(p.pageCount) ? { pageCount: p.pageCount } : {}),
   };
 }
 
@@ -404,6 +414,7 @@ export type AnySpec = {
   totalMarks?: number | null;
   answerLines?: boolean;
   compact?: boolean;
+  pageCount?: number | null;
   pattern?: string | null;
   scope?: 'fde' | null;
   topicIds?: string[] | null;
@@ -458,6 +469,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
     ...(spec.compact === true ? { compact: true } : {}),
+    ...(isPageCount(spec.pageCount) ? { pageCount: spec.pageCount } : {}),
     ...(spec.topicIds?.length ? { topicScope: 'topics' as const, topicIds: [...spec.topicIds] } : {}),
     ...(pattern ? {
       style: 'fde' as const, pattern, patternIntent: pattern,
