@@ -13,3 +13,4 @@
 {"ts":"2026-11-25T00:46:08Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.2.4","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-26T01:39:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
 {"ts":"2026-11-26T01:39:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=session-hooks,ci-copy engine=2.2.6","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
+{"ts":"2026-11-27T01:57:16Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"dbbede2333a3","branch":"bd-fjnrit-main-2","user":""}
