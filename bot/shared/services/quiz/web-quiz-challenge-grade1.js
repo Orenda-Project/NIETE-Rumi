@@ -191,7 +191,10 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     // stored as practice by insertRun (a second record of this stop this period): the run follows it
     if (stored === 'practice') Object.assign(rec, { mode: 'practice', record: false });
     else if (stored !== 'stored') fail(503, 'unavailable');
-    await D.logDraw({ ...drawLog, run_id: runId });
+    // challenge_draws.period_id is NOT NULL: with the period rule off (or no period holding now) the row was refused on
+    // every serve (bd-7rnfvn, 80 a week on prod). No period, no draw row, as the G2-5 serve logs none off its pool rule;
+    // meta.draw keeps the copy.
+    if (pid) await D.logDraw({ ...drawLog, run_id: runId });
     // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
     if (rec.record === true && rec.mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
     const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
