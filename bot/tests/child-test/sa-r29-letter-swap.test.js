@@ -3,7 +3,8 @@
 /**
  * The content owner's 26 Nov 2026 review of the letter screens, as the committed runtime batteries serve them:
  *   ur.letter_pick10   test: ف -> ا and ٹ -> ت (ب م ک س ر ش گ چ kept); practice ل ن kept
- *   en.letter_pick10   test: l -> g, z -> w, r -> q, n -> x (d f b a p o kept); practice t -> b, m -> k
+ *   en.letter_pick10   test: l -> g, z -> w, r -> q, n -> x, and (27 Nov) d -> j on d's cards (f b a p o kept); practice
+ *                      t -> b, m -> k
  *   ur.letter_names5   practice example ث -> ک, said by its name «کاف», under sa_r28_letter_pick: the file keeps today's
  *                      example ث as practice and carries ک as practice_r28 { r28: 'letter_pick', practice }, which the
  *                      battery route serves in its place while the switch is ON (dashboard/routes/sa-battery-switches.js)
@@ -27,7 +28,7 @@ const PICK = {
     practice: [['ل', 'لَ'], ['ن', 'نَ']],
   },
   en: {
-    items: [['g', 'ga'], ['w', 'wa'], ['q', 'kwa'], ['x', 'ks'], ['d', 'da'], ['f', 'fa'], ['b', 'ba'], ['a', 'a'], ['p', 'pa'], ['o', 'o']],
+    items: [['g', 'ga'], ['w', 'wa'], ['q', 'kwa'], ['x', 'ks'], ['j', 'ja'], ['f', 'fa'], ['b', 'ba'], ['a', 'a'], ['p', 'pa'], ['o', 'o']],
     practice: [['b', 'ba'], ['k', 'ka']],
   },
 };
