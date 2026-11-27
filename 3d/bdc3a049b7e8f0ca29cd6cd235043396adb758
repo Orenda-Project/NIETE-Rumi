@@ -1,0 +1,4 @@
+{"ts":"2026-11-27T07:58:07Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"3dbdc3a049b7","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T07:58:12Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"3dbdc3a049b7","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T07:58:17Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"3dbdc3a049b7","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T08:02:54Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e73fb571-116e-4b3e-89d7-6561c47dde5e","sha":"3dbdc3a049b7","branch":"bd-nr8mrm-65825","user":""}
