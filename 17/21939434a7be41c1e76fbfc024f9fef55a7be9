@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T14:29:12Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching,child-test spec_sync=true","sha":"1721939434a7","branch":"bd-zrdvmi.87-89381","user":""}
+{"ts":"2026-11-27T14:29:23Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching,child-test owe their Gherkin","sha":"1721939434a7","branch":"bd-zrdvmi.87-89381","user":""}
