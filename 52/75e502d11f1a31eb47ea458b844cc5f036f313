@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T09:14:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=web-quiz-child-page spec_sync=true","sha":"5275e502d11f","branch":"bd-q8wt5e.18-70146","user":"Mah Noor"}
+{"ts":"2026-11-27T09:14:40Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=web-quiz-child-page spec_sync=true","sha":"5275e502d11f","branch":"bd-q8wt5e.18-70146","user":"Mah Noor"}
+{"ts":"2026-11-27T09:16:45Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"web-quiz-child-page=none-needed (5275e502d1 restores what @WQ209 already says: two Backs show questions 2 and 1 and the page stays open)","sha":"5275e502d11f","branch":"bd-q8wt5e.18-70146","user":"Mah Noor"}
