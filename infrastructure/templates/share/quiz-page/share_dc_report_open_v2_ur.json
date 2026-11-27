@@ -1,0 +1,41 @@
+{
+  "name": "share_dc_report_open_v2",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<filled at submit>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "آپ کی ڈیجیٹل کوچ رپورٹ: *{{1}}*\n{{2}} کی کلاس\n\nاس سبق کے لیے آپ کا اگلا قدم تیار ہے۔",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "جماعت 4 · Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "اگلا قدم دیکھیں",
+          "url": "https://portal.niete.edu.pk/cq/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/cq/eyJzIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwidSI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9.3TxIajJUt4sBl7xeLmR2FI"
+          ]
+        }
+      ]
+    }
+  ]
+}
