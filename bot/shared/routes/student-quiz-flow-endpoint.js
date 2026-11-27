@@ -18,7 +18,7 @@
  */
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
-const { resolveUx, clampLanguage } = require('../config/ux-strings');
+const { resolveUx, clampLanguage, digitsFor } = require('../config/ux-strings');
 const ChildFlowToken = require('../services/quiz/child-flow-token');
 const StudentQuiz = require('../services/quiz/student-quiz.service');
 
@@ -37,7 +37,9 @@ function resolveChild(flowToken) {
 function dateLabel(iso, language) {
   try {
     const { formatLessonDate } = require('../services/quiz/transcript-quiz-language');
-    return formatLessonDate(iso, language);
+    const date = formatLessonDate(iso, language);
+    // A child reads this in Urdu: Urdu digits, as the class message's {date} (formatLessonDate keeps Western for its teacher callers).
+    return language === 'ur' && date ? digitsFor(date, 'ur') : date;
   } catch { return String(iso || '').slice(0, 10); }
 }
 
