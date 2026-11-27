@@ -153,7 +153,8 @@ const runs = {
     const w = L.watch(page);
     await page.waitForFunction(() => { const m = document.getElementById('wq').getAttribute('data-m'); return m && m !== 'M3-continue' && !/^boot/.test(m); }, null, { timeout: WAIT });
     const m = await page.$eval('#wq', (e) => e.getAttribute('data-m'));
-    expect(!(await page.$('#wq-cont')), 'the page still offers "' + (await inner(page, '#wq-cont')) + '" on an expired sitting');
+    const cont = await page.$('#wq-cont');
+    expect(!cont, 'the page still offers "' + (cont ? await cont.innerText() : '') + '" on an expired sitting');
     await page.waitForTimeout(1500);
     expect(sent.length === 0, sent.length + ' answers call(s) went out under the expired pass');
     const kept = await page.evaluate((code) => JSON.parse(localStorage.getItem('wq_s_' + code)).st, CODES.OPEN);
