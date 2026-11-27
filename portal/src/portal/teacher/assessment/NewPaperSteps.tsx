@@ -19,6 +19,7 @@ import { SeenTypes } from './SeenTypes';
 import { StemChips } from './StemChips';
 import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
+import { PagesBox, pagesWhy, usePageFitSwitch } from './PagesBox';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { readLink, readTopicLink, reportPicks, topicPicks } from './linkPicks';
@@ -597,6 +598,7 @@ function PlainCheck() {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pageFit = usePageFitSwitch();
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const titles = (dataOf(chapters) ?? []).filter((c) => p.chapters.includes(c.chapter_number))
@@ -644,7 +646,7 @@ function PlainCheck() {
   };
 
   return (
-    <StepFrame step="check" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, catalogue?.maxQuestions ?? 50, C, { limits: catalogue?.limits }), onPress: make, busy }}>
+    <StepFrame step="check" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: (pageFit ? pagesWhy(p.pageCount, C) : null) ?? stepReason('check', p, catalogue?.maxQuestions ?? 50, C, { limits: catalogue?.limits }), onPress: make, busy }}>
       {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
@@ -667,6 +669,8 @@ function PlainCheck() {
       {/* bd-ipoxhx.5 — a tighter A4 page, for schools short of paper. Off unless she turns it on. */}
       <SwitchRow on={!!p.compact} onFlip={() => set({ compact: !p.compact })}
         icon={<Printer className="h-6 w-6" aria-hidden="true" />} name={C.savePaper} />
+      {/* bd-nr8mrm (FEAT-209) — fit the paper to 1–5 pages; empty = no limit. Behind assessment_page_fit. */}
+      {pageFit && <PagesBox value={p.pageCount} onChange={(n) => set({ pageCount: n })} C={C} />}
     </StepFrame>
   );
 }
