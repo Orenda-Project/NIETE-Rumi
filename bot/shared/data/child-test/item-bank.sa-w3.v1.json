@@ -75,10 +75,9 @@
         "note": "ITEMS_W3 v3 (panel-signed): Rawalpindi grid row 1 minus the five sound letters (items 2, 6, 7, 8, 10)",
         "practice": [
           {
-            "item": "ک",
-            "role": "example",
-            "src": "v3:sets.A.reading.ur.letters.items[3]",
-            "why": "content owner review, 26 Nov 2026: the example letter ث replaced by ک (the Rawalpindi grid's own letter), modelled by its name «کاف»"
+            "from": "extra:reading.ur.letters_practice",
+            "index": 0,
+            "why": "the PRP-KP letter-page example (ث), modelled; its practice letters ج ب are scored here, so they are left out"
           }
         ]
       },

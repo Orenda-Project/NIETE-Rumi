@@ -4,7 +4,9 @@
  * The content owner's 26 Nov 2026 review of the letter screens, as the committed runtime batteries serve them:
  *   ur.letter_pick10   test: ف -> ا and ٹ -> ت (ب م ک س ر ش گ چ kept); practice ل ن kept
  *   en.letter_pick10   test: l -> g, z -> w, r -> q, n -> x (d f b a p o kept); practice t -> b, m -> k
- *   ur.letter_names5   practice example ث -> ک, said by its name «کاف»
+ *   ur.letter_names5   practice example ث -> ک, said by its name «کاف», under sa_r28_letter_pick: the file keeps today's
+ *                      example ث as practice and carries ک as practice_r28 { r28: 'letter_pick', practice }, which the
+ *                      battery route serves in its place while the switch is ON (dashboard/routes/sa-battery-switches.js)
  * Each picker row is an answer key: the target is one of its five cards, exactly once, and the clip Jugnu plays is the
  * one keyed on the words it says (sa/v5/<lang>/sha1(lang|text)[:12].mp3).
  */
@@ -45,11 +47,15 @@ describe('letter screens after the content owner\'s 26 Nov review', () => {
       });
     }
 
-    test(`${form} ${page} page: ur.letter_names5 practice is the example ک, named «کاف»`, () => {
+    test(`${form} ${page} page: ur.letter_names5 practice is the example ک, named «کاف», under the letter-pick switch`, () => {
       const t = task(runtime(form, page), 'ur.letter_names5');
-      expect(t.practice).toHaveLength(1);
-      const [p] = t.practice;
-      expect([p.role, p.show, p.target, p.answer]).toEqual(['example', 'ک', 'ک', 'کاف']);
+      // today's example stays on the task (served while sa_r28_letter_pick is OFF)
+      expect(t.practice.map((x) => [x.id, x.role, x.show, x.answer, x.model[1].audio])).toEqual([['ur.letter_names5.p1', 'example', 'ث', 'ثے', key('v1', 'ur', 'ثے')]]);
+      expect(t.practice_r28.r28).toBe('letter_pick');
+      expect(t.practice_r28.practice).toHaveLength(1);
+      const [p] = t.practice_r28.practice;
+      expect([p.id, p.role, p.show, p.target, p.answer]).toEqual(['ur.letter_names5.p1', 'example', 'ک', 'ک', 'کاف']);
+      expect(p.model[0]).toEqual(t.practice[0].model[0]);
       expect(p.model[1]).toMatchObject({ text: 'کاف', audio: key('v1', 'ur', 'کاف') });
       expect(p.model[1].audio).toBe('sa/v1/ur/4283e5e14e7a.mp3');
       // the scored five are unchanged

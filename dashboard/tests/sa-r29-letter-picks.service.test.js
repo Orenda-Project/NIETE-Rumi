@@ -5,9 +5,9 @@
  *
  * Clips. Each picked letter resolves through the committed coach batteries to the clip a phone plays: the picker row's
  * prompt_audio (sa/v5/<lang>/sha1(lang|text)[:12].mp3), or for the letter-names practice example ک the model's «کاف» clip
- * (named under sa/v1, served from sa/v4 by sa_voice_v4). The bytes under that key are the picked take (its sha256, in
- * base64 so no hex digest reads as a phone number to the fixture rule), and prompt_timings.json holds the timings
- * measured on the picked file, not on the take it replaced.
+ * (named under sa/v1, served from sa/v4 by sa_voice_v4; ک is the example while sa_r28_letter_pick is ON). The bytes
+ * under that key are the picked take (its sha256, in base64 so no hex digest reads as a phone number to the fixture
+ * rule), and prompt_timings.json holds the timings measured on the picked file, not on the take it replaced.
  *
  * Cards. On the ت screen ٹ becomes ج (ٹ looks too close to ت); on the W screen v becomes z. Every other picker row,
  * Urdu and English, test and practice, keeps the five cards it had, in the same order (the control).
@@ -18,12 +18,15 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { SWITCHES, applySwitches } = require('../routes/sa-battery-switches');
 
 const REPO = path.join(__dirname, '..', '..');
 const DASH = path.join(REPO, 'dashboard');
 const DATA = path.join(REPO, 'bot', 'shared', 'data', 'child-test', 'sa');
 const PAGES = [1, 2, 3, 4, 5].flatMap((g) => ['ur', 'en'].map((page) => `sa.coach.G${g}.A.${page}.json`));
 const battery = (name) => JSON.parse(fs.readFileSync(path.join(DATA, name), 'utf8'));
+// served as staging and production serve it: every switch before round 28 ON, and the letter-sound picker's ON
+const LETTER_PICK_ON = { ...Object.fromEntries(Object.keys(SWITCHES).map((k) => [k, !/^r28/.test(k)])), r28LetterPick: true };
 const task = (b, id) => b.tasks.find((t) => t.id === id);
 const sha256 = (key) => crypto.createHash('sha256').update(fs.readFileSync(path.join(DASH, key))).digest('base64');
 const TIMINGS = JSON.parse(fs.readFileSync(path.join(DASH, 'sa', 'v5', 'prompt_timings.json'), 'utf8'));
@@ -79,7 +82,7 @@ describe('the content owner\'s picks: each letter plays the take she chose', () 
 
   test(`ک (ur.letter_names5 practice): «کاف» take ${KAF.take}, served under ${KAF.key}`, () => {
     for (const name of PAGES) {
-      const [p] = task(battery(name), 'ur.letter_names5').practice;
+      const [p] = task(applySwitches(battery(name), LETTER_PICK_ON), 'ur.letter_names5').practice;
       expect([name, p.target, p.model[1].text, p.model[1].audio]).toEqual([name, 'ک', 'کاف', KAF.named]);
     }
     expect(KAF.named.replace('sa/v1/', 'sa/v4/')).toBe(KAF.key);
