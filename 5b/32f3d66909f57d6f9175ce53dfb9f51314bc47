@@ -1,1 +1,2 @@
 {"ts":"2026-11-27T05:04:50Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"5b32f3d66909","branch":"bd-g2baes.3-stg","user":""}
+{"ts":"2026-11-27T05:23:25Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"5b32f3d66909","branch":"bd-g2baes.3-stg","user":""}
