@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const syn = require('./synthetic');
-const { inspectRecording, repairRecording } = require('../../shared/services/coaching/recording-repair');
+const { inspectRecording, repairRecording, probeEngine } = require('../../shared/services/coaching/recording-repair');
 
 jest.setTimeout(120000);
 
@@ -127,5 +127,19 @@ describe('repairRecording', () => {
     const r = await repairRecording(syn.tornTail(good, 0.7));
     expect(['repaired', 'intact']).toContain(r.outcome);
     if (r.outcome === 'repaired') expect(r.method).toBe('remux');
+  });
+});
+
+describe('probeEngine', () => {
+  test('this machine can load the frame finder', async () => {
+    const r = await probeEngine();
+    expect(r).toMatchObject({ ready: true, node: process.version, reason: null });
+  });
+  test('a machine that cannot says why, and never throws', async () => {
+    const r = await probeEngine({ execFileImpl: (_n, _a, _o, cb) => cb(null, 'error:Cannot find module node-av') });
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/Cannot find module/);
+    const t = await probeEngine({ execFileImpl: (_n, _a, _o, cb) => cb(Object.assign(new Error('x'), { killed: true }), '') });
+    expect(t).toMatchObject({ ready: false, reason: 'timeout' });
   });
 });
