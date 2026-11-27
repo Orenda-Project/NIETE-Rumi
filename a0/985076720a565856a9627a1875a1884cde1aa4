@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T07:54:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"a0985076720a","branch":"bd-7rnfvn-staging","user":""}
+{"ts":"2026-11-27T07:54:21Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"a0985076720a","branch":"bd-7rnfvn-staging","user":""}
+{"ts":"2026-11-27T09:17:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.6.0","sha":"a0985076720a","branch":"bd-7rnfvn-staging","user":""}
