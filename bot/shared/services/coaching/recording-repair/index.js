@@ -139,4 +139,19 @@ async function repairRecording(buffer, { reference = null } = {}) {
   }
 }
 
-module.exports = { inspectRecording, repairRecording, ascOfReference, containerOf };
+/**
+ * Can this machine run the frame finder? node-av is an ES module that needs Node >= 22.18 and its platform prebuilt.
+ * Asked once at worker start (a child process, 20 s cap) and logged as recording.engine, so a deploy that cannot repair
+ * is visible at once instead of on the first damaged file. Never throws.
+ */
+function probeEngine({ execFileImpl = execFile } = {}) {
+  return new Promise((resolve) => {
+    execFileImpl(process.execPath, ['--input-type=module', '-e', "import('node-av').then(() => process.stdout.write('ready'), (e) => { process.stdout.write('error:' + String(e && e.message).slice(0, 120)); })"],
+      { timeout: 20000, cwd: __dirname }, (err, stdout) => {
+        const out = String(stdout || '').trim();
+        resolve({ ready: out === 'ready', node: process.version, reason: out === 'ready' ? null : (out || (err && (err.killed ? 'timeout' : String(err.message).slice(0, 120))) || 'unknown') });
+      });
+  });
+}
+
+module.exports = { inspectRecording, repairRecording, ascOfReference, containerOf, probeEngine };
