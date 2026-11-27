@@ -148,7 +148,7 @@
     {
      "target": "ت",
      "options": [
-      "ٹ",
+      "ج",
       "پ",
       "ت",
       "ب",
@@ -156,7 +156,7 @@
      ],
      "say": "تَ",
      "ipa": "/t̪/",
-     "src": "content owner review, 26 Nov 2026: replaces ٹ (target); the ٹ row with ت and ٹ swapped",
+     "src": "content owner review, 26 Nov 2026: replaces ٹ (target); the ٹ row with ت and ٹ swapped; content owner's picks, 27 Nov 2026: distractor ٹ -> ج (ٹ looks too close to ت)",
      "authored": true
     }
    ],
@@ -212,7 +212,7 @@
     {
      "target": "w",
      "options": [
-      "v",
+      "z",
       "w",
       "m",
       "u",
@@ -220,7 +220,7 @@
      ],
      "say": "wa",
      "ipa": "/w/",
-     "src": "content owner review, 26 Nov 2026: replaces z (target); options authored",
+     "src": "content owner review, 26 Nov 2026: replaces z (target); options authored; content owner's picks, 27 Nov 2026: distractor v -> z",
      "authored": true
     },
     {

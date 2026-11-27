@@ -61,41 +61,41 @@
   },
   "sa/v5/en/360e801b2da2.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 1602,
-    "dur_ms": 1732,
-    "first_end_ms": 401,
+    "speech_end_ms": 1617,
+    "dur_ms": 1745,
+    "first_end_ms": 414,
     "speech_spans_ms": [
       [
         310,
-        401
+        414
       ],
       [
         911,
-        1001
+        1016
       ],
       [
         1512,
-        1602
+        1617
       ]
     ]
   },
   "sa/v5/en/6cc5c36d85b2.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 1532,
-    "dur_ms": 1659,
-    "first_end_ms": 386,
+    "speech_end_ms": 1691,
+    "dur_ms": 1819,
+    "first_end_ms": 438,
     "speech_spans_ms": [
       [
         310,
-        386
+        438
       ],
       [
-        885,
-        957
+        937,
+        1065
       ],
       [
-        1459,
-        1532
+        1564,
+        1691
       ]
     ]
   },
@@ -201,41 +201,41 @@
   },
   "sa/v5/en/fa6a577d1290.mp3": {
     "speech_start_ms": 310,
-    "speech_end_ms": 1536,
-    "dur_ms": 1664,
-    "first_end_ms": 387,
+    "speech_end_ms": 1543,
+    "dur_ms": 1667,
+    "first_end_ms": 394,
     "speech_spans_ms": [
       [
         310,
-        387
+        394
       ],
       [
         884,
-        961
+        968
       ],
       [
         1459,
-        1536
+        1543
       ]
     ]
   },
   "sa/v5/ur/025b34d4fe2f.mp3": {
-    "speech_start_ms": 309,
-    "speech_end_ms": 1549,
-    "dur_ms": 1669,
-    "first_end_ms": 400,
+    "speech_start_ms": 308,
+    "speech_end_ms": 1693,
+    "dur_ms": 1814,
+    "first_end_ms": 439,
     "speech_spans_ms": [
       [
-        309,
-        400
+        308,
+        439
       ],
       [
-        884,
-        974
+        935,
+        1066
       ],
       [
-        1459,
-        1549
+        1562,
+        1693
       ]
     ]
   },
@@ -300,22 +300,22 @@
     ]
   },
   "sa/v5/ur/6cbe48d95dc1.mp3": {
-    "speech_start_ms": 310,
-    "speech_end_ms": 1613,
-    "dur_ms": 1732,
-    "first_end_ms": 411,
+    "speech_start_ms": 304,
+    "speech_end_ms": 1683,
+    "dur_ms": 1804,
+    "first_end_ms": 429,
     "speech_spans_ms": [
       [
-        310,
-        411
+        304,
+        429
       ],
       [
-        910,
-        1012
+        931,
+        1056
       ],
       [
-        1511,
-        1613
+        1558,
+        1683
       ]
     ]
   },

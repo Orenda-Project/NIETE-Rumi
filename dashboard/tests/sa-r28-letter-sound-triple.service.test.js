@@ -28,18 +28,14 @@ const PASSED = [
   ['sa/v5/ur/c29476e64ba4.mp3', 'xtSuHa+zw78HXqyJmtD5tBxGBT04CUJDYr8p7jSaUO0='],
   ['sa/v5/ur/cdfab322cbde.mp3', 'bnjtOWZbjwoKMfd9MxDjDJt5mayVDIbtYOdLohoZyic='],
   ['sa/v5/ur/dabd63291f3b.mp3', 'msCbzXHrISBRKuzyddt4DWriKLiGGCsMl30wZ/ei0Cs='],
-];
-// The content owner's 26 Nov swaps (Urdu ا ت; English g w q x and practice k): the take staged under each new key for her
-// check, three times like the rest. When she picks another take its bytes replace these under the same key, and the line
-// moves to PASSED with the picked file's sha256.
-const STAGED = [
-  ['sa/v5/ur/025b34d4fe2f.mp3', '5BjmMq+7wKMHvKjBtUvlldFdL0FWcae5lwhks/B/LdA='], // alif
-  ['sa/v5/ur/6cbe48d95dc1.mp3', 'Wy9KZyGHT7mIvyqJGsA/opy8p8s/u0x8sn/qQJvv7vo='], // te
-  ['sa/v5/en/fa6a577d1290.mp3', '/m1KccDkg1tPgcude8by15B0P0QWO+Kcu9NyeOK8sNo='], // k
-  ['sa/v5/en/6cc5c36d85b2.mp3', 'gVMNqNKQMbEG60QKL4jUljz23p/pSRHkdsidKz31kA0='], // g
-  ['sa/v5/en/2f988087bd31.mp3', 'mbcXrKSgurbCy7GZO0QHflyC4e7eh3bFivU9GXNOUQk='], // w
-  ['sa/v5/en/360e801b2da2.mp3', '648LzrJCzPEEHgpQ3cbb+F94M5SI7CeXJ4HR+PgAp84='], // q
-  ['sa/v5/en/902fc6e315f9.mp3', 'nfLqWMYkNeOBv+rVcvCY9k/sMtYf5G+1VJAv+vH5ux4='], // x
+  // The content owner's 26 Nov swaps (Urdu ا ت; English g w q x and practice k), each the take she picked (27 Nov).
+  ['sa/v5/ur/025b34d4fe2f.mp3', 'dBNxhNKv+Hj8Q9tzV3pZXdzauX38zcUEp1qilKPWATQ='], // alif, take C
+  ['sa/v5/ur/6cbe48d95dc1.mp3', 'O8gKgffm6VsERWdrA76ulSgyJNJPcnnKvgayTKYWFhk='], // te, take B
+  ['sa/v5/en/fa6a577d1290.mp3', '8ZTuLzFKC4jx7wwRYoWO0YV4gQOvq+37UY7mZEX+krM='], // k, take C
+  ['sa/v5/en/6cc5c36d85b2.mp3', 'l/l91H/5AO8Y3RUyfEPtNLRBKxzAVvCiQsEXf4IenGY='], // g, take C
+  ['sa/v5/en/2f988087bd31.mp3', 'mbcXrKSgurbCy7GZO0QHflyC4e7eh3bFivU9GXNOUQk='], // w, take A
+  ['sa/v5/en/360e801b2da2.mp3', 'u9zvzJP45MXjzWAkkjyP8BgS/++h4JhvRlxBSdYVBtk='], // q, take C
+  ['sa/v5/en/902fc6e315f9.mp3', 'nfLqWMYkNeOBv+rVcvCY9k/sMtYf5G+1VJAv+vH5ux4='], // x, take A
 ];
 const T = JSON.parse(fs.readFileSync(path.join(DASH, 'sa', 'v5', 'prompt_timings.json'), 'utf8'));
 
@@ -54,23 +50,6 @@ describe('letter-sound prompts: the passed three-times clips', () => {
   });
 
   test.each(PASSED)('%s: three spans of one length, the first starting the clock and the third ending it', (key) => {
-    const t = T[key];
-    expect(t.speech_spans_ms).toHaveLength(3);
-    const len = t.speech_spans_ms.map(([s, e]) => e - s);
-    expect(Math.max(...len) - Math.min(...len)).toBeLessThanOrEqual(5);
-    expect(t.speech_start_ms).toBe(t.speech_spans_ms[0][0]);
-    expect(t.first_end_ms).toBe(t.speech_spans_ms[0][1]);
-    expect(t.speech_end_ms).toBe(t.speech_spans_ms[2][1]);
-    expect(t.dur_ms).toBeLessThanOrEqual(3000);
-  });
-});
-
-describe('letter-sound prompts: the three-times clips staged for the content owner (26 Nov swaps)', () => {
-  test.each(STAGED)('%s is the staged take (sha256, base64)', (key, sha256) => {
-    expect(crypto.createHash('sha256').update(fs.readFileSync(path.join(DASH, key))).digest('base64')).toBe(sha256);
-  });
-
-  test.each(STAGED)('%s: three spans of one length, the first starting the clock and the third ending it', (key) => {
     const t = T[key];
     expect(t.speech_spans_ms).toHaveLength(3);
     const len = t.speech_spans_ms.map(([s, e]) => e - s);
