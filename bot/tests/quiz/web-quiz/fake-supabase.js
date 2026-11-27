@@ -34,6 +34,7 @@ const EMBEDS = {
   quiz_share_codes: { quizzes: ['quiz_id', 'id', 'one'], parent_share_code_id: ['parent_share_code_id', 'id', 'one', 'quiz_share_codes'] },
   student_videos: { quizzes: ['id', 'video_id', 'many'] },
   students: { student_lists: ['list_id', 'id', 'one'] },
+  quiz_questions: { quiz_item_reviews: ['id', 'question_id', 'many'] },
 };
 // the column list that opens at `i` (just after its '('), up to its own ')'
 const listAt = (s, i) => { let d = 1; let j = i; for (; j < s.length && d > 0; j += 1) { if (s[j] === '(') d += 1; else if (s[j] === ')') d -= 1; } return s.slice(i, j - 1); };
