@@ -38,7 +38,7 @@
 const SETTING = 'quiz_offer_closed_window';
 const HELD_REASON = 'window_closed';
 // The generate job's phone for a quiz made in the page: never a number, so no step sends it anything.
-const PAGE_NO_SEND = 'report_page:no_send';
+const { PAGE_NO_SEND } = require('./page-no-send');
 // A tap on a held row reads as "making" for this long, until the offer job turns the row.
 const TAP_FRESH_MS = 10 * 60 * 1000;
 const LANGS = Object.freeze(['ur', 'en']);

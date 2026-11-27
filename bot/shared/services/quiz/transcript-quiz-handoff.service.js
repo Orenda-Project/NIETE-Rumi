@@ -86,7 +86,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     quiz, session, questions, qRows, digest, teacherName, teacherLang, language,
   } = bundle;
   const meta = bundle.meta || {};
-  const quiet = phone === require('./report-page-quiz').PAGE_NO_SEND;
+  const quiet = phone === require('./page-no-send').PAGE_NO_SEND;
   const funnel = {
     quiz_id: quizId, teacher_id: quiz.teacher_id, source: quiz.quiz_source || 'transcript',
     channel: Funnel.channelOf(meta.source),
