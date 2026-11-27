@@ -315,6 +315,21 @@ Feature: Teacher assessment
     Then Questions shows no "Select from the book" and the seen card is today's
     And a paper by pages, or a board-pattern paper, never shows "Select from the book"
 
+  @TA30 @sandbox
+  # bd-nr8mrm.8 — FEAT-209: before the paper is made, Check and make says when her questions need more pages than she
+  # set. A warning only: Make still sends her page count. Behind app_settings assessment_page_fit.
+  Scenario: Check and make says when her questions need more pages than she set, and Make still sends
+    Given the page-fit setting is on
+    And a teacher on Check and make for a Grade 4 Science paper of 10 long questions
+    When the Pages box is empty, or she sets 4 pages
+    Then Check shows no page warning
+    When she sets 2 pages
+    Then Check says "These questions need about 4 pages. Make it 4, or remove some questions."
+    And Make still sends the paper with her 2 pages
+    And in Urdu the same warning reads with the number 4
+    When the page-fit setting is switched off
+    Then Check shows no Pages box and no warning
+
   @sandbox @real-paper
   # bd-nr8mrm.4 — Notion FEAT-209 "EG page-count option" (Ramisha Riaz): the teacher says how many pages the paper may
   # take. Behind app_settings assessment_page_fit (off = no box, papers print as before).

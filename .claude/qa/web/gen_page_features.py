@@ -663,7 +663,7 @@ EXTRA['portal-smoke'] = ('../flows/portal-smoke-leader-lessons.cjs', [
 # teacher-assessment TA03–TA17 and TA23–TA29 (bd-q8wt5e.6.5): hand-written flows. Their Gherkin, and TA18–TA22's driver code,
 # are still hand-written in the spec and the driver and are NOT reproduced here (bd-q8wt5e.22): never re-run this generator
 # over teacher-assessment until that is mirrored. Listed so a regenerated driver at least keeps requiring the flows.
-EXTRA['teacher-assessment'] = [(f'../flows/teacher-assessment-{n}.cjs', []) for n in ('fde', 'questions', 'papers', 'sandbox')]
+EXTRA['teacher-assessment'] = [(f'../flows/teacher-assessment-{n}.cjs', []) for n in ('fde', 'questions', 'papers', 'sandbox', 'pagefit')]
 
 # bd-q8wt5e.6.6 — driver code for the hand-written teacher-lessons and leader-portal scenarios. Their Gherkin is written by
 # hand in the specs and is NOT carried here yet (bd-q8wt5e.22: re-running this generator drops it), so these entries add
