@@ -18,6 +18,7 @@ const { langFixes } = require('./fde-g5-lang-fixes'); // bd-5jmnfj.4.58.34
 const { sceneAlternatives } = require('./fde-g1-scene-accept'); // v37r2 G1 Maths Q8: usual other names in accept
 const { pictureWordCount } = require('./fde-picture-word-count'); // v37r2 G5 English Q10: one word-bank count
 const { answerSheetWording } = require('./fde-answer-sheet-wording'); // v37r5 G5 Science Q2 (a): no frame on an answer-sheet section
+const { splitTags } = require('./fde-split-tags'); // a question FDE splits across levels carries the split and its highest level
 
 const RANGE = /\b(\d+)\s*[-–]\s*(\d+)\s+sentences\b/;
 const SYLLABLES = /ارکان/;
@@ -120,7 +121,8 @@ function keyFixes(examJson) {
     Object.fromEntries(Object.entries(byType || {}).map(([type, list]) => [type, Array.isArray(list) ? list.map(fix) : list]))]));
   const counted = pictureWordCount({ ...examJson, unseen });
   const sheet = answerSheetWording(counted.examJson);
-  return { examJson: sceneAlternatives(sheet.examJson), notes: notes.concat(counted.notes, sheet.notes) };
+  const tagged = splitTags(sceneAlternatives(sheet.examJson));
+  return { examJson: tagged.examJson, notes: notes.concat(counted.notes, sheet.notes, tagged.notes) };
 }
 
 module.exports = { keyFixes };
