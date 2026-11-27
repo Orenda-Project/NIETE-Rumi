@@ -621,7 +621,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "    And it shows no transcript and no \"Focus here\"",
     "    And no page error or 5xx happened",
     "",
-]), (None, [
+]), ('../flows/coach-lesson-plans.cjs', [
     "  # bd-4joiqz — the coach app's Lesson Plans tab: the teacher Lesson Plans pages, read as a leader. Written by hand; the",
     "  # web driver has no code for it yet (@draft). The full journey is teacher-lessons LDR01.",
     "  @LDR07 @draft",
@@ -664,6 +664,13 @@ EXTRA['portal-smoke'] = ('../flows/portal-smoke-leader-lessons.cjs', [
 # are still hand-written in the spec and the driver and are NOT reproduced here (bd-q8wt5e.22): never re-run this generator
 # over teacher-assessment until that is mirrored. Listed so a regenerated driver at least keeps requiring the flows.
 EXTRA['teacher-assessment'] = [(f'../flows/teacher-assessment-{n}.cjs', []) for n in ('fde', 'questions', 'papers', 'sandbox')]
+
+# bd-q8wt5e.6.6 — driver code for the hand-written teacher-lessons and leader-portal scenarios. Their Gherkin is written by
+# hand in the specs and is NOT carried here yet (bd-q8wt5e.22: re-running this generator drops it), so these entries add
+# the drivers' requires only; the empty Gherkin lists keep the generated part of each spec as it is.
+EXTRA['teacher-lessons'] = [('../flows/teacher-lessons-fln.cjs', []), ('../flows/teacher-lessons-leaders.cjs', []),
+                            ('../flows/teacher-lessons-own.cjs', []), ('../flows/teacher-lessons-viewer.cjs', [])]
+EXTRA['leader-portal'] = [('../flows/leader-assess.cjs', [])]
 
 ROLE_TXT = {'teacher': 'demo teacher 0300' '0000911', 'coach': 'demo coach 0300' '0000901', 'principal': 'demo principal 0300' '0000902'}
 MODE_TXT = {'classic': 'the teacher app v2 and the coach app v2 are off', 'teacherV2': 'the teacher app v2 is on and the coach app v2 is off',

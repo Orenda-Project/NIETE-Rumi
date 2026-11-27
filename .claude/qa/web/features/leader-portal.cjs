@@ -11,5 +11,6 @@ const scenarios = [
   pagesScenario("LP03", "Classic portal: School Analytics and Observed lessons open; /portal/leader/attendance lands on School Analytics", "principal", "classic", [{ path: "/portal/leader/school-analytics", heading: /^School Analytics$/ }, { path: "/portal/leader/lessons", heading: /^Observed lessons$/ }, { path: "/portal/leader/attendance", heading: /^School Analytics$/, settle: "/portal/leader/school-analytics" }]),
   pagesScenario("LP04", "Classic portal: the child test page opens (Urdu heading)", "principal", "classic", [{ path: "/portal/leader/child-test", heading: /بچوں کا ٹیسٹ/ }]),
 ];
+scenarios.push(...require("../flows/leader-assess.cjs"));
 
 module.exports = { feature: "leader-portal", spec: 'tests/features/web/leader-portal.feature', scenarios };
