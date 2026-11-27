@@ -187,7 +187,9 @@ async function portalApp(userId = UID) {
   return (path) => new Promise((resolve, reject) => {
     http.get({ host: '127.0.0.1', port, path }, (res) => {
       let b = ''; res.on('data', (c) => { b += c; });
-      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: b ? JSON.parse(b) : null }));
+      // a route that does not exist answers express's HTML 404: kept as text, so the test fails at once, not at its timeout
+      const parse = () => { try { return JSON.parse(b); } catch (_) { return b; } };
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: b ? parse() : null }));
     }).on('error', reject);
   });
 }
