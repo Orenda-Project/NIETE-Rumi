@@ -108,6 +108,8 @@ const {
   isObserveUploadOnlyFor,
   isUploadPiecesFor,
   PORTAL_RECORDING_RESUME_KEY,
+  isFlagEnabled,
+  ASSESSMENT_PAGE_FIT_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -9688,6 +9690,7 @@ router.get('/config', async (req, res) => {
       lpOwnUnitRaw,
       observeUploadOnly,
       recordingResumeRaw,
+      assessmentPageFit,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9763,6 +9766,8 @@ router.get('/config', async (req, res) => {
       // (Resume / Stop). Fail-closed: no row, false or a failed read = off; true = every teacher; a users.id list = those;
       // "teachers" = every teacher. Coaches' and principals' observation and debrief have it on by default (no switch).
       isFlagEnabledForUser(supabase, PORTAL_RECORDING_RESUME_KEY, userId),
+      // bd-nr8mrm.4 (FEAT-209) — the Pages box on a new paper; the same app-wide switch the bot's build reads.
+      isFlagEnabled(supabase, ASSESSMENT_PAGE_FIT_KEY),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9832,6 +9837,8 @@ router.get('/config', async (req, res) => {
         observeUploadOnly,
         // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
         recordingResume: recordingResumeRaw === true,
+        // bd-nr8mrm.4 — the Pages box (1-5) under Save paper (assessment_page_fit, fail-closed).
+        assessmentPageFit,
         // bd-q261rec (queue #261) — the recording is sent in pieces that resume after a drop (portal_upload_pieces).
         uploadPieces,
       },
@@ -9884,6 +9891,7 @@ router.get('/config', async (req, res) => {
         observeUploadOnly: false,
         recordingResume: false,
         uploadPieces: false,
+        assessmentPageFit: false,
       },
       roleSwitchRoles: [],
     });

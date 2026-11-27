@@ -348,6 +348,8 @@ const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
  * features.recordingResume. Coaches and principals have it on by default, unswitched.
  */
 const PORTAL_RECORDING_RESUME_KEY = 'portal_recording_resume';
+/** bd-nr8mrm (FEAT-209) — fit a paper to the pages she asked for; one app-wide row, read by the bot's build and /config. */
+const ASSESSMENT_PAGE_FIT_KEY = 'assessment_page_fit';
 
 /**
  * bd-q261rec (queue #261) — portal_upload_pieces: a recording is sent IN PIECES (each one a short PUT, resumed after a
@@ -737,6 +739,7 @@ module.exports = {
   isUploadPiecesFor,
   PORTAL_UPLOAD_PIECES_KEY,
   PORTAL_RECORDING_RESUME_KEY,
+  ASSESSMENT_PAGE_FIT_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,
