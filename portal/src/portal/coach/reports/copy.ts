@@ -252,6 +252,13 @@ export const REPORTS_EN = {
   openReport: "Open report",
   pct: (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`),
 
+  /* bd-r2uzg1.23.12 (queue #274, call 28) — the note under the report: pre-filled, hers to change before Send */
+  noteLabel: (name: string) => `Your note to ${name}`,
+  noteHint: "Made from your talk",
+  notePlaceholder: "Optional",
+  noteWhy: "Why the change (optional)",
+  noteReasons: { context: "Added context", mistake: "Fixed a mistake", tone: "Changed the tone", other: "Other" },
+
   /* bd-o15qnr.39.2 (queue #204) — the teacher's report, full screen in the app (ReportImage, the v6/v7 switch) */
   openFullScreen: "Open full screen",
   closeViewer: "Close",
@@ -468,6 +475,13 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   notNow: "ابھی نہیں",
   openReport: "رپورٹ کھولیں",
   pct: (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`),
+
+  // bd-r2uzg1.23.12 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
+  noteLabel: (name: string) => `${name} کے لیے نوٹ`,
+  noteHint: "گفتگو سے بنا",
+  notePlaceholder: "اختیاری",
+  noteWhy: "تبدیلی کی وجہ (اختیاری)",
+  noteReasons: { context: "بات شامل کی", mistake: "غلطی درست کی", tone: "انداز بدلا", other: "کچھ اور" },
 
   // bd-o15qnr.39.2 — MACHINE-DRAFTED, awaiting a native check (NATIVE-CHECK).
   openFullScreen: "پوری اسکرین پر کھولیں",

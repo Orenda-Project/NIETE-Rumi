@@ -22,12 +22,25 @@ const WORDS = {
     observedBy: (name, role) => [name ? `Observed by ${name}` : 'Observed', role].filter(Boolean).join(' · '),
     role: { coach: 'Coach', principal: 'Principal' },
     grade: (g) => `Grade ${g}`,
+    // bd-r2uzg1.23.12 (queue #274, call 27A): whose report this is. The app's words (ict-niete-ontology §3b): her own
+    // recording is a "DC observation"; a coach's or principal's visit is an "Observation".
+    source: {
+      dc: 'DC observation · from your own recording',
+      visit: (who) => `Observation by ${who}`,
+    },
+    who: (name, rk) => [rk === 'principal' ? 'your principal' : 'your coach', name].filter(Boolean).join(' '),
   },
   ur: {
     title: 'استاد کی مشاہداتی رپورٹ',
     observedBy: (name, role) => [name ? `مشاہدہ: ${name}` : 'مشاہدہ', role].filter(Boolean).join(' · '),
     role: { coach: 'کوچ', principal: 'پرنسپل' },
     grade: (g) => `جماعت ${urDigits(g)}`,
+    // bd-r2uzg1.23.12 (DRAFT for native review): the app's ڈیجیٹل کوچنگ مشاہدہ and مشاہدہ (ontology §3b).
+    source: {
+      dc: 'ڈیجیٹل کوچنگ مشاہدہ · آپ کی اپنی ریکارڈنگ سے',
+      visit: (who) => `${who} کا مشاہدہ`,
+    },
+    who: (name, rk) => [rk === 'principal' ? 'آپ کے پرنسپل' : 'آپ کے کوچ', name].filter(Boolean).join(' '),
   },
 };
 
@@ -126,4 +139,32 @@ async function loadTitleFacts(session, deps = {}) {
   return out;
 }
 
-module.exports = { buildReportTitle, loadTitleFacts, rubricChip, titleDate, WORDS };
+/**
+ * bd-r2uzg1.23.12 (queue #274, call 27A; ICT sheet HITL 44, 45): "your coach Ayesha Khan" / "آپ کے کوچ Ayesha Khan".
+ * The observer as the teacher knows her: coach or principal, then the name. A name not on file is left out, never
+ * made up. Other languages (the observe pack's sw): the name alone, as before. Pure.
+ */
+function observerLabel(name, role, lang) {
+  const l = String(lang || 'en').toLowerCase();
+  if (!WORDS[l]) return text(name) || '';
+  return WORDS[l].who(text(name), roleKey(role) || 'coach');
+}
+
+/**
+ * Whose report this is, in the report's language (en, ur; anything else en). Pure.
+ *   her own recording (no observer, not an observation)  "DC observation · from your own recording"
+ *   a coach's or principal's visit                       "Observation by your coach Ayesha Khan"
+ * @param {object} session  coaching_sessions row (observer_user_id, observation_type)
+ * @param {object} facts    { observer, observerRole } (loadTitleFacts)
+ */
+function reportSource(session, facts = {}, lang = 'en') {
+  const { clampLanguage } = require('../../../config/ux-strings');
+  const l = clampLanguage(lang, ['en', 'ur']);
+  const s = session || {};
+  const visit = Boolean(s.observer_user_id) || s.observation_type === 'leader_observation';
+  if (!visit) return WORDS[l].source.dc;
+  const f = facts || {};
+  return WORDS[l].source.visit(WORDS[l].who(text(f.observer), roleKey(f.observerRole) || 'coach'));
+}
+
+module.exports = { buildReportTitle, loadTitleFacts, rubricChip, titleDate, WORDS, observerLabel, reportSource };
