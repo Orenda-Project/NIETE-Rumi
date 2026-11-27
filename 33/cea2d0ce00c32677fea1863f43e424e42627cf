@@ -1,1 +1,2 @@
 {"ts":"2026-11-27T09:09:17Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"33cea2d0ce00","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T09:09:19Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"33cea2d0ce00","branch":"bd-nr8mrm-65825","user":""}
