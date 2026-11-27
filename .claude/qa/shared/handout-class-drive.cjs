@@ -17,9 +17,25 @@
  * A child process so the fakes never leak into the runner (or another feature's require cache).
  */
 'use strict';
+const fs = require('fs');
 const path = require('path');
 
-const REPO = path.resolve(__dirname, '..', '..', '..');
+// WHERE THE BOT IS LOADED FROM. The bot's modules resolve their npm deps (openai, …) from the tree they sit in.
+// On the mock lane the suite runs from a per-bead worktree with no node_modules; the only checkout with both
+// module trees linked in is the stack's own worktree at the commit under test ($RUN_DIR/stack.json "worktree",
+// made by local-stack.sh). Loading from the bare checkout threw "Cannot find module 'openai'" in T405
+// (run 20261126-2322-par-training, bd-q8wt5e.1). Off the lane (no stack), this checkout is used as before.
+function botRepo() {
+  const own = path.resolve(__dirname, '..', '..', '..');
+  const runDir = process.env.RUN_DIR;
+  if (!runDir) return own;
+  try {
+    const src = JSON.parse(fs.readFileSync(path.join(runDir, 'stack.json'), 'utf8')).worktree;
+    if (src && fs.existsSync(path.join(src, 'bot', 'shared')) && fs.existsSync(path.join(src, 'bot', 'node_modules'))) return src;
+  } catch (_) { /* no stack for this run — fall back to this checkout */ }
+  return own;
+}
+const REPO = botRepo();
 const BOT = path.join(REPO, 'bot');
 // Modules read these at require time; nothing here reaches a network.
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
