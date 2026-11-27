@@ -39,6 +39,11 @@ import { WaText } from "./waText";
  * NOT drawn: "37/52 marks" and the Went well / To grow / Next step lines of the Blueprint. The view carries the report as
  * an image and caption only; marks and sections are not served to the coach (see the report's gap list).
  */
+// bd-r2uzg1.23.12 (call 28): why she changed the note (observe-report-note REASONS on the bot), and its length cap.
+const NOTE_REASONS = ["context", "mistake", "tone", "other"] as const;
+type NoteReason = (typeof NOTE_REASONS)[number];
+const NOTE_MAX = 1000;
+
 export default function SendReport() {
   const C = useCopy(REPORTS);
   const v7 = useFlowV6() === true;
@@ -52,6 +57,12 @@ export default function SendReport() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const asked = useRef(false);
+  // bd-r2uzg1.23.12 (call 28): the note under the report, pre-filled with the one made from her talk; null = untouched.
+  const [note, setNote] = useState<string | null>(null);
+  const [reason, setReason] = useState<NoteReason | null>(null);
+  const original = view?.report.companionText ?? "";
+  const noteText = note ?? original;
+  const noteEdited = note !== null && note.trim() !== original.trim();
 
   const name = teacherNameOf(view);
   const first = firstNameOf(name);
@@ -69,7 +80,12 @@ export default function SendReport() {
   // / sent / not-sent steps (which carry the teacher's real delivery state).
   const send = async (): Promise<{ status: "sent" } | { status: "failed" }> => {
     setFailed(false);
-    try { await leader.sendReport(id); reload(); return { status: "sent" }; } catch { setFailed(true); return { status: "failed" }; }
+    try {
+      // Unchanged: exactly as before (the stored note goes). Changed: her note, and why if she said (never required).
+      await (noteEdited ? leader.sendReport(id, { note: noteText, reason }) : leader.sendReport(id));
+      reload();
+      return { status: "sent" };
+    } catch { setFailed(true); return { status: "failed" }; }
   };
   const again = async () => {
     setBusy(true);
@@ -125,7 +141,39 @@ export default function SendReport() {
             {view.report.imageUrl && <ReportImage src={view.report.imageUrl} alt={C.reportImage(name)} />}
             {/* bd-o15qnr.48 (#244): on the switch, WhatsApp's *bold* / _italic_ drawn as she will see them (waText.tsx). */}
             {view.report.caption && <p className="whitespace-pre-line px-1 text-[14px] leading-relaxed" dir="auto">{v7 ? <WaText text={view.report.caption} /> : view.report.caption}</p>}
-            {view.report.companionText && <p className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{v7 ? <WaText text={view.report.companionText} /> : view.report.companionText}</p>}
+            {/* bd-r2uzg1.23.12: the note as she will get it, following her edit below. */}
+            {noteText.trim() && <p data-testid="send-note-preview" className="whitespace-pre-line px-1 pb-1 text-[14px] leading-relaxed" dir="auto">{v7 ? <WaText text={noteText} /> : noteText}</p>}
+          </section>
+          {/* bd-r2uzg1.23.12 (queue #274, call 28): the note under the report is hers to change; a change asks why (optional). */}
+          <section data-testid="send-note" className={cn(LIST_CARD, "flex flex-col gap-2 p-3.5")}>
+            <label htmlFor="send-note-text" className="text-[16px] font-semibold" dir="auto">{C.noteLabel(first)}</label>
+            {original && <p className="text-[13px] leading-[1.4] text-[#6b7280]">{C.noteHint}</p>}
+            <textarea
+              id="send-note-text"
+              dir="auto"
+              rows={6}
+              maxLength={NOTE_MAX}
+              value={noteText}
+              placeholder={C.notePlaceholder}
+              onChange={(e) => setNote(e.target.value)}
+              className={cn("min-h-[132px] w-full resize-y rounded-xl border border-[#d0d5dd] bg-white p-3 text-[15px] leading-relaxed", FOCUS)}
+            />
+            {noteEdited && (
+              <div role="group" aria-labelledby="send-note-why" data-testid="send-note-why" className="flex flex-col gap-2 pt-1">
+                <span id="send-note-why" className="text-[14px] font-semibold text-[#4b5563]">{C.noteWhy}</span>
+                <div className="flex flex-wrap gap-2">
+                  {NOTE_REASONS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={reason === k}
+                      onClick={() => setReason(reason === k ? null : k)}
+                      className={cn("min-h-[44px] rounded-full border px-4 text-[14px] font-semibold", reason === k ? "border-[#33374a] bg-[#33374a] text-white" : "border-[#d0d5dd] bg-white text-[#33374a]", FOCUS)}
+                    >{C.noteReasons[k]}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
           <h2 className="mx-1 mt-2 text-[22px] font-semibold leading-[1.2]">{C.to}</h2>
           <section data-testid="send-to" className={cn(LIST_CARD, "flex min-h-[76px] items-center gap-3 px-3.5 py-2.5")}>

@@ -42,7 +42,9 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, (m) => ({ 
 /** Short caption that accompanies the report image (date + inferred topic). */
 function buildReportCaption(vm) {
   const C = CHROME[vm.language] || CHROME.en;
-  return C.caption(vm.date || '', vm.topic || '');
+  // bd-r2uzg1.23.12 (call 27A): whose report it is, on its own line under the caption ("DC observation · from your own
+  // recording"). No source: the caption is as before.
+  return [C.caption(vm.date || '', vm.topic || ''), vm.source].filter(Boolean).join('\n');
 }
 
 function fontFaces() {
@@ -199,7 +201,7 @@ function buildHeroReportHtml(vm) {
   .hscore{flex-shrink:0;text-align:${RTL ? 'left' : 'right'};line-height:1}
   .hscore .p{font-family:'Lexend';font-weight:700;font-size:44px;letter-spacing:-.02em;margin-top:4px}
   .hscore .s{font-family:'Lexend',${NON_LATIN},sans-serif;font-size:12.5px;color:${P.scoreSub};margin-top:6px;letter-spacing:.05em}
-  .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}
+  .who{margin-top:14px;font-size:14px;color:${P.who}}.who b{color:#fff}.who.src{margin-top:6px}
   /* Queue #230: the title block (report-title.js) — a title, then the facts one to a line; no sentence. The chip is
      Latin and owned whole, so it is isolated LTR (playwrite-reports §3: isolate for an element you own). */
   .tb{flex:1;max-width:560px}
@@ -294,7 +296,8 @@ function buildHeroReportHtml(vm) {
           <h1>${T(n.affirmation || '')}</h1>
           ${scoreHtml}
         </div>
-        <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>`}
+        <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>${vm.source ? `
+        <div class="who src">${T(vm.source)}</div>` : ''}`}
       </div>
     </div>
     ${TB && !TB.noLead && n.affirmation ? `<div class="pad" style="padding-bottom:0"><div class="identity lead">${T(n.affirmation)}</div></div>` : ''}
