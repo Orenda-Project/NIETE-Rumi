@@ -133,7 +133,11 @@ const scenarios = [
       await L.viewerWait(page);
       await page.waitForTimeout(2000);
       L.expect(await opens(coachId) === coachBefore, 'a niete_lp_opens row was written for the coach');
-      // the same plan opened by the demo teacher: one row, as before
+      // the same plan opened by the demo teacher: one row, as before. An earlier scenario of the run (LDR03) opened it for
+      // her already, so her rows for this plan are set aside first (and put back after): the open counted is this one.
+      const where = 'user_id = ' + L.q(teacherId) + " and plan_ref like '%grade_4_math_ch1_seg1%'";
+      const kept = await ctx.sql('select coalesce(json_agg(t), \'[]\')::text from niete_lp_opens t where ' + where);
+      await ctx.sql('delete from niete_lp_opens where ' + where);
       const teacherBefore = await opens(teacherId);
       const tc = await page.context().browser().newContext({ viewport: { width: 412, height: 915 } });
       try {
@@ -147,6 +151,8 @@ const scenarios = [
         });
       } finally { await tc.close(); }
       const teacherAfter = await opens(teacherId);
+      await ctx.sql('delete from niete_lp_opens where ' + where);
+      await ctx.sql('insert into niete_lp_opens select * from json_populate_recordset(null::niete_lp_opens, ' + L.q(kept) + '::json)');
       L.expect(teacherAfter === teacherBefore + 1, 'the teacher\'s open wrote ' + (teacherAfter - teacherBefore) + ' niete_lp_opens rows, not 1');
       return { blocked: 'checked: no open row for the coach, one for the teacher. Not provable here: lp.leader_open goes to Axiom only '
         + '(dashboard/services/telemetry.service.js), the survey request and the PDF ask are bot-side calls the local stack does not record '
