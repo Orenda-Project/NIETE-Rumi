@@ -198,6 +198,7 @@ export const ASSESSMENT_V2_COPY = {
   pagesLimit: 'Pages',
   pagesLimitHint: 'Empty = no limit',
   pagesLimitError: '1 to 5 pages',
+  pagesNeed: (n: number) => `These questions need about ${n} pages. Make it ${n}, or remove some questions.`,
   on: 'On',
   off: 'Off',
   newPaperCrumb: 'New paper',
@@ -551,6 +552,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   pagesLimit: 'صفحات',
   pagesLimitHint: 'خالی = کوئی حد نہیں',
   pagesLimitError: '1 سے 5 صفحات',
+  pagesNeed: (n: number) => `یہ سوالات تقریباً ⁦${n}⁩ صفحات لیں گے۔ صفحات ⁦${n}⁩ کر دیں، یا کچھ سوالات ہٹا دیں۔`,
   on: 'شامل',
   off: 'شامل نہیں',
   newPaperCrumb: 'نیا پرچہ',
@@ -750,6 +752,8 @@ export const COPY_ENTRY: CopyEntry = {
     'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade',
     // Questions: the one line that says what is asked, in the operator's own words (20 Oct), not a label.
     'askCount',
+    // Pages: the warning that her questions need more pages than she set (bd-nr8mrm.8).
+    'pagesNeed',
     // Topics: the question and the two choices' one-line explanations.
     'topicsAsk', 'wholeChapterSub', 'chooseTopicsSub',
     // The answer-key warning under the paper's actions: one sentence, not a label (bd-e5n2jf).
