@@ -12,6 +12,8 @@
 
 const ACCURACY_JOB = 'lp.ownAccuracy';
 const PLAN_MAX = 60000;
+// bd-snkn32.58.17 — a re-check came back cut off at 2,000 tokens (q367 subtract run: null → refused).
+const GOAL_CHECK_TOKENS = 4000;
 
 function accuracyMessages({ plan, goal, grade }) {
   const system = 'You check one classroom lesson plan for FACTUAL accuracy only, for a government school in Pakistan. '
@@ -59,9 +61,11 @@ function goalCheckMessages({ plan, goal, grade }) {
     + `1) FACTUAL accuracy for ${grade ? `Grade ${grade}` : 'its grade'}: the class has no textbook, so every fact, `
     + 'definition, example answer, number, spelling and worked answer reaches the children as written; list each one that '
     + 'is wrong or misleading (a simplification that is still true is fine). 2) Whether each section serves the goal: '
-    + 'name any section whose activity does not work towards the teacher\'s goal. Do not judge method, length, style, '
-    + 'language, or labels and titles. Never list a statement you find correct, acceptable or fine. Answer JSON only: {"accurate": true|false, "errors": ["<the wrong statement> -> <why>"], '
-    + '"on_goal": true|false, "off_goal": ["<section>: <why it does not serve the goal>"]}.';
+    + 'name a section only when its main activity teaches a different skill or topic than the teacher\'s goal. Do not judge '
+    + 'method, length, style, language, or labels and titles. Never list a statement you find correct, acceptable or fine. '
+    + 'A tip (a repeated example, an easier or harder item, a clearer step, something that could confuse) is not an error '
+    + 'and not off the goal: put it in "notes". Answer JSON only: {"accurate": true|false, "errors": ["<the wrong statement> -> <why>"], '
+    + '"on_goal": true|false, "off_goal": ["<section>: <the other skill or topic it teaches>"], "notes": ["<tip>"]}.';
   const user = `The teacher's goal: "${String((goal && goal.text) || '').slice(0, 200)}"\n\nTHE PLAN:\n${String(plan || '').slice(0, PLAN_MAX)}`;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
@@ -70,7 +74,8 @@ const lines = (v) => (Array.isArray(v) ? v : []).filter((e) => typeof e === 'str
 
 // bd-snkn32.58.9 — live re-runs: the checker listed lines it dismissed itself ("acceptable rounding, not an error",
 // "which is stated, so this is fine"), and any listed line refused the plan. A line that says so is not an error.
-const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b/i;
+// bd-snkn32.58.17 — and "-> this is correct, but could confuse" (q367 phonics re-run).
+const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b|->\s*this is correct\b/i;
 
 /** { accurate, errors, onGoal, offGoal } from the reply, or null when it cannot be read. */
 function parseGoalCheck(content) {
@@ -94,7 +99,7 @@ async function checkGoalPlan(client, model, { plan, goal, grade }) {
   try {
     const res = await client.chat.completions.create({
       model, job: ACCURACY_JOB, temperature: 0, messages: goalCheckMessages({ plan, goal, grade }),
-      max_completion_tokens: 2000, response_format: { type: 'json_object' }, reasoning: { enabled: false },
+      max_completion_tokens: GOAL_CHECK_TOKENS, response_format: { type: 'json_object' }, reasoning: { enabled: false },
     });
     return parseGoalCheck(res && res.choices && res.choices[0] && res.choices[0].message.content);
   } catch (_) {
