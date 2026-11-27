@@ -3,3 +3,4 @@
 {"ts":"2026-11-27T04:42:00Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"362ba6ca9d85","branch":"bd-m8zwt1.23.2-53264","user":""}
 {"ts":"2026-11-27T04:42:07Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"ec25d8d7-6906-45a8-8ecd-d023e63a0cf9","sha":"362ba6ca9d85","branch":"bd-m8zwt1.23.2-53264","user":""}
 {"ts":"2026-11-27T04:42:21Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-m8zwt1.23.2-print-paper: portal-login web lane spec: NOT UPDATED e2e: missing;teacher-lessons web lane spec: NOT UPDATED e2e: missing","sha":"362ba6ca9d85","branch":"bd-m8zwt1.23.2-53264","user":""}
+{"ts":"2026-11-27T04:42:21Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"362ba6ca9d85","branch":"bd-m8zwt1.23.2-53264","user":""}
