@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T13:09:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"36aa21ffd8f9","branch":"bd-nr8mrm.8-83971","user":""}
+{"ts":"2026-11-27T13:09:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"36aa21ffd8f9","branch":"bd-nr8mrm.8-83971","user":""}
+{"ts":"2026-11-27T13:09:21Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-nr8mrm.8-83971: teacher-assessment web lane spec: NOT UPDATED e2e: missing;fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"36aa21ffd8f9","branch":"bd-nr8mrm.8-83971","user":""}
