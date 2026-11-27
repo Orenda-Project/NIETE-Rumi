@@ -39,7 +39,8 @@ const scenarios = [
       await row.waitFor({ state: 'visible', timeout: 20000 }).catch(() => { throw new Error('her request is not on the To do list'); });
       await row.click();
       const score = await text(page, 'reason-score');
-      expect(/Score she questions/.test(score) && /Details in B\./.test(score), 'the score reason is not the one line: ' + score.slice(0, 160));
+      // b55b259388 (20 Nov, operator: never him or her): the line is "Score the teacher questions" (disagreements/copy.ts scoreSub).
+      expect(/Score the teacher questions/.test(score) && /Details in B\./.test(score), 'the score reason is not the one line: ' + score.slice(0, 160));
       const pattern = await text(page, 'pattern');
       expect(/Is this a pattern\?/.test(pattern), 'no "Is this a pattern?" section');
       const box = await text(page, 'coaching-box');

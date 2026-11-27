@@ -559,16 +559,19 @@ export function QuestionsStep() {
       </ListCard>
 
       {/* bd-5icld3 — up to 18-20 types: the cards used to shrink to fit 88% of the screen and hide their rows. Now the
-          drawer opens tall, only the list scrolls, and the count and Done stay on one row below it. */}
-      <Tray open={tray} tall title={C.steps.types} onClose={() => setTray(false)} closeLabel={C.close} testId="types-tray">
-        <div data-testid="types-list" className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+          drawer opens tall, only the list scrolls, and the count and Done stay on one row below it (the Tray's foot,
+          outside its scrolling body: bd-q8wt5e.15). */}
+      <Tray open={tray} tall title={C.steps.types} onClose={() => setTray(false)} closeLabel={C.close} testId="types-tray"
+        foot={(
+          <div data-testid="types-foot" className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
+            <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, offered.length)}</p>
+            <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
+          </div>
+        )}>
+        <div data-testid="types-list" className="flex flex-col">
           {types.status !== 'ok'
             ? <LoadState status={types.status} onRetry={retry} />
             : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
-        </div>
-        <div data-testid="types-foot" className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
-          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, offered.length)}</p>
-          <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
         </div>
       </Tray>
     </StepFrame>

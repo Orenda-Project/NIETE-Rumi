@@ -426,6 +426,10 @@ const REFERRING_BACK_TOKENS = [
   'اس موضوع', 'اسی موضوع', 'یہ موضوع',
   'is topic', 'isi topic', 'yeh topic', 'us topic',
   'this topic', 'that topic', 'same topic',
+  // bd-zrdvmi.84.1 (ICT sheet row 941): "give a bit of a detailed summary" right after a Grade 3
+  // Maths plan got a summary of an older English lesson. A summary ask is about what she was just
+  // sent; 'summar' covers summary / summarise / summarize.
+  'summar', 'khulasa', 'khulaasa', 'خلاصہ', 'سمری',
 ];
 
 const TERM_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'day']);

@@ -195,9 +195,11 @@ Feature: Teacher home, analytics, more and profile
   # quiz_offer_closed_window, key app_card; missing or any other shape = off, today's list). The skipped offer is a
   # real teacher_nudges row on the run's database. The card's switch has its own 30 s cache, so the driver polls Home.
   # Unit: tests/portal/qfix-offers-app-quiz-card.test.js, portal/src/portal/teacher/notices/ReadyForYou.quizOffer.test.tsx.
+  # The card opens the quiz home, so it is drawn only once Home's own read (/me/home) gives one: that needs the Home card
+  # (portal_teacher_home_card) and the bot's quiz home (quiz_teacher_home) on too (ReadyForYou.tsx; bd-q8wt5e.9).
   @TH16
   Scenario: Teacher app v2: when today's WhatsApp quiz offer could not reach the teacher, Home lists "Make today's quiz" and its tap opens the quiz home
-    Given the teacher app v2 is on and the quiz card is on
+    Given the teacher app v2 is on, the Home card and the quiz home are on, and the quiz card is on
     And today's 15:00 quiz offer for the demo teacher was skipped because the WhatsApp window was shut, for the lesson "Comparing fractions"
     And the demo teacher is signed in on a 360 px phone
     When the teacher opens /portal/teacher
@@ -210,14 +212,14 @@ Feature: Teacher home, analytics, more and profile
 
   @TH17
   Scenario: Teacher app v2: the quiz card reads in Urdu for a teacher whose language is Urdu
-    Given the quiz card is on, today's quiz offer was skipped for a shut window, and the teacher's language is Urdu
+    Given the Home card, the quiz home and the quiz card are on, today's quiz offer was skipped for a shut window, and the teacher's language is Urdu
     When the teacher opens /portal/teacher
     Then "Ready for you" lists «آج کا کوئز بنائیں» with «کوئز»
     And no page error or 5xx happened
 
   @TH18
   Scenario: Teacher app v2: with the quiz card switch off, a skipped quiz offer adds nothing to Home
-    Given the quiz card is off, and today's quiz offer was skipped for a shut window
+    Given the Home card and the quiz home are on, the quiz card is off, and today's quiz offer was skipped for a shut window
     When the teacher opens /portal/teacher
     Then Home lists no quiz card
 

@@ -444,7 +444,8 @@ on('WQ140', 'off', async (page, ctx) => {
   const shared = await page.evaluate(() => window.__shared);
   expect(shared.length === 1, 'navigator.share was called ' + shared.length + ' times');
   const s = shared[0];
-  expect(/\/q\/AB12CD/.test(s.text || s.url || ''), 'no link in the share: ' + JSON.stringify(s));
+  // With the picture the link is inside the text; without it (not drawn yet) the page shares { text, url } (wq.js share()).
+  expect(/\/q\/AB12CD/.test((s.text || '') + ' ' + (s.url || '')), 'no link in the share: ' + JSON.stringify(s));
   if (!s.files.length) {
     const pic = await picture(page, ctx.baseUrl + '/q/' + CODES.OPEN + '/art/card.jpg?a=x');
     return { blocked: NO_RENDERER + '; without a drawn picture the text and link went at once, as the spec\'s last line says', shared: s };
