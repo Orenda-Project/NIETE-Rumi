@@ -628,7 +628,7 @@ async function startGenerating({ quizId, quiz, phone, teacherLang, language, sou
   }
 
   const SQSQueueService = require('../queue');
-  const jobPhone = page ? require('./report-page-quiz').PAGE_NO_SEND : phone;
+  const jobPhone = page ? require('./page-no-send').PAGE_NO_SEND : phone;
   await SQSQueueService.queueJob(quizId, 'quiz_generate', { quizId, phone: jobPhone, language: teacherLang }, { delaySeconds: 0 });
   if (!page) await WhatsAppService.sendMessage(phone, resolveUx('tqMaking', { language: teacherLang }));
   logEvent('transcript_quiz.accepted', { quizId, userId: quiz.teacher_id, language, source });
