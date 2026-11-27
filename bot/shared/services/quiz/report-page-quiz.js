@@ -174,7 +174,7 @@ async function stateOf(d, q) {
     let preview = null;
     try { preview = await d.preview(meta.share_code, { shareCodeId: meta.share_code_id, teacherUserId: q.teacher_id }); } catch (_) { preview = null; }
     return {
-      state: 'ready', page, message: meta.student_message, topic: q.topic || null, language: q.language || null,
+      state: 'ready', page, quizId: q.id, message: meta.student_message, topic: q.topic || null, language: q.language || null,
       questions: await questionsOf(d, q.id), pdf: Boolean(meta.pdf_key), preview: preview || null,
     };
   }
