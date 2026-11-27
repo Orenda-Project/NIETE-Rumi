@@ -252,17 +252,17 @@
      "authored": true
     },
     {
-     "target": "d",
+     "target": "j",
      "options": [
       "b",
       "p",
       "q",
       "t",
-      "d"
+      "j"
      ],
-     "say": "da",
-     "ipa": "/d/",
-     "src": "rwp2026:letterid_eng position 14 (target); today's en.letter_sounds5 item",
+     "say": "ja",
+     "ipa": "/dʒ/",
+     "src": "content owner review, 27 Nov 2026: replaces d (target; d did not match in the listening check); d's cards kept, d -> j",
      "authored": true
     },
     {

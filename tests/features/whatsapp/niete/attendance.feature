@@ -45,7 +45,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
 
   # ═══════════════════════════ POSITIVE — student marking (teacher) ═══════════════════════════
 
-  @e2e @wip @role-fork @P1
+  @e2e @wip @role-fork @P1 @ATT01
   Scenario: A teacher saying "attendance" enters the student-marking flow
     Given the NIETE bot chat is open on a TEACHER account with a class
     When I send "attendance"
@@ -54,7 +54,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # (text-message.handler.js:2097) → TEACHER_MARKS_STUDENTS →
     # attendance-conversation.service.js:344 startAttendanceSession.
 
-  @e2e @wip @flow @P2
+  @e2e @wip @flow @P2 @ATT02
   Scenario: A teacher with no classes is sent the class-setup Flow
     Given the NIETE bot chat is open on a TEACHER account with NO classes
     When I send "attendance"
@@ -62,21 +62,21 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-conversation.service.js — no classes → SEND_SETUP_FLOW (header
     # "Class Setup"), gated on ATTENDANCE_SETUP_FLOW_ID.
 
-  @e2e @wip @P2
+  @e2e @wip @P2 @ATT03
   Scenario: A teacher with exactly one class goes straight to the marking method
     Given the NIETE bot chat is open on a TEACHER account with one class
     When I send "attendance"
     Then the bot asks how I want to mark (voice / tap / everyone present)
     # attendance-conversation.service.js — one class → AWAITING_MARKING_METHOD.
 
-  @e2e @wip @content-driven @P2
+  @e2e @wip @content-driven @P2 @ATT04
   Scenario: A teacher with several classes is asked which class
     Given the NIETE bot chat is open on a TEACHER account with multiple classes
     When I send "attendance"
     Then the bot lists the classes (roster contents resolved live) and I can pick one by number or by name
     # AWAITING_CLASS_SELECTION; handleClassSelection:620 (numeric OR fuzzy name).
 
-  @e2e @wip @excel @destructive @content-driven @P1
+  @e2e @wip @excel @destructive @content-driven @P1 @ATT05
   Scenario: "Everyone present" produces the monthly register
     Given a teacher is at the marking-method step for a class
     When I choose "everyone present"
@@ -85,7 +85,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # → attendance-delivery.service.js:37 processAndDeliver (cumulative monthly
     # register → R2 → WhatsApp document).
 
-  @e2e @wip @flow @excel @destructive @content-driven @P1
+  @e2e @wip @flow @excel @destructive @content-driven @P1 @ATT06
   Scenario: Tap-to-mark marks the absentees and delivers the register
     Given a teacher chose the tap marking method for a class
     When I mark the absent students in the Flow and submit
@@ -101,7 +101,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-flow.handler.js:278 handleMarkingFlowSubmission (absent set vs all)
     # → processAndDeliver markingMethod:'tap'. Flow gated on ATTENDANCE_MARKING_FLOW_ID.
 
-  @e2e @wip @voice @destructive @content-driven @P1
+  @e2e @wip @voice @destructive @content-driven @P1 @ATT07
   Scenario: A voice roll-call is transcribed into an attendance draft
     Given a teacher chose the voice marking method (AWAITING_VOICE_INPUT)
     When I send a voice note naming who is absent
@@ -111,14 +111,14 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # generateAttendanceRecords; unmentioned students default present) →
     # AWAITING_VERIFICATION.
 
-  @e2e @wip @destructive @content-driven @P2
+  @e2e @wip @destructive @content-driven @P2 @ATT08
   Scenario: Confirming the verification delivers the register
     Given a teacher is at the attendance verification step
     When I reply "yes"
     Then the bot generates and a monthly register document is delivered (not asserting exact cell values / counts / dates)
     # handleVerificationResponse:963 — yes/confirm/ہاں → GENERATE_ATTENDANCE.
 
-  @e2e @wip @flow @P2
+  @e2e @wip @flow @P2 @ATT09
   Scenario: /add-class opens the class-setup Flow even when classes exist
     Given the NIETE bot chat is open on a TEACHER account with existing classes
     When I send "add class"
@@ -126,7 +126,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-detector.service.js:171 detectAddClassIntent →
     # text-message.handler.js:2066 (header "Add New Class", always fires).
 
-  @e2e @wip @flow @P2
+  @e2e @wip @flow @P2 @ATT10
   Scenario: Saving in the class manager (/class) is answered by its own screen, not the /menu catch-all
     Given a teacher opened the class manager with /class
     When I add a class and the Flow closes on its saved screen
@@ -136,7 +136,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # sender now builds the token "<userId>:classes" (class-entry.service.js classManagerFlowToken);
     # flow-type-detector names it class_manager and the webhook only logs it.
 
-  @e2e @wip @flow @P1
+  @e2e @wip @flow @P1 @ATT11
   Scenario: A second paste that overlaps a longer paste on the same class still enrols every child
     Given a teacher's class is part-way through a 20-child paste saved from another device
     When the teacher saves a second paste of 5 children in the class manager (/class)
@@ -149,7 +149,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # child leap (max + 2, + 4 ...), so contention alone never fails a paste. Nothing is renumbered.
     # Mock: tests/classes/add-students-long-race.test.js. Flow screens are emulated on the mock lane.
 
-  @e2e @wip @flow @P1
+  @e2e @wip @flow @P1 @ATT12
   Scenario: A paste that could not be added is named on the saved screen, never "nothing changed"
     Given a teacher saves a paste in the class manager (/class) and some children could not be enrolled
     When the Flow lands on its saved screen
@@ -159,7 +159,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # classStudentsNotAddedHeading (en + ur) on the existing SAVED fields; classNoChanges only when
     # nothing was asked for. Mock: tests/classes/roster-add-failure-named.test.js.
 
-  @e2e @wip @flow @P2
+  @e2e @wip @flow @P2 @ATT13
   Scenario: /edit-class opens the roster editor
     Given the NIETE bot chat is open on a TEACHER account with a class
     When I send "edit class"
@@ -170,7 +170,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
 
   # ═══════════════════════ POSITIVE — teacher marking (PRINCIPAL, NEW) ═══════════════════════
 
-  @e2e @wip @new @role-fork @content-driven @P1
+  @e2e @wip @new @role-fork @content-driven @P1 @ATT14
   Scenario: A principal without student classes marks teacher attendance
     Given the NIETE bot chat is open on a PRINCIPAL account (no student classes) whose school has teachers
     When I send "attendance"
@@ -180,21 +180,21 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # (generateMarkingMessage, numbered roster, EN/UR). Redis namespace
     # teacher-attendance:session:<uid> (never collides with the student flow).
 
-  @e2e @wip @new @P2
+  @e2e @wip @new @P2 @ATT15
   Scenario: A principal marks everyone present
     Given a principal is at the teacher-marking step
     When I reply "all"
     Then all teachers are marked present and the bot asks me to verify
     # parseMarkingInput:103 — all/0/سب حاضر = everyone present → AWAITING_VERIFICATION.
 
-  @e2e @wip @new @P1
+  @e2e @wip @new @P1 @ATT16
   Scenario: A principal marks specific teachers absent
     Given a principal is at the teacher-marking step with a numbered roster
     When I reply "2,5"
     Then teachers 2 and 5 are marked absent and the bot asks me to verify
     # parseMarkingInput:103 — comma indices = absent → handleMarkingInput:169.
 
-  @e2e @wip @new @P1
+  @e2e @wip @new @P1 @ATT17
   Scenario: A principal marks a teacher on leave and picks the leave type
     Given a principal is at the teacher-marking step
     When I reply "3L"
@@ -205,7 +205,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # teacher-attendance.service.js:67 parseLeaveType. Leave requires a type
     # (re-validated in the repo — never silently dropped).
 
-  @e2e @wip @new @destructive @P1
+  @e2e @wip @new @destructive @P1 @ATT18
   Scenario: Confirming persists teacher attendance (one upsert per teacher)
     Given a principal has marked the teacher roster and reached verification
     When I reply "yes"
@@ -214,7 +214,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # teacher-attendance.service.js:89 persistMarkedAttendance — ONE
     # repository.saveAttendance() upsert per teacher (UNIQUE teacher_id,date).
 
-  @e2e @wip @new @out-of-band @P2
+  @e2e @wip @new @out-of-band @P2 @ATT19
   Scenario: WhatsApp and the web Portal show the same teacher presence
     Given a principal has marked teacher attendance via WhatsApp
     When the same school's presence is read from the Portal attendance API
@@ -225,7 +225,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
 
   # ═══════════════════════════════ EDGE cases ══════════════════════════════════
 
-  @e2e @wip @role-fork @edge @P2
+  @e2e @wip @role-fork @edge @P2 @ATT20
   Scenario: Roman-Urdu and Urdu attendance keywords all trigger
     Given the NIETE bot chat is open on a TEACHER account
     When I send "hazri" (and, separately, "حاضری" / "roll call" / "/attendance")
@@ -246,7 +246,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
   # people answer by typing ("voice"), and the register answer travels in the
   # second question's own button ids (att_register_<staff|class>_<tap|voice>).
 
-  @e2e @wip @new @role-fork @edge @P1
+  @e2e @wip @new @role-fork @edge @P1 @ATT21
   Scenario: A principal who also owns a class is asked tap-or-voice WITHOUT a register named
     Given the NIETE bot chat is open on a PRINCIPAL account that ALSO owns an active class
     When I send "attendance"
@@ -255,7 +255,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # askMethod('either') → ASK_METHOD, copy key attendanceAskMethodEither.
     # A principal who owns NO class still gets attendanceAskMethodTeacher.
 
-  @e2e @wip @new @role-fork @edge @P1
+  @e2e @wip @new @role-fork @edge @P1 @ATT22
   Scenario: Answering tap-or-voice then asks WHICH register
     Given a principal who owns a class was asked how to mark
     When I tap "Mark by tapping"
@@ -263,7 +263,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # resolveMethodChoice → loadClasses() non-empty → askRegister('tap') →
     # ASK_REGISTER with att_register_staff_tap / att_register_class_tap.
 
-  @e2e @wip @new @role-fork @edge @P1
+  @e2e @wip @new @role-fork @edge @P1 @ATT23
   Scenario: Choosing "My class" opens the student register for the principal
     Given a principal who owns a class was asked whose register it is
     When I tap "My class"
@@ -271,21 +271,21 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # resolveRegisterChoice → OPEN_REGISTER, flowToken "<userId>:student".
     # "My teachers" is unchanged: MARK_TEACHERS, "<userId>:teacher:<schoolId>".
 
-  @e2e @wip @new @role-fork @edge @P3
+  @e2e @wip @new @role-fork @edge @P3 @ATT24
   Scenario: The role fork tolerates casing and whitespace
     Given a principal whose users.role is stored as " PRINCIPAL " (mixed case, padded)
     When I send "attendance"
     Then I am still forked to the teacher-marking channel (not the student flow)
     # attendance-router.service.js:34 isPrincipal — role.trim().toLowerCase()==='principal'.
 
-  @e2e @wip @edge @P3
+  @e2e @wip @edge @P3 @ATT25
   Scenario: A teacher can resume a recent unfinished attendance session
     Given a teacher started but did not finish an attendance session under 30 minutes ago
     When I send "attendance" again
     Then the bot offers to resume the session or start fresh
     # attendance-conversation.service.js:203 handleSessionRecovery (<30min, not completed).
 
-  @e2e @wip @voice @edge @content-driven @P3
+  @e2e @wip @voice @edge @content-driven @P3 @ATT26
   Scenario: Voice roll-call understands "everyone except" phrasing
     Given a teacher is at the voice marking step
     When my voice note says everyone is present except two named students
@@ -294,7 +294,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # (unmentioned default present); parseAttendanceKeyword:308 checks absent
     # BEFORE present ("غیر حاضر" contains "حاضر").
 
-  @e2e @wip @excel @edge @P2
+  @e2e @wip @excel @edge @P2 @ATT27
   Scenario: Recording the same class/date/session twice is caught
     Given a teacher already recorded attendance for a class on a date+session
     When the same session is submitted again
@@ -302,7 +302,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-delivery.service.js checkExistingSession (list+date+sessionType)
     # → friendly "already recorded".
 
-  @e2e @wip @excel @new @edge @destructive @P1
+  @e2e @wip @excel @new @edge @destructive @P1 @ATT28
   Scenario: Two registers with the same file name, delivered at once, each reach their own school
     Given two principals at different schools whose monthly registers carry the same file name
     When both save attendance within the same second
@@ -319,7 +319,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # tests/attendance/register-delivery-temp-race.test.js (real deliverRegister + real sendDocument,
     # Graph API faked to read the upload stream 200 ms late).
 
-  @e2e @wip @edge @P3
+  @e2e @wip @edge @P3 @ATT29
   Scenario: "Edit" at verification returns to marking
     Given a teacher (or principal) is at the verification step
     When I reply "edit"
@@ -327,7 +327,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # student: handleVerificationResponse:963 'edit' → re-send marking Flow with
     # prefilledAbsent. principal: handleVerification:275 'edit' → back to marking.
 
-  @e2e @wip @new @edge @destructive @P2
+  @e2e @wip @new @edge @destructive @P2 @ATT30
   Scenario: A teacher whose old account was merged appears once on my staff register
     Given the NIETE bot chat is open on a PRINCIPAL account whose school has teachers
     And a teacher at my school had her old account merged into her current one
@@ -345,21 +345,21 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
 
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 
-  @e2e @wip @voice @negative @P2
+  @e2e @wip @voice @negative @P2 @ATT31
   Scenario: Text sent while awaiting a voice roll-call is redirected
     Given a teacher is at the voice marking step (AWAITING_VOICE_INPUT)
     When I send a text message instead of a voice note
     Then the bot asks me to send a voice note (or reply "2" to switch to tap)
     # text-message.handler.js:1899 — text in AWAITING_VOICE_INPUT → prompt.
 
-  @e2e @wip @flow @negative @config-gated @P2
+  @e2e @wip @flow @negative @config-gated @P2 @ATT32
   Scenario: Tap marking falls back to text when the marking Flow is unset
     Given ATTENDANCE_MARKING_FLOW_ID is unset on the runtime
     When a teacher chooses the tap marking method
     Then the bot falls back to text and tells the teacher to use voice
     # attendance-flow / flow-type-detector: empty ATTENDANCE_MARKING_FLOW_ID → text fallback.
 
-  @e2e @wip @negative @destructive @P2
+  @e2e @wip @negative @destructive @P2 @ATT33
   Scenario: A class deleted mid-flow is reported, not silently dropped
     Given a teacher is mid-attendance for a class that is then deleted
     When the marking is submitted
@@ -367,7 +367,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-flow.handler.js validates the listId still exists (class-deleted
     # guard) before delivery → session cleared, told loudly.
 
-  @e2e @wip @new @negative @P2
+  @e2e @wip @new @negative @P2 @ATT34
   Scenario: A principal with no school on file is told setup is needed
     Given the NIETE bot chat is open on a PRINCIPAL account with no school_id
     When I send "attendance"
@@ -375,21 +375,21 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # teacher-attendance-conversation.service.js:126 startSession guards NO_SCHOOL
     # (no user.school_id).
 
-  @e2e @wip @new @negative @P2
+  @e2e @wip @new @negative @P2 @ATT35
   Scenario: A principal whose school has no teachers is told there is nothing to mark
     Given a PRINCIPAL account whose school has no teachers on file
     When I send "attendance"
     Then the bot reports there are no teachers to mark
     # startSession guards NO_TEACHERS (repository.getTeachersBySchool empty).
 
-  @e2e @wip @new @negative @P3
+  @e2e @wip @new @negative @P3 @ATT36
   Scenario: An out-of-range teacher number is rejected, not misapplied
     Given a principal is at the teacher-marking step with N teachers
     When I reply with an index greater than N (e.g. "99")
     Then the bot surfaces a parse/range error and re-asks
     # parseMarkingInput:103 — range/parse errors surfaced (not silently applied).
 
-  @e2e @wip @new @role-fork @negative @P1
+  @e2e @wip @new @role-fork @negative @P1 @ATT37
   Scenario: A principal is never silently marked into the student flow
     Given the NIETE bot chat is open on a PRINCIPAL account
     When I send "attendance"
@@ -398,7 +398,7 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # a principal reaches MARK_TEACHERS / AWAIT_VOICE(teacher), or ASK_REGISTER
     # when they own a class. Never OPEN_REGISTER without having said "My class".
 
-  @e2e @wip @new @role-fork @negative @P2
+  @e2e @wip @new @role-fork @negative @P2 @ATT38
   Scenario: A class-register button tapped after the class is gone falls back to staff
     Given a principal was offered "My class" and the class has since been handed to someone else
     When I tap "My class"
