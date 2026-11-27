@@ -6,7 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `assessment/` | → (no door; 3 tests) |
+| `assessment/` | → (no door; 4 tests) |
 | `calls/` | → (no door; 30 files: 29 test + 1 support) |
 | `child-test/` | Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules → `child-test/CLAUDE.md` |
 | `coaching/` | Jest suites for coaching: guards, report sending, language, subject resolution → `coaching/CLAUDE.md` |
@@ -18,6 +18,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `howto/` | → (no door; 2 tests) |
 | `i18n/` | → (no door; 1 tests) |
 | `identity/` | → (no door; 1 tests) |
+| `internal-json-limits/` | → (no door; 1 tests) |
 | `lp-v10-card/` | → (no door; 5 tests) |
 | `lp-v8/` | Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context → `lp-v8/CLAUDE.md` |
 | `menu/` | → (no door; 2 tests) |
@@ -26,10 +27,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `onboarding/` | → (no door; 1 tests) |
 | `push/` | → (no door; 6 tests) |
 | `qfix-class-link-fix/` | → (no door; 1 tests) |
-| `qfix-class-link/` | → (no door; 31 tests) |
+| `qfix-class-link/` | → (no door; 32 tests) |
 | `qfix-forward/` | → (no door; 9 tests) |
-| `qfix-keys/` | → (no door; 4 tests) |
-| `qfix-reminders/` | → (no door; 12 tests) |
+| `qfix-keys/` | → (no door; 10 tests) |
+| `qfix-reminders/` | → (no door; 17 tests) |
 | `qfix-report/` | → (no door; 15 files: 13 test + 2 support) |
 | `qfix-shuffle/` | → (no door; 3 tests) |
 | `qfix-voice/` | → (no door; 6 tests) |
@@ -48,6 +49,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bug-003-false-promise.test.js` | Pins that 'Mathematics for grade 2' style messages classify as lesson_plan intent, not general (BUG-003 false promise) |
 | `bug-005-audio-document.test.js` | Pins that an audio document under 15 minutes is not treated as classroom audio and gets a clear reply (BUG-005) |
 | `bug-014-video-language.test.js` | Pins that video script prompts give Punjabi explicit vocabulary guidance so narration is not Urdu (BUG-014) |
+| `llm-backup-key.test.js` | (unmapped) |
 | `llm-cost-attributed.test.js` | Pins that model spend records carry the job name that spent it, never sent to the vendor as a field (bd-9b58p) |
 | `llm-cost-queryable.test.js` | Pins that cost fields survive into Axiom columns as numbers so sum() works and unpriced calls stay null (bd-9b58p) |
 | `llm-cost-recorded.test.js` | Pins that the shared model client records the vendor-reported cost of every call without changing the request (bd-8t362) |
@@ -60,6 +62,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `model-settings-backoff.test.js` | Pins model-settings back-off: a failing app_settings read is retried on a timer, not on every request (bd-dsr9l) |
 | `model-settings-no-db.test.js` | Pins that loading the model-settings reader without Supabase env does not exit the process (bd-5rd2f) |
 | `model-settings.test.js` | Tests model-settings reader: kill switch, JSON-string values and synchronous last-good-config accessor (bd-5rd2f) |
+| `objective-writer-model.test.js` | (unmapped) |
 | `r2-download-miss-level.test.js` | (unmapped) |
 | `secondary-writer-model.test.js` | (unmapped) |
 | `setup-loopback.js` | Jest setupFile that loopbacks service endpoints, dummies credentials and blocks live DB/Redis/LLM/WhatsApp in tests |

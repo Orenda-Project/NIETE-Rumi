@@ -1,7 +1,7 @@
 # lib — Portal helpers: recording, uploads, routing, flags, API-adjacent logic
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib kg=487db4739f3e gen=297de81d7d68 overflow=305 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/lib kg=c9bfd9c1d0a7 gen=06cac95f8bcc overflow=347 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `recordingSession.tsx` — provider holding the live lesson recording above the routes; start of the recorder chain
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `assess/` | Coach Learning-assessment support: results maths, copy, offline visit store → `assess/CLAUDE.md` |
 | `childTest/` | Coach child-test block machine, check form, local recordings and uploader → `childTest/CLAUDE.md` |
 | `live/` | Live moves while a teacher records: tick state and Soniox stream tee → `live/CLAUDE.md` |
-| … | 91 more → `CLAUDE.index.md` |
+| … | 110 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `useNewUi.ts` ← imported by `portal/src/App.tsx:36:e5e523e4` · `portal/src/lib/whatsapp.ts:2:0e65200b` (+30)
-- `recordingSession.tsx` ← imported by `portal/src/App.tsx:27:274089c5` · `portal/src/portal/coach/pages/CoachRecord.tsx:18:ffbfcd5e` (+22)
-- … 52 more → `CLAUDE.index.md`
+- `useNewUi.ts` ← imported by `portal/src/App.tsx:36:e5e523e4` · `portal/src/lib/whatsapp.ts:2:0e65200b` (+33)
+- `recordingSession.tsx` ← imported by `portal/src/App.tsx:27:274089c5` · `portal/src/portal/coach/observe/keptRecording.ts:3:5fd56703` (+24)
+- … 60 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Keep leaderRole.ts in lock-step with the bot's LEADER_ROLES and dashboard/lib/leader-role.js (lib/leaderRole.ts:10)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/newui/coaching/RecordPage.test.tsx` (coachingUpload.ts, keepAwake.ts, lessonHandoff.ts, recordingSession.tsx, recordingStore.ts, recordingSupport.ts, useNewUi.ts)
 - `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` (coachingUpload.ts, lessonHandoff.ts, recordingSession.tsx, recordingStore.ts, recordingSupport.ts, useNewUi.ts)
-- … 172 more → `CLAUDE.index.md`
+- … 196 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/views/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `portal/src/portal/CLAUDE.md`?

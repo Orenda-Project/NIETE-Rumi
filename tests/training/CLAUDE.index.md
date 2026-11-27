@@ -59,6 +59,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-r2uzg1-18-1-isaps-high-only.test.js` | (unmapped) |
 | `bd-r2uzg1-18-13-quick-check-cursor-behind-answers.test.js` | (unmapped) |
 | `bd-r2uzg1-18-3-certificate-name-refresh.test.js` | (unmapped) |
+| `bd-r2uzg1-23-11-isaps-exam-left.test.js` | (unmapped) |
 | `bd-s42dye-4-legacy-media-rehost.test.js` | bd-s42dye.4: legacy-media-rehost rules pick unplayable media and key it identically across environments |
 | `bd-s42dye-4-legacy-vendor-coach-only.test.js` | bd-s42dye.4: the TALEEMABAD_LEGACY vendor is coach-library only, hidden from teachers, never certified |
 | `bd-s42dye5-release-held-attempts.test.js` | bd-s42dye.5: releasing held I-SAPS CRQ attempts script: flag pre-check, dry-run versus --apply, backfill |

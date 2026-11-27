@@ -67,7 +67,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `TrainingQuiz.tsx` ← `portal/src/portal/newui/training/TrainingQuiz.test.tsx`?
 - `certificateFile.ts` ← `portal/src/portal/newui/training/certificateFile.test.ts`
 - `continue.ts` ← `portal/src/portal/newui/training/continue.test.ts`
-- `trainingApi.ts` ← `portal/src/portal/newui/training/TrainingLevelExam.test.tsx` · `portal/src/portal/newui/training/continue.test.ts` · `portal/src/portal/newui/training/courseName.test.ts` · `portal/src/portal/newui/training/legacyProviderName.test.ts` · `portal/src/portal/newui/training/providerNames.test.ts` · `portal/src/portal/teacher/training/inner.test.ts` (+2: `python3 kg/kg.py who-reads portal/src/portal/newui/training/trainingApi.ts`)
+- `trainingApi.ts` ← `portal/src/portal/newui/training/TrainingLevelExam.test.tsx` · `portal/src/portal/newui/training/continue.test.ts` · `portal/src/portal/newui/training/courseName.test.ts` · `portal/src/portal/newui/training/legacyProviderName.test.ts` · `portal/src/portal/newui/training/providerNames.test.ts` · `portal/src/portal/teacher/training/examLeft.test.tsx` (+3: `python3 kg/kg.py who-reads portal/src/portal/newui/training/trainingApi.ts`)
 
 ## Related (all, generated)
 - (none)

@@ -23,6 +23,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g5_ch4_Maths_seg7.v9.html` | Hosted v9 lesson page G5 Math ch4 seg7 (en): LCM by prime factorization & division method |
 | `g5_ch4_Maths_seg8.v9.html` | Hosted v9 lesson page G5 Math ch4 seg8 (en): LCM word problems (CUBES method) |
 | `g5_ch4_Maths_seg9.v9.html` | Hosted v9 lesson page G5 Math ch4 seg9 (en): LCM consolidation: Hopscotch + Skill Sharpener |
+| `g5_ch4_Science_seg3.v9.html` | (unmapped) |
 | `g5_ch4_Urdu_seg1.v9.html` | Hosted v9 lesson page G5 Urdu ch4 seg1 (ur): آغازِ سفر اور نئے الفاظ — مادرِ ملت کی کہانی کے مشکل الفاظ |
 | `g5_ch4_Urdu_seg2.v9.html` | Hosted v9 lesson page G5 Urdu ch4 seg2 (ur): متن کا سفر — محترمہ فاطمہ جناح کی زندگی |
 | `g5_ch4_Urdu_seg3.v9.html` | Hosted v9 lesson page G5 Urdu ch4 seg3 (ur): گہرائی تک پہنچنا (۱) — خالی جگہ، غلط/درست، انتخابِ جواب |

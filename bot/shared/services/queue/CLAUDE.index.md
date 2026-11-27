@@ -12,7 +12,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `bullmq-queue.service.js` ← imported by `bot/shared/services/queue/index.js:17:6dd34b59`
-- `index.js` ← imported by `bot/shared/routes/homework-request-endpoint.js:26:12f2ae3c` · `bot/shared/services/assessment/assessment-request.service.js:149:75453fe6` · `bot/shared/services/coaching/coaching-job-queue.service.js:96:75453fe6` · `bot/shared/services/gb-lp-serving.service.js:101:99cbc821` (+22: `python3 kg/kg.py who-reads index.js`)
+- `index.js` ← imported by `bot/shared/routes/homework-request-endpoint.js:26:12f2ae3c` · `bot/shared/services/assessment/assessment-request.service.js:149:75453fe6` · `bot/shared/services/coaching/coaching-job-queue.service.js:96:75453fe6` · `bot/shared/services/gb-lp-serving.service.js:101:99cbc821` (+23: `python3 kg/kg.py who-reads index.js`)
 - `sqs-queue.service.js` ← imported by `bot/shared/services/queue/index.js:26:72d57016`
 - env `AWS_ACCESS_KEY_ID` read at `bot/shared/services/queue/sqs-queue.service.js:58:b1d05116`
 - env `AWS_REGION` read at `bot/shared/services/queue/sqs-queue.service.js:57:2c79605f`
@@ -20,7 +20,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `BULLMQ_MAIN_QUEUE` read at `bot/shared/services/queue/bullmq-queue.service.js:41:9801981e`
 - env `BULLMQ_QUIZ_QUEUE` read at `bot/shared/services/queue/bullmq-queue.service.js:43:3d390258`
 - env `BULLMQ_VIDEO_QUEUE` read at `bot/shared/services/queue/bullmq-queue.service.js:42:e05f2f9c`
-- env `NODE_ENV` read at `bot/shared/services/queue/sqs-queue.service.js:798:d8e24952`
+- env `NODE_ENV` read at `bot/shared/services/queue/sqs-queue.service.js:802:d8e24952`
 - env `QUEUE_DRIVER` read at `bot/shared/services/queue/index.js:14:710952b9`
 - env `REDIS_URL` read at `bot/shared/services/queue/bullmq-queue.service.js:52:d78719e9`
 - env `SQS_DLQ_URL` read at `bot/shared/services/queue/sqs-queue.service.js:66:a5cf1989`
@@ -30,8 +30,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `bullmq-queue.service.js` ← `tests/llm/cost-user-attribution.test.js` · `tests/queue/bullmq-queue.test.js` · `tests/queue/queue-driver-index.test.js` · `tests/queue/queue-driver-parity.test.js` · `tests/quiz/quiz-queue-uses-driver.test.js`
-- `index.js` ← `bot/tests/quiz/old-link-redirect.test.js` · `bot/tests/workers/quiz-queue-own-loop.test.js` · `tests/fflp/queue-worker.test.js` · `tests/fflp/seam-goldens.test.js` · `tests/lesson-plan-lifecycle/grounded-path.test.js` · `tests/lesson-plan-lifecycle/requeue-grounded.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/services/queue/index.js`)
-- `sqs-queue.service.js` ← `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` · `bot/tests/observe/bd-rkofm-lang-toggle-dedup.test.js` · `bot/tests/observe/observe-debrief-requeue.test.js` · `bot/tests/qfix-class-link/generate-silent.test.js` · `bot/tests/qfix-class-link/round-boundaries.test.js` · `bot/tests/qfix-class-link/who-quiz-ready.test.js` (+45: `python3 kg/kg.py who-reads bot/shared/services/queue/sqs-queue.service.js`)
+- `index.js` ← `bot/tests/quiz/old-link-redirect.test.js` · `bot/tests/workers/quiz-queue-own-loop.test.js` · `tests/fflp/queue-worker.test.js` · `tests/fflp/seam-goldens.test.js` · `tests/lesson-plan-lifecycle/grounded-path.test.js` · `tests/lesson-plan-lifecycle/requeue-grounded.test.js` (+7: `python3 kg/kg.py who-reads bot/shared/services/queue/index.js`)
+- `sqs-queue.service.js` ← `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` · `bot/tests/observe/bd-rkofm-lang-toggle-dedup.test.js` · `bot/tests/observe/observe-debrief-requeue.test.js` · `bot/tests/qfix-class-link/generate-silent.test.js` · `bot/tests/qfix-class-link/round-boundaries.test.js` · `bot/tests/qfix-class-link/who-quiz-ready.test.js` (+46: `python3 kg/kg.py who-reads bot/shared/services/queue/sqs-queue.service.js`)
 
 ## Related (all, generated)
 - docs: `CLAUDE.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/architecture.md`?

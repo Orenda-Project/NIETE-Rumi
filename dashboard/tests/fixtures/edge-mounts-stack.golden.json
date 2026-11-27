@@ -758,12 +758,54 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/practice\\/start\\/?$/i",
+        "path": "/api/wq/practice/start",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/practice\\/finish\\/?$/i",
+        "path": "/api/wq/practice/finish",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/j(?:\\/([^/]+?))\\/?$/i",
         "path": "/j/:code",
         "methods": [
           "get"
         ],
         "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/q(?:\\/([^/]+?))\\/manifest\\.webmanifest\\/?$/i",
+        "path": "/q/:code/manifest.webmanifest",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "<anonymous>",
           "<anonymous>"
         ]
       },
@@ -1785,6 +1827,19 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/r(?:\\/([^/]+?))\\/sfwd\\/?$/i",
+        "path": "/r/:token/sfwd",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/r(?:\\/([^/]+?))\\/jlink\\/?$/i",
         "path": "/r/:token/jlink",
         "methods": [
@@ -2108,6 +2163,20 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/cr(?:\\/([^/]+?))\\/time\\/?$/i",
+        "path": "/cr/:token/time",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "timeAnswer"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/cr(?:\\/([^/]+?))\\/coach\\/?$/i",
         "path": "/cr/:token/coach",
         "methods": [
@@ -2131,6 +2200,117 @@
           "<anonymous>",
           "urlencodedParser",
           "coachAnswer"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/?$/i",
+        "path": "/cq/:token",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "quizPage"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/state\\/?$/i",
+        "path": "/cq/:token/state",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "quizState"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/make\\/?$/i",
+        "path": "/cq/:token/make",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "jsonParser",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/lang\\/?$/i",
+        "path": "/cq/:token/lang",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "jsonParser",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/pdf\\/?$/i",
+        "path": "/cq/:token/pdf",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "quizPdf"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/try\\/?$/i",
+        "path": "/cq/:token/try",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "quizTry"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/e\\/?$/i",
+        "path": "/cq/:token/e",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "jsonParser",
+          "quizBeacon"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/cq(?:\\/([^/]+?))\\/edit\\/?$/i",
+        "path": "/cq/:token/edit",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "privateHeaders",
+          "<anonymous>",
+          "urlencodedParser",
+          "quizEdit"
         ]
       }
     ]

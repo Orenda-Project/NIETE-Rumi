@@ -491,6 +491,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `free-secondary-routing.test.js` | (unmapped) |
 | `free-secondary-rules.test.js` | (unmapped) |
 | `free-secondary-scheme.test.js` | (unmapped) |
+| `free-secondary-target-wiring.test.js` | (unmapped) |
+| `free-secondary-target.test.js` | (unmapped) |
 | `free-secondary-tidy.test.js` | (unmapped) |
 | `free-secondary.service.test.js` | (unmapped) |
 | `g612-additive-maps.test.js` | (unmapped) |

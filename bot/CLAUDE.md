@@ -1,7 +1,7 @@
 # bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot kg=cd5947061e9a gen=d1f8d75eb745 overflow=58 rendered=2026-11-27 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=cd5947061e9a gen=22a8d89b769b overflow=58 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:9011:4337985e`? (+12)
-- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:9087:d2b02c3e`? (+4)
+- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:753:4337985e`? · `dashboard/routes/portal.routes.js:9006:4337985e`? (+12)
+- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:754:7a0c163a`? · `dashboard/routes/portal.routes.js:9082:d2b02c3e`? (+4)
 - … 11 more → `CLAUDE.index.md`
 
 ## Never (human)

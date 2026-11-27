@@ -1,7 +1,7 @@
 # app — Coach-app API and app_settings switches for the self-administered assessment
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/app kg=5fccecc7cff3 gen=732f78e88954 overflow=102 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/app kg=6b8199b57512 gen=0304859724d9 overflow=103 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-api.service.js` — schools, day list, outcomes, battery, sessions for the portal
@@ -20,10 +20,10 @@ Full index: `CLAUDE.index.md`
 | … | 24 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
+- `app-api.service.js` ← imported by `bot/shared/handlers/jugnu-command.js:126:4324bdc8` · `bot/shared/services/child-test/app/sa-api.service.js:76:83955dcf` (+1)
 - `mcq-switch.js` ← imported by `bot/shared/services/child-test/sa-store.js:221:a7228eb8` · `bot/shared/services/child-test/sa/score.js:119:55ca8896` (+1)
-- `app-api.service.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:76:83955dcf` · `bot/shared/services/child-test/app/sa-review.service.js:19:6a7c12b1`
 - `coach-last-word-switch.js` ← imported by `bot/shared/services/child-test/sa/score.js:109:6ae06b45` · `bot/shared/services/child-test/app/sa-api.service.js:63:317cbf62`
-- `per-visit-switch.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:250:c74394e6` · `bot/shared/services/child-test/app/sa-api.service.js:60:7ef79205`
+- `per-visit-switch.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:307:c74394e6` · `bot/shared/services/child-test/app/sa-api.service.js:60:7ef79205`
 - … 30 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/child-test/sa-per-visit.test.js` (app-api.service.js, per-visit-switch.js, sa-api.service.js)
 - `bot/tests/child-test/sa-practice-only.test.js` (app-api.service.js, practice-only-switch.js, sa-api.service.js)
-- … 53 more → `CLAUDE.index.md`
+- … 54 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/child-test/CLAUDE.md`?

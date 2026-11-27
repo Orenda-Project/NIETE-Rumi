@@ -1,5 +1,7 @@
 {
   "users": { "owner": "id", "same": ["phone_number"] },
   "students": { "owner": "list_id" },
-  "class_enrollments": { "owner": "class_id", "same": ["class_id", "student_id"] }
+  "class_enrollments": { "owner": "class_id", "same": ["class_id", "student_id"] },
+  "ab_assignment": { "owner": "unit_id", "same": ["test_id", "unit_id"] },
+  "quizzes": { "owner": "teacher_id" }
 }

@@ -1,7 +1,7 @@
 # first-touch — One-door /quiz entry, quiz-maker and teacher-home pages, all switch-gated
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=c76c23298266 gen=fa84be0d6b60 overflow=179 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=8c6f37717a77 gen=90a57b19fcf0 overflow=184 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `one-door.service.js` — the single reply for any quiz request
@@ -15,10 +15,10 @@ Full index: `CLAUDE.index.md`
 | `teacher-home.flags.js` | Reads the teacher home switches quiz_teacher_home, _paged and server_timing; JSON-true semantics, 30s cache |
 | `maker*` | 13 files; most used `maker.bank.js`: Builds the quiz-maker chip tree (grade, subject, topic) from the live video-bank quizzes and makes the quiz |
 | `teacher-home.token.js` | Signs and verifies the 24h kind-th teacher home bearer token via the web-quiz token signer |
-| … | 53 more → `CLAUDE.index.md` |
+| … | 54 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `quiz_share_codes` (written by `teacher-home.send.js`) ← read by `bot/shared/services/push/web-quiz-push.service.js:172:f7c412e9`? · `bot/shared/services/quiz/child-identity-reuse.js:31:2111be10`? (+31)
+- table `quiz_share_codes` (written by `teacher-home.send.js`) ← read by `bot/shared/services/push/web-quiz-push.service.js:179:f7c412e9`? · `bot/shared/services/quiz/child-identity-reuse.js:31:2111be10`? (+32)
 - column `quiz_share_codes.active` (written by `teacher-home.send.js`) ← read by `bot/shared/services/quiz/story-teacher.service.js:193:2c3900c5` · `bot/shared/services/quiz/web-quiz-bank.js:148:49548c18` (+9)
 - … 50 more → `CLAUDE.index.md`
 
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `bot/tests/first-touch/teacher-home.routes.test.js` (maker.bank.js, maker.page.js, teacher-home-counts.flag.js, teacher-home.copy.js, teacher-home.flags.js, teacher-home.model.js, teacher-home.more-flags.js, teacher-home.page.js, teacher-home.routes.js, teacher-home.sent.js, teacher-home.strings.js, teacher-home.token.js, teacher-stories-stale.flag.js)
-- … 98 more → `CLAUDE.index.md`
+- … 102 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`?

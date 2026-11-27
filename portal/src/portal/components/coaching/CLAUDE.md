@@ -1,7 +1,7 @@
 # coaching — Old-UI teacher Coaching pieces: record/send panel, lesson page, library picker
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/coaching kg=7e724adc77a9 gen=9263b08372aa overflow=25 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/coaching kg=d78f93f43c94 gen=0ee4d1630460 overflow=25 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachingHome.tsx` — older Coaching home (new UI uses newui/coaching/CoachingMain)
@@ -23,7 +23,7 @@ Full index: `CLAUDE.index.md`
 - `BottomSheet.tsx` ← imported by `portal/src/portal/lib/recordingSession.tsx:2:5cee5b11` · `portal/src/portal/pages/LeaderObserveDraft.tsx:6:5cee5b11` (+3)
 - `CoachingHome.tsx` ← imported by `portal/src/portal/newui/coaching/CoachingMain.tsx:5:834bd6a7` · `portal/src/portal/newui/coaching/useSendFlow.ts:3:834bd6a7` (+2)
 - `LibraryPicker.tsx` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:21:21554af0` · `portal/src/portal/pages/LeaderObserveRecord.tsx:11:a2b5b96a` (+1)
-- `Obs612Block.tsx` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:14:68561ebd` · `portal/src/portal/coach/pages/CoachObservation.tsx:26:68561ebd` (+1)
+- `Obs612Block.tsx` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:14:68561ebd` · `portal/src/portal/coach/pages/CoachObservation.tsx:27:68561ebd` (+1)
 - … 8 more → `CLAUDE.index.md`
 
 ## Never (human)

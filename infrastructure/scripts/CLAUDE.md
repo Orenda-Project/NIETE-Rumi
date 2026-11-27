@@ -1,6 +1,6 @@
 # scripts — Operator scripts: migrate, fresh-DB bootstrap, connection test, staging env
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=91a88dd9016c gen=b9a79359daba overflow=0 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=8cd821dc02d0 gen=0be4b5d1c8ab overflow=0 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrate.js` — applies pending V*.sql; refuses when the ledger is behind
@@ -13,10 +13,12 @@
 | `staging/` | → (no door; 1 files) |
 | `migrate.js` | MigrationRunner: applies pending V*.sql via exec_sql RPC using the schema_versions ledger; refuses a lagging ledger |
 | `bootstrap-db.js` | DatabaseBootstrapper: applies 00_complete-schema, 01_rls-policies, 02_seed-data in order for a fresh install |
+| `ab-ledger-backfill.sql` | (unmapped) |
 | `sync-from-internal.sh` | Generates a patch from the internal repo to the public platform repo using infrastructure/sync/manifest.json rules |
 | `test-connections.js` | Connectivity check script for Supabase, Redis and other required services before running the bot |
 
 ## Who reads this (generated)
+- table `ab_assignment` (written by `ab-ledger-backfill.sql`) ← read by `bot/shared/services/quiz/test-practice/ledger.js:15:9a8c85b9`?
 - table `schema_versions` (written by `migrate.js`) ← read by `scripts/schema-ledger-audit.py:233:da94d967`?
 - env read here: `LLM_PROVIDER` · `OPENAI_API_KEY` · `OPENROUTER_API_KEY` · `REDIS_URL` · `SUPABASE_SERVICE_ROLE_KEY` · `SUPABASE_URL`
 
@@ -26,10 +28,11 @@
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
+- `tests/database/ab-ledger-backfill.test.js`? (ab-ledger-backfill.sql)
 - `tests/region/region-registry.test.js` (migrate.js)
 - `tests/setup/bootstrap-db.test.js` (bootstrap-db.js)
 - `tests/setup/migrate.test.js` (migrate.js)
 - `tests/setup/teacher-nudges-migration.test.js` (migrate.js)
 
 ## Related (generated)
-- docs: `infrastructure/CLAUDE.md`? · `infrastructure/sync/README.md`? · `tests/BASELINE.md`?
+- docs: `docs/ab-tracker-store.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/sync/README.md`? · `tests/BASELINE.md`?

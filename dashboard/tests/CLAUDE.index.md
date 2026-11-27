@@ -64,14 +64,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `push-remind-edge.service.test.js` | Tests the /remind/:code edge (push-remind.routes): bot switch off falls through; junk code or bot down falls through |
 | `qfix-class-link-round-page.service.test.js` | (unmapped) |
 | `qfix-forward-edge.service.test.js` | (unmapped) |
+| `qfix-reminders-ask-v2.service.test.js` | (unmapped) |
 | `qfix-reminders-ask.service.test.js` | (unmapped) |
 | `qfix-reminders-gone.service.test.js` | (unmapped) |
 | `qfix-reminders-hub-ready.service.test.js` | (unmapped) |
+| `qfix-reminders-install-finish-manifest.service.test.js` | (unmapped) |
+| `qfix-reminders-install-finish.service.test.js` | (unmapped) |
+| `qfix-reminders-install-platform.service.test.js` | (unmapped) |
 | `qfix-reminders-install.service.test.js` | (unmapped) |
 | `qfix-reminders-landed-dh.service.test.js` | (unmapped) |
 | `qfix-reminders-landed-qa.service.test.js` | (unmapped) |
 | `qfix-reminders-listen-host.service.test.js` | (unmapped) |
 | `qfix-reminders-meters.service.test.js` | (unmapped) |
+| `qfix-reminders-played.service.test.js` | (unmapped) |
+| `qfix-reminders-primer.service.test.js` | (unmapped) |
 | `qfix-reminders-ps.service.test.js` | (unmapped) |
 | `qfix-reminders-push-funnel.service.test.js` | (unmapped) |
 | `qfix-reminders-switch-fail.service.test.js` | (unmapped) |
@@ -165,6 +171,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r28-switches.service.test.js` | (unmapped) |
 | `sa-r28-timings-index.service.test.js` | (unmapped) |
 | `sa-r28-v5-clips.service.test.js` | (unmapped) |
+| `sa-r29-letter-name-kaf.service.test.js` | (unmapped) |
+| `sa-r29-letter-names-practice-switch.service.test.js` | (unmapped) |
+| `sa-r29-letter-picks.service.test.js` | (unmapped) |
 | `sa-r4-cell-pace-cap.service.test.js` | Tests sa_cell_pace 10 s cap in sa-core: continuous voice moves on at 10 s; next cell gets its own 10 s |
 | `sa-r4-cell-pace.service.test.js` | Tests sa_cell_pace in sa-core/sa-engine: silent child moves at 5 s, trying child waits 3 s after last voice |
 | `sa-r4-coach-last-word.service.test.js` | Tests sa-core last-word marking: lastWord keeps how/suggested on the result; old call unchanged |
@@ -222,8 +231,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r9-switches.service.test.js` | (unmapped) |
 | `sa-rdf-w3-forms.service.test.js` | Tests RDF auto/manual W3 forms on the battery route: off gives no W3 list; on gives 17 W3 tasks and coach line |
 | `sa-rec-mercy.service.test.js` | Tests sa-rec silent-mic mercy at 12 s and early_stop_silence at 20 s; a voice at 8 s triggers neither |
+| `sa-rec-stop-floor.service.test.js` | (unmapped) |
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
 | `sa-release-pick-map.service.test.js` | (unmapped) |
+| `sa-served-n.service.test.js` | (unmapped) |
 | `sa-sink-coach.service.test.js` | Tests sink-coach.js: batch, presign, register go to the relay with cookie; signed-out coach throws so sync retries |
 | `sa-store.service.test.js` | Tests sa-store: events/results/chunks pending until synced, IndexedDB failure falls back to memory |
 | `sa-sw-carry.service.test.js` | (unmapped) |
@@ -479,6 +490,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-play-again-practice.service.test.js` | Tests wq.js results() on a round that does not count (finish counted:false): the Play again screen |
 | `web-quiz-practice-best.service.test.js` | Web quiz page: a practice round that beats the child's best earlier score says "New best!". |
 | `web-quiz-practice-card.service.test.js` | Tests the scorecard of a practice round in wq.js card() |
+| `web-quiz-practice-door-edge.service.test.js` | (unmapped) |
+| `web-quiz-practice-door-page.service.test.js` | (unmapped) |
 | `web-quiz-preview-urdu-digits.service.test.js` | Tests the Urdu link preview of /q/<CODE> (og:title, og:description) uses Urdu digits U+06F0-06F9 |
 | `web-quiz-push-remind-slot.service.test.js` | Tests the results screen's remind me tomorrow slot (finish push_remind, web_quiz_push_remind) |
 | `web-quiz-q-server-timing.service.test.js` | Tests GET /q/:code says where its wait went via Server-Timing, as the hub page does |
@@ -522,6 +535,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-shelf-one-hop.service.test.js` | Tests web_quiz_one_hop: shelf, videos door and a story in one hop (needs web_quiz_fast); one-hop-off-golden.json |
 | `web-quiz-shell-caption.service.test.js` | Tests the quiz page shell caption shown until wq.js boots on slow 4G |
 | `web-quiz-sound-tiles.service.test.js` | Tests wq.js WQI phonics sound tiles: a listen-and-identify item plays the sound first |
+| `web-quiz-stale-sitting.service.test.js` | (unmapped) |
 | `web-quiz-static-br.golden.json` | Golden: brotli/static-asset response metadata for /wq assets with versioned urls; web-quiz-static-br test |
 | `web-quiz-static-br.service.test.js` | Tests web_quiz_brotli: /wq/* files served brotli-compressed with versioned urls; web-quiz-static-br.golden.json |
 | `web-quiz-stories-client.service.test.js` | Tests wq-stories.js, the child's Stories shelf and read-along reader over the book's pictures |
@@ -578,6 +592,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `web-quiz-wait-ux.service.test.js` | Tests web_quiz_wait_ux: the designed wait on child pages; off matches wait-ux-off-hub-golden.json |
 | `web-quiz-way-back.service.test.js` | Tests web_quiz_closed_way_back: an expired, forged or closed link is never a dead end; off matches golden |
 | `web-quiz-who-played-page.service.test.js` | Tests wq.js Who played? on the teacher's own preview link (M4) |
+| `web-quiz-word-help.service.test.js` | (unmapped) |
 | `web-quiz-zero-read-card.service.test.js` | Tests a counted live read on the Trail with the finish card on (card_v3) shows the right card for a zero read |
 | `wq-keyframes-unique.service.test.js` | Tests no @keyframes name is defined in two child-page stylesheets, since they share one document |
 | `wq-list-states-screens.js` | Helper rendering door screens (wq-doors.js with wq-home.js in a vm) for the list-states test and its golden |

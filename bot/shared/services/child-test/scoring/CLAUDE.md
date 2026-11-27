@@ -1,7 +1,7 @@
 # scoring — AI scoring of one recorded block: transcript, windows, scorers, ai_marks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=994227b1b455 gen=1386cab4d0d5 overflow=70 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=3b92deb49ba3 gen=68bf51504c52 overflow=70 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — scoreBlock/scoreTask, writes ai_marks once
@@ -20,10 +20,10 @@ Full index: `CLAUDE.index.md`
 | … | 18 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `models.js` ← imported by `bot/shared/services/child-test/sa/score.js:444:1df8788a` · `bot/shared/services/child-test/scoring/child-no.js:17:46763490` (+10)
-- `llm.js` ← imported by `bot/shared/services/child-test/sa/score.js:443:a4319e29` · `bot/shared/services/child-test/scoring/child-no.js:18:0aeeb15e` (+9)
+- `models.js` ← imported by `bot/shared/services/child-test/sa/score.js:469:1df8788a` · `bot/shared/services/child-test/scoring/child-no.js:17:46763490` (+10)
+- `llm.js` ← imported by `bot/shared/services/child-test/sa/score.js:468:a4319e29` · `bot/shared/services/child-test/scoring/child-no.js:18:0aeeb15e` (+9)
 - `text-norm.js` ← imported by `bot/scripts/quiz/one-voice-missing-keys.js:82:3b9dd554` · `bot/shared/services/child-test/sa/last-word-hint.js:15:81b9c396` (+9)
-- `prompts.js` ← imported by `bot/shared/services/child-test/sa/score.js:858:cf71ae7d` · `bot/shared/services/child-test/scoring/child-no.js:16:326b6a90` (+8)
+- `prompts.js` ← imported by `bot/shared/services/child-test/sa/score.js:886:cf71ae7d` · `bot/shared/services/child-test/scoring/child-no.js:16:326b6a90` (+8)
 - … 24 more → `CLAUDE.index.md`
 
 ## Never (human)

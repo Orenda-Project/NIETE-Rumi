@@ -33,7 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `portal-fln-links.routes.js` | FLN leader routes /api/portal/fln/links (lesson-link builder rows) and /fln/title/:id; mounts the send router. |
 | `portal-fln-pdf.routes.js` | (unmapped) |
 | `portal-fln-send.routes.js` | FLN Send-to-teacher: GET /fln/teachers (leader's patch) and POST /fln/send queueing lesson links; share-gated. |
-| `portal-fln.routes.js` | Reading Hour + Numeracy teacher-app API at /api/portal/fln: me, catalogue, plan, events, plus link-preview handler. |
+| `portal-fln.routes.js` | Reading Hour + Numeracy teacher-app API /api/portal/fln: me, catalogue, plan (records lesson key), events |
 | `portal-help.routes.js` | (unmapped) |
 | `portal-link.routes.js` | Template-button deep link GET /t/:token that mints an area-scoped portal session, plus portalLinkScope API gate. |
 | `portal-lp-feedback.routes.js` | (unmapped) |
@@ -60,6 +60,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `quiz-go.routes.js` | The one-door edge: GET /quiz/go/:token and /api/go/{who,role,bind,persona} forwarded to the bot; flag quiz_one_door. |
 | `quiz-join.routes.js` | Child self-join screen GET /quiz/join/:token drawn at the edge from bot page facts; flag quiz_student_join. |
 | `quiz-teacher.routes.js` | Teacher quiz home edge: /quiz/teacher/:token (+send, stories) and /api/th/* forwarded to the bot's internal th API. |
+| `recording-file.routes.js` | (unmapped) |
 | `sa-battery-switches.js` | Applies app_settings content switches (practice, passage rotation, RDF W3 forms) to a battery file as served. |
 | `sa-engine.routes.js` | Serves the self-administered battery engine at /sa/* and /sa/batteries/:name behind the sa_engine switch. |
 | `sa-game.routes.js` | Child battery-as-game edge: /sa-game/:token page, assets, and /api/sa-game/s/* sink forwarded to the bot; flag sa_game. |
@@ -90,53 +91,54 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `api-health.routes.js` ← imported by `dashboard/index.js:121:868035bb`
-- `app-feedback.routes.js` ← imported by `dashboard/index.js:2868:351b2ca1`
+- `app-feedback.routes.js` ← imported by `dashboard/index.js:2870:351b2ca1`
 - `app-funnel.routes.js` ← imported by `dashboard/index.js:136:4cb3bcbf` · `dashboard/routes/app-feedback.routes.js:22:2c281446` · `dashboard/routes/portal-lp-own-unit.routes.js:29:44f5586d` · `dashboard/routes/portal-lp612-own.routes.js:29:44f5586d` (+1: `python3 kg/kg.py who-reads app-funnel.routes.js`)
-- `app-login.routes.js` ← imported by `dashboard/index.js:135:fcb52582` · `dashboard/routes/portal.routes.js:143:5b0fb546`
+- `app-login.routes.js` ← imported by `dashboard/index.js:135:fcb52582` · `dashboard/routes/portal.routes.js:146:5b0fb546`
 - `attendance.routes.js` ← imported by `dashboard/index.js:138:32048bc4`
 - `byof.routes.js` ← imported by `dashboard/index.js:144:7986ca93`
 - `coach-card.routes.js` ← imported by `dashboard/index.js:194:d5e7c191`
-- `coach-disagreements.routes.js` ← imported by `dashboard/routes/portal.routes.js:2483:0eff617f`
-- `coach-handoff.routes.js` ← imported by `dashboard/index.js:2850:54163f4b`
-- `coach-school-card.routes.js` ← imported by `dashboard/routes/portal-principal.routes.js:21:d68d3071` · `dashboard/routes/portal.routes.js:2465:71362c49`
-- `coach-training-progress.routes.js` ← imported by `dashboard/routes/portal.routes.js:2461:1f5590cf`
-- `coaching-report.routes.js` ← imported by `dashboard/index.js:191:602cc986` · `dashboard/routes/coach-card.routes.js:47:08e56c4a` · `dashboard/routes/portal.routes.js:2484:08e56c4a`
+- `coach-disagreements.routes.js` ← imported by `dashboard/routes/portal.routes.js:2496:0eff617f`
+- `coach-handoff.routes.js` ← imported by `dashboard/index.js:2852:54163f4b`
+- `coach-school-card.routes.js` ← imported by `dashboard/routes/portal-principal.routes.js:21:d68d3071` · `dashboard/routes/portal.routes.js:2478:71362c49`
+- `coach-training-progress.routes.js` ← imported by `dashboard/routes/portal.routes.js:2468:2bbe9fb2`
+- `coaching-report.routes.js` ← imported by `dashboard/index.js:191:602cc986` · `dashboard/routes/coach-card.routes.js:47:08e56c4a` · `dashboard/routes/portal.routes.js:2497:08e56c4a`
 - `cut-link-page.js` ← imported by `dashboard/routes/quiz-go.routes.js:32:4ffa8049` · `dashboard/routes/quiz-join.routes.js:26:4ffa8049` · `dashboard/routes/quiz-teacher.routes.js:33:4ffa8049`
 - `edge-mounts.js` ← imported by `dashboard/index.js:174:e9b7f5c8`
 - `edge-security-headers.js` ← imported by `dashboard/routes/first-touch.routes.js:24:8ae9ac5b` · `dashboard/routes/quiz-go.routes.js:28:8ae9ac5b` · `dashboard/routes/quiz-teacher.routes.js:34:8ae9ac5b` · `dashboard/routes/teacher-report.routes.js:29:8ae9ac5b` (+2: `python3 kg/kg.py who-reads edge-security-headers.js`)
 - `funnel-tracking.routes.js` ← imported by `dashboard/index.js:124:734cb817`
 - `hcp.routes.js` ← imported by `dashboard/index.js:137:22f20eb1`
 - `iab-probe.routes.js` ← imported by `dashboard/index.js:187:953b8062`
-- `portal-analytics-journey.routes.js` ← imported by `dashboard/routes/portal.routes.js:1861:449baff7`
+- `portal-analytics-journey.routes.js` ← imported by `dashboard/routes/portal.routes.js:1867:449baff7`
 - `portal-child-test.routes.js` ← imported by `dashboard/index.js:139:523715e1`
-- `portal-coachip-media.routes.js` ← imported by `dashboard/index.js:2885:eb6016a2`
-- `portal-coachip.routes.js` ← imported by `dashboard/index.js:2889:c9248d25`
-- `portal-fln-links.routes.js` ← imported by `dashboard/routes/portal-fln.routes.js:265:de9842cd`
-- `portal-fln-pdf.routes.js` ← imported by `dashboard/routes/portal-fln.routes.js:264:7178acff`
+- `portal-coachip-media.routes.js` ← imported by `dashboard/index.js:2887:eb6016a2`
+- `portal-coachip.routes.js` ← imported by `dashboard/index.js:2891:c9248d25`
+- `portal-fln-links.routes.js` ← imported by `dashboard/routes/portal-fln.routes.js:266:de9842cd`
+- `portal-fln-pdf.routes.js` ← imported by `dashboard/routes/portal-fln.routes.js:265:7178acff`
 - `portal-fln-send.routes.js` ← imported by `dashboard/routes/portal-fln-links.routes.js:219:87729c1f`
-- `portal-fln.routes.js` ← imported by `dashboard/index.js:2878:17cb8820`
-- `portal-help.routes.js` ← imported by `dashboard/index.js:2866:85bd9bcb`
+- `portal-fln.routes.js` ← imported by `dashboard/index.js:2880:17cb8820`
+- `portal-help.routes.js` ← imported by `dashboard/index.js:2868:85bd9bcb`
 - `portal-link.routes.js` ← imported by `dashboard/index.js:134:8af5a0c0`
-- `portal-lp-feedback.routes.js` ← imported by `dashboard/index.js:2856:d5791a84`
-- `portal-lp-own-unit.routes.js` ← imported by `dashboard/index.js:2862:a31efbdf`
-- `portal-lp612-own-goal.routes.js` ← imported by `dashboard/index.js:2860:9feb6575`
-- `portal-lp612-own.routes.js` ← imported by `dashboard/index.js:2858:185d5e04`
-- `portal-lp612-shelf.routes.js` ← imported by `dashboard/index.js:2864:e9e59bc7`
-- `portal-principal.routes.js` ← imported by `dashboard/routes/portal.routes.js:2472:7a0218d6`
-- `portal-role-switch.routes.js` ← imported by `dashboard/index.js:2848:0ef3e259`
-- `portal-share.routes.js` ← imported by `dashboard/index.js:2854:97aa192e`
-- `portal-teacher-attendance.routes.js` ← imported by `dashboard/index.js:2841:03e234ac`
-- `portal-teacher-class-link.routes.js` ← imported by `dashboard/index.js:2875:dd0ebefa`
-- `portal-teacher-coaching.routes.js` ← imported by `dashboard/index.js:2840:a6f43c90`
-- `portal-teacher-home.routes.js` ← imported by `dashboard/index.js:2870:ae9ce940`
-- `portal-teacher-journey.routes.js` ← imported by `dashboard/index.js:2872:cbed8665`
+- `portal-lp-feedback.routes.js` ← imported by `dashboard/index.js:2858:d5791a84`
+- `portal-lp-own-unit.routes.js` ← imported by `dashboard/index.js:2864:a31efbdf`
+- `portal-lp612-own-goal.routes.js` ← imported by `dashboard/index.js:2862:9feb6575`
+- `portal-lp612-own.routes.js` ← imported by `dashboard/index.js:2860:185d5e04`
+- `portal-lp612-shelf.routes.js` ← imported by `dashboard/index.js:2866:e9e59bc7`
+- `portal-principal.routes.js` ← imported by `dashboard/routes/portal.routes.js:2485:7a0218d6`
+- `portal-role-switch.routes.js` ← imported by `dashboard/index.js:2850:0ef3e259`
+- `portal-share.routes.js` ← imported by `dashboard/index.js:2856:97aa192e`
+- `portal-teacher-attendance.routes.js` ← imported by `dashboard/index.js:2843:03e234ac`
+- `portal-teacher-class-link.routes.js` ← imported by `dashboard/index.js:2877:dd0ebefa`
+- `portal-teacher-coaching.routes.js` ← imported by `dashboard/index.js:2842:a6f43c90`
+- `portal-teacher-home.routes.js` ← imported by `dashboard/index.js:2872:ae9ce940`
+- `portal-teacher-journey.routes.js` ← imported by `dashboard/index.js:2874:cbed8665`
 - `portal-teacher-lessons.routes.js` ← imported by `dashboard/index.js:141:327d08bd`
-- `portal-teacher-notices.routes.js` ← imported by `dashboard/index.js:2846:532d069e`
-- `portal-teacher-push.routes.js` ← imported by `dashboard/index.js:2873:4f38ac71`
-- `portal-teacher-region.routes.js` ← imported by `dashboard/index.js:2844:6daf0511`
-- `portal-teacher-thing-to-try.routes.js` ← imported by `dashboard/index.js:2843:fac53138`
-- `portal-topic-paper.routes.js` ← imported by `dashboard/index.js:2852:1551e8cf`
+- `portal-teacher-notices.routes.js` ← imported by `dashboard/index.js:2848:532d069e`
+- `portal-teacher-push.routes.js` ← imported by `dashboard/index.js:2875:4f38ac71`
+- `portal-teacher-region.routes.js` ← imported by `dashboard/index.js:2846:6daf0511`
+- `portal-teacher-thing-to-try.routes.js` ← imported by `dashboard/index.js:2845:fac53138`
+- `portal-topic-paper.routes.js` ← imported by `dashboard/index.js:2854:1551e8cf`
 - `portal.routes.js` ← imported by `dashboard/index.js:133:11af011f`
+- `recording-file.routes.js` ← imported by `dashboard/index.js:2820:79487f4f`
 - `sa-battery-switches.js` ← imported by `dashboard/routes/sa-engine.routes.js:34:08d04994`
 - `sa-engine.routes.js` ← imported by `dashboard/index.js:205:e7a5a475`
 - `sa-r7a-content.js` ← imported by `dashboard/routes/sa-battery-switches.js:227:6e065f1e`
@@ -144,11 +146,11 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `settings.js` ← imported by `dashboard/index.js:127:a35f0675`
 - `teacher-report.routes.js` ← imported by `dashboard/index.js:177:d2a002ab`
 - `teacher-stories.routes.js` ← imported by `dashboard/index.js:182:9cc20f47`
-- `training-library.routes.js` ← imported by `dashboard/index.js:2877:a9dd5b37`
+- `training-library.routes.js` ← imported by `dashboard/index.js:2879:a9dd5b37`
 - `video-reco.routes.js` ← imported by `dashboard/index.js:197:b634ea14`
 - `web-quiz-brotli-flag.js` ← imported by `dashboard/routes/edge-security-headers.js:17:4544d862` · `dashboard/routes/push-remind.routes.js:27:4544d862` · `dashboard/routes/sa-engine.routes.js:32:4544d862` · `dashboard/routes/sa-game.routes.js:29:4544d862` (+2: `python3 kg/kg.py who-reads web-quiz-brotli-flag.js`)
 - `web-quiz-canonical.js` ← imported by `dashboard/routes/web-quiz.routes.js:38:57e8f4c0`
-- `web-quiz-class-link.js` ← imported by `dashboard/routes/web-quiz.routes.js:1571:ed1ba1c8`
+- `web-quiz-class-link.js` ← imported by `dashboard/routes/web-quiz.routes.js:1591:ed1ba1c8`
 - `web-quiz-clip-mp3.js` ← imported by `dashboard/routes/web-quiz.routes.js:44:04779f03`
 - `web-quiz-early-unlock.js` ← imported by `dashboard/routes/web-quiz.routes.js:54:0b1c644f`
 - `web-quiz-fast-hop.js` ← imported by `dashboard/routes/web-quiz.routes.js:52:43b995fd`
@@ -156,8 +158,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `web-quiz-home-preload.js` ← imported by `dashboard/routes/web-quiz.routes.js:40:01ea6fb0`
 - `web-quiz-pack.js` ← imported by `dashboard/routes/web-quiz.routes.js:41:e3e9d22f`
 - `web-quiz-preview.js` ← imported by `dashboard/routes/web-quiz-static.js:25:3dd6bf13` · `dashboard/routes/web-quiz.routes.js:39:b70fa4f6`
-- `web-quiz-ra-preload.js` ← imported by `dashboard/routes/web-quiz.routes.js:1857:dd99feb9`
-- `web-quiz-static.js` ← imported by `dashboard/routes/web-quiz.routes.js:1469:eb94528d`
+- `web-quiz-ra-preload.js` ← imported by `dashboard/routes/web-quiz.routes.js:1877:dd99feb9`
+- `web-quiz-static.js` ← imported by `dashboard/routes/web-quiz.routes.js:1478:eb94528d`
 - `web-quiz-story-assets.js` ← imported by `dashboard/routes/web-quiz-clip-mp3.js:15:df536b77` · `dashboard/routes/web-quiz.routes.js:43:9af7cb0d`
 - `web-quiz-stream.js` ← imported by `dashboard/routes/web-quiz.routes.js:45:7c8b0eaf`
 - `web-quiz-wait-ux.js` ← imported by `dashboard/routes/web-quiz.routes.js:51:fc5736da`
@@ -187,8 +189,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `training_assessment_attempts.total_score` (written by `portal.routes.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1640:afcea207` · `bot/shared/services/training/capstone-delivery.service.js:528:f7f7e335` · `bot/shared/services/training/isaps-level-grade.service.js:92:b8f1ba77` · `bot/shared/services/training/quiz-delivery.service.js:1873:b5f4a340`
 - column `training_assessment_attempts.training_module_id` (written by `portal.routes.js`) ← read by `bot/shared/services/training/certificate.service.js:556:73adf11e` · `bot/shared/services/training/isaps-level-grade.service.js:74:2f1d2500` · `bot/shared/services/training/open-module-attempt.js:50:ef615207` · `bot/shared/services/training/quiz-delivery.service.js:1018:cf167fa6`
 - column `training_assessment_attempts.user_id` (written by `portal.routes.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1292:7cb7cc00` · `bot/shared/services/teacher-state.service.js:418:219f5683` · `bot/shared/services/training/capstone-delivery.service.js:172:219f5683` · `bot/shared/services/training/certificate.service.js:272:219f5683` (+7: `python3 kg/kg.py who-reads training_assessment_attempts.user_id`)
-- column `user_feature_first_use.feature` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:683:98ff1da5` · `bot/shared/services/feature-intro.service.js:56:197de208` · `bot/shared/services/howto-first-touch.service.js:96:2f1eafe1`
-- column `user_feature_first_use.user_id` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:682:219f5683` · `bot/shared/services/feature-intro.service.js:55:219f5683` · `bot/shared/services/howto-first-touch.service.js:96:2f1eafe1`
+- column `user_feature_first_use.feature` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:698:98ff1da5` · `bot/shared/services/feature-intro.service.js:56:197de208` · `bot/shared/services/howto-first-touch.service.js:96:2f1eafe1`
+- column `user_feature_first_use.user_id` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:697:219f5683` · `bot/shared/services/feature-intro.service.js:55:219f5683` · `bot/shared/services/howto-first-touch.service.js:96:2f1eafe1`
 - column `users.password_reset_code` (written by `portal.routes.js`) ← read by `dashboard/services/password-reset.service.js:207:b1bad50a`
 - column `users.password_reset_expires_at` (written by `portal.routes.js`) ← read by `dashboard/services/password-reset.service.js:207:b1bad50a`
 - column `users.portal_activated` (written by `portal.routes.js`) ← read by `bot/shared/services/portal-invite.service.js:203:d17654ef` · `bot/shared/services/quiz/web-quiz-student-join.js:264:4a7f1445` · `bot/scripts/deployment/get-portal-test-tokens.js:46:0cecdbb4`
@@ -201,39 +203,39 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `teacher_training_progress` (written by `portal.routes.js`) ← read by `bot/shared/calls/call-context.repo.js:107:94ec1a3a`? · `bot/shared/routes/teacher-training-endpoint.js:850:9402d340`? · `bot/shared/services/coaching/video-reco/store.js:65:6733ba3c`? · `bot/shared/services/training/capstone-delivery.service.js:122:94ec1a3a`? (+6: `python3 kg/kg.py who-reads teacher_training_progress`)
 - table `training_assessment_answers` (written by `portal.routes.js`) ← read by `bot/shared/services/training/capstone-delivery.service.js:646:63b6a734`? · `bot/shared/services/training/isaps-held-release.service.js:130:63b6a734`? · `bot/shared/services/training/isaps-level-grade.service.js:98:f4be22b1`? · `bot/shared/services/training/quiz-delivery.service.js:382:63b6a734`?
 - table `training_assessment_attempts` (written by `portal.routes.js`) ← read by `bot/shared/routes/teacher-training-endpoint.js:1292:7cb7cc00`? · `bot/shared/services/teacher-state.service.js:416:2a4bc949`? · `bot/shared/services/training/capstone-delivery.service.js:170:2a4bc949`? · `bot/shared/services/training/certificate.service.js:270:2a4bc949`? (+7: `python3 kg/kg.py who-reads training_assessment_attempts`)
-- table `user_feature_first_use` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:680:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`? · `bot/shared/services/howto-first-touch.service.js:95:d0819fe4`?
-- table `users` (written by `coach-training-progress.routes.js`, `portal.routes.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+218: `python3 kg/kg.py who-reads users`)
+- table `user_feature_first_use` (written by `portal-help.routes.js`) ← read by `bot/shared/services/app-redirect.service.js:695:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`? · `bot/shared/services/howto-first-touch.service.js:95:d0819fe4`?
+- table `users` (written by `coach-training-progress.routes.js`, `portal.routes.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:247:774e00e5`? · `bot/shared/database/bot-helpers.js:22:61dfd735`? (+220: `python3 kg/kg.py who-reads users`)
 - table `website_visits` (written by `funnel-tracking.routes.js`) ← read by `dashboard/database/queries.js:967:340a8e70`?
 - env `ATTENDANCE_REPO` read at `dashboard/routes/attendance.routes.js:47:71b56e3d`
-- env `BOT_NAME` read at `dashboard/routes/web-quiz.routes.js:1006:2e83b1e8`
+- env `BOT_NAME` read at `dashboard/routes/web-quiz.routes.js:1015:2e83b1e8`
 - env `COACHIP_TEACHER_KEY_SECRET` read at `dashboard/routes/portal-coachip.routes.js:377:c11b2729`
-- env `COACH_SUGGESTION_MODEL` read at `dashboard/routes/portal.routes.js:2491:242c1e69`
+- env `COACH_SUGGESTION_MODEL` read at `dashboard/routes/portal.routes.js:2504:242c1e69`
 - env `HCP_FEEDBACK_MODEL` read at `dashboard/routes/hcp.routes.js:885:d2f68351`
-- env `INTERNAL_API_KEY` read at `dashboard/routes/first-touch.routes.js:92:de0d94d0` · `dashboard/routes/portal-fln-send.routes.js:152:66795115` · `dashboard/routes/portal-lp-feedback.routes.js:97:66795115` · `dashboard/routes/portal-lp-own-unit.routes.js:54:66795115` · `dashboard/routes/portal-lp612-own.routes.js:38:66795115` · `dashboard/routes/portal-lp612-shelf.routes.js:34:66795115` · `dashboard/routes/portal-share.routes.js:38:66795115` · `dashboard/routes/portal-teacher-class-link.routes.js:30:de0d94d0` · `dashboard/routes/portal-teacher-home.routes.js:115:66795115` · `dashboard/routes/portal-teacher-push.routes.js:30:de0d94d0` · `dashboard/routes/portal.routes.js:4283:9cd0cfe5` · `dashboard/routes/push-remind.routes.js:99:de0d94d0` · `dashboard/routes/quiz-go.routes.js:89:de0d94d0` · `dashboard/routes/quiz-join.routes.js:240:de0d94d0` · `dashboard/routes/quiz-teacher.routes.js:117:de0d94d0` · `dashboard/routes/sa-game.routes.js:110:de0d94d0` · `dashboard/routes/teacher-report.routes.js:93:de0d94d0` · `dashboard/routes/teacher-stories.routes.js:127:de0d94d0` · `dashboard/routes/web-quiz.routes.js:1250:de0d94d0`
-- env `JEST_WORKER_ID` read at `dashboard/routes/web-quiz.routes.js:1354:f9851af2`
-- env `MAIN_BOT_URL` read at `dashboard/routes/first-touch.routes.js:91:bd3501c5` · `dashboard/routes/portal-fln-send.routes.js:68:1510f110` · `dashboard/routes/portal-lp-feedback.routes.js:96:0b216bc4` · `dashboard/routes/portal-lp-own-unit.routes.js:53:0b216bc4` · `dashboard/routes/portal-lp612-own.routes.js:37:0b216bc4` · `dashboard/routes/portal-lp612-shelf.routes.js:33:0b216bc4` · `dashboard/routes/portal-share.routes.js:37:0b216bc4` · `dashboard/routes/portal-teacher-class-link.routes.js:29:bd3501c5` · `dashboard/routes/portal-teacher-home.routes.js:114:0b216bc4` · `dashboard/routes/portal-teacher-push.routes.js:29:bd3501c5` · `dashboard/routes/portal.routes.js:4282:b0d6fe6e` · `dashboard/routes/push-remind.routes.js:98:bd3501c5` · `dashboard/routes/quiz-go.routes.js:88:bd3501c5` · `dashboard/routes/quiz-join.routes.js:239:bd3501c5` · `dashboard/routes/quiz-teacher.routes.js:116:bd3501c5` · `dashboard/routes/sa-game.routes.js:109:bd3501c5` · `dashboard/routes/teacher-report.routes.js:92:bd3501c5` · `dashboard/routes/teacher-stories.routes.js:126:bd3501c5` · `dashboard/routes/web-quiz.routes.js:1249:bd3501c5`
+- env `INTERNAL_API_KEY` read at `dashboard/routes/coaching-report.routes.js:117:6cd1b105` · `dashboard/routes/first-touch.routes.js:92:de0d94d0` · `dashboard/routes/portal-fln-send.routes.js:152:66795115` · `dashboard/routes/portal-lp-feedback.routes.js:97:66795115` · `dashboard/routes/portal-lp-own-unit.routes.js:54:66795115` · `dashboard/routes/portal-lp612-own.routes.js:38:66795115` · `dashboard/routes/portal-lp612-shelf.routes.js:34:66795115` · `dashboard/routes/portal-share.routes.js:38:66795115` · `dashboard/routes/portal-teacher-class-link.routes.js:30:de0d94d0` · `dashboard/routes/portal-teacher-home.routes.js:115:66795115` · `dashboard/routes/portal-teacher-push.routes.js:30:de0d94d0` · `dashboard/routes/portal.routes.js:4303:9cd0cfe5` · `dashboard/routes/push-remind.routes.js:99:de0d94d0` · `dashboard/routes/quiz-go.routes.js:89:de0d94d0` · `dashboard/routes/quiz-join.routes.js:240:de0d94d0` · `dashboard/routes/quiz-teacher.routes.js:117:de0d94d0` · `dashboard/routes/sa-game.routes.js:110:de0d94d0` · `dashboard/routes/teacher-report.routes.js:93:de0d94d0` · `dashboard/routes/teacher-stories.routes.js:127:de0d94d0` · `dashboard/routes/web-quiz.routes.js:1259:de0d94d0`
+- env `JEST_WORKER_ID` read at `dashboard/routes/web-quiz.routes.js:1363:f9851af2`
+- env `MAIN_BOT_URL` read at `dashboard/routes/coaching-report.routes.js:116:f9dff01c` · `dashboard/routes/first-touch.routes.js:91:bd3501c5` · `dashboard/routes/portal-fln-send.routes.js:68:1510f110` · `dashboard/routes/portal-lp-feedback.routes.js:96:0b216bc4` · `dashboard/routes/portal-lp-own-unit.routes.js:53:0b216bc4` · `dashboard/routes/portal-lp612-own.routes.js:37:0b216bc4` · `dashboard/routes/portal-lp612-shelf.routes.js:33:0b216bc4` · `dashboard/routes/portal-share.routes.js:37:0b216bc4` · `dashboard/routes/portal-teacher-class-link.routes.js:29:bd3501c5` · `dashboard/routes/portal-teacher-home.routes.js:114:0b216bc4` · `dashboard/routes/portal-teacher-push.routes.js:29:bd3501c5` · `dashboard/routes/portal.routes.js:4302:b0d6fe6e` · `dashboard/routes/push-remind.routes.js:98:bd3501c5` · `dashboard/routes/quiz-go.routes.js:88:bd3501c5` · `dashboard/routes/quiz-join.routes.js:239:bd3501c5` · `dashboard/routes/quiz-teacher.routes.js:116:bd3501c5` · `dashboard/routes/sa-game.routes.js:109:bd3501c5` · `dashboard/routes/teacher-report.routes.js:92:bd3501c5` · `dashboard/routes/teacher-stories.routes.js:126:bd3501c5` · `dashboard/routes/web-quiz.routes.js:1258:bd3501c5`
 - env `NODE_ENV` read at `dashboard/routes/billing.routes.js:31:a008d457` · `dashboard/routes/byof.routes.js:122:a008d457`
-- env `ORG_NAME` read at `dashboard/routes/web-quiz.routes.js:1006:2e83b1e8`
-- env `R2_ACCESS_KEY_ID` read at `dashboard/routes/portal.routes.js:212:d6f2a7a2`
-- env `R2_BUCKET_NAME` read at `dashboard/routes/portal.routes.js:2787:452b57b8` · `dashboard/routes/video-reco.routes.js:39:405e21a0`
-- env `R2_ENDPOINT` read at `dashboard/routes/portal.routes.js:210:2684789e`
-- env `R2_SECRET_ACCESS_KEY` read at `dashboard/routes/portal.routes.js:213:5687c9ca`
+- env `ORG_NAME` read at `dashboard/routes/web-quiz.routes.js:1015:2e83b1e8`
+- env `R2_ACCESS_KEY_ID` read at `dashboard/routes/portal.routes.js:215:d6f2a7a2`
+- env `R2_BUCKET_NAME` read at `dashboard/routes/portal.routes.js:2800:452b57b8` · `dashboard/routes/recording-file.routes.js:35:05731ac9` · `dashboard/routes/video-reco.routes.js:39:405e21a0`
+- env `R2_ENDPOINT` read at `dashboard/routes/portal.routes.js:213:2684789e` · `dashboard/routes/recording-file.routes.js:37:81920334`
+- env `R2_SECRET_ACCESS_KEY` read at `dashboard/routes/portal.routes.js:216:5687c9ca`
 - env `RAILWAY_ENVIRONMENT_NAME` read at `dashboard/routes/portal-child-test.routes.js:166:3350bca8`
-- env `REFERRAL_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:126:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1386:3411e16e`
-- env `WEB_QUIZ_BASE_URL` read at `dashboard/routes/web-quiz.routes.js:1421:96869db4`
-- env `WHATSAPP_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:126:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1386:3411e16e`
+- env `REFERRAL_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/coaching-report.routes.js:158:c30832f0` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:126:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1395:3411e16e`
+- env `WEB_QUIZ_BASE_URL` read at `dashboard/routes/web-quiz.routes.js:1430:96869db4`
+- env `WHATSAPP_BOT_NUMBER` read at `dashboard/routes/app-login.routes.js:48:74270e6d` · `dashboard/routes/coaching-report.routes.js:158:c30832f0` · `dashboard/routes/quiz-go.routes.js:64:f8a4af8f` · `dashboard/routes/quiz-join.routes.js:252:bfae4aed` · `dashboard/routes/quiz-teacher.routes.js:126:f4d044fe` · `dashboard/routes/teacher-stories.routes.js:111:74270e6d` · `dashboard/routes/web-quiz.routes.js:1395:3411e16e`
 
 ## Tests (all, generated)
 - `app-feedback.routes.js` ← `tests/feedback/app-feedback-routes.test.js`
-- `app-funnel.routes.js` ← `tests/app-funnel/action-logger.test.js` · `tests/app-funnel/dc-upload-failed-route.test.js` · `tests/app-funnel/funnel-events-route.test.js` · `tests/app-funnel/lp-viewer-failed-route.test.js` · `tests/app-funnel/mic-check-route.test.js` · `tests/app-funnel/own-step-events.test.js` (+6: `python3 kg/kg.py who-reads dashboard/routes/app-funnel.routes.js`)
-- `app-login.routes.js` ← `tests/app-funnel/app-login-journey.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-leader-lesson-plan.test.js` · `tests/app-redirect/app-link-leader-lessons-doors.test.js` · `tests/app-redirect/app-link-leader-lessons-rescue.test.js` · `tests/app-redirect/app-link-leader-lessons-voice-topic.test.js` (+8: `python3 kg/kg.py who-reads dashboard/routes/app-login.routes.js`)
+- `app-funnel.routes.js` ← `tests/app-funnel/action-logger.test.js` · `tests/app-funnel/dc-upload-failed-route.test.js` · `tests/app-funnel/funnel-events-route.test.js` · `tests/app-funnel/lp-viewer-failed-route.test.js` · `tests/app-funnel/mic-check-route.test.js` · `tests/app-funnel/own-step-events.test.js` (+7: `python3 kg/kg.py who-reads dashboard/routes/app-funnel.routes.js`)
+- `app-login.routes.js` ← `tests/app-funnel/app-login-journey.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-leader-lesson-plan.test.js` · `tests/app-redirect/app-link-leader-lessons-doors.test.js` · `tests/app-redirect/app-link-leader-lessons-rescue.test.js` · `tests/app-redirect/app-link-leader-lessons-voice-topic.test.js` (+10: `python3 kg/kg.py who-reads dashboard/routes/app-login.routes.js`)
 - `attendance.routes.js` ← `tests/attendance/_shared.js`
 - `coach-card.routes.js` ← `tests/portal/bd-tbprit.4-cv-opens-portal-card.test.js` · `tests/portal/bd-v0toag.38.9-coach-card.test.js`
 - `coach-disagreements.routes.js` ← `tests/coaching/bd-tbprit.9-coach-clip-window.test.js` · `tests/portal/bd-tbprit.1-coach-disagreements-routes.test.js` · `tests/portal/bd-tbprit.11-coach-plan-routes.test.js` · `tests/portal/bd-tbprit.12-coach-undone-route.test.js` · `tests/portal/bd-tbprit.2-coach-disagreement-clip-route.test.js`
 - `coach-handoff.routes.js` ← `tests/portal/coach-handoff-route.test.js`
 - `coach-school-card.routes.js` ← `tests/portal/bd-hl4a4y-card-training-route.test.js` · `tests/portal/where-to-coach-service.test.js`
-- `coach-training-progress.routes.js` ← `tests/portal/bd-rlxkkt.9-coach-training-progress.test.js`
-- `coaching-report.routes.js` ← `tests/coaching/bd-r2uzg1.12-mismatch-soft-line.test.js` · `tests/coaching/video-reco/r7r-cr-card.test.js` · `tests/portal/bd-v0toag.18-report-page.test.js` · `tests/portal/bd-v0toag.38.9-agree-ping-page.test.js` · `tests/portal/bd-v0toag.49-report-page-useful.test.js` · `tests/portal/bd-v0toag.80-cancel-keeps-reasons.test.js` (+1: `python3 kg/kg.py who-reads dashboard/routes/coaching-report.routes.js`)
+- `coach-training-progress.routes.js` ← `tests/portal/bd-rlxkkt.9-coach-training-progress.test.js` · `tests/portal/bd-v04lsh-principal-training-progress.test.js`
+- `coaching-report.routes.js` ← `tests/coaching/bd-r2uzg1.12-mismatch-soft-line.test.js` · `tests/coaching/video-reco/r7r-cr-card.test.js` · `tests/portal/bd-chz35n.25-report-time.test.js` · `tests/portal/bd-v0toag.18-report-page.test.js` · `tests/portal/bd-v0toag.38.9-agree-ping-page.test.js` · `tests/portal/bd-v0toag.49-report-page-useful.test.js` (+4: `python3 kg/kg.py who-reads dashboard/routes/coaching-report.routes.js`)
 - `edge-mounts.js` ← `dashboard/tests/cut-link-off-harness.js` · `dashboard/tests/quiz-teacher-mount.service.test.js`
 - `edge-security-headers.js` ← `dashboard/tests/edge-security-headers.service.test.js`
 - `first-touch.routes.js` ← `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/first-touch-edge.service.test.js`
@@ -267,12 +269,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `portal-teacher-region.routes.js` ← `tests/portal/bd-rj6w0n.14.2-teacher-region.test.js`
 - `portal-teacher-thing-to-try.routes.js` ← `tests/portal/bd-v0toag.8-thing-to-try.test.js`
 - `portal-topic-paper.routes.js` ← `tests/portal/bd-pw1ccr.26-topic-paper-routes.test.js`
-- `portal.routes.js` ← `tests/coachip/coachip-flags.test.js` · `tests/coachip/coachip-golden.test.js` · `tests/dashboard/portal-auth-rate-limit.test.js` · `tests/dashboard/portal-proxy-harness.js` · `tests/observe/bd-o15qnr.32-evidence-review-routes.test.js` · `tests/observe/obs612-portal-routes.test.js` (+101: `python3 kg/kg.py who-reads dashboard/routes/portal.routes.js`)
+- `portal.routes.js` ← `tests/coachip/coachip-flags.test.js` · `tests/coachip/coachip-golden.test.js` · `tests/dashboard/portal-auth-rate-limit.test.js` · `tests/dashboard/portal-proxy-harness.js` · `tests/observe/bd-o15qnr.32-evidence-review-routes.test.js` · `tests/observe/obs612-portal-routes.test.js` (+108: `python3 kg/kg.py who-reads dashboard/routes/portal.routes.js`)
 - `push-remind.routes.js` ← `dashboard/tests/push-remind-edge.service.test.js` · `dashboard/tests/qfix-reminders-ask.service.test.js` · `dashboard/tests/qfix-reminders-switch-fail.service.test.js`
 - `quiz-go.routes.js` ← `bot/tests/first-touch/walk-persona-seam.test.js` · `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/quiz-go-edge.service.test.js`
 - `quiz-join.routes.js` ← `dashboard/tests/quiz-join-adventure.service.test.js` · `dashboard/tests/quiz-join-early-tap.service.test.js` · `dashboard/tests/quiz-join-edge.service.test.js` · `dashboard/tests/quiz-join-one-face.service.test.js` · `dashboard/tests/quiz-join-wait-word.service.test.js`
 - `quiz-teacher.routes.js` ← `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/qfix-forward-edge.service.test.js` · `dashboard/tests/qfix-report-home-step-edge.service.test.js` · `dashboard/tests/quiz-teacher-edge.service.test.js` · `dashboard/tests/quiz-teacher-mount.service.test.js` · `dashboard/tests/quiz-teacher-server-timing.service.test.js`
-- `sa-battery-switches.js` ← `bot/tests/child-test/sa-number-id-g13-60.test.js` · `bot/tests/child-test/sa-r10-lines.test.js` · `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `dashboard/tests/sa-audio-check-fit.service.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` (+47: `python3 kg/kg.py who-reads dashboard/routes/sa-battery-switches.js`)
+- `recording-file.routes.js` ← `tests/portal/bd-ma9jiy-recording-file-link.test.js`
+- `sa-battery-switches.js` ← `bot/tests/child-test/sa-number-id-g13-60.test.js` · `bot/tests/child-test/sa-r10-lines.test.js` · `bot/tests/child-test/sa-r28-bank.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `dashboard/tests/sa-audio-check-fit.service.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` (+50: `python3 kg/kg.py who-reads dashboard/routes/sa-battery-switches.js`)
 - `sa-engine.routes.js` ← `dashboard/tests/sa-dev-tools-gate.service.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` · `dashboard/tests/sa-engine-routes.service.test.js` · `dashboard/tests/sa-r10-audio.service.test.js` · `dashboard/tests/sa-r10-fluency-no-practice.service.test.js` · `dashboard/tests/sa-r10-switches.service.test.js` (+25: `python3 kg/kg.py who-reads dashboard/routes/sa-engine.routes.js`)
 - `sa-game.routes.js` ← `dashboard/tests/sa-switch.service.test.js`
 - `sa-r7a-content.js` ← `dashboard/tests/sa-r10-hint.service.test.js` · `dashboard/tests/sa-r7a-child-screens.service.test.js` · `dashboard/tests/sa-r8-say-next-q.service.test.js` · `dashboard/tests/sa-r9-scroll-cue-line.service.test.js`
@@ -288,7 +291,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `web-quiz-preview.js` ← `dashboard/tests/web-quiz-preview-urdu-digits.service.test.js`
 - `web-quiz-ra-preload.js` ← `dashboard/tests/web-quiz-ra-preload.service.test.js`
 - `web-quiz-story-assets.js` ← `dashboard/tests/web-quiz-head-guess-honest.service.test.js` · `dashboard/tests/web-quiz-story-assets.service.test.js` · `dashboard/tests/web-quiz-story-object.service.test.js`
-- `web-quiz.routes.js` ← `bot/tests/qfix-class-link/class-link-open-every-path.test.js` · `bot/tests/qfix-class-link/class-link-preview.test.js` · `bot/tests/quiz/web-quiz/teacher-reminder-live-preview.test.js` · `dashboard/tests/class-round-back-edge.service.test.js` · `dashboard/tests/edge-security-headers.service.test.js` · `dashboard/tests/fixtures/closed-lang-scenarios.js` (+73: `python3 kg/kg.py who-reads dashboard/routes/web-quiz.routes.js`)
+- `web-quiz.routes.js` ← `bot/tests/qfix-class-link/class-link-open-every-path.test.js` · `bot/tests/qfix-class-link/class-link-preview.test.js` · `bot/tests/quiz/web-quiz/teacher-reminder-live-preview.test.js` · `dashboard/tests/class-round-back-edge.service.test.js` · `dashboard/tests/edge-security-headers.service.test.js` · `dashboard/tests/fixtures/closed-lang-scenarios.js` (+76: `python3 kg/kg.py who-reads dashboard/routes/web-quiz.routes.js`)
 
 ## Related (all, generated)
 - docs: `dashboard/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `docs/reports/bug131-phase2-portal-quiz-ui.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/reports/bug131-phase4-media-complete.md`? · `docs/teacher-activity-store.md`? · `tests/BASELINE.md`?

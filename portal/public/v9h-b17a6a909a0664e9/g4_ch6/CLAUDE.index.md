@@ -28,6 +28,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g4_ch6_Maths_seg7.v9.html` | Hosted v9 lesson page G4 Math ch6 seg7 (en): Multiplying decimals — by 10, 100 and whole numbers |
 | `g4_ch6_Maths_seg8.v9.html` | Hosted v9 lesson page G4 Math ch6 seg8 (en): Decimal multiplication practice — crossword & Skill Sharpener |
 | `g4_ch6_Maths_seg9.v9.html` | Hosted v9 lesson page G4 Math ch6 seg9 (en): Dividing decimals — by 10, 100 and whole numbers |
+| `g4_ch6_Science_seg2.v9.html` | (unmapped) |
 | `g4_ch6_Urdu_seg1.v9.html` | Hosted v9 lesson page G4 Urdu ch6 seg1 (ur): نئے الفاظ — مشکل الفاظ کی پہچان |
 | `g4_ch6_Urdu_seg2.v9.html` | Hosted v9 lesson page G4 Urdu ch6 seg2 (ur): بلند خوانی — چینی لوک کہانی کا متن |
 | `g4_ch6_Urdu_seg3.v9.html` | Hosted v9 lesson page G4 Urdu ch6 seg3 (ur): تفہیم — عنوان، عناصر اور نتائج اخذ کرنا |

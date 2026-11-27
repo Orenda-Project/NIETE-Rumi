@@ -1,7 +1,7 @@
 # home — Teacher Home card, score chips, Quizzes tile and Home data hook
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=6f261088e0d8 gen=a18386f5fecd overflow=45 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/home kg=d731a47cff1f gen=260449929d57 overflow=47 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `useHomeData.ts` — switches and GET /me/home load; `api.ts` — the server-shaped card read
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/home/look/LookCard.test.tsx` (NextCard.tsx, SlimCard.tsx, api.ts, coolDown.ts, copy.ts)
 - `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` (LessonQuizButton.tsx, api.ts, copy.ts, useHomeData.ts)
-- … 23 more → `CLAUDE.index.md`
+- … 25 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/pages/CLAUDE.md`?
