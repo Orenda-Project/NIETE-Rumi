@@ -6,3 +6,4 @@
 {"ts":"2026-11-27T01:57:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"8868b257eded","branch":"bd-rzjnjp.6-staging","user":""}
 {"ts":"2026-11-27T01:57:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"8868b257eded","branch":"bd-rzjnjp.6-staging","user":""}
 {"ts":"2026-11-27T01:57:33Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"8868b257eded","branch":"bd-rzjnjp.6-staging","user":""}
+{"ts":"2026-11-27T13:17:28Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-8868b257eded","sha":"8868b257eded","branch":"bd-rzjnjp.6-staging","user":""}
