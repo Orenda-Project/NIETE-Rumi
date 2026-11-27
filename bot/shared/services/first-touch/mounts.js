@@ -11,6 +11,7 @@ module.exports = Object.freeze([
   ['maker', 'maker.mount', 'mountMaker'],                        // /api/internal/ft (quiz_maker_page)
   ['push-remind', 'push-remind.mount', 'mountPushRemind'],      // /api/internal/wqpush (web_quiz_push_remind: the child's reminder push; off → 404 {off:true} and the edge falls through)
   ['sa-game', 'sa-game.mount', 'mountSaGame'],                   // /api/internal/sagame (sa_game: the big flight page; off → 404 {off:true} and the edge falls through)
+  ['teacher-edit', 'teacher-edit.mount', 'mountTeacherEdit'],    // /api/internal/wqedit (web_quiz_teacher_edit: a teacher edits their own lesson quiz; off → 404 {off:true})
   ['teacher-home', 'teacher-home.mount', 'mountTeacherHome'],    // /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through)
   ['teacher-home-portal', 'teacher-home.portal.mount', 'mountTeacherHomePortal'], // /api/internal/thportal (quiz_teacher_home: the teacher app's home card)
 ].map(Object.freeze));
