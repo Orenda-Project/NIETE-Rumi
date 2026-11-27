@@ -12,10 +12,10 @@
 // its scope and the assignment afterwards. BLOCKED, with the reason, only when the run's database has no I-SAPS course at
 // all; the rule itself is also pinned by tests/training/bd-yef5iq-6-isaps-level2-readings.test.js.
 'use strict';
-const { asRole } = require('../lib.cjs');
+const { DEMO, asRole } = require('../lib.cjs');
 
 const PROGRAM_KEY = 'e2e_isaps_readings';
-const TEACHER_PHONE_SQL = "(select id from users where phone_number = '923000000911')";
+const TEACHER_PHONE_SQL = "(select id from users where phone_number = '92" + DEMO.teacher.slice(1) + "')";
 
 // Her own I-SAPS programme in this run's database: the programme, one scope (the I-SAPS vendor, every level), and an
 // active assignment. Idempotent; undone by unassign().

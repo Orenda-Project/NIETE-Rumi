@@ -7,7 +7,7 @@
 // every write (validate, save) is caught and answered there: nothing is sent to the bot. GET /config is the real one with
 // its two assessment switches forced on in the answer, so Edit shows whatever the run database says. Signing in is real.
 'use strict';
-const { asRole, expect } = require('../lib.cjs');
+const { DEMO, asRole, expect } = require('../lib.cjs');
 
 const B = '/portal/teacher/assessment';
 const PATTERN = 'fde_g5_2027';
@@ -388,7 +388,7 @@ async function fdeFixedMarks(page, ctx) {
 
 /* ── TA16, TA17 — a plain paper's Paper ready and its answer key (fixture: paperReady.test.tsx) ──────────────────── */
 
-const PHONES = ['923000000911', '03000000911', '+923000000911'];
+const PHONES = ['92' + DEMO.teacher.slice(1), DEMO.teacher, '+92' + DEMO.teacher.slice(1)];
 async function plainReady(page, ctx, { key }) {
   await asRole(page, ctx, 'teacher', 'teacherV2');
   await editingOn(page);

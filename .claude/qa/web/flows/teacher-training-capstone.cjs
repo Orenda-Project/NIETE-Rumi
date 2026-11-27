@@ -13,9 +13,9 @@
 // row — and reports the "marked and recorded once" half BLOCKED with that reason. If a marking recording is ever added,
 // the first submit is marked and the scenario checks the recorded attempt instead.
 'use strict';
-const { asRole, expect } = require('../lib.cjs');
+const { DEMO, asRole, expect } = require('../lib.cjs');
 
-const TEACHER = "(select id from users where phone_number = '923000000911')";
+const TEACHER = "(select id from users where phone_number = '92" + DEMO.teacher.slice(1) + "')";
 const VENDOR = 'BEACONHOUSE';
 const LEVEL_SQL = 'select l.id from training_levels l join training_vendors v on v.id = l.vendor_id '
   + "join training_grand_quizzes q on q.level_id = l.id and q.quiz_type = 'capstone' and q.is_active "
