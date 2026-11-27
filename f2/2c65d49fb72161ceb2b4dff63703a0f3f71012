@@ -1,2 +1,4 @@
 {"ts":"2026-11-27T11:29:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f22c65d49fb7","branch":"bd-l30sfz.6-78493","user":""}
 {"ts":"2026-11-27T11:29:19Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"f22c65d49fb7","branch":"bd-l30sfz.6-78493","user":""}
+{"ts":"2026-11-27T11:29:40Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"f22c65d49fb7","branch":"bd-l30sfz.6-78493","user":""}
+{"ts":"2026-11-27T11:29:50Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (server-side set-paper choice in paper-fixed-set.js; no training flow, copy or route touched)","sha":"f22c65d49fb7","branch":"bd-l30sfz.6-78493","user":""}
