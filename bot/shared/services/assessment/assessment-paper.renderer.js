@@ -22,6 +22,7 @@ const FreePrint = require('./free-secondary-print');
 const Chrome = require('./free-secondary-chrome');
 const { orderedLists } = require('./assessment-order');
 const { compactCss } = require('./compact-print');
+const Fit = require('./page-fit');
 const Diagram = require('./paper-diagram');
 
 /**
@@ -227,6 +228,7 @@ function lineHeightMm(grade) {
  */
 function renderQuestion(question, number, questionType, opts) {
   const { includeAnswerKey, answerLines } = opts;
+  const lines = (n) => (opts.trimLines ? Fit.trimmedLines(n) : n);
   const out = [];
 
   if (typeof question === 'string') {
@@ -275,7 +277,7 @@ function renderQuestion(question, number, questionType, opts) {
         out.push('</div>');
       } else if (answerLines) {
         const own = typeof sub === 'object' ? storedLines(sub && sub.lines) : null;
-        out.push(ruledLines(own !== null ? own : SUB_QUESTION_LINES));
+        out.push(ruledLines(lines(own !== null ? own : SUB_QUESTION_LINES)));
       }
       if (includeAnswerKey && typeof sub === 'object' && sub.answer) {
         out.push(`<div class="answer"><b>Answer:</b> ${esc(sub.answer)}</div>`);
@@ -293,7 +295,7 @@ function renderQuestion(question, number, questionType, opts) {
     if (fig) {
       out.push(`<div class="diagram" style="margin:6px auto;max-width:150mm;break-inside:avoid">${fig.svg}</div>`);
       if (fig.bank) out.push(`<div class="bank" style="border:1px solid #000;padding:4px 10px;margin:4px 0 0;display:inline-block">${fig.bank.map(esc).join(' &nbsp;·&nbsp; ')}</div>`);
-    } else if (answerLines) out.push(ruledLines(answerLinesFor(questionType, question)));
+    } else if (answerLines) out.push(ruledLines(lines(answerLinesFor(questionType, question))));
   }
 
   if (answer) out.push(answer);
@@ -352,16 +354,22 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   const lineMm = lineHeightMm(grade);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
-  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson), rtl };
+  // FEAT-209 (bd-nr8mrm): the fit step stored on the paper, so a re-print lays out the same.
+  const fit = examJson?._print?.fit || null;
+  const opts = { includeAnswerKey: false, answerLines, marksWord: Chrome.marksWord(examJson), rtl,
+    trimLines: fit?.trimLines === true };
   const L = Chrome.labelsFor(examJson);
 
   const body = [];
   let number = 1;
   let lastType = null;
   let lastMain = null;
+  let run = null;
+  const closeRun = () => { if (run) body.push(`<div class="cols2">${run.join('')}</div><!--cols2-->`); run = null; };
 
   for (const { type, question } of questions) {
     if (type !== lastType) {
+      closeRun();
       // The model's schema has a catch-all bucket, and questions land in it
       // legitimately. "OTHER" printed as a section heading on a child's paper
       // says nothing — the shared instruction under it already does the work.
@@ -375,12 +383,16 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
     // not restated over every question under it.
     const main = question && question.main_question;
     if (main && main !== lastMain) {
+      closeRun();
       body.push(`<p class="lead">${esc(main)}</p>`);
       lastMain = main;
     }
-    body.push(renderQuestion(question, number, type, opts));
+    const html = renderQuestion(question, number, type, opts);
+    if (fit?.twoCol === true && Fit.isColumnQuestion(question)) (run ||= []).push(html);
+    else { closeRun(); body.push(html); }
     number += 1;
   }
+  closeRun();
 
   const heading = [`Grade ${esc(grade)}`, esc(subjectName(subject))].join(' · ');
   const sub = chapterTitle
@@ -436,7 +448,7 @@ function renderPaper({ examJson, grade, subject, schoolName, pageReference,
   .answer-space { margin: 5px 0 0 ${rtl ? '0' : '18px'}; }
   .answer-line { border-bottom: 1px solid #aaa; height: ${lineMm}mm; }
   .answer { background: #eef7ee; border-${rtl ? 'right' : 'left'}: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }${Chrome.css(examJson)}
-</style>${compact || examJson?._print?.compact === true ? compactCss({ rtl }) : ''}</head>
+</style>${compact || examJson?._print?.compact === true ? compactCss({ rtl }) : ''}${Fit.fitCss(fit)}</head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>

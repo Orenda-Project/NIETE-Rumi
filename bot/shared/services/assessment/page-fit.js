@@ -55,4 +55,19 @@ async function fitToPages({ target, start = 0, render }) {
   return { ...last, fits: false, needs: Number.isInteger(last.pages) ? last.pages : null };
 }
 
-module.exports = { FIT_STEPS, MAX_PAGES, pageTarget, firstStep, trimmedLines, fitToPages };
+/** A question short enough to sit in half a page width: a choice list or a word list. */
+function isColumnQuestion(question) {
+  if (!question || typeof question !== 'object') return false;
+  return (Array.isArray(question.options) && question.options.length > 0)
+    || (Array.isArray(question.words) && question.words.length > 0);
+}
+
+/** The two-column block's style; nothing when the step has no columns. */
+function fitCss(fit) {
+  if (!fit || fit.twoCol !== true) return '';
+  return '<style>.cols2 { column-count: 2; column-gap: 8mm; } .cols2 .q { break-inside: avoid; }</style>';
+}
+
+module.exports = {
+  FIT_STEPS, MAX_PAGES, pageTarget, firstStep, trimmedLines, fitToPages, isColumnQuestion, fitCss,
+};
