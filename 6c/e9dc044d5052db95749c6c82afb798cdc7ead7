@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T21:07:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home spec_sync=true","sha":"6ce9dc044d50","branch":"bd-pdwwk4.6.20-12419","user":""}
+{"ts":"2026-11-27T21:08:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home spec_sync=true","sha":"6ce9dc044d50","branch":"bd-pdwwk4.6.20-12419","user":""}
+{"ts":"2026-11-27T21:08:05Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-pdwwk4.6.20-12419: web-quiz-child-page web lane spec: NOT UPDATED e2e: missing","sha":"6ce9dc044d50","branch":"bd-pdwwk4.6.20-12419","user":""}
