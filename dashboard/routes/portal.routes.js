@@ -3185,7 +3185,8 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     const reader = await LpReader.readerOf(userId);
     // bd-zrdvmi.70 — ?download=1: the app's Download PDF, a link that SAVES the plan on her phone (an attachment),
     // so she can open it with no internet (sheet rows 986, 984). Without it, exactly today's calls.
-    const dl = isOpenHint(req.query.download) ? { download: true } : null;
+    // bd-m8zwt1.23.2 — ?paper=1: the app's Print, the plan's A4 copy (the plan itself when it has none).
+    const dl = isOpenHint(req.query.paper) ? { paper: true } : isOpenHint(req.query.download) ? { download: true } : null;
     const hit = reader.leader
       ? await LpCatalogue.lessonPdf(lessonId, kind, userId, { reader: 'leader', ...dl })
       : dl ? await LpCatalogue.lessonPdf(lessonId, kind, userId, dl) : await LpCatalogue.lessonPdf(lessonId, kind, userId);

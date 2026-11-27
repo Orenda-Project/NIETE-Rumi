@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AudioLines, Check, ChevronRight, Download, KeyRound } from 'lucide-react';
+import { AudioLines, Check, ChevronRight, Download, KeyRound, Printer } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -104,6 +104,10 @@ export function ViewerPage() {
   // Download on the slim row: Open in another app's logic (not while a lesson records).
   // bd-zrdvmi.70 — both layouts ask for the SAVE link: the phone keeps the PDF, so it opens with no internet.
   const download = useOpenTarget(view && !recording ? { fileUrl: () => lessonPlanFileUrl(view.source, { download: true }) } : undefined);
+  // bd-m8zwt1.23.2 — Print (grades 1-5): the plan's A4 copy, opened like Download. The plan shown here is cut for a phone,
+  // a narrow column on paper. Not while a lesson records (another app in front silences the microphone).
+  const print = useOpenTarget(view && !recording && view.source.lane === 'k5'
+    ? { fileUrl: () => lessonPlanFileUrl(view.source, { paper: true }) } : undefined);
   useEffect(() => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -172,6 +176,9 @@ export function ViewerPage() {
     if (download.show) {
       strip.push({ key: 'download', icon: Download, label: C.download, onPress: () => { void download.press(); }, state: download.flash ? flashWord[download.flash] : null });
     }
+    if (print.show) {
+      strip.push({ key: 'print', icon: Printer, label: C.print, onPress: () => { void print.press(); }, state: print.flash ? flashWord[print.flash] : null });
+    }
     return (
       <TeacherPage crumb={view.crumb} title={view.title} onBack={close} dock={usePlanDock ?? undefined}>
         <ActionStrip items={strip} />
@@ -222,6 +229,12 @@ export function ViewerPage() {
           >
             <KeyRound className="h-5 w-5" aria-hidden="true" />
             {C.answerKey}
+          </button>
+        ) : null}
+        {print.show ? (
+          <button type="button" className={act} data-testid="lp-print" onClick={() => { void print.press(); }}>
+            <Printer className="h-5 w-5" aria-hidden="true" />
+            {C.print}
           </button>
         ) : null}
         {teacherActions ? <LessonQuizButton className={act} /> : null}

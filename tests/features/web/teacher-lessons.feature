@@ -283,6 +283,23 @@ Feature: Teacher lesson plans
     When she opens an FLN plan whose PDF was never rendered
     Then there is no "Download PDF" button and the plan reads as before
 
+  # bd-m8zwt1.23.2 (queue #377) — a grades 1-5 plan is cut for a phone since q372, so on paper it printed as a narrow
+  # column. Print opens the plan's A4 copy (R2 key with .paper.pdf; the plan itself when none was uploaded).
+  # Covers ViewerPage.tsx (both layouts), lib/lessonPlanOpen.ts, portal.routes /curriculum/lp/:id/pdf?paper=1,
+  # lp-catalogue.service, internal-api /lp/v8/pdf, lp-v8-browse.service paperKey. Pinned by ViewerPage.print.test.tsx
+  # (portal) and tests/lp-v8/bd-m8zwt1.23.2-paper-copy.test.js (root).
+  @PRINT01 @draft
+  Scenario: A grades 1–5 plan's Print opens its A4 paper copy; Download still saves the phone copy
+    Given demo teacher 03000000911 is signed in at phone size (360 x 740)
+    When she opens a grade 4 English plan from chapter 6 in the viewer
+    Then the viewer shows the plan in phone-width pages, and a "Print" button beside Download
+    When she taps Print
+    Then a PDF of A4 pages opens, its text across the full width of the sheet, with the same words as the plan
+    When she taps Download
+    Then the phone-width plan is saved, as before
+    When she opens a grade 9 plan
+    Then there is no Print button
+
   # bd-snkn32.61 — operator, 20 Nov: "doesnt make sense to show chapters, we can focus on FLN related skills and if
   # teachers want something else, they are free to add those". Written by hand like the blocks above (@draft): the demo
   # stack cannot turn portal_lp_own_goal_start on. Pinned by GoalStep.test.tsx (portal) and tests/lp612/own-goal*.test.js.

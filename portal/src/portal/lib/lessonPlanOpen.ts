@@ -105,12 +105,14 @@ export async function fetchLessonPlanPdf(
  * WhatsApp's browser on Android, Copy link on iPhone, a plain open elsewhere). Null when there is nothing to open yet.
  * Minting is an open as far as the server is concerned, exactly as in openLessonPlanOutside.
  */
-export async function lessonPlanFileUrl(source: LessonPlanSource, { download = false }: { download?: boolean } = {}): Promise<string | null> {
+export async function lessonPlanFileUrl(source: LessonPlanSource, { download = false, paper = false }: { download?: boolean; paper?: boolean } = {}): Promise<string | null> {
   if (source.lane === 'paper') return paperLink(source);
   // bd-zrdvmi.70 — `download`: the SAVE link (an attachment the phone keeps, so the plan opens with no internet).
   const dl = download ? { download: 1 } : {};
   if (source.lane === 'k5') {
-    const { data } = await api.get(`/curriculum/lp/${source.lessonId}/pdf`, { params: { kind: source.assetKind, ...dl } });
+    // bd-m8zwt1.23.2 — `paper`: Print's link, the plan's A4 copy (grades 1-5; the plan itself when it has none).
+    const pp = paper ? { paper: 1 } : dl;
+    const { data } = await api.get(`/curriculum/lp/${source.lessonId}/pdf`, { params: { kind: source.assetKind, ...pp } });
     return data.available && data.url ? (data.url as string) : null;
   }
   const { data } = await api.get(`/lp612/status/${source.renderId}`, { params: { open: 1, ...dl } });

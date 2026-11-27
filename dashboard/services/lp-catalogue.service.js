@@ -119,12 +119,14 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
  * pre-rendered and uploaded, so availability is the only gate, and the Gamma
  * render path the old endpoint queued is off.
  */
-async function lessonPdf(lessonId, kind = 'lesson', userId = null, { reader, download } = {}) {
+async function lessonPdf(lessonId, kind = 'lesson', userId = null, { reader, download, paper } = {}) {
   // bd-4joiqz — `reader: 'leader'` (the portal decided it from users): the bot serves the plan of the leader's school
   // and records no lifecycle row and no plan_served event for it. Absent for a teacher: today's body exactly.
   // bd-zrdvmi.70 — `download`: the app's Download PDF (a saved copy); sent only when asked, so the body is otherwise today's.
   const data = await ask('pdf', {
     lessonId, assetKind: kind, userId, ...(reader === 'leader' ? { reader } : {}), ...(download === true ? { download: true } : {}),
+    // bd-m8zwt1.23.2 — `paper`: the app's Print (the plan's A4 copy); sent only when asked.
+    ...(paper === true ? { paper: true } : {}),
   });
   if (!data.available) return null;
   return { url: data.url, asset_kind: data.asset_kind, version_stamp: data.version_stamp };
