@@ -35,6 +35,7 @@ async function flushLogs({
 async function main({
   run = (...a) => require('../shared/services/ab-tracker/ab-tracker-rollup.service').run(...a),
   ledger = (...a) => require('../shared/services/ab-tracker/ab-ledger.service').advance(...a),
+  switcher = (...a) => require('../shared/services/ab-tracker/ab-ledger.service').flip(...a),
   redis = require('../shared/services/cache/railway-redis.service'),
   flush = flushLogs,
   exit = (code) => process.exit(code),
@@ -46,7 +47,9 @@ async function main({
     logToFile('❌ A/B tracker cron: the run threw', { error: error && error.message }, 'error');
   }
   // The ledger (bd-9nb6s0.2): only after a rollup that ran, so every rollup guard held. Never changes the exit code.
+  // Then the switch (bd-9nb6s0.6): a test the ledger just concluded hands its winner to everyone, or records a pending flip.
   let ledgerOutcome;
+  let switchOutcome;
   if (result && result.outcome === 'ran') {
     try {
       ledgerOutcome = (await ledger()).outcome;
@@ -54,8 +57,14 @@ async function main({
       ledgerOutcome = 'failed';
       logToFile('A/B tracker cron: the ledger step threw (ignored)', { error: error && error.message }, 'warn');
     }
+    try {
+      switchOutcome = (await switcher()).outcome;
+    } catch (error) {
+      switchOutcome = 'failed';
+      logToFile('A/B tracker cron: the switch step threw (ignored)', { error: error && error.message }, 'warn');
+    }
   }
-  logToFile('A/B tracker cron: done', { outcome: result && result.outcome, ledger: ledgerOutcome });
+  logToFile('A/B tracker cron: done', { outcome: result && result.outcome, ledger: ledgerOutcome, switch: switchOutcome });
   try {
     await redis.close();
   } catch (error) {
