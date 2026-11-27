@@ -223,10 +223,20 @@ function servableRows(rows) {
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
-  const { data, error } = await dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(Q_COLS)
+  // Each row carries its review statuses in the same request, so a question a reviewer held is not served even from
+  // a link sent before the review (bd-g2baes.3). The embed unreadable → the plain read, every row, logged.
+  const Keys = require('./quiz-key-review.service');
+  const read = (cols) => dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(cols)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
+  let { data, error } = await read(`${Q_COLS}, ${Keys.REVIEW_EMBED}`);
+  if (error) {
+    logEvent('quiz_keys.serve_hold_unread', { quizId, channel: 'web', error: error.message || String(error) });
+    ({ data, error } = await read(Q_COLS));
+  }
   if (error) fail(502, 'db_unavailable');
-  const rows = servableRows(data || []);
+  const reviewed = Keys.servedAfterReview(data || []);
+  if (log && reviewed.held.length) logEvent('quiz_keys.serve_held_skipped', { quizId, channel: 'web', n: reviewed.held.length, qids: reviewed.held });
+  const rows = servableRows(reviewed.rows);
   // One ordering rule for both channels (transcript bank by sort_order, video
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
