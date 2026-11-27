@@ -25,7 +25,7 @@ Full index: `CLAUDE.index.md`
 - `fonts.js` ← imported by `bot/shared/services/quiz/quiz-math.js:205:f7f657cc` · `bot/shared/services/quiz/transcript-quiz-card.js:26:e409cd03` (+3)
 - `overlay.js` ← imported by `bot/shared/services/lp612-author.service.js:71:a6ab6c97` · `bot/vendor/lp-v9/lint_lp.js:49:6395c51e` (+2)
 - `rich.js` ← imported by `bot/shared/services/quiz/quiz-math.js:179:991497b6` · `bot/vendor/lp-v9/lint_lp.js:50:e778133a` (+2)
-- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:68:8c195dd6` · `bot/shared/services/lp612-key-repair.js:18:8cfa4499` (+2)
+- `validate.js` ← imported by `bot/shared/services/lp612-author.service.js:68:8c195dd6` · `bot/shared/services/lp612-key-repair.js:22:8cfa4499` (+2)
 - … 8 more → `CLAUDE.index.md`
 
 ## Never (human)
