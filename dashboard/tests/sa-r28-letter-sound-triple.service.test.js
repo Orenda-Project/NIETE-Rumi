@@ -14,7 +14,6 @@ const DASH = path.join(__dirname, '..');
 const PASSED = [
   ['sa/v5/en/11e4b6281fd2.mp3', 'sqXWWBMCNAFQcm4en50ixsQyNcz4G71BtiXweYtIWmI='],
   ['sa/v5/en/27935baf8897.mp3', 'O39YY+hNaD/lcaHMIQQWIgdmveOjVO4XGtVL2WzOiKE='],
-  ['sa/v5/en/7f1a59d218ac.mp3', 'f+e4/N6iP9FdBggzcZ8U1jFVaZfVvs13AFWA3KKTyYY='],
   ['sa/v5/en/c1a26ae596e8.mp3', 'tB3GYTeoCUe/+omsGKPhiWm4ryY1gYapp7qe4ar2CX0='],
   ['sa/v5/en/d24717892746.mp3', 'aMkPB06G9WiK4oqLc9AzFX6pKVxRf/Kr4mRCG8HDyOA='],
   ['sa/v5/en/e7745a4e7e63.mp3', 'BiMEU6OE1E3JXcJdbldDvu/K5cPju+9UVuFc/W6HLBY='],
@@ -36,13 +35,16 @@ const PASSED = [
   ['sa/v5/en/2f988087bd31.mp3', 'mbcXrKSgurbCy7GZO0QHflyC4e7eh3bFivU9GXNOUQk='], // w, take A
   ['sa/v5/en/360e801b2da2.mp3', 'u9zvzJP45MXjzWAkkjyP8BgS/++h4JhvRlxBSdYVBtk='], // q, take C
   ['sa/v5/en/902fc6e315f9.mp3', 'nfLqWMYkNeOBv+rVcvCY9k/sMtYf5G+1VJAv+vH5ux4='], // x, take A
+  // English j in d's place (27 Nov), the take she picked.
+  ['sa/v5/en/5b692ca8b35c.mp3', 'en9B6zqxfxneqXGtsQLpETucECWeqmK8TVoOsyFglbw='], // j, take B
 ];
 const T = JSON.parse(fs.readFileSync(path.join(DASH, 'sa', 'v5', 'prompt_timings.json'), 'utf8'));
 
 describe('letter-sound prompts: the passed three-times clips', () => {
-  test('no retired prompt (the swapped-out ف ٹ and l z r n, practice t m) is still in the timings', () => {
+  test('no retired prompt (the swapped-out ف ٹ and l z r n d, practice t m) is still in the timings', () => {
     for (const k of ['sa/v5/ur/be762a415596.mp3', 'sa/v5/ur/42a27591c742.mp3', 'sa/v5/en/91b3047b486c.mp3', 'sa/v5/en/420a8389562d.mp3',
-      'sa/v5/en/4697c4da849a.mp3', 'sa/v5/en/aa98ed74844b.mp3', 'sa/v5/en/d8be0cdacead.mp3', 'sa/v5/en/a321bfba35ba.mp3']) expect([k, T[k]]).toEqual([k, undefined]);
+      'sa/v5/en/4697c4da849a.mp3', 'sa/v5/en/aa98ed74844b.mp3', 'sa/v5/en/d8be0cdacead.mp3', 'sa/v5/en/a321bfba35ba.mp3',
+      'sa/v5/en/7f1a59d218ac.mp3']) expect([k, T[k]]).toEqual([k, undefined]);
   });
 
   test.each(PASSED)('%s is the file passed by ear (sha256, base64)', (key, sha256) => {

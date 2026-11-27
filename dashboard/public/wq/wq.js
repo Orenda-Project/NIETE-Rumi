@@ -3811,7 +3811,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // pressed it on a question lost the page. The page keeps ONE entry, added on a tap (Chrome skips entries
   // a page adds without one): Back on a side screen goes to the screen it came from; during the quiz the
   // first Back only warns (the answers are saved) and a second one leaves; on the end screens it leaves.
-  var NAV = { armed: false, warnAt: 0, leaving: false, shareBack: null, schoolsBack: null };
+  var NAV = { armed: false, spare: false, warnAt: 0, leaving: false, shareBack: null, schoolsBack: null };
   var PLAYING = { M5: 1, M6: 1, M7: 1, 'M9-fix': 1, 'M9-tricky': 1 };
   function afterResult() { if (S.result) card(); else landing(); }
   function backTo(m) {
@@ -3825,20 +3825,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return null;
   }
   function navArm() {
-    if (NAV.armed || NAV.leaving) return;
+    if (NAV.leaving) return;
     try {
       var h = window.history;   // not `history`: that name is the M13 screen in this file
       if (!h || !h.pushState) return;
-      h.replaceState({ wq: 'base' }, '');
-      h.pushState({ wq: 'top' }, '');
       // Stepping back through questions: a second spare entry during play, so two quick Backs both stay here.
       var m = ROOT.getAttribute('data-m') || '';
-      if (BACK_ON && (PLAYING[m] || m === 'M6-review')) h.pushState({ wq: 'top2' }, '');
+      var play = BACK_ON && (PLAYING[m] || m === 'M6-review');
+      if (NAV.armed) {
+        // bd-q8wt5e.18: armed on a tap BEFORE play (the landing, the name) there is one spare entry only, so the second
+        // Back on a question left the page. The first tap during play adds the second one.
+        if (play && !NAV.spare) { h.pushState({ wq: 'top2' }, ''); NAV.spare = true; }
+        return;
+      }
+      h.replaceState({ wq: 'base' }, '');
+      h.pushState({ wq: 'top' }, '');
+      if (play) h.pushState({ wq: 'top2' }, '');
+      NAV.spare = !!play;
       NAV.armed = true;
     } catch (e) {}
   }
   function navBack() {
     NAV.armed = false;
+    NAV.spare = false;
     var m = ROOT.getAttribute('data-m') || '';
     var to = backTo(m);
     var src = m.toLowerCase().replace(/[^a-z0-9_]/g, '_');

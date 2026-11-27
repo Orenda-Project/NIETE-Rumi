@@ -84,17 +84,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       ...V(hits.every(h => h.card && h.cta), { hits, note: 'the /menu row is covered by menu.cjs' }), t() - s);
   }
 
-  // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
+  // ── T15 — "/teacher training" (two words) is NOT a trigger ── @obsolete ─────────
+  // The spec is tagged @obsolete since 2026-10-27 (bd-1r3k2h): the intent classifier is offered her live menu
+  // rows and opens the one she names, so "/teacher training" opens the Teacher Training Flow by design. Proposed
+  // for deletion, not deleted — recorded SKIP with that reason, never asserted (bd-q8wt5e.10).
   if (want('T15')) {
-  s = t();
-  // The previous scenario may have left the menu wait open; inside it the bot matches free text to a menu row
-  // by words ("Teacher Training" ← "/teacher training", menu_match.row) and opens the Flow. The spec is a chat
-  // with no menu open, so park the conversation state first (bd-yuur1a).
-  if (api.setUser) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
-  const two = await api.sendWait('/teacher training');
-  rec('T15', '"/teacher training" (two words) is not a training command',
-      ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
-           { reply: (two.txt || '').slice(0, 140) }), t() - s);
+  rec('T15', '"/teacher training" (two words) is not a training command', 'SKIP',
+      { why: '@obsolete since 2026-10-27: the intent classifier opens the menu row she names (menu_match.row), by design' }, 0);
   }
 
   // ── T18 — /training is stateless: it works mid-way through something else ───
