@@ -37,18 +37,7 @@ const normText = (s) => String(s || '').toLowerCase().normalize('NFKC').replace(
 const correctText = (q) => q && q['option_' + String(q.correct_option || '').toLowerCase()];
 const words = (s) => new Set(normText(s).split(' ').filter((w) => w.length > 2));
 const overlap = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return 0; let n = 0; for (const w of A) if (B.has(w)) n++; return n / Math.min(A.size, B.size); };
-/** Two questions that ask the same thing with the same answer (fill-in-the-blank folded in). */
-const duplicates = (qs) => {
-  const out = [];
-  for (let i = 0; i < qs.length; i++) for (let j = i + 1; j < qs.length; j++) {
-    const a = qs[i], b = qs[j];
-    const ca = normText(correctText(a)).replace(/ سے$/, ''), cb = normText(correctText(b)).replace(/ سے$/, '');
-    if (!ca || ca !== cb) continue;
-    const sa = normText(a.question_text).replace(/_+|ڈیش/g, ca), sb = normText(b.question_text).replace(/_+|ڈیش/g, cb);
-    if (sa === sb || overlap(sa, sb) >= 0.85) out.push({ a: a.sort_order, b: b.sort_order, answer: short(correctText(a), 40), stemA: short(a.question_text, 70), stemB: short(b.question_text, 70) });
-  }
-  return out;
-};
+const { duplicates } = require('./quiz-duplicates.cjs');   // T83's judge, its own module so a unit test can load it
 const keyProblems = (qs) => (qs || []).map((q) => {
   const opts = [q.option_a, q.option_b, q.option_c, q.option_d].map((o) => normText(o));
   const p = [];
@@ -364,7 +353,13 @@ exports.run = async (ctx) => {
         const ev77 = { asks: [c1.ok, c2.ok], secondAsk: c2.ok ? 'placed' : 'refused by the screen: ' + (c2.err || '') + ' offered ' + JSON.stringify(c2.offered || p2.actions || []), reportsArrived: got.filter((x) => x.doc || x.pdf).length, noOneFinishedSaid: got.some((x) => /No one has finished|کسی نے یہ quiz مکمل نہیں/.test(x.txt || '')), texts: got.map((x) => short(x.txt, 60)).slice(0, 6) };
         done('T77', ...V(c1.ok && ev77.reportsArrived === 1 && !ev77.noOneFinishedSaid, ev77));
         // T78 — a scheduled run after the report was sent is suppressed; a late child + the teacher's ask → a fresh report
+        // "I already received the class report" is the AUTOMATIC report: since the 21 Nov class-report change a /quiz ask
+        // (T25/T77 above) no longer stamps report_sent_at, so the first scheduled run is the automatic report and sends.
+        // Deliver it first, then judge a SECOND scheduled run (bd-q8wt5e.10; run 20261126-2322-par sent a third PDF).
         s = t();
+        await api.freshReset();
+        const firstAuto = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
+        const firstAutoReport = await collect(api, (x) => (x.doc || x.pdf), 240000);
         await api.freshReset();
         const sched = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
         const auto = await collect(api, (x) => (x.doc || x.pdf), ABSENCE_MS(60000));
@@ -374,8 +369,8 @@ exports.run = async (ctx) => {
         const p3 = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id); const c3 = p3.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
         const fresh2 = await collect(api, (x) => (x.doc || x.pdf), 240000);
         const pdf2 = fresh2.ok ? await pdfOf(fresh2.hit, 'T78-report.pdf') : { text: '' };
-        const ev78 = { scheduledRun: sched.result === false ? 'suppressed (generate returned false)' : sched.result || sched.err, autoReportArrived: auto.ok, lateChildFinished: r22.ok, askedAgain: c3.ok, freshReport: fresh2.ok, namesLateChild: /Zara/.test(pdf2.text || ''), namesFirstChild: /Ali/.test(pdf2.text || '') };
-        done('T78', ...V(!auto.ok && r22.ok && c3.ok && fresh2.ok && ev78.namesLateChild && ev78.namesFirstChild, ev78));
+        const ev78 = { automaticReport: firstAutoReport.ok ? 'arrived' : 'did not arrive: ' + (firstAuto.err || JSON.stringify(firstAuto.result)), scheduledRun: sched.result === false ? 'suppressed (generate returned false)' : sched.result || sched.err, autoReportArrived: auto.ok, lateChildFinished: r22.ok, askedAgain: c3.ok, freshReport: fresh2.ok, namesLateChild: /Zara/.test(pdf2.text || ''), namesFirstChild: /Ali/.test(pdf2.text || '') };
+        done('T78', ...V(firstAutoReport.ok && sched.result === false && !auto.ok && r22.ok && c3.ok && fresh2.ok && ev78.namesLateChild && ev78.namesFirstChild, ev78));
       } catch (e) { errors.push('T25:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T25', 'T77', 'T78']) if (!seenIds.has(id)) blocked(id, 'the children/report leg threw: ' + short(e.message, 200)); }
     } else { for (const id of ['T25', 'T77', 'T78']) if (!seenIds.has(id)) blocked(id, 'no generated lesson-plan quiz for the class to take'); }
 
