@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T07:06:23Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"7e0f17627c5d","branch":"bd-snkn32.58.17-goalcheck","user":""}
+{"ts":"2026-11-27T07:06:34Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan owe their Gherkin","sha":"7e0f17627c5d","branch":"bd-snkn32.58.17-goalcheck","user":""}
