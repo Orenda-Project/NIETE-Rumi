@@ -73,6 +73,8 @@ export const LESSONS_V2_COPY = {
   download: 'Download',
   /** bd-zrdvmi.70 — the plan screen's dock: saves the plan's PDF on her phone (opens with no internet). */
   downloadPdf: 'Download PDF',
+  /** bd-m8zwt1.23.2 — grades 1–5: opens the plan's A4 copy, full page width on paper (the app shows the phone copy). */
+  print: 'Print',
   openOutside: 'Open in another app',
   /** v10 coaching test (bd-v0toag.8): the strip above a grade 1–5 plan; the thing itself is DATA. */
   thingToTry: 'Thing to try today',
@@ -155,6 +157,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   observe: 'مشاہدہ',
   download: 'ڈاؤن لوڈ',
   downloadPdf: 'PDF ڈاؤن لوڈ کریں',
+  print: 'پرنٹ',
   openOutside: 'دوسری ایپ میں کھولیں',
   thingToTry: 'آج آزمانے کی بات',
   region: {

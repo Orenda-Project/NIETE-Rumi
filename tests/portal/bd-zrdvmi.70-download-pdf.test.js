@@ -89,6 +89,12 @@ describe('portal routes pass the download ask on', () => {
     expect(lessonPdf).toHaveBeenCalledWith('grade_4_english_ch1_seg2', 'lesson', TEACHER, { download: true });
   });
 
+  // bd-m8zwt1.23.2 — Print: ?paper=1 asks for the plan's A4 copy.
+  test('grades 1-5: ?paper=1 asks the catalogue for the paper copy', async () => {
+    await invoke(routes(), 'get', '/curriculum/lp/:lesson_id/pdf', req({ lesson_id: 'grade_4_english_ch1_seg2' }, { kind: 'lesson', paper: '1' }));
+    expect(lessonPdf).toHaveBeenCalledWith('grade_4_english_ch1_seg2', 'lesson', TEACHER, { paper: true });
+  });
+
   test('grades 1-5: no download, the same call as before', async () => {
     await invoke(routes(), 'get', '/curriculum/lp/:lesson_id/pdf', req({ lesson_id: 'grade_4_english_ch1_seg2' }, { kind: 'lesson' }));
     expect(lessonPdf).toHaveBeenCalledWith('grade_4_english_ch1_seg2', 'lesson', TEACHER);
@@ -125,6 +131,8 @@ describe('portal clients put download in the bot body only when asked', () => {
     expect(post.mock.calls[0][1]).toEqual({ lessonId: 'L1', assetKind: 'lesson', userId: TEACHER, download: true });
     await Cat.lessonPdf('L1', 'lesson', TEACHER);
     expect(post.mock.calls[1][1]).toEqual({ lessonId: 'L1', assetKind: 'lesson', userId: TEACHER });
+    await Cat.lessonPdf('L1', 'lesson', TEACHER, { paper: true });   // bd-m8zwt1.23.2
+    expect(post.mock.calls[2][1]).toEqual({ lessonId: 'L1', assetKind: 'lesson', userId: TEACHER, paper: true });
   });
 
   test('lp612 requestStatus', async () => {
