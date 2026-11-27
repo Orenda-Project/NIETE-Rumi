@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T17:15:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching spec_sync=true","sha":"b64e40946e82","branch":"bd-tfya0m.2-97262","user":""}
 {"ts":"2026-11-27T17:15:57Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coaching spec_sync=true","sha":"b64e40946e82","branch":"bd-tfya0m.2-97262","user":""}
 {"ts":"2026-11-27T17:46:41Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"coaching=none-needed (adds a DB index migration and a jest test only; no runtime code, nothing a teacher or coach sees changes)","sha":"b64e40946e82","branch":"bd-tfya0m.2-97262","user":""}
+{"ts":"2026-11-27T17:47:04Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"368cc819-e9a4-4f78-bdba-d04ebbc8b7cf","sha":"b64e40946e82","branch":"bd-tfya0m.2-97262","user":""}
