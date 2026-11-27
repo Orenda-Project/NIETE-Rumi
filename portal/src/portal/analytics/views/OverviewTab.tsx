@@ -31,7 +31,8 @@ export function OverviewTab({ c, data, lpOpensNote, coaching, observers = null }
         <Tile k="schools" feature="home" value={count(o.schools, c)} label={c.tiles.schools} />
       </Section>
       <Section id="teachers" eyebrow={c.sections.teachers} className="lg:col-span-2">
-        <Tile k="teachers" feature="attendance" value={teachers} label={c.tiles.teachers} />
+        <Tile k="teachers" feature="attendance" value={teachers} label={c.tiles.teachers}
+          chips={o.headTeachers ? chip(c.inclHeadTeachers(count(o.headTeachers, c))) : undefined} />
       </Section>
 
       <Section id="snapshot" eyebrow={c.sections.snapshot} className="col-span-2 lg:col-span-4">

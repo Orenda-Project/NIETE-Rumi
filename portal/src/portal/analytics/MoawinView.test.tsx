@@ -244,6 +244,32 @@ describe("Overview as Moawin", () => {
   });
 });
 
+describe("Total teachers names its head teachers (principals who also teach)", () => {
+  it("a chip says how many of the teachers are head teachers, from the answer's headTeachers", async () => {
+    h.getSchools.mockImplementation(async (p: { region: string | null }) => {
+      const r = schools(p.region === "all" ? null : p.region);
+      return { ...r, overview: { ...r.overview, headTeachers: 3 } } as SchoolsAnalyticsResponse;
+    });
+    renderPage();
+    const tile = await screen.findByTestId("tile-teachers", {}, { timeout: 5000 });
+    expect(within(tile).getByText("incl. 3 head teachers")).toBeTruthy();
+  });
+  it("one head teacher is singular", async () => {
+    h.getSchools.mockImplementation(async (p: { region: string | null }) => {
+      const r = schools(p.region === "all" ? null : p.region);
+      return { ...r, overview: { ...r.overview, headTeachers: 1 } } as SchoolsAnalyticsResponse;
+    });
+    renderPage();
+    const tile = await screen.findByTestId("tile-teachers", {}, { timeout: 5000 });
+    expect(within(tile).getByText("incl. 1 head teacher")).toBeTruthy();
+  });
+  it("no headTeachers in the answer: no chip, the tile as before", async () => {
+    renderPage();
+    const tile = await screen.findByTestId("tile-teachers", {}, { timeout: 5000 });
+    expect(tile.textContent).not.toMatch(/head teacher/);
+  });
+});
+
 describe("FDE's view does not change", () => {
   beforeEach(() => {
     h.getScope.mockResolvedValue({ success: true, organization: "niete", regions: [...REGION_ORDER] });

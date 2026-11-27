@@ -126,6 +126,7 @@ const {
   isPortalAssessmentEditingEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
+  readTeachingPrincipals,
   PORTAL_ANALYTICS_ORGANIZATIONS_KEY,
   readUserMapFlag,
   isAnalyticsOnlyUser,
@@ -1894,10 +1895,12 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
     }
     const range = analyticsRange(req.query);
     const lists = await listsFor(scope);
-    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
+    // Head teachers who are the principal and teach a class (analytics_teaching_principals); none = as before.
+    const teachingPrincipals = await readTeachingPrincipals(supabase);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}|${teachingPrincipals.join(',')}`;
     const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
       const [rows, placement] = await Promise.all([
-        SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists, regions: readRegions(scope) }),
+        SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range, { lists, regions: readRegions(scope), teachingPrincipals }),
         areaPlacement(scope),
       ]);
       return trimmedForView(placement, {
@@ -2057,10 +2060,11 @@ router.get('/analytics/observations', requirePortalAuth, requireAnalyticsViewer,
     }
     const range = analyticsRange(req.query);
     const lists = await listsFor(scope);
-    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}`;
+    const teachingPrincipals = await readTeachingPrincipals(supabase);
+    const key = `${scopeKey(scope)}|${range.from || ''}|${range.to || ''}|${region.key}|${listsKey(lists)}|${teachingPrincipals.join(',')}`;
     const body = await observationsAnalyticsCache.getOrLoad(key, async () => {
       const [rows, placement] = await Promise.all([
-        ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range, { regions: readRegions(scope) }),
+        ObservationsAnalytics.loadObservationsAnalyticsRows(dbQuery, range, { regions: readRegions(scope), teachingPrincipals }),
         areaPlacement(scope),
       ]);
       return trimmedForView(placement, {

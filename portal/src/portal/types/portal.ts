@@ -743,6 +743,11 @@ export interface CoachingProgress {
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
+  /**
+   * How many of `teachers` are head teachers: a school's principal who also teaches a class, named on the server's
+   * analytics_teaching_principals list. A part of teachers, never on top. Sent only when above 0.
+   */
+  headTeachers?: number;
   /** v7: LPs opened. v8 (basis.teachers 'rdf'): lesson plans used — the same number as lpsUsed. */
   lpsOpened: number;
   teachersOpenedLp: number;

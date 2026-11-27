@@ -699,3 +699,44 @@ describe('GET /analytics/scope: whose view this is', () => {
     expect(reg.payload.organization).toBeUndefined();
   });
 });
+
+// Head teachers who are the school's principal AND teach a class: app_settings analytics_teaching_principals
+// (a users.id list, list-only) counts them as teachers on the schools page and in the counted sessions that the
+// schools and observations pages share. No row leaves every read as it was (the LEAK and GB blocks above).
+describe('analytics_teaching_principals: listed principals count as teachers', () => {
+  const PRINCIPAL = 'cccccccc-0000-4000-8000-000000000003';
+  const withPrincipals = (value) => ({ rows: [...settings().rows, { key: 'analytics_teaching_principals', value }] });
+  const listed = (q) => (q.params || []).some((p) => Array.isArray(p) && p.length === 1 && p[0] === PRINCIPAL);
+  const sessionsRead = () => queries.filter((q) => /FROM coaching_sessions c\s+JOIN users u/i.test(q.sql));
+  const rosterRead = () => queries.filter((q) => /FROM schools sch/i.test(q.sql));
+
+  it('/analytics/schools: the roster and the sessions read both take the listed principal', async () => {
+    const { statusCode } = await answer('/analytics/schools', WINDOW, GB_VIEWER, { appSettings: withPrincipals([PRINCIPAL]) });
+    expect(statusCode).toBe(200);
+    expect(rosterRead()).toHaveLength(1);
+    expect(rosterRead().every(listed)).toBe(true);
+    expect(sessionsRead().every(listed)).toBe(true);
+    expect(rosterRead()[0].sql).toMatch(/u\.role = 'principal' AND u\.id = ANY\(/);
+  });
+
+  it('/analytics/observations: its sessions read takes the listed principal too, so the two pages agree', async () => {
+    const { statusCode } = await answer('/analytics/observations', WINDOW, GB_VIEWER, { appSettings: withPrincipals([PRINCIPAL]) });
+    expect(statusCode).toBe(200);
+    expect(sessionsRead().length).toBeGreaterThan(0);
+    expect(sessionsRead().every(listed)).toBe(true);
+  });
+
+  it('a broadcast or unreadable value is nobody: the page answers as with no row at all', async () => {
+    const none = await answer('/analytics/schools', WINDOW, GB_VIEWER);
+    for (const value of [true, 'teachers', { [PRINCIPAL]: true }]) {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await answer('/analytics/schools', WINDOW, GB_VIEWER, { appSettings: withPrincipals(value) });
+      expect(out.payload).toEqual(none.payload);
+      expect(queries.some(listed)).toBe(false);
+    }
+    const broken = { rows: [...settings().rows, { key: 'analytics_teaching_principals', readError: { message: 'timeout' } }] };
+    const out = await answer('/analytics/schools', WINDOW, GB_VIEWER, { appSettings: broken });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toEqual(none.payload);
+  });
+});

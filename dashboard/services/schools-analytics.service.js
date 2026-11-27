@@ -198,7 +198,8 @@ const COUNT_FIELDS = Object.freeze([
 ]);
 
 function emptyAcc() {
-  const acc = { schools: 0, ficoSum: 0, hitlSum: 0 };
+  // headTeachers: how many of `teachers` are principals on analytics_teaching_principals (a part, never added on top).
+  const acc = { schools: 0, ficoSum: 0, hitlSum: 0, headTeachers: 0 };
   for (const k of COUNT_FIELDS) acc[k] = 0;
   return acc;
 }
@@ -225,6 +226,8 @@ function metrics(a) {
     ficoN: a.ficoN,
     avgHitl: a.hitlN > 0 ? round1(a.hitlSum / a.hitlN) : null,
     hitlN: a.hitlN,
+    // Only where there are any, so an answer with none (FDE's, every school without one) is exactly as before.
+    ...(a.headTeachers > 0 ? { headTeachers: a.headTeachers } : {}),
   };
 }
 
@@ -271,6 +274,7 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
     if (!bucket) continue;
     const acc = emptyAcc();
     acc.teachers = count(s.teachers);
+    acc.headTeachers = count(s.head_teachers);
     acc.lpsOpened = count(s.lps_opened);
     acc.teachersOpenedLp = count(s.teachers_opened_lp);
     // Distinct per teacher, and a teacher belongs to one school: these sum to the region's.
@@ -452,6 +456,18 @@ function windowClause(col, ends) {
 const present = (...xs) => xs.filter(Boolean);
 
 /**
+ * A read's SQL and parameters: the window instants first ($1, $2), then the regions when given, then the
+ * teaching principals when there are any, each named by the placeholder it gets. With no regions and no
+ * principals it is the read exactly as before: the same SQL, the instants alone.
+ */
+function withParams(instants, regions, teachingPrincipals, build) {
+  const params = [...instants];
+  const regionParam = regions ? `$${params.push(regions)}` : null;
+  const principalsParam = teachingPrincipals && teachingPrincipals.length ? `$${params.push(teachingPrincipals)}` : null;
+  return { sql: build(regionParam, principalsParam), params };
+}
+
+/**
  * Today's roster, the teacher base of every roster number: teachers with a school, test
  * accounts out, live rows only. One spelling, used by the roster and by training alike.
  *
@@ -466,7 +482,26 @@ const ROSTER_TEACHER = `u.role = 'teacher'
          AND u.deleted_at IS NULL
          AND COALESCE(u.phone_number, '') NOT LIKE 'merged%'`;
 
-function schoolsSql(bounds, regionParam = null) {
+/**
+ * Who counts as a teacher here: role 'teacher', or (when `principalsParam` names a uuid[] parameter) a principal
+ * on analytics_teaching_principals — a head teacher who is the school's principal and teaches a class too
+ * (dashboard/lib/feature-flags.js). With no parameter it is exactly role 'teacher', as before.
+ */
+function teacherRole(principalsParam = null) {
+  return principalsParam
+    ? `(u.role = 'teacher'
+            OR (u.role = 'principal' AND u.id = ANY(${principalsParam}::uuid[])))`
+    : `u.role = 'teacher'`;
+}
+
+/** ROSTER_TEACHER with the teaching principals in; with no parameter it IS ROSTER_TEACHER. */
+function rosterTeacher(principalsParam = null) {
+  return principalsParam
+    ? ROSTER_TEACHER.replace(`u.role = 'teacher'`, teacherRole(principalsParam))
+    : ROSTER_TEACHER;
+}
+
+function schoolsSql(bounds, regionParam = null, principalsParam = null) {
   // Every school, each with its roster in the same read: today's teachers (test and retired
   // accounts out), their LP opens and their training completions in the window. Opens count
   // DIFFERENT plans per teacher; summed over teachers that is distinct (user, kind, ref).
@@ -482,26 +517,32 @@ function schoolsSql(bounds, regionParam = null) {
   //     filter-joins every teacher against every trained one (3.2 M comparisons, ~0.7 s);
   //   - this shape: 0.08 s for 1–13 Oct, 0.28 s for all time, the same numbers.
   const ends = [bounds.fromTs, bounds.toTs];
+  // With teaching principals listed, the roster also says how many of its teachers are those principals
+  // (head_teachers, a part of teachers). With none, the read is exactly as before.
+  const headOut = principalsParam ? `,
+         COALESCE(r.head_teachers, 0)::int AS head_teachers` : '';
+  const headIn = principalsParam ? `,
+             count(*) FILTER (WHERE u.role = 'principal')::int AS head_teachers` : '';
   return `
   SELECT sch.id, sch.name, sch.emis, sch.region, sch.is_active, sch.is_probable_test,
          COALESCE(r.teachers, 0)::int AS teachers,
          COALESCE(r.lps_opened, 0)::int AS lps_opened,
          COALESCE(r.teachers_opened_lp, 0)::int AS teachers_opened_lp,
          COALESCE(trn.training_modules, 0)::int AS training_modules,
-         COALESCE(trn.teachers_trained, 0)::int AS teachers_trained
+         COALESCE(trn.teachers_trained, 0)::int AS teachers_trained${headOut}
     FROM schools sch
     LEFT JOIN (
       SELECT u.school_id,
              count(*)::int AS teachers,
              COALESCE(sum(op.plans), 0)::int AS lps_opened,
-             count(*) FILTER (WHERE op.plans > 0)::int AS teachers_opened_lp
+             count(*) FILTER (WHERE op.plans > 0)::int AS teachers_opened_lp${headIn}
         FROM users u
         LEFT JOIN LATERAL (
           SELECT count(DISTINCT (o.plan_kind, o.plan_ref)) AS plans FROM niete_lp_opens o
            WHERE o.user_id = u.id
              AND ${windowClause('o.opened_at', ends)}
         ) op ON TRUE
-       WHERE ${ROSTER_TEACHER}
+       WHERE ${rosterTeacher(principalsParam)}
        GROUP BY u.school_id
     ) r ON r.school_id = sch.id
     LEFT JOIN (
@@ -516,7 +557,7 @@ function schoolsSql(bounds, regionParam = null) {
            GROUP BY tp.user_id
         ) t
         JOIN users u ON u.id = t.user_id
-       WHERE ${ROSTER_TEACHER}
+       WHERE ${rosterTeacher(principalsParam)}
        GROUP BY u.school_id
     ) trn ON trn.school_id = sch.id${regionParam ? `
    WHERE sch.region = ANY(${regionParam}::text[])` : ''}`;
@@ -608,7 +649,7 @@ const SCHOOLS_ONLY_SQL = `
  */
 const NOT_FICO_SCORED = new Set(['hots']);
 
-function sessionsSql(bounds, regionParam = null) {
+function sessionsSql(bounds, regionParam = null, principalsParam = null) {
   // One row per counted session — ids and flags only, no analysis_data (see the header).
   // A teacher with no school is read too (v8: she counts in her RDF sector's No-school row); v7
   // drops her session, as before, because it names no counted school.
@@ -618,7 +659,7 @@ function sessionsSql(bounds, regionParam = null) {
          c.observation_type, c.framework
     FROM coaching_sessions c
     JOIN users u ON u.id = c.user_id
-   WHERE u.role = 'teacher'
+   WHERE ${teacherRole(principalsParam)}
      AND ((c.observation_type IS NULL AND c.status = 'completed')
           OR (c.observation_type = '${HUMAN_OBSERVATION}' AND c.status IN ${TERMINAL}))
      AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}${regionParam ? `
@@ -686,12 +727,12 @@ function sectionsOf(row) {
  *
  * @returns {Promise<{sessions: Array<{id, school_id, user_id, is_test, observation_type, pct, sections, v6?}>, scoreReads: number}>}
  */
-async function loadCountedSessions(query, range, { memo = defaultMemo, regions = null } = {}) {
+async function loadCountedSessions(query, range, { memo = defaultMemo, regions = null, teachingPrincipals = [] } = {}) {
   const bounds = windowBounds(range);
   const instants = present(bounds.fromTs, bounds.toTs);
-  const sessionRes = regions
-    ? await query(sessionsSql(bounds, `$${instants.length + 1}`), [...instants, regions])
-    : await query(sessionsSql(bounds), instants);
+  const { sql: sessionSql, params: sessionParams } = withParams(instants, regions, teachingPrincipals,
+    (regionParam, principalsParam) => sessionsSql(bounds, regionParam, principalsParam));
+  const sessionRes = await query(sessionSql, sessionParams);
   const sessions = (sessionRes.rows || []).map((r) => ({ ...r, updated_at: stamp(r.updated_at) }));
 
   const waits = new Set();
@@ -750,7 +791,7 @@ async function loadCountedSessions(query, range, { memo = defaultMemo, regions =
  *   view's own regions — only their schools and sessions are read, never the whole deployment's (null = FDE's view)
  * @returns {Promise<{schools: any[], sessions: any[], scoreReads: number}>}
  */
-async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, lists = null, regions = null } = {}) {
+async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, lists = null, regions = null, teachingPrincipals = [] } = {}) {
   const bounds = windowBounds(range);
   const instants = present(bounds.fromTs, bounds.toTs);
   const population = populationSectors(lists);
@@ -760,7 +801,7 @@ async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, list
     const [schoolRes, teacherRes, counted] = await Promise.all([
       query(SCHOOLS_ONLY_SQL, []),
       query(teachersSql(bounds, `$${instants.length + 1}`), [...instants, ids]),
-      loadCountedSessions(query, range, { memo, regions }),
+      loadCountedSessions(query, range, { memo, regions, teachingPrincipals }),
     ]);
     return {
       schools: schoolRes.rows || [],
@@ -769,9 +810,11 @@ async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo, list
       scoreReads: counted.scoreReads,
     };
   }
+  const { sql: schoolSql, params: schoolParams } = withParams(instants, regions, teachingPrincipals,
+    (regionParam, principalsParam) => schoolsSql(bounds, regionParam, principalsParam));
   const [schoolRes, counted] = await Promise.all([
-    regions ? query(schoolsSql(bounds, `$${instants.length + 1}`), [...instants, regions]) : query(schoolsSql(bounds), instants),
-    loadCountedSessions(query, range, { memo, regions }),
+    query(schoolSql, schoolParams),
+    loadCountedSessions(query, range, { memo, regions, teachingPrincipals }),
   ]);
 
   return {
