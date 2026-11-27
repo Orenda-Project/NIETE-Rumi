@@ -1,0 +1,13 @@
+Hashir Hussain, Slack DM to the bot, 27 Nov 13:25 (https://taleemabad-talk.slack.com/archives/D0CM77AQM4K/p1795767952276509):
+1. Islamabad teachers: Primary 2,602; exclusive Middle/High ~2,980; across Primary+Middle+High ~650; no level recorded 126.
+   Dashboard should show approx: Primary section 3,250 teachers; Middle/High section 3,600 teachers.
+2. Level-wise training requirements:
+   Primary only: NIETE Level 0,1,2,3
+   Primary + Middle: NIETE Level 0-3, GBTLA, AI-Powered Subject Pedagogy
+   Primary + Middle + High: NIETE Level 0-3, GBTLA, AI-Powered Subject Pedagogy, Teacher Development Program
+   Primary + High: NIETE Level 0-3, Teacher Development Program
+   Middle + High: NIETE Level 2 and 3, GBTLA, AI-Powered Subject Pedagogy, Teacher Development Program
+   Middle only: NIETE Level 2 and 3, GBTLA, AI-Powered Subject Pedagogy
+   High only: Teacher Development Program
+3. Status rules: AI-Powered Subject Pedagogy = Completed if any one subject completed. Teacher Development Program: show progress for Level 1, Level 2, Level 3 separately (not one overall status).
+   The dashboard should dynamically assign the required trainings based on each teacher's teaching levels.
