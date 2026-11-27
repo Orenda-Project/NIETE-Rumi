@@ -111,7 +111,9 @@
 // sa-50: hotfix, sa-rec.js (the silence stop hears a quiet child: its own floor, STOP_FLOOR 0.004, in place of FLOOR 0.02)
 //   and sa-core.js (a one-at-a-time result records served_n, the number of items served). SESSION unchanged: no clip or
 //   battery changed; no worker code changes.
-var VERSION = 'sa-50';
+// sa-51: the letter-sound picker's and the Urdu letter-names practice's items as the content owner reviewed them
+//   (SESSION v35); no worker code changes.
+var VERSION = 'sa-51';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -168,7 +170,11 @@ var CORE = 'sa-core-' + VERSION;
 // in the task's language, each at its text's key with its word timings (the Urdu-task intro re-made under its key).
 // v34: the English letter names e, B, t and d play production's v4 takes again under their keys: their re-made takes did
 // not pass the ear check. A phone that kept a v33 copy of those four keys takes production's bytes.
-var SESSION = 'sa-session-v34';
+// v35: round 28's battery files re-made with the letter-sound picker's items as the content owner reviewed them (Urdu ا
+// and ت in place of ف and ٹ; English g w q x in place of l z r n, practice b and k in place of t and m) and the Urdu
+// letter-names practice example ک («کاف», its v4 clip already on the phone) in place of ث; the new prompts said three
+// times as before, each at its text's key with its spans in v5/prompt_timings.json, and the retired prompt keys removed.
+var SESSION = 'sa-session-v35';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;

@@ -26,13 +26,13 @@ async function noDoor(page, ctx, name) {
   return said;
 }
 
-on('WQ286', 'off', async (page, ctx) => {
+on('WQ287', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, KEY, null, null);
   return { off: await noDoor(page, ctx, 'Pari Testwala') };
 });
 
-on('WQ287', 'off', async (page, ctx) => {
+on('WQ288', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   try {
     await L.setFlag(ctx, page, KEY, 'true', null);
@@ -40,6 +40,6 @@ on('WQ287', 'off', async (page, ctx) => {
   } finally { await L.setFlag(ctx, page, KEY, null, null); }
 });
 
-for (const id of ['WQ288', 'WQ289']) on(id, 'off', async () => ({ blocked: NO_POOL }));
+for (const id of ['WQ289', 'WQ290']) on(id, 'off', async () => ({ blocked: NO_POOL }));
 
 module.exports = { runs, modes };

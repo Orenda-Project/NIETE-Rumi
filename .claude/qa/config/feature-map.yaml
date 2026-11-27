@@ -278,6 +278,7 @@ features:
     - bot/workers/attendance-*.worker.js
     - bot/shared/services/roster/**                         # register photos -> a class roster (bd-gr4fy.8 map gap)
     - bot/shared/routes/roster-flow-endpoint.js             # the roster Flow that calls it
+    - bot/shared/services/classes/**                        # ClassService: classes, rosters, enrolments (bd-5b3u70.18)
 
   # The coach's five-minute child test (/egra), epic bd-s1oo0, sandbox only, all @wip until driven.
   # Module layout: golive CONTRACT.md §1 (06_Logs & Misc/Reports/Active/EGRA Student Assessment - Sep 2026).
@@ -752,6 +753,10 @@ web:
       portal/src/portal/pages/PortalClasses.tsx: [TK02]
       dashboard/routes/portal-teacher-attendance.routes.js: [TK01, TK02]
       dashboard/routes/attendance.routes.js: [TK01, TK02]
+      # The class screens save through the bot (portal route → internal API → ClassService: classes, students,
+      # class_enrollments). A change to it runs the scenarios that save through it, and the commit-time sync is told
+      # they cover its writes (spec_sync data_writes[] → a data step there; data E2E, bd-5b3u70.18).
+      bot/shared/services/classes/class.service.js: [TK03, TK04, TK05, TK06]
     teacher-assessment:
       portal/src/portal/teacher/assessment/**: [TA01]
       portal/src/portal/newui/assessment/**: [TA01]
@@ -828,6 +833,9 @@ web:
       - dashboard/routes/portal-fln.routes.js
       - dashboard/services/fln-corpus.service.js
       - dashboard/lib/fln-access.js
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/lp-in-app-feedback.service.js
+      - bot/shared/services/nudges/lp-coaching-ask.service.js
     teacher-coaching:
       - portal/src/portal/teacher/coaching/**
       - portal/src/portal/teacher/observations/**
@@ -836,39 +844,71 @@ web:
       - portal/src/portal/components/RecordingBar.tsx
       - portal/src/portal/components/coaching/**
       - dashboard/routes/portal-teacher-coaching.routes.js
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/coaching/live-moves/**
+      - bot/shared/services/coaching/portal-class-check.js
+      - bot/shared/services/coaching/portal-coaching.service.js
+      - bot/shared/services/observe/portal-observe.service.js
+      - bot/shared/services/quiz/report-page-quiz.js
     teacher-training:
       - portal/src/portal/teacher/training/**
       - portal/src/portal/pages/PortalTraining*.tsx
       - portal/src/portal/pages/PortalVideo*.tsx
       - portal/src/portal/newui/training/**
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/training/band-selection.service.js
+      - bot/shared/services/training/capstone-delivery.service.js
+      - bot/shared/services/training/certificate.service.js
+      - bot/shared/services/training/certificate-pdf.service.js
+      - bot/shared/services/training/quiz-delivery.service.js
     teacher-classes:
       - portal/src/portal/teacher/classes/**
       - portal/src/portal/teacher/attendance/**
       - portal/src/portal/pages/PortalClasses.tsx
       - dashboard/routes/portal-teacher-attendance.routes.js
       - dashboard/routes/attendance.routes.js
+      - bot/shared/services/classes/class.service.js     # the bot service the class screens save through (bd-5b3u70.18)
     teacher-assessment:
       - portal/src/portal/teacher/assessment/**
       - portal/src/portal/pages/PortalAssessment.tsx
       - portal/src/portal/pages/ClassicAssessment.tsx
       - portal/src/portal/pages/PortalReadingAssessment*.tsx
       - portal/src/portal/newui/assessment/**
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/assessment/assessment-request.service.js
     fde-board-pattern:
       - portal/src/portal/teacher/assessment/**        # the door, Check and make, the refusals the app shows
       - dashboard/services/assessment.service.js       # the proxy: pattern/scope, errorCode, 409 passthrough
       - dashboard/lib/assessment-rate-limit.js         # the soft limit (FB06/FB07)
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/assessment/assessment-request.service.js
     web-quiz-child-page:
       - dashboard/routes/web-quiz.routes.js            # /q/<code>: the server-rendered page, og tags, the API proxy to the bot
       - dashboard/routes/web-quiz-class-link.js
       - dashboard/public/wq/**                       # wq.js and friends: the child's page itself
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/quiz/web-quiz*.js
+      - bot/shared/services/quiz/story-teacher.service.js
     coach-portal:
       - portal/src/portal/coach/**
       - dashboard/services/coach-v2.service.js
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/coaching/portal-coaching.service.js
+      - bot/shared/services/observe/portal-observe.service.js
+      - bot/shared/services/observe/observe-schedule.service.js
+      - bot/shared/services/observe/observe-school-admin.service.js
+      - bot/shared/services/observe/observe-teacher-admin.service.js
+      - bot/shared/services/observe/teacher-edit-commit.service.js
     leader-portal:
       - portal/src/portal/pages/Leader*.tsx
       - portal/src/portal/pages/SchoolAnalytics.tsx
       - portal/src/portal/pages/SchoolLessons.tsx
       - dashboard/routes/portal-child-test.routes.js
+      # bot services this area saves through (portal -> /api/internal -> bot); data E2E, bd-5b3u70.19
+      - bot/shared/services/observe/observe-schedule.service.js
+      - bot/shared/services/observe/observe-school-admin.service.js
+      - bot/shared/services/observe/observe-teacher-admin.service.js
+      - bot/shared/services/observe/teacher-edit-commit.service.js
     portal-account:
       - portal/src/portal/pages/PortalAccount.tsx
       - portal/src/portal/pages/PortalPrivacy.tsx

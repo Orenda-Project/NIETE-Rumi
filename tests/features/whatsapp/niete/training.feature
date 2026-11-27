@@ -3260,7 +3260,7 @@ Feature: NIETE (ICT) Teacher Training
   # ab_quiz_practice_door (JSON true or {"on":true,"force_b":[student ids]}); OFF by default.
   # No WhatsApp message is sent to anyone and nothing a teacher sees changes.
   # @no-mock-driver: the door lives on the child's web quiz page (/q/<code>); the mock lane
-  # drives inbound WhatsApp only. Web runs: tests/features/web/web-quiz-child-page.feature WQ286-WQ289.
+  # drives inbound WhatsApp only. Web runs: tests/features/web/web-quiz-child-page.feature WQ287-WQ290.
   @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1252
   Scenario: With the practice door switch off, finishing a lesson quiz is exactly as before
     Given app_settings "ab_quiz_practice_door" is false, missing, or anything but JSON true or {"on":true}

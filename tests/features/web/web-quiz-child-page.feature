@@ -2294,10 +2294,17 @@ Feature: Web child quiz page on the portal
     But any other ex, a locked hub, a teacher's preview or a hub with no child picked shows the hub as today
     And with the class link off, /j/<code>?ex=missing is exactly the page an unknown /q/ code shows
 
+  @WQ286
+  Scenario: A quiz reopened after its saved place has expired starts fresh instead of pretending to save
+    Given a child answered 3 of 5 questions and the phone kept the place
+    And the saved place's session pass is more than 7 days old
+    When the link is opened again
+    Then the page does not offer "Go on: question 4 of 5"
+    And the child is on the landing with no answers sent under the expired pass
 
   # Practice for the child's test (A/B test ict-quiz-practice-door, arm B; app_settings ab_quiz_practice_door, OFF by
   # default). Only a G1-5 English lesson-plan quiz from a teacher's link can offer it; no WhatsApp, nothing shared.
-  @WQ286
+  @WQ287
   Scenario: With the practice door switch off, the finish screen has no door and practice asks are refused
     Given ab_quiz_practice_door is off
     When a child finishes a quiz from a teacher's link
@@ -2305,13 +2312,13 @@ Feature: Web child quiz page on the portal
     And the page never asks for the practice script
     And asking for a practice round or sending one's answers gets "not found"
 
-  @WQ287
+  @WQ288
   Scenario: With the switch on, a quiz that is not a grades 1-5 English lesson quiz shows no door
     Given ab_quiz_practice_door is on
     When a child finishes a grade 4 science quiz
     Then the card is today's card with no "Practise for your test" and practice asks get "not found"
 
-  @WQ288
+  @WQ289
   Scenario: In arm B a child plays a practice round in English or Urdu and sees the lesson's worked answers
     Given ab_quiz_practice_door is {"on":true,"force_b":["<the child's id>"]} and the child finished a grade 3 English lesson-plan quiz
     When the child taps "Practise for your test", picks a topic and starts
@@ -2320,7 +2327,7 @@ Feature: Web child quiz page on the portal
     And there is no share button and no WhatsApp link, and Back returns to the card
     And in Urdu the door reads «اپنے ٹیسٹ کی مشق کریں» and the numbers are Urdu digits
 
-  @WQ289
+  @WQ290
   Scenario: A child in arm B gets at most 3 practice rounds a day
     Given a child in arm B has played 3 practice rounds today (Pakistan time)
     When the child taps "Practise for your test" again
