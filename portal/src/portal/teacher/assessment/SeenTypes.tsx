@@ -125,13 +125,15 @@ export function SeenTypes({ p, set, offered, status, retry, full, over }: {
         </button>}
       </ListCard>
 
-      <Tray open={tray} tall title={C.seenTypesTitle} onClose={() => setTray(false)} closeLabel={C.close} testId="seen-types-tray">
-        <div className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+      <Tray open={tray} tall title={C.seenTypesTitle} onClose={() => setTray(false)} closeLabel={C.close} testId="seen-types-tray"
+        foot={(
+          <div className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
+            <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, offered.length)}</p>
+            <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
+          </div>
+        )}>
+        <div className="flex flex-col">
           {status !== 'ok' ? <LoadState status={status} onRetry={retry} /> : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
-        </div>
-        <div className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
-          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, offered.length)}</p>
-          <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
         </div>
       </Tray>
     </>
