@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T08:44:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-home,coach-portal spec_sync=true","sha":"edc1e0396af9","branch":"bd-q8wt5e.9-68560","user":"Mah Noor"}
+{"ts":"2026-11-27T08:44:27Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-home,coach-portal spec_sync=true","sha":"edc1e0396af9","branch":"bd-q8wt5e.9-68560","user":"Mah Noor"}
+{"ts":"2026-11-27T08:50:00Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"efeccaaf-eb60-49c6-aa20-91b1c93ca8bb","sha":"edc1e0396af9","branch":"bd-q8wt5e.9-68560","user":"Mah Noor"}
