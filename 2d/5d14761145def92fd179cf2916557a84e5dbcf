@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T10:12:34Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"2d5d14761145","branch":"HEAD","user":""}
 {"ts":"2026-11-27T10:12:41Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"2d5d14761145","branch":"HEAD","user":""}
 {"ts":"2026-11-27T10:45:11Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training,web-quiz-child-page=none-needed (superseded: 2d5d147 was rebased to 654ae37, which carries WQ286 and is the commit under test; training has no teacher-visible change)","sha":"2d5d14761145","branch":"bd-7rnfvn-staging","user":""}
+{"ts":"2026-11-27T10:45:12Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-2d5d14761145","sha":"2d5d14761145","branch":"bd-7rnfvn-staging","user":""}
