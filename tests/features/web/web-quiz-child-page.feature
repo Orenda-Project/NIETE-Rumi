@@ -2253,3 +2253,35 @@ Feature: Web child quiz page on the portal
     When a child opens the quiz's start card, in English or in Urdu
     Then the card says "7 questions" / «۷ سوال», the number the child will play, and the link preview says the same
     But a teacher's own quiz counts all its questions as before
+
+  # Practice for the child's test (A/B test ict-quiz-practice-door, arm B; app_settings ab_quiz_practice_door, OFF by
+  # default). Only a G1-5 English lesson-plan quiz from a teacher's link can offer it; no WhatsApp, nothing shared.
+  @WQ287
+  Scenario: With the practice door switch off, the finish screen has no door and practice asks are refused
+    Given ab_quiz_practice_door is off
+    When a child finishes a quiz from a teacher's link
+    Then the finish answer carries no practice door and the card shows no "Practise for your test"
+    And the page never asks for the practice script
+    And asking for a practice round or sending one's answers gets "not found"
+
+  @WQ288
+  Scenario: With the switch on, a quiz that is not a grades 1-5 English lesson quiz shows no door
+    Given ab_quiz_practice_door is on
+    When a child finishes a grade 4 science quiz
+    Then the card is today's card with no "Practise for your test" and practice asks get "not found"
+
+  @WQ289
+  Scenario: In arm B a child plays a practice round in English or Urdu and sees the lesson's worked answers
+    Given ab_quiz_practice_door is {"on":true,"force_b":["<the child's id>"]} and the child finished a grade 3 English lesson-plan quiz
+    When the child taps "Practise for your test", picks a topic and starts
+    Then five questions come one at a time, "Question 1 of 5" to "Question 5 of 5"
+    And the round's result shows the score, the right answer to each miss and "From your lesson" with the lesson plan's worked answer
+    And there is no share button and no WhatsApp link, and Back returns to the card
+    And in Urdu the door reads «اپنے ٹیسٹ کی مشق کریں» and the numbers are Urdu digits
+
+  @WQ290
+  Scenario: A child in arm B gets at most 3 practice rounds a day
+    Given a child in arm B has played 3 practice rounds today (Pakistan time)
+    When the child taps "Practise for your test" again
+    Then a short message says there are no rounds left today and the card stays
+    And the last round's result does not offer "Practise again"

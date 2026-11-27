@@ -743,6 +743,36 @@
       },
       {
         "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/practice\\/start\\/?$/i",
+        "path": "/api/wq/practice/start",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
+        "re": "/^\\/api\\/wq\\/practice\\/finish\\/?$/i",
+        "path": "/api/wq/practice/finish",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "noStore",
+          "configured",
+          "jsonParser",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "name": "bound dispatch",
         "re": "/^\\/j(?:\\/([^/]+?))\\/?$/i",
         "path": "/j/:code",
         "methods": [
