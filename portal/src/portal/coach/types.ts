@@ -34,6 +34,8 @@ export type CoachTeacher = {
   daysSinceVisit: number | null;
   /** bd-o15qnr.11 — shown on Edit teacher */
   isPrincipal?: boolean;
+  /** bd-sf8ioj — this row is the person reading (a principal holding her own school): never offered for a booking */
+  isSelf?: boolean;
   /** bd-o15qnr.13 — her teaching levels (PRIMARY / MIDDLE / HIGH), for Edit teacher; on every row since bd-ewbzns.1 (the filter) */
   levels?: string[];
   lastVisitScore?: number | null;

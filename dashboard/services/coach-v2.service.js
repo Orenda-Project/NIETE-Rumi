@@ -530,6 +530,9 @@ async function loadTeachers(query, leaderUserId, today, role = 'coach') {
       examsGenerated: p.examsGenerated,
       // bd-o15qnr.11 — shown (not edited) on Edit teacher
       isPrincipal: !!p.isPrincipal,
+      // bd-sf8ioj — the person reading: a principal who holds her own school is in her own patch. People and Edit
+      // teacher keep her (15 Sep rule); New visit and her own Schedule visit leave her out (queue #199).
+      isSelf: !!p.rumiUserId && String(p.rumiUserId) === String(leaderUserId),
       // bd-ewbzns.1 — her teaching levels (users.teacher_level), for the Primary / Middle / High filter
       levels: p.levels || [],
       scores: mine.map(scoreOf).filter((s) => s != null),

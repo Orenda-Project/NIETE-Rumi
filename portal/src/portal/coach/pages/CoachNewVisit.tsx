@@ -412,7 +412,11 @@ const CoachNewVisit = () => {
   // fewer (GB today, 11 of 102) a chip would hide teachers who teach at it, so there are none and every school shows.
   const flow = useFlowV2() === true;
   const [pickedLevel] = useLevel();
-  const everyone = useMemo(() => data?.teachers || [], [data]);
+  // bd-sf8ioj (queue #199) — never a visit with herself: a principal holding her own school is in her own patch, so her
+  // row is left out of every list here (the chips, the counts, step 2). `teacher` below still reads the whole patch, so
+  // a visit already booked keeps its Reschedule; the server refuses a new booking of herself.
+  const patch = useMemo(() => data?.teachers || [], [data]);
+  const everyone = useMemo(() => patch.filter((t) => !t.isSelf), [patch]);
   const chipsOn = flow && everyone.length > 0 && everyone.filter((t) => (t.levels ?? []).length > 0).length >= 0.9 * everyone.length;
   const level: TeachingLevel | null = chipsOn ? pickedLevel : null;
   const chipsFor = (counts: Partial<Record<TeachingLevel, number>>) => (chipsOn
@@ -422,7 +426,7 @@ const CoachNewVisit = () => {
   const school = useMemo(() => data?.schools.find((s) => s.schoolExtId === schoolExt), [data, schoolExt]);
   const schoolTeachers = useMemo(() => everyone.filter((t) => t.schoolExtId === schoolExt), [everyone, schoolExt]);
   const teachers = useMemo(() => schoolTeachers.filter((t) => atLevel(t.levels, level)), [schoolTeachers, level]);
-  const teacher = useMemo(() => everyone.find((t) => t.teacherExtId === teacherExt), [everyone, teacherExt]);
+  const teacher = useMemo(() => patch.find((t) => t.teacherExtId === teacherExt), [patch, teacherExt]);
   // At a level: only schools with teachers at it, each counted at that level.
   const schools = useMemo(() => {
     if (!data || !level) return data?.schools || [];
