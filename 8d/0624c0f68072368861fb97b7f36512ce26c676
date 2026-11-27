@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T10:47:53Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"8d0624c0f680","branch":"bd-snkn32.58.17-stg2","user":"Amena Ahmed"}
+{"ts":"2026-11-27T10:48:00Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"8d0624c0f680","branch":"bd-snkn32.58.17-stg2","user":"Amena Ahmed"}
