@@ -5030,7 +5030,7 @@ const UX_STRINGS = {
   },
   qfix_offers_cq_closed_new: {
     en: 'To make a new quiz, send /quiz to us.',
-    ur: 'نیا کوئز بنانے کے لیے ہمیں ⁦/quiz⁩ بھیجیں۔',
+    ur: 'نیا کوئز بنانے کے لیے ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
   // The teacher edits the quiz in the page (the bot's quiz edit routes, /api/internal/wqedit). One line per outcome.
   qfix_offers_cq_edit: {
