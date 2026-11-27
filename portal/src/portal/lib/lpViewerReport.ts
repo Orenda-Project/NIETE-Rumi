@@ -10,7 +10,7 @@ import { browserEnv, getApiBaseUrl } from '@/lib/runtime';
  */
 export type LpViewerFailure = {
   stage: 'download' | 'reader' | 'read' | 'draw';
-  lane: 'k5' | 'g612' | 'paper';
+  lane: 'k5' | 'g612' | 'paper' | 'session' | 'local';
   reason: 'http' | 'network' | 'timeout' | 'abort' | 'unknown';
   status: number | null;
   errName: string | null;

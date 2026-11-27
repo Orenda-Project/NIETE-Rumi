@@ -180,7 +180,7 @@ describe('GET /config — features.newUi', () => {
       'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
       // bd-o15qnr.26 — the coach visit flow v2, a real false unless portal_coach_flow_v2 (with v2 and the full app) names her.
       'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm',
-      'helpVideos',
+      'helpVideos', 'lessonPlanOpen',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.
       // The lesson plan in the app: the survey bar, real false unless portal_lp_feedback_bar names her.
       'lpFeedbackBar', 'lpMakeOwn', 'lpOwnGoalStart', 'lpOwnReviewer', 'lpOwnShelf',

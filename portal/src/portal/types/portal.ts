@@ -229,6 +229,8 @@ export interface SessionDetail extends CoachingSession {
   reportPdfUrl?: string | null;
   lessonPlanUrl?: string | null;
   hasLessonPlan?: boolean;
+  /** bd-kijmb8 — the plan linked to this recording and whether the page can open it (the Lesson plan button). */
+  lessonPlan?: { source: 'library' | 'own' | 'none'; openable: boolean; fileKind: 'pdf' | 'image' | 'word' | null; title: string | null };
   photoUrls?: string[];
   breakdown?: ScoreBreakdown | null;
   reportNarrative?: ReportNarrative | null;
