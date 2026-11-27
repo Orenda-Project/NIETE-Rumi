@@ -101,14 +101,16 @@ async function typesDrawerOnPhone(page, ctx) {
   const m = await page.evaluate(() => {
     const t = document.querySelector('[data-testid="types-tray"]');
     const list = t.querySelector('[data-testid="types-list"]');
+    // the sheet's own body is the one scroller (Tray tray-body); count + Done are its foot, outside it (bd-q8wt5e.15)
+    const body = t.querySelector('[data-testid="tray-body"]');
     const foot = t.querySelector('[data-testid="types-foot"]');
     const close = t.querySelector('button[aria-label]');
     const r = (el) => el.getBoundingClientRect();
     const onScreen = (el) => { const b = r(el); return b.top >= 0 && b.bottom <= innerHeight + 0.5; };
     const boxes = [...list.querySelectorAll('[role="checkbox"]')];
-    const reached = boxes.filter((b) => { b.scrollIntoView({ block: 'nearest' }); const lb = r(list), bb = r(b);
+    const reached = boxes.filter((b) => { b.scrollIntoView({ block: 'nearest' }); const lb = r(body), bb = r(b);
       return bb.top >= lb.top - 0.5 && bb.bottom <= lb.bottom + 0.5 && onScreen(b); }).length;
-    return { rows: boxes.length, reached, scrolls: list.scrollHeight > list.clientHeight + 1,
+    return { rows: boxes.length, reached, scrolls: body.scrollHeight > body.clientHeight + 1,
       footOnScreen: onScreen(foot), closeOnScreen: onScreen(close) };
   });
   expect(m.rows === 18, `the drawer should list 18 types, got ${m.rows}`);
