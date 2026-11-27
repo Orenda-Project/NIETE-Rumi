@@ -45,6 +45,16 @@ function goalBoxK5(script, goal) {
   return { ...script, goal: String(goal.text).trim() };
 }
 
+/**
+ * bd-snkn32.58.9 — what the checker reads of a grades 1–5 plan: her goal and the five taught sections. The book day's
+ * labels (meta, sloFull, sloCode) stay on her plan but are not shown: live re-runs refused letter plans for a haiku label.
+ */
+const K5_TAUGHT = ['goal', 'hook', 'iDo', 'weDo', 'youDo', 'wrap'];
+function forCheck(doc, band) {
+  if (band !== 'k5' || !doc || typeof doc !== 'object') return doc;
+  return Object.fromEntries(K5_TAUGHT.filter((k) => doc[k] !== undefined).map((k) => [k, doc[k]]));
+}
+
 const GOAL_LEAD = "Today's goal: ";
 
 /** Grades 6–12: "Today's goal: …" once, as the last objective. A new document. */
@@ -67,7 +77,7 @@ async function goalGate(d, { row, band, doc, grade, rewrite, correlationId }) {
   const boxed = box(doc, goal);
   const r = await checkBeforeReady({
     doc: boxed,
-    check: (x) => d.goalCheck({ plan: JSON.stringify(x), goal, grade }),
+    check: (x) => d.goalCheck({ plan: JSON.stringify(forCheck(x, band)), goal, grade }),
     fix: async (found) => { const next = await rewrite(boxed, fixInstruction(found, goal)); return next ? { doc: box(next, goal) } : null; },
   });
   d.log('own_plan.check', { ownId: row.id, band, result: r.verdict, findings: r.findings, correlationId });
@@ -75,4 +85,4 @@ async function goalGate(d, { row, band, doc, grade, rewrite, correlationId }) {
   return r.doc;
 }
 
-module.exports = { checkBeforeReady, fixInstruction, goalBoxK5, goalBox612, goalGate, passed, GOAL_LEAD };
+module.exports = { checkBeforeReady, fixInstruction, forCheck, goalBoxK5, goalBox612, goalGate, passed, GOAL_LEAD };

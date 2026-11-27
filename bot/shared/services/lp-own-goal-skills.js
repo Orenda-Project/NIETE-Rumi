@@ -6,11 +6,11 @@
  * The matrix (assessment_topics) is one row per chapter-sized topic, each carrying several official SLOs. A goal here is
  * one SLO: deduped by code, then by text; matrix working notes ("[DERIVED …]") are page notes, not skills, and are
  * hidden. The code's strand (M-03-MU-04 → MU) names the group; the labels live in the portal (goalCopy, en + ur), so
- * this module hands back keys only. Each goal is written over the day of the FIRST topic (book order) that carries it.
+ * this module hands back keys only. Each goal is written over the FIRST topic (book order) that carries it, on that topic's day whose title shares its words.
  *
  * Pure: no I/O. Rows come out in lp612-own-goal's row shape (one slo_description each) plus `slo_code` and `group`.
  */
-const { dayFor } = require('./lp-k5-own-goal');
+const { dayForGoal } = require('./lp-k5-own-goal');
 
 /** Strand → group, per matrix subject. Our grouping, not official wording. */
 const GROUPS = {
@@ -66,13 +66,12 @@ function skillRows(topics, book, subject) {
     const descs = Array.isArray(t.slo_descriptions) ? t.slo_descriptions : [];
     const cs = Array.isArray(t.slo_codes) ? t.slo_codes : [];
     const paired = cs.length === descs.length; // codes and texts that do not line up: texts only
-    let day;
     descs.forEach((raw, i) => {
       if (DERIVED.test(String(raw || ''))) return;
       const text = tidy(raw);
       const code = paired ? cs[i] || null : null;
       if (!text || texts.has(text.toLowerCase()) || (code && codes.has(code))) return;
-      if (day === undefined) day = dayFor(t, book);
+      const day = dayForGoal(t, book, text); // bd-snkn32.58.9 — the topic's day that teaches this goal
       if (!day) return;
       if (code) codes.add(code);
       texts.add(text.toLowerCase());
