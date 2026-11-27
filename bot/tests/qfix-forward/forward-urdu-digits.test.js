@@ -24,6 +24,20 @@ describe('Urdu digits in Urdu prose', () => {
     expect(en).toMatch(/about 5 minutes/);
   });
 
+  // The handoff fills {date} from formatLessonDate, which keeps Western digits for its teacher callers.
+  test.each([[true], [false]])('the class message (web %s): the {date} reads ۲۵ نومبر in Urdu, English is unchanged', (web) => {
+    const { formatLessonDate } = require('../../shared/services/quiz/transcript-quiz-language');
+    const iso = '2026-11-25T05:00:00Z';
+    const link = 'https://x.test/q/AB12CD';
+    const ur = Gen.studentMessage({ teacherName: 'Sana', topic: 'Plants', date: formatLessonDate(iso, 'ur'), link, language: 'ur', web });
+    expect(ur).toMatch(/۲۵ نومبر/);
+    expect(ur).toMatch(/۵ منٹ/);
+    expect(ur.replace(link, '')).not.toMatch(/[0-9]/);
+    const en = Gen.studentMessage({ teacherName: 'Sana', topic: 'Plants', date: formatLessonDate(iso, 'en'), link, language: 'en', web });
+    expect(en).toBe(Gen.studentMessage({ teacherName: 'Sana', topic: 'Plants', date: '25 Nov', link, language: 'en', web }));
+    expect(en).toMatch(/on 25 Nov\./);
+  });
+
   test("a teacher template's class line keeps Western digits: جماعت 4 in Urdu, Grade 4 in English", () => {
     const body = (lang) => ShareSend.componentsFor({ kind: 'quiz', grade: 4, subject: 'Science', title: 'Plants' }, { lang })
       .find((c) => c.type === 'body').parameters[1].text;
