@@ -3025,7 +3025,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
     // The home on: the card and one next thing (before the Jugnu card, whose file is then never asked for).
-    if (foldOn(res)) return foldCard(res, c, total, res.card_v3 && window.WQFC ? window.WQFC : null);
+    // The practice door (wq-practice.js, A/B test ict-quiz-practice-door arm B; sent only when finish offers it): under
+    // the score, a class child's own run only. Without finish's practice_door the card is today's, byte for byte.
+    var pd = res.practice_door && !friend ? practiceDoor() : '';
+    if (foldOn(res)) return foldCard(res, c, total, res.card_v3 && window.WQFC ? window.WQFC : null, pd);
     // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
     var jc = res.jugnu_card && !friend ? jugnuCard() : '';
     // The finish card (wq-finish-card.js, finish's card_v3): the deed above the score, the Next tile, the class share.
@@ -3064,7 +3067,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       (fc ? fc.quizDeedHtml(LANG) : '') + '<div class="wq-big">' + esc(scoreN(c.correct)) + '/' + esc(scoreN(total)) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      jc + (fc ? fc.nextHtml(LANG, res.next_offer) : '') + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
+      jc + pd + (fc ? fc.nextHtml(LANG, res.next_offer) : '') + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
@@ -3072,6 +3075,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     libPrefetch();
     wireBar();
     if (jc) window.WQCARD.wire(jcCtx());
+    if (pd) window.WQPRAC.wire(pdCtx());
     // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
     // Once per finished session: the card re-renders on Back from the share screen, the class table or the league,
@@ -3161,7 +3165,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       .replace('</b><br>', '</b> ');
   }
   function foldNotes(practice, box) { var cb = cbFold(practice, box); return cb || practice + box; }
-  function foldCard(res, c, total, fc) {
+  function foldCard(res, c, total, fc, pd) {
     var nx = foldOffer(res.next_offer);
     var kept = c.practice && c.kept ? c.kept : null;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
@@ -3174,7 +3178,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       (fc ? fc.quizDeedHtml(LANG) : '') + '<div class="wq-big">' + esc(scoreN(c.correct)) + '/' + esc(scoreN(total)) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes +
+      notes + (pd || '') +
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
@@ -3185,6 +3189,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-ghost" id="wq-fhome" data-home>' + esc(T.homeBtn) + '</button>';
     render(h, 'M10');
     wireBar();
+    if (pd) window.WQPRAC.wire(pdCtx());
     // a tap while offline (the quiz's offline_guard): the card's Next waits for the connection (wq-finish-card.js)
     if (B.offline_guard === true && fc && fc.og) fc.og(LANG);
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
@@ -3440,6 +3445,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (document.head || document.body).appendChild(el);
     } catch (e) {}
     return '';
+  }
+  // wq-practice.js, asked for once and only when finish offers the door (as jugnuCard above)
+  var pdAsked = false;
+  function practiceDoor() {
+    if (window.WQPRAC) return window.WQPRAC.html(pdCtx());
+    if (pdAsked) return '';
+    pdAsked = true;
+    try {
+      var own = document.querySelector && document.querySelector('script[src*="/wq/wq.js"]');
+      var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+      var el = document.createElement('script');
+      el.src = '/wq/wq-practice.js' + (v ? '?v=' + v[1] : '');
+      el.onload = function () { if (window.WQPRAC && ROOT.getAttribute('data-m') === 'M10') card(); };
+      (document.head || document.body).appendChild(el);
+    } catch (e) {}
+    return '';
+  }
+  function pdCtx() {
+    return { res: S.result || {}, lang: LANG, T: { oops: T.oops, offline: T.offline }, esc: esc, num: scoreN,
+      render: render, on: on, api: api, toast: toast, st: S.st, back: card };
   }
   function jcCtx() {
     return { res: S.result || {}, lang: LANG, mascot: MASC, first: S.child && S.child.first, T: { play: T.play, oops: T.oops, offline: T.offline },
