@@ -1,0 +1,1 @@
+{"ts":"2026-11-27T09:26:34Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py data_writes.py tenants_lite.py check-scenario-coverage.py","sha":"0d530efc7753","branch":"bd-zrdvmi.84.1-main","user":""}
