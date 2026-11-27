@@ -176,6 +176,17 @@ describe('path-for-path forwarding', () => {
     expect(r.status).toBe(302);
     expect(r.headers.location).toBe('https://wa.me/?text=hello');
   });
+  test('cl (bd-pdwwk4.6.20 Share with your class): the class (uuid) and lang reach the bot, nothing else; its 302 to wa.me is passed on', async () => {
+    await boot({ status: 302, location: 'https://wa.me/?text=https%3A%2F%2Fq%2Fj%2FX%3Ff%3D1', bytes: Buffer.alloc(0) });
+    const r = await request('GET', `/quiz/teacher/${TOK}/cl?class=${UUID}&lang=ur&evil=1`);
+    await request('GET', `/quiz/teacher/${TOK}/cl?class=nope&lang=fr`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/quiz/teacher/${TOK}/cl?class=${UUID}&lang=ur`,
+      `/api/internal/th/quiz/teacher/${TOK}/cl`,
+    ]);
+    expect(r.status).toBe(302);
+    expect(r.headers.location).toBe('https://wa.me/?text=https%3A%2F%2Fq%2Fj%2FX%3Ff%3D1');
+  });
   test('home: only t, g (1-5), lang forwarded', async () => {
     await boot(ok);
     await request('GET', `/api/th/home?t=${TOK}&g=3&lang=en&evil=1`);

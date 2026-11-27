@@ -21,6 +21,8 @@
  *   POST /api/th/confirm {t, looseId, candidateId, decision: same|no|unsure}   one confirm row → 204
  *   POST /api/th/step {t, step, kind?, id?, origin?}   page events → 204 (share_tap logs teacher_send)
  *   GET  /quiz/teacher/:token/send?c&o&lang   a library code's send: marked sent here, teacher_send, 302 → wa.me
+ *   GET  /quiz/teacher/:token/cl?class&lang   "Share with your class" (web_quiz_class_link_share, bd-pdwwk4.6.20): the
+ *                                        class link's forward logged + marked sent (teacher-home.classlink), 302 → wa.me
  *   GET  /quiz/teacher/:qf/fwd           the one tap from a WhatsApp message (quiz-forward.js; :qf is a 'qf' token, never
  *                                        a home token): quiz_forward_tap, 302 → wa.me/?text=<the class message>
  *                                        (whatsapp://send?text= when the UA is WhatsApp's own browser)
@@ -68,6 +70,7 @@ const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
 const StaleWords = require('./teacher-stories-stale.flag');
 const Forward = require('./quiz-forward');
+const ClassLinkShare = require('./teacher-home.classlink');
 // a share code → web_quiz.page_open's own hash of it, for a forward tap's code_h (lazy: the web quiz service is loaded
 // only when a tap is logged); null without a code, a secret, or on anything thrown
 const codeHOf = (code) => { try { return typeof code === 'string' && code ? require('../quiz/web-quiz.service').codeHash(code) || null : null; } catch (_) { return null; } };
@@ -133,6 +136,7 @@ function createRouter(deps = null) {
     req.thPortal = sw ? sw.then((v) => v[Flags.PORTAL_LINK_KEY] === true) : null;
     req.thOne = sw ? sw.then((v) => v[Flags.ONE_LESSON_KEY] === true) : null;
     req.thForward = sw ? sw.then((v) => v[Flags.FORWARD_KEY] === true) : null;
+    req.thClassLink = sw ? sw.then((v) => v[Flags.CLASS_LINK_SHARE_KEY] === true) : null; // bd-pdwwk4.6.20
     req.thReports = sw ? sw.then((v) => v[Flags.REPORTS_KEY] === true) : null;
     return next();
   });
@@ -201,6 +205,8 @@ function createRouter(deps = null) {
   }
   const dropPlayed = (uid) => { drops += 1; memo.delete(uid); };
   /** The "Quiz reports" section's links (quiz_teacher_home_reports on), for every quiz the home lists; a slow read → none. */
+  /** "Share with your class" (web_quiz_class_link_share): the home's `classLink`; off, failed or slow → none (no key). */
+  const classLinkOf = (uid, lang) => Data.within(ClassLinkShare.forHome(uid, lang).catch(() => null), Data.SIDE_BUDGET_MS, null, 'class link');
   const reportsOf = (uid, played, shares, lang) => Data.within(Data.reportsFor(uid, [...played.keys(), ...shares.map((x) => x.quizId)], deps, { lang }), Data.SIDE_BUDGET_MS, { links: new Map(), rounds: null }, 'quiz reports');
   const withReports = (rp) => (rp ? { reportLinks: rp.links, rounds: rp.rounds } : {});
   const langFor = (p, req) => Page.pageLang(p.lang, asked(req.query && req.query.lang)).lang;
@@ -370,7 +376,8 @@ function createRouter(deps = null) {
     // A74: the lesson plan's page names its lesson (its provider's own read, this teacher's only; none or slow → today's page)
     const lessonTitle = lesson ? await Send.lessonTitleOf(v.ok.uid, lesson, deps) : null;
     const forward = (await req.thForward) === true;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(lessonTitle ? { lessonTitle } : {}), ...(forward ? { forward: true } : {}), ...(reports === true ? { reports: true } : {}) });
+    const classLink = !one && !lesson && (await req.thClassLink) === true;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}), ...(one ? { one } : {}), ...(lesson ? { lesson } : {}), ...(lessonTitle ? { lessonTitle } : {}), ...(forward ? { forward: true } : {}), ...(reports === true ? { reports: true } : {}), ...(classLink ? { classLink: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -431,6 +438,7 @@ function createRouter(deps = null) {
     if (!user) { headers(res); res.status(404).json({ error: 'mk.stale' }); return; }
     const namedP = MoreFlags.namedOn(); // once the teacher is known (a gone teacher costs no more reads); awaited with the lists
     const countsP = Data.within(storyCountsOf(p.uid), Data.SIDE_BUDGET_MS, null, 'story counts'); // the same, as on the full answer
+    const clP = classLinkOf(p.uid, langFor(p, req));
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const rp = (await reportsOnP) ? await reportsOf(p.uid, lists.played, lists.shares, lang) : null;
     const home = Model.buildHome({
@@ -441,6 +449,8 @@ function createRouter(deps = null) {
     const counts = await countsP;
     if (counts && home.library) home.library.counts = counts;
     if (walk) home.walk = walk;
+    const cl = await clP;
+    if (cl) home.classLink = cl;
     // the class card's "Send again" from the rows already read; anything else (a library pick) as on the full answer
     const top = home.primary;
     const own = top && top.kind === 'class' && top.again && top.again.sendKind === 'again' && lists.sendRows ? lists.sendRows.get(top.again.id) : null;
@@ -531,6 +541,8 @@ function createRouter(deps = null) {
     if (counts && home.library) home.library.counts = counts;
     const walk = await walkRow(change, lang);
     if (walk) home.walk = walk;
+    const cl = await classLinkOf(p.uid, lang);
+    if (cl) home.classLink = cl;
     home.primary = (await withSend(home.primary, p, lang)) || (maker ? { kind: 'make', href: maker } : { kind: 'none' });
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
@@ -717,6 +729,19 @@ function createRouter(deps = null) {
     await sent(p, { kind: 'video', origin, again: origin === 'again', id: out.quizId || null, c, qa: Forward.isWalk(req.get('user-agent')) }); // a failed mark never blocks the send
     headers(res);
     return res.redirect(302, out.wa);
+  }));
+
+  // "Share with your class" (bd-pdwwk4.6.20): the class link's own forward, logged and marked sent on the server, then
+  // 302 → wa.me with the link only. Off, not this teacher's class, or not a class id → the error page, nothing logged.
+  router.get('/quiz/teacher/:token/cl', handlePage(async (req, res) => {
+    const v = HomeToken.verifyTeacherHome(req.params.token);
+    if (!v) return messagePage(res, 404, 'mk.stale', clampLanguage(asked(req.query.lang)), req);
+    if (v.stale) return messagePage(res, 200, 'mk.stale', v.stale.lang === 'en' ? 'en' : 'ur', req);
+    const lang = Page.pageLang(v.ok.lang, asked(req.query.lang)).lang;
+    const href = await ClassLinkShare.sendHref({ uid: v.ok.uid, classId: req.query.class, ua: req.get('user-agent') || null }).catch(() => null);
+    if (!href) return messagePage(res, 404, 'mk.error', lang, req);
+    headers(res);
+    return res.redirect(302, href);
   }));
 
   // The one tap from a WhatsApp message (quiz-forward.js): a 'qf' token names one class message and nothing else. The

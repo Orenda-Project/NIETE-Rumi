@@ -142,7 +142,7 @@ describe("ClassLinkCard: tonight's evening round", () => {
   });
 
   it("a ready round with no lesson title: the line without one", async () => {
-    on({ classes: [{ ...C1, round: { lesson: null, played: 0 } }], reportHref: null });
+    on({ classes: [{ ...C1, sent: true, round: { lesson: null, played: 0 } }], reportHref: null });
     render(<ClassLinkCard />);
     await flush();
     expect(screen.getByTestId("class-link-round").textContent).toBe(EN.readyNoLesson);
@@ -171,7 +171,7 @@ describe("ClassLinkCard: Urdu", () => {
     expect(UR.classLabel(3, "A")).toBe("کلاس 3 A");
     expect(screen.getByRole("link", { name: UR.send })).toBeTruthy();
     expect(screen.getByRole("button", { name: UR.copy })).toBeTruthy();
-    expect(screen.getByTestId("class-link-round").textContent).toBe(UR.ready("جمع کے سوال"));
+    expect(screen.getByTestId("class-link-round").textContent).toBe(UR.readyUnsent("جمع کے سوال")); // unsent: send the link (bd-pdwwk4.6.20)
     expect(UR.ready("X")).toContain("⁨X⁩");
   });
 });

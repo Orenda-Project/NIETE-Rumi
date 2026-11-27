@@ -30,7 +30,7 @@ export type ClassLinkClass = {
   sent: boolean;
   round: ClassLinkRound | null;
 };
-export type ClassLinkPayload = { classes: ClassLinkClass[]; reportHref: string | null };
+export type ClassLinkPayload = { classes: ClassLinkClass[]; reportHref: string | null; top?: boolean };
 
 const HTTPS = /^https:\/\//;
 const WA_ME = /^https:\/\/wa\.me\//;
@@ -55,17 +55,20 @@ export function readPayload(data: unknown): ClassLinkPayload | null {
   }));
   if (!classes.length) return null;
   const reportHref = typeof d.reportHref === 'string' && HTTPS.test(d.reportHref) ? d.reportHref : null;
-  return { classes, reportHref };
+  return { classes, reportHref, ...(d.top === true ? { top: true } : {}) };
 }
 
 const tap = (classId: string, how: 'forward' | 'copy') => {
   void api.post('/class-link/tap', { classId, how }).catch(() => undefined);
 };
 
-function RoundLine({ round, reportHref }: { round: ClassLinkRound; reportHref: string | null }) {
+function RoundLine({ round, reportHref, unsent = false }: { round: ClassLinkRound; reportHref: string | null; unsent?: boolean }) {
   const C = useCopy(CLASS_LINK);
   const played = round.played > 0;
-  const text = played ? C.played(round.played) : round.lesson ? C.ready(round.lesson) : C.readyNoLesson;
+  // bd-pdwwk4.6.20: never "nothing to send" while the class link has not gone out (no child can reach the round)
+  const text = played ? C.played(round.played)
+    : unsent ? (round.lesson ? C.readyUnsent(round.lesson) : C.readyUnsentNoLesson)
+    : round.lesson ? C.ready(round.lesson) : C.readyNoLesson;
   return (
     <div data-testid="class-link-round" className="flex items-start gap-3 rounded-[12px] bg-[#f4f5f8] p-3">
       <Moon className="mt-0.5 h-5 w-5 shrink-0 text-[#33374a]" strokeWidth={2.2} aria-hidden="true" />
@@ -104,7 +107,7 @@ function ClassBlock({ c, first, showBody, reportHref, onSent }: { c: ClassLinkCl
     timer.current = setTimeout(() => setCopied('idle'), OPEN_HOLD_MS);
   };
 
-  const round = c.round ? <RoundLine round={c.round} reportHref={reportHref} /> : null;
+  const round = c.round ? <RoundLine round={c.round} reportHref={reportHref} unsent={!c.sent && copied === 'idle'} /> : null;
   const edge = first ? '' : cn(ROW_DIVIDER, 'pt-4');
 
   if (c.sent && copied === 'idle') {
@@ -160,20 +163,38 @@ function ClassBlock({ c, first, showBody, reportHref, onSent }: { c: ClassLinkCl
   );
 }
 
-export function ClassLinkCard() {
+/**
+ * bd-pdwwk4.6.20 "Share with your class": Home mounts two slots, and exactly one draws the card. `top` (above the tiles)
+ * only when the server says top:true (switch web_quiz_class_link_share) AND a class's link was not sent this term, as it
+ * read on load (a Send there folds the class in place, it never jumps); `bottom` (the default, today's place) in every
+ * other case. The two slots mounted together share ONE /class-link ask (the one still on its way).
+ */
+let inFlight: Promise<ClassLinkPayload | null> | null = null;
+function loadOnce(): Promise<ClassLinkPayload | null> {
+  if (!inFlight) {
+    const p = api.get('/class-link').then(({ data: body }) => readPayload(body));
+    inFlight = p;
+    const done = () => { if (inFlight === p) inFlight = null; };
+    p.then(done, done);
+  }
+  return inFlight;
+}
+export const drawsAt = (d: ClassLinkPayload): 'top' | 'bottom' => (d.top === true && d.classes.some((c) => !c.sent) ? 'top' : 'bottom');
+
+export function ClassLinkCard({ slot = 'bottom' }: { slot?: 'top' | 'bottom' } = {}) {
   const C = useCopy(CLASS_LINK);
   const [data, setData] = useState<ClassLinkPayload | null>(null);
   const [sentHere, setSentHere] = useState<Record<string, true>>({});
 
   useEffect(() => {
     let live = true;
-    api.get('/class-link')
-      .then(({ data: body }) => { if (live) setData(readPayload(body)); })
+    loadOnce()
+      .then((d) => { if (live) setData(d); })
       .catch(() => { /* off (404) or unreadable: nothing drawn */ });
     return () => { live = false; };
   }, []);
 
-  if (!data) return null;
+  if (!data || drawsAt(data) !== slot) return null;
   const onSent = (id: string) => setSentHere((s) => ({ ...s, [id]: true }));
   // The card's one sentence sits in the first class still to send (none once every link went out).
   const firstOpen = (data.classes.find((c) => !c.sent && !sentHere[c.classId]) || { classId: null }).classId;

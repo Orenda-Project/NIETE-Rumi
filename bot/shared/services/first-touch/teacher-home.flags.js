@@ -11,7 +11,7 @@
  * changes behaviour never rides `quiz_teacher_home`: it gets its own read, or joins PAGE_KEYS
  * (the strict page read below).
  *
- * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice, one_lesson, forward, reports]
+ * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, portal_link, practice, one_lesson, forward, reports, class_link_share]
  * (`quiz_teacher_home_grade_fast`: the grade chips answer from the page; `quiz_teacher_home_portal_link`: "Open my
  * portal" in the foot; `web_quiz_practice_play`: "Try it as a student" for every teacher; `quiz_teacher_home_one_lesson`:
  * the page opened with ?session=<coaching session id> makes that one lesson's quiz instead of showing the list;
@@ -44,7 +44,10 @@ const FORWARD_KEY = 'quiz_forward_button';
 // true only); the report page reads the same row through quiz/report-late-flag
 const REPORTS_KEY = 'quiz_teacher_home_reports';
 // the page switches: one list, one read, one cache. A key added here is read in the same one `.in`.
-const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PORTAL_LINK_KEY, PRACTICE_KEY, ONE_LESSON_KEY, FORWARD_KEY, REPORTS_KEY];
+// bd-pdwwk4.6.20 "Share with your class": the shell's section and script part (teacher-home.classlink.js); the home's
+// data is drawn only with web_quiz_class_link on too (web-quiz-class-link-flags.js shareOn), else the section stays hidden
+const CLASS_LINK_SHARE_KEY = 'web_quiz_class_link_share';
+const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PORTAL_LINK_KEY, PRACTICE_KEY, ONE_LESSON_KEY, FORWARD_KEY, REPORTS_KEY, CLASS_LINK_SHARE_KEY];
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let pageCache = null; // { at, on: { [key]: boolean } }
@@ -129,5 +132,5 @@ function reset() { cache = null; pageCache = null; timingCache = null; }
 
 module.exports = {
   on, paged, gradeFast, wait, practice, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PRACTICE_KEY, TIMING_KEY,
-  PORTAL_LINK_KEY, ONE_LESSON_KEY, FORWARD_KEY, REPORTS_KEY, PAGE_KEYS, TTL_MS,
+  PORTAL_LINK_KEY, ONE_LESSON_KEY, FORWARD_KEY, REPORTS_KEY, CLASS_LINK_SHARE_KEY, PAGE_KEYS, TTL_MS,
 };

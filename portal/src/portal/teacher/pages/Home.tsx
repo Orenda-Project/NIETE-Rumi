@@ -139,6 +139,8 @@ export default function Home() {
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
         {slim ? null : activity}
         {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
+        {/* bd-pdwwk4.6.20 — the class link card above the tiles while a link is unsent (web_quiz_class_link_share). */}
+        <ClassLinkCard slot="top" />
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
           {drawn}
@@ -173,6 +175,8 @@ export default function Home() {
           "Ready for you" above them (a heading on grey) the band simply ends, so no text lands on the navy. */}
       {/* bd-fmf24g.15 — the finished papers and plans she has not opened (nothing drawn when there are none). */}
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
+      {/* bd-pdwwk4.6.20 — the class link card above the tiles while a link is unsent (web_quiz_class_link_share). */}
+      <ClassLinkCard slot="top" />
       <FeatureMotionProvider>
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
         {tiles.map(({ key, art, label }) => (

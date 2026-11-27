@@ -13,7 +13,8 @@
  *                             was sent or copied from the app this term. `round` (evening round on, a READY round
  *                             today): {lesson, played} — `played` counts children (each once) with a finished sitting;
  *                             never a name. `reportHref`: the teacher report's "Evening rounds" section, once a child
- *                             has played.
+ *                             has played. `top: true` (switch web_quiz_class_link_share, bd-pdwwk4.6.20): the app draws
+ *                             the card above the tiles while a class's link is unsent; off, no such key.
  *   tap({teacherId, classId, how, ua})  Send ('forward') or Copy ('copy') from the card: forwardHref logs the forward
  *                             lane's quiz_forward_tap{surface 'class_link'} under that bare name, as every other
  *                             surface logs it (quiz-forward.js), and the
@@ -125,7 +126,8 @@ async function forApp(teacherId, { now = new Date() } = {}) {
   }
   cards.forEach((c) => { c.round = rounds.get(String(c.classId)) || null; });
   const reportHref = cards.some((c) => c.round && c.round.played > 0) ? reportHrefFor(teacherId) : null;
-  return { classes: cards, reportHref };
+  // "Share with your class" (web_quiz_class_link_share): the app draws the card above the tiles while a link is unsent
+  return { classes: cards, reportHref, ...((await Flags.shareOn()) ? { top: true } : {}) };
 }
 
 async function tap({ teacherId, classId, how = 'forward', ua = null } = {}) {
