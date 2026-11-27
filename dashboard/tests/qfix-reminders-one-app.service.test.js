@@ -6,7 +6,7 @@
  * had an id keeps its old id (Chrome does not move it), so the page remembers on this origin that the phone has the
  * app: localStorage wq_app = '1' on appinstalled and whenever a page runs as the installed app. While it is set, the
  * finish card is not drawn (one install_prompt step 'had_app' says so); storage trouble draws the card as before. The hub
- * card skips the same way: an old hub app's own id differs from '/wq/jugnu', so Chrome offers again on the hub (red 173006).
+ * card skips the same way: an old hub app's own id differs from '/wq/jugnu', so Chrome offers again on the hub.
  * Fake DOM; invented values.
  */
 const fs = require('fs');
@@ -46,7 +46,7 @@ describe('both doors carry one manifest id', () => {
     expect(hub.id).toBe(fin.id);
     expect(fin).toMatchObject({ id: '/wq/jugnu', start_url: '/q/AB12CD?from=hs', scope: '/' });
   });
-  // lead-review 161809: the finish door's manifest is byte-unchanged (the body served on sandbox ec137fcdbe).
+  // The finish door's manifest is byte-unchanged (the body served before this change).
   test('the finish manifest is byte-unchanged', async () => {
     expect((await get('/q/AB12CD/manifest.webmanifest')).body).toBe(FINISH_MANIFEST);
   });
