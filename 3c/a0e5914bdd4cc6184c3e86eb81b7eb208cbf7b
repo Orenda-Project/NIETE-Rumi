@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T11:58:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons,coach-portal,leader-portal spec_sync=true","sha":"3ca0e5914bdd","branch":"bd-q8wt5e.6.6-73845","user":"Mah Noor"}
+{"ts":"2026-11-27T11:58:10Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-lessons,coach-portal,leader-portal spec_sync=true","sha":"3ca0e5914bdd","branch":"bd-q8wt5e.6.6-73845","user":"Mah Noor"}
+{"ts":"2026-11-27T12:10:33Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-lessons=none-needed (3ca0e5914b: web driver code and id renames only; no portal behaviour changed)","sha":"3ca0e5914bdd","branch":"bd-q8wt5e.6.6-73845","user":"Mah Noor"}
