@@ -65,7 +65,7 @@
  */
 
 const { REGION_BUCKETS, bucketOf } = require('./schools-analytics.service');
-const { onFdeList, populationSectors, noSchoolId } = require('../lib/analytics-lists');
+const { onFdeList, noSchoolId } = require('../lib/analytics-lists');
 const { PER_MODULE_SOURCE_BASE } = require('../../bot/shared/services/training/isaps-module-exam.rules');
 
 /** The RDF's two certificate cards, by programme key (render.py CERT_PROGRAMMES). */
@@ -261,14 +261,13 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
   const src = rows || {};
   const catalogue = readCatalogue(src.partners);
   const lists = src.lists || null;
-  // The RDF's uid2sect (any role) when stored; else the two teacher populations' sectors; else (null) v7's.
-  const rdfSectors = lists && lists.sectorByUser instanceof Map ? lists.sectorByUser : populationSectors(lists);
   const schoolListUsable = !!(lists && lists.fdeSchoolEmis instanceof Set && !(lists.missing && lists.missing.schools));
   const schoolsById = new Map((src.schools || []).map((s) => [s.id, s]));
-  // FAIL-CLOSED: without the teacher lists, v7's sector — her school's, when it counts.
-  const sectorOf = rdfSectors
-    ? (m) => bucketOf(rdfSectors.get(m.user_id), regionList) || null
-    : (m) => countedBucket(schoolsById.get(m.school_id), regionList);
+  // bd-tsa15l: her sector is her school's (the RDF's live roster, v45), never the August allocation.
+  const sectorOf = (m) => {
+    const s = schoolsById.get(m.school_id);
+    return (s && bucketOf(s.region, regionList)) || null;
+  };
   // FAIL-CLOSED: without the school list, v7's schools — every counted one.
   const listed = (s) => (schoolListUsable ? onFdeList(lists, s.emis) : countedBucket(s, regionList) !== null);
   // Whose member she is when no sector places her (WHOSE MEMBERS, in the header).
@@ -295,6 +294,12 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
 
   for (const m of src.members || []) {
     if (!m || !band.has(m)) continue;
+    // bd-tsa15l: in FDE's view a member counts only at a school on the programme list (no school, or an off-list one,
+    // is nobody's). Another organization's areas (keepsUnplaced false) keep the rule they had.
+    if (keepsUnplaced) {
+      const own = schoolsById.get(m.school_id);
+      if (!own || !listed(own)) continue;
+    }
     const sector = sectorOf(m);
     if (!counts(m, sector)) continue;
     addMember(sector ? regionAcc.get(sector) : noSector, m, ladder, catalogue, bandKey);
@@ -443,8 +448,9 @@ function trainingStatesSql() {
      WHERE v.key = '${NIETE_VENDOR_KEY}' AND l.is_active
   ),
   members AS MATERIALIZED (
-    -- the RDF's population: an ACTIVE assignment on the primary or middle/high programme, the user row live (no
-    -- deleted_at, the phone not a merged: tombstone); any role, any school or none. Middle / high from teacher_level.
+    -- the canonical ICT teacher: an ACTIVE assignment on the primary or middle/high programme, the user row live (no
+    -- deleted_at, the phone not a merged: tombstone), role teacher, not a test account (FDE's view then needs a
+    -- programme school: the summariser; Moawin's areas keep their schoolless members). Middle / high from teacher_level.
     -- users.region rides along: whose member she is when no school places her (bd-97daxo.3).
     SELECT u.id AS user_id, u.school_id, u.region, pm.primary_cohort, pm.mh_cohort,
            ${band("= 'MIDDLE'")} AS middle_band,
@@ -461,6 +467,9 @@ function trainingStatesSql() {
       JOIN users u ON u.id = pm.user_id
      WHERE u.deleted_at IS NULL
        AND COALESCE(u.phone_number, '') NOT LIKE 'merged%'
+       -- bd-tsa15l: the canonical ICT teacher (RDF live roster v45; data server teacher_headcount 1e)
+       AND u.role = 'teacher'
+       AND u.is_test_user IS NOT TRUE
   ),
   visible AS MATERIALIZED (
     -- the (member, level) pairs her programmes show: active assignments → scopes; NULL / empty level_ids = all
