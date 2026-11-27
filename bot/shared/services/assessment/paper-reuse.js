@@ -103,4 +103,4 @@ async function findDonor({ db, key, userId, now = new Date() }) {
   }
 }
 
-module.exports = { reuseKey, plainReuseKey, stamp, findDonor, MAX_AGE_DAYS };
+module.exports = { reuseKey, plainReuseKey, stamp, findDonor, clean: _clean, MAX_AGE_DAYS };

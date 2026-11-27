@@ -60,6 +60,7 @@ const Patterns = require('./patterns');
 const RepeatGuard = require('./repeat-guard');
 const PaperReuse = require('./paper-reuse');
 const Fit = require('./page-fit');
+const PaperFixedSet = require('./paper-fixed-set');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -288,8 +289,13 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // paper another teacher already had on that key is used instead of writing one. The stamp rides on
   // the stored row only, never on the paper handed on. See paper-reuse.js.
   const reuseKey = PaperReuse.reuseKey({ grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck });
-  const donor = (await isFlagEnabled('assessment_paper_reuse'))
-    ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
+  // A full-book request on a pattern with a fixed, checked set is served from the set first; an
+  // empty set or a failed read falls through to the donor path. See paper-fixed-set.js.
+  const set = PaperFixedSet.setFor({ pattern, scope, subject });
+  const setPaper = (set && await isFlagEnabled('assessment_paper_fixed_set'))
+    ? await PaperFixedSet.findSetPaper({ db: supabase, set, subject, userId }) : null;
+  const donor = setPaper || ((await isFlagEnabled('assessment_paper_reuse'))
+    ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null);
   let generated;
   if (donor) {
     generated = {
@@ -298,7 +304,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
       tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 },
       pageReference: donor.pageReference,
     };
-    logToFile('[assessment] paper reused', { requestId, paperId, donorId: donor.id, pattern });
+    logToFile('[assessment] paper reused', { requestId, paperId, donorId: donor.id, pattern, ...(setPaper ? { set } : {}) });
   } else {
     // A paper that came back short is made once more, from nothing, in the same row: a fresh run
     // draws different questions and usually fills the slot. Only a short slot, only once, and only
