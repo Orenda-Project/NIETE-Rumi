@@ -238,6 +238,11 @@
     return at < 0 ? 0 : (html.slice(0, at).match(/class="(?:wq-card|wq-htile|wqp-tile)\b/g) || []).length + 1;
   }
   function installed() { tap(IEV, 'install', { door: 'install', surface: 'hub' }); }
+  // the phone has Jugnu: the quiz finish screen (wq-remind.js) then draws no install card. An app installed before the hub
+  // manifest had its id keeps its old id, so this is how the finish screen learns of it, once the app is opened.
+  function rememberApp() { try { localStorage.setItem('wq_app', '1'); } catch (e) {} }
+  // An app installed before the hub manifest had that id keeps its own id, so Chrome offers again here: no card then.
+  function hadApp() { try { return localStorage.getItem('wq_app') === '1'; } catch (e) { return false; } }
   var stepped = {};
   // The card's meter: each step once per page load. src = where the page runs (browser / app / iab); reason = why.
   function step(name, reason) {
@@ -260,11 +265,12 @@
     return Boolean(IB && IB.welcome && !tourSeen && Date.now() - tourFrom < TOUR_WAIT_MS);
   }
   // Why the card is not showing now (null: it may show).
-  function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : tourPending() ? 'tour' : null; }
+  function withheld() { return firstView ? 'first_view' : snoozed() ? 'snoozed' : !deferred ? 'no_bip' : hadApp() ? 'had_app' : tourPending() ? 'tour' : null; }
   // The view's one outcome, install_prompt{step:'outcome', reason, when}, so hub views partition: decided at render when
   // it cannot change (app, iab, first_view, snoozed), when the card is drawn (shown; held:'tour' when the tour held it
   // first), or when the page is hidden: tour (offered, held under the tour), no_slot (offered while the card's slot was
-  // off the page: the child had moved on from the home), no_bip (Chrome never offered).
+  // off the page: the child had moved on from the home), no_bip (Chrome never offered), had_app (offered, but the phone
+  // has Jugnu already).
   var outcomeSent = false;
   var heldBy = null;
   function outcome(reason, when) {
@@ -309,6 +315,7 @@
     var why = withheld();
     if (why === 'tour') heldBy = 'tour';
     if (why === 'tour' && !tourTimer) { tourTimer = true; setTimeout(function () { tourTimer = false; fillInstall(); }, 1000); }
+    if (why === 'had_app') step('had_app');
     if (why) { box.innerHTML = ''; return; }
     box.innerHTML = H3
       ? '<div class="wq-icard"><div class="wq-ihead"><img class="wq-iicon" src="' + jv('/wq/jugnu/hello.webp') + '" alt="" width="48" height="48"><b>' + esc(L.installTitle) + '</b></div><div class="wq-ibtns">' +
@@ -355,6 +362,7 @@
     if (!B || !B.play || !B.play.install) return;
     IB = B; IEV = ev; IROOT = ROOT;
     if (WHERE === null) WHERE = where();
+    if (WHERE === 'app') rememberApp();
     if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); outcome(WHERE === 'app' ? 'app' : 'iab', 'render'); return; }
     checkDay();
     if (!installWired) {
@@ -368,7 +376,7 @@
       try {
         // Our card offers it (when it may show); keep the event for "Add".
         window.addEventListener('beforeinstallprompt', function (e) { adopt(e, true); });
-        window.addEventListener('appinstalled', function () { deferred = null; step('installed'); if (door(IB, 'install')) installed(); });
+        window.addEventListener('appinstalled', function () { deferred = null; rememberApp(); step('installed'); if (door(IB, 'install')) installed(); });
         window.addEventListener('pagehide', onHide);
       } catch (e) {}
       try { document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') onHide(); }); } catch (e) {}

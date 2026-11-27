@@ -1730,7 +1730,8 @@ function createWebQuizRouter(opts = {}) {
     let base = {};
     try { base = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.webmanifest'), 'utf8')); } catch (_) { base = { name: 'Jugnu' }; }
     res.set('Cache-Control', 'private, max-age=300');
-    return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
+    // the finish screen's id: one Jugnu app on the phone, whichever door installed it
+    return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, id: '/wq/jugnu', start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
   });
   router.get('/h/:token', limiters.read, pushLanded('hub'), async (req, res) => {
     pageHeaders(res);
