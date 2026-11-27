@@ -1,2 +1,3 @@
 {"ts":"2026-11-27T06:38:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features=web-quiz-child-page spec_sync=true","sha":"cee5748570b1","branch":"bd-7rnfvn-61072","user":""}
 {"ts":"2026-11-27T06:39:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=web-quiz-child-page spec_sync=true","sha":"cee5748570b1","branch":"bd-7rnfvn-61072","user":""}
+{"ts":"2026-11-27T10:54:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training,web-quiz-child-page=none-needed (sandbox-branch commit of bd-7rnfvn-61072, merged as #6123; WQ286 is in the spec and its web lane ran HEALTHY 2/2 (WQ04+WQ286); training has no teacher-visible change)","sha":"cee5748570b1","branch":"bd-7rnfvn-main","user":""}
