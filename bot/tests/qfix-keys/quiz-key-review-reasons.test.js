@@ -8,9 +8,16 @@ const path = require('path');
 const Review = require('../../shared/services/quiz/quiz-key-review.service');
 
 const MIGRATION = path.join(__dirname, '../../database/migrations/qfix_keys_quiz_item_reviews.sql');
+// qfix_keys_teacher_edit.sql widens the CHECK (adds 'teacher_edit'): the set a deployed tier enforces is the last one.
+const WIDEN = path.join(__dirname, '../../database/migrations/qfix_keys_teacher_edit.sql');
 const MIRROR = path.join(__dirname, '../../../infrastructure/supabase/00_complete-schema.sql');
 
 // The migration names the table with its schema; the mirror names it bare, like its other tables.
+function widenedCheck(sql) {
+  const m = /ADD CONSTRAINT quiz_item_reviews_reason_check\s+CHECK \(reason IN \(([^)]*)\)\)/.exec(sql);
+  return m ? m[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).sort() : null;
+}
+
 function reasonCheck(sql) {
   const table = /CREATE TABLE IF NOT EXISTS (?:public\.)?quiz_item_reviews \(([\s\S]*?)\n\);/.exec(sql);
   if (!table) return null;
@@ -19,13 +26,17 @@ function reasonCheck(sql) {
 }
 
 describe('quiz_item_reviews reasons', () => {
-  test('the code knows the nightly reason and the blind-solve reason', () => {
-    expect(Review.REASONS).toEqual(['dominant_wrong_option', 'blind_solve']);
+  test('the code knows the nightly reason, the blind-solve reason and the teacher\'s key fix', () => {
+    expect(Review.REASONS).toEqual(['dominant_wrong_option', 'blind_solve', 'teacher_edit']);
+    expect(Review.TEACHER_EDIT_REASON).toBe('teacher_edit');
     expect(Review.REASONS).toContain(Review.REASON);
   });
 
-  test('the migration CHECK admits exactly the code\'s reasons', () => {
-    expect(reasonCheck(fs.readFileSync(MIGRATION, 'utf8'))).toEqual([...Review.REASONS].sort());
+  test('the migrations\' CHECK, as last widened, admits exactly the code\'s reasons; the first one is a subset', () => {
+    const first = reasonCheck(fs.readFileSync(MIGRATION, 'utf8'));
+    const last = widenedCheck(fs.readFileSync(WIDEN, 'utf8'));
+    expect(last).toEqual([...Review.REASONS].sort());
+    first.forEach((r) => expect(last).toContain(r));
   });
 
   test('the schema mirror CHECK matches the migration', () => {
