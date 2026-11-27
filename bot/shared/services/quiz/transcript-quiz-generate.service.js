@@ -652,7 +652,10 @@ async function updateQuiz(quizId, patch) {
 async function tellTeacherFailed(phone, lang, quizId, reason, quizSource = TRANSCRIPT, extra = {}, failedMeta = null) {
   // failedMeta: the row as failed, for a start failure's next-step line (quiz-sources startFailureCopyKey).
   // A class's evening round has no teacher to tell (its phone is the no-send marker): logged, never sent.
-  if (phone !== require('./web-quiz-evening-round').NO_SEND) await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
+  // A quiz made in the report's page (report-page-quiz.js) is told on the page, which reads the failed row.
+  const pageMade = phone === require('./report-page-quiz').PAGE_NO_SEND;
+  if (pageMade) logEvent('transcript_quiz.page_make_failed', { quizId, reason: 'generate_failed', cause: reason, step: extra.step || null });
+  if (!pageMade && phone !== require('./web-quiz-evening-round').NO_SEND) await WhatsAppService.sendMessage(phone, resolveUx(failureCopyKey(reason, quizSource, { meta: failedMeta }), { language: lang }));
   logEvent('transcript_quiz.failed', { quizId, reason, quiz_source: quizSource, ...extra });
   Funnel.emit('generation_failed', { quiz_id: quizId, source: quizSource, reason, step: extra.step });
 }
