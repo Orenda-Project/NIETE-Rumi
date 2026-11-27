@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T05:51:48Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"d1b3dfc71c9f","branch":"bd-yo1ykp-58411","user":"Haroon Yasin"}
+{"ts":"2026-11-27T05:54:42Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"*=none-needed (bd-yo1ykp changes only database grants on quiz_teacher_edits plus a migration guard; no route, string or message changes; proven by staging red/green dry runs)","sha":"d1b3dfc71c9f","branch":"bd-yo1ykp-58411","user":"Haroon Yasin"}
