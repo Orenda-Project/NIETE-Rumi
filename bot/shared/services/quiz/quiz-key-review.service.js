@@ -47,6 +47,10 @@ const CHUNK = 200;
 const MAX_PAGES = 50;
 /** Queue states that still keep an item out of new uses (class-link's recall round reads these). */
 const HELD = ['open', 'key_wrong', 'ambiguous'];
+/** Statuses that keep an item off a child's screen even in a quiz already sent: a reviewer said it is broken. */
+const SERVE_HELD = Object.freeze(['key_wrong', 'ambiguous']);
+/** The embed a quiz_questions read adds to carry each row's review statuses in the SAME request (FK question_id). */
+const REVIEW_EMBED = `${TABLE}(status)`;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /** The job's settings, or null (off). The 90-minute window must end by midnight. */
@@ -110,6 +114,23 @@ async function heldQuestionIds(db, ids) {
     for (const r of data || []) if (HELD.includes(r.status)) held.add(r.question_id);
   }
   return held;
+}
+
+/**
+ * The rows a child may be served from a quiz they already have (web page and WhatsApp run), read with REVIEW_EMBED:
+ * every row except one a reviewer held (SERVE_HELD); an 'open' row is only the nightly job's suspect, so it serves.
+ * Order kept, the embed taken off each row. Pure; the caller logs `held` (ids). bd-g2baes.3.
+ */
+function servedAfterReview(rows) {
+  const kept = [];
+  const held = [];
+  for (const r of rows || []) {
+    if (!r) continue;
+    const { [TABLE]: reviews, ...row } = r;
+    if ((Array.isArray(reviews) ? reviews : []).some((x) => x && SERVE_HELD.includes(x.status))) held.push(String(row.id));
+    else kept.push(row);
+  }
+  return { rows: kept, held };
 }
 
 /**
@@ -225,4 +246,4 @@ async function run(deps = {}) {
   });
 }
 
-module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, readCounts, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, TEACHER_EDIT_REASON, DEFAULTS, HELD, DUE_WINDOW_MIN };
+module.exports = { run, parseSwitch, suspectOf, heldQuestionIds, servedAfterReview, readCounts, SWITCH_KEY, TICK_KEY, TABLE, REASON, REASONS, TEACHER_EDIT_REASON, DEFAULTS, HELD, SERVE_HELD, REVIEW_EMBED, DUE_WINDOW_MIN };
