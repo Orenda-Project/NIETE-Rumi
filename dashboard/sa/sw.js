@@ -113,7 +113,8 @@
 //   battery changed; no worker code changes.
 // sa-51: the letter-sound picker's and the Urdu letter-names practice's items as the content owner reviewed them
 //   (SESSION v35); no worker code changes.
-var VERSION = 'sa-51';
+// sa-52: the English letter-sound picker's j in place of d (SESSION v36); no worker code changes.
+var VERSION = 'sa-52';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -174,7 +175,9 @@ var CORE = 'sa-core-' + VERSION;
 // and ت in place of ف and ٹ; English g w q x in place of l z r n, practice b and k in place of t and m) and the Urdu
 // letter-names practice example ک («کاف», its v4 clip already on the phone) in place of ث; the new prompts said three
 // times as before, each at its text's key with its spans in v5/prompt_timings.json, and the retired prompt keys removed.
-var SESSION = 'sa-session-v35';
+// v36: round 28's battery files re-made with the English picker's j ("ja", said three times, at its text's key with its
+// spans in v5/prompt_timings.json) in place of d, on d's cards with d -> j; d's prompt key, named by nothing, removed.
+var SESSION = 'sa-session-v36';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
