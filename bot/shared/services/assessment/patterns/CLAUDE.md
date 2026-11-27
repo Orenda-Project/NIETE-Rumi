@@ -1,7 +1,7 @@
 # patterns — Board-pattern definitions (FDE grades 1, 2, 5) as frozen data
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=1dea8ea5f900 gen=19cf20395a0f overflow=214 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=fed7bccc045e gen=cf1a7d6b4f8c overflow=214 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and derived views used by routes and generator
@@ -18,7 +18,7 @@ Full index: `CLAUDE.index.md`
 | `fde*` | 6 files; most used `fde-g5-2027.js`: FDE Grade V Feb 2027 centralised exam pattern as frozen data: sections, slots, marks, scheme rules |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1721:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:310:1b1f5879` (+6)
+- `index.js` ← imported by `bot/shared/routes/internal-api.routes.js:1725:03aa6a49` · `bot/shared/services/assessment/assessment-browse.service.js:310:1b1f5879` (+6)
 - `fde-g5-2027.js` ← imported by `bot/shared/services/assessment/patterns/early/chrome.js:13:ef4af3ac` · `bot/shared/services/assessment/patterns/index.js:10:c2aca214` (+1)
 - `fde-g1-2026.js` ← imported by `bot/shared/services/assessment/patterns/index.js:11:9ab30672`
 - `fde-g2-2026.js` ← imported by `bot/shared/services/assessment/patterns/index.js:12:0bd1792f`

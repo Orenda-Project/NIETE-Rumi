@@ -1,7 +1,7 @@
 # child-test — EGRA/EGMA child test a coach runs over WhatsApp; one folder per build lane
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/child-test kg=9da807a47fd9 gen=fe337098b84b overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/child-test kg=91edef8b3ab9 gen=1923ef73639a overflow=0 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `L4/conversation.test.js` — end-to-end coach conversation; L<n> folders are lanes (L5 scoring, L6 check Flow)
@@ -14,6 +14,7 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | 14 sub-dirs, each with `CLAUDE.md` | `L1/` · `L2/` · `L25/` · `L27/` · `L28/` · `L29/` · `L3/` · `L36/` · `L37/` · `L38/` · `L39/` · `L4/` · `L5/` · `L6/` |
 | 27 sub-dirs without a door | `L0/` (4 tests) · `L10/` (1 tests) · `L11/` (3 tests) · `L12/` (7 tests) · `L13/` (1 tests) · +22 more → `CLAUDE.index.md` |
+| `jugnu-door.test.js` | (unmapped) |
 | `sa-letter-names-say-the-name.test.js` | (unmapped) |
 
 ## Who reads this (generated)

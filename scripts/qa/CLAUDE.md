@@ -1,7 +1,7 @@
 # qa — the shared engine link, the web lane, ledger masking and the scheduled LaunchAgent
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=b89469b336a2 gen=5b3b8fac7c78 overflow=5 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=a8de4095503b gen=7ddd38a5e449 overflow=6 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `link-engine.sh` — borrow the shared E2E engine from rumi-agent-home and point git at `.githooks` (`npm install` runs it)
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | `e2e-web.test.sh` | Pins the web lane's wiring without a browser: never touches :4000, made-up data, ledger-valid row, scenario/code parity |
 | `engine-bridge.test.sh` | Holds the borrowed-engine line: no engine copy committed here; every git, npm and Claude entry point still works |
 | `mask-ledger.py` | Rewrites the QA runs ledger masking phones and home paths, in place and idempotent; --check for CI (bd-5gyspy.3) |
-| … | 5 more → `CLAUDE.index.md` |
+| … | 6 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - env read here: `CHECK_ONLY` · `CI` · `COMMIT` · `DATA` · `DB_POOL_MIN` · `DB_POOL_SIZE` · `E2E_BOT_PORT` · `E2E_ENGINE` · `E2E_NO_COMMIT` · `E2E_TRIGGER` · `E2E_WEB_PARALLEL` · `E2E_WEB_SHARDS` (+11)

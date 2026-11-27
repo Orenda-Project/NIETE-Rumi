@@ -1,7 +1,7 @@
 # training — Tests teacher training: levels, quizzes, exams, certificates, I-SAPS and portal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/training kg=5c67eb7bf123 gen=65af7f6fdab2 overflow=87 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/training kg=39d97b6001a9 gen=60c5285a0d66 overflow=88 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-grand-quiz.test.js` — portal level-exam endpoints; `quiz-delivery` tests list WhatsApp side
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `bd-w2daa-8-fewer-bubbles.test.js` | bd-w2daa.8: Teacher Training merges verdict and next question into fewer billed WhatsApp sends, same words |
 | `capstone*` | 4 files; most used `capstone-reachable.test.js`: bd-2472/2473/2474: the capstone is offered after the last quizzed module of a Beacon House level; no dead end |
 | `portal-grand-quiz-served.test.js` | bd-klecr.7: the portal level exam serves the bot's per-attempt paper, resumes the same attempt on reload |
-| … | 132 more → `CLAUDE.index.md` |
+| … | 133 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

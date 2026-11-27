@@ -35,6 +35,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `LeaderChildTest.test.tsx` | bd-s1oo0.7: pins LeaderChildTest: flag gate, list of five, present opens first block card, absent, check form |
 | `LeaderChildTest.tsx` | bd-s1oo0.7: coach child test at /portal/leader/child-test: five children, Urdu/English/maths blocks, 60s timed cards |
 | `LeaderHome.coachV2.test.tsx` | bd-o15qnr: pins a v2-pilot coach redirected to the v2 Home while everyone else keeps My Patch |
+| `LeaderHome.principalTraining.test.tsx` | (unmapped) |
 | `LeaderHome.test.tsx` | bd-2434: pins LeaderHome greets the leader by first name and renders KPIs and the leader nav |
 | `LeaderHome.tsx` | bd-2434: leader "My Patch" home at /portal/leader; shows KPIs and a focus list from GET /leader/overview |
 | `LeaderNoSchool.test.tsx` | (unmapped) |
@@ -197,7 +198,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LeaderAssessResults.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.r28.test.tsx` · `portal/src/portal/pages/LeaderAssessResults.test.tsx`
 - `LeaderAssessReview.tsx` ← `portal/src/portal/pages/LeaderAssess.cwpm.test.tsx` · `portal/src/portal/pages/LeaderAssessReview.test.tsx`
 - `LeaderChildTest.tsx` ← `portal/src/portal/pages/LeaderChildTest.test.tsx`
-- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` · `portal/src/portal/teacher/roleSwitch/RoleSwitch.test.tsx`
+- `LeaderHome.tsx` ← `portal/src/portal/fln/hooks.test.tsx` · `portal/src/portal/pages/LeaderHome.coachV2.test.tsx` · `portal/src/portal/pages/LeaderHome.principalTraining.test.tsx` · `portal/src/portal/pages/LeaderHome.test.tsx` · `portal/src/portal/pages/LeaderNoSchool.test.tsx` · `portal/src/portal/pages/steps-removed.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/pages/LeaderHome.tsx`)
 - `LeaderObservation.tsx` ← `portal/src/portal/pages/LeaderObservation.test.tsx` · `portal/src/portal/pages/LeaderObserve.v2names.test.tsx`
 - `LeaderObservations.tsx` ← `portal/src/portal/pages/LeaderObservations.coachObserve.test.tsx` · `portal/src/portal/pages/LeaderObservations.identity.test.tsx` · `portal/src/portal/pages/LeaderObservations.schedule.test.tsx` · `portal/src/portal/pages/LeaderObservations.test.tsx` · `portal/src/portal/pages/leader-journey.test.tsx`
 - `LeaderObserveDraft.tsx` ← `portal/src/portal/pages/LeaderObserve.v2names.test.tsx` · `portal/src/portal/pages/LeaderObserveDraft.test.tsx`

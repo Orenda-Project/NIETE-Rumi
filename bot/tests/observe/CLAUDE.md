@@ -1,7 +1,7 @@
 # observe — Jest tests for the /observe stack: one file per incident or feature (bd-id in name)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=cf9166e12b5a gen=5a00d266af7e overflow=127 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=73ac02d26f04 gen=afccb0798572 overflow=130 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `observe-endpoint.test.js` — Flow data_exchange contract
@@ -21,7 +21,7 @@ Full index: `CLAUDE.index.md`
 | `observe-endpoint-hots.test.js` | Pins the observe endpoint working for the HOTS pack and pack-driven score labels (bd-59, bd-60) |
 | `bd-dy7hs-one-language-owner.test.js` | Pins the teacher report using the language resolver and removal of the language toggle (bd-dy7hs) |
 | `bd-2kxxa3-debrief-transcription-failure.test.js` | Pins debrief transcription failure being caught, recorded, told once, never rethrown (bd-2kxxa.3) |
-| … | 149 more → `CLAUDE.index.md` |
+| … | 152 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

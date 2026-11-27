@@ -19,6 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `TrainingProviderPage.tsx` | A provider: redirects to the open level on a ladder or single level; lists subjects as rows for open-order providers |
 | `checks.test.tsx` | Style and copy guard for Training pages: logical start/end, motion-safe, copy.ts words, 56px targets (bd-fmf24g.5) |
 | `copy.ts` | English and Urdu words for Training screens plus TRAINING_INNER, the reused new-UI training words, as COPY_ENTRIES |
+| `examLeft.test.tsx` | (unmapped) |
 | `inner.test.ts` | Tests partRows and answerStates: part numbering, done/next/locked, minutes and best score kept (bd-fmf24g.12) |
 | `inner.ts` | Shapes course part rows and answer states for the v2 Training inner screens from the new UI hooks' data |
 | `model.test.ts` | Tests Training model mappers: v2 base path, teachingLevels, course tiles from the /training/* reads (bd-fmf24g.5) |
@@ -48,9 +49,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `TrainingFrame.tsx` ← `portal/src/portal/components/loadingStates.test.tsx` · `portal/src/portal/teacher/TeacherPage.test.tsx` · `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/parts.readonly.test.tsx` · `portal/src/portal/teacher/training/training.ur.test.tsx`
 - `TrainingHub.tsx` ← `portal/src/portal/teacher/training/training.ur.test.tsx`
-- `copy.ts` ← `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/training.ur.test.tsx`
+- `TrainingLevelPage.tsx` ← `portal/src/portal/teacher/training/examLeft.test.tsx`
+- `copy.ts` ← `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/examLeft.test.tsx` · `portal/src/portal/teacher/training/training.ur.test.tsx`
 - `inner.ts` ← `portal/src/portal/teacher/training/inner.test.ts`
-- `model.ts` ← `portal/src/portal/newui/training/providerNames.test.ts` · `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/model.test.ts`
+- `model.ts` ← `portal/src/portal/newui/training/providerNames.test.ts` · `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/examLeft.test.tsx` · `portal/src/portal/teacher/training/model.test.ts`
 - `parts.tsx` ← `portal/src/portal/teacher/training/checks.test.tsx` · `portal/src/portal/teacher/training/parts.readonly.test.tsx` · `portal/src/portal/teacher/training/training.ur.test.tsx`
 - `routes.tsx` ← `portal/src/portal/teacher/training/checks.test.tsx`
 

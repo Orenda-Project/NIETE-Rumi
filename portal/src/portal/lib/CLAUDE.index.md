@@ -22,6 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `coachObserve.ts` | bd-5rz1v.6: coach /observe entry copy, from=coach link helpers and observation home path for the portal |
 | `coachingCard.ts` | withoutScore: strips the legacy "currently N/M" suffix from stored coaching-card actions at display time |
 | `coachingSend.pickedFile.test.ts` | bd-bmc9a0.1: pins that sendLesson PUTs in-memory copies of picked files and reports unreadable files, not "No internet" |
+| `coachingSend.pieces.test.ts` | (unmapped) |
 | `coachingSend.saved.test.ts` | bd-c5reix: pins sendLesson for a WhatsApp-saved recording: starts from its key, skips audio upload, 409 already_sent |
 | `coachingSend.test.ts` | bd-5rz1v: pins sendLesson: all files to R2 then start; class, liveMoves and plan pick travel; any failure blocks start |
 | `coachingSend.ts` | bd-5rz1v: Send to Digital Coach; uploads every file to R2 via presign, then starts analysis only if all arrived |
@@ -37,6 +38,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `homeRoute.ts` | bd-s6qbts.3: homeFor/redirectFor decide where a signed-in user belongs (leader, analytics-only, teacher dashboard) |
 | `keepAwake.test.ts` | bd-5rz1v: pins keepScreenOn: native KeepScreen plugin first, Wake Lock fallback re-taken on return, never throws |
 | `keepAwake.ts` | bd-5rz1v: keeps the screen on while recording via the native KeepScreen plugin or the Screen Wake Lock API |
+| `keptOffer.test.ts` | (unmapped) |
+| `keptOffer.ts` | (unmapped) |
 | `leaderRole.test.ts` | bd-2434: pins leaderRole: five NIETE leader roles, case/space-insensitive isLeader, false for teachers and missing role |
 | `leaderRole.ts` | bd-2434: isLeader/resolveRole, the five school-leader roles; mirrors bot LEADER_ROLES and dashboard/lib/leader-role.js |
 | `legalLinks.ts` | bd-3wb0s/bd-nvnf2: privacy-policy and delete-account paths and the deletion mailto, shared by nav, login and legal pages |
@@ -44,6 +47,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `lessonPlanOpen.page.test.tsx` | bd-fmf24g.3: pins useLessonPlanOpener: opens over Curriculum by default, or in a given viewer page carrying state |
 | `lessonPlanOpen.test.ts` | bd-5rz1v.15/bd-7tgiyc: pins lessonPlanOpen: 6-12 open marked ?open=1, grades 1-5 pdf link, assessment paper in viewer |
 | `lessonPlanOpen.ts` | bd-5rz1v.10: opens a lesson plan (curriculum, assessment paper, 6-12 render) via signed link or in-app viewer |
+| `lessonRecorder.resume.test.ts` | (unmapped) |
 | `lessonRecorder.test.ts` | bd-5rz1v: pins LessonRecorder: slices saved as they arrive, pause excluded, WebM duration written, mic released |
 | `lessonRecorder.ts` | bd-5rz1v: LessonRecorder wraps MediaRecorder, saves each chunk to IndexedDB, pause-aware, writes WebM duration on stop |
 | `linkSession.ts` | Helpers for a scoped link session opened from a template button (/t/<token>): area home and expired-link page |
@@ -62,17 +66,29 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `phone.ts` | bd-2510/bd-2511: client-side Pakistani mobile normalisation/validation mirroring the server's sanitizePhoneNumber |
 | `pickedRead.test.ts` | (unmapped) |
 | `pickedRead.ts` | (unmapped) |
+| `pieceUpload.test.ts` | (unmapped) |
+| `pieceUpload.ts` | (unmapped) |
 | `planSteps.test.ts` | bd-v0toag.8: pins planSteps: line joining, step-heading search order, step spans and locateStep over fake PDF text |
 | `planSteps.ts` | bd-v0toag.8: locates each of the five step headings in a lesson-plan PDF's text so the viewer can jump to and mark it |
 | `recentLessonPlans.test.ts` | bd-k23p38: pins mergeRecent/loadRecentLessonPlans: one newest-first list, Preparing/Ready rows, 10-item cap, whenLabel |
 | `recentLessonPlans.ts` | bd-k23p38: merges GET /lesson-plans/recent and /lp612/mine into one last-10 list for the Lesson Plans page |
 | `recordFlow.ts` | bd-5rz1v: shared bits of the record-and-send page: lessonFilename, useMicLevel, hasHistoryBehind |
 | `recordingBarShown.ts` | bd-5rz1v.14: React context saying whether the recording bar shows above the menu, so bottom actions sit above it |
+| `recordingBeat.test.ts` | (unmapped) |
+| `recordingBeat.ts` | (unmapped) |
+| `recordingLink.store.test.ts` | (unmapped) |
+| `recordingLink.test.ts` | (unmapped) |
+| `recordingLink.ts` | (unmapped) |
+| `recordingResume.ts` | (unmapped) |
 | `recordingSession.tsx` | bd-5rz1v.10: provider holding the in-progress lesson recording above the routes, plus clock and logout-guard hooks |
+| `recordingStore.resume.test.ts` | (unmapped) |
 | `recordingStore.test.ts` | bd-5rz1v: pins recordingStore: chunks kept in order, finish marking, latest unsent, delete (node env + fake-indexeddb) |
 | `recordingStore.ts` | bd-5rz1v: IndexedDB store of lesson-recording chunks so a reload or failed upload never loses the lesson |
 | `recordingSupport.test.ts` | bd-5rz1v: pins pickRecordingType and canRecordHere: WebM then MP4 fallback, app build gate for the microphone |
 | `recordingSupport.ts` | bd-5rz1v: canRecordHere/pickRecordingType, whether Record now works (getUserMedia, MediaRecorder, app build 1216+) |
+| `retryClock.tsx` | (unmapped) |
+| `saveRecording.test.tsx` | (unmapped) |
+| `saveRecording.ts` | (unmapped) |
 | `schoolSearch.test.ts` | (unmapped) |
 | `schoolSearch.ts` | (unmapped) |
 | `scoreBands.test.ts` | Pins portal scoreBands.ts equal to the bot's bot/shared/config/score-bands.js on thresholds, boundaries and wording |
@@ -97,32 +113,36 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `useNewUi.ts` | bd-5rz1v.12: useNewUi reads portal_new_ui once from GET /config (shared read) and remembers it per user |
 | `useRecordingBackGuard.ts` | bd-5rz1v.8: pushes a history entry while recording so Back cannot silently stop the lesson |
 | `useSelfObservation.ts` | bd-3bvfj: useSelfObservation, is teacher self-observation on (read from /config, fail-closed) |
+| `voiceAnswer.shared.test.ts` | (unmapped) |
 | `voiceAnswer.test.ts` | bd-eygg2f: pins useVoiceAnswer (record, stop, cap, blocked mic) and sendVoiceAnswer (presign, PUT, answer with key) |
 | `voiceAnswer.ts` | bd-eygg2f: records a spoken reflection answer and sends it via presign, R2 PUT and POST /coaching-session/:id/reflection |
 | `webmDuration.ts` | bd-5rz1v: withDuration writes the recorded length into a MediaRecorder WebM header using fix-webm-duration |
+| `webmJoin.test.ts` | (unmapped) |
+| `webmJoin.ts` | (unmapped) |
 
 ## Who reads this (all, generated)
 - `analyticsView.ts` ← imported by `portal/src/portal/analytics/BandToggle.tsx:1:f8cf43fe` · `portal/src/portal/analytics/view.ts:1:f8cf43fe` · `portal/src/portal/components/AnalyticsControls.tsx:1:eaaabbbd` · `portal/src/portal/pages/PortalCoachingAnalytics.tsx:9:f8cf43fe` (+1: `python3 kg/kg.py who-reads analyticsView.ts`)
 - `appFunnel.ts` ← imported by `portal/src/portal/components/AppFunnelTracker.tsx:3:0ee418ac` · `portal/src/portal/teacher/lessons/own/OwnPage.tsx:27:2ccd1a4e`
 - `assessmentRoutes.ts` ← imported by `portal/src/App.tsx:12:b2ebe6be` · `portal/src/portal/pages/PortalAssessment.tsx:6:1fe3b824`
-- `audioHash.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:9:0eeaa26e` · `portal/src/portal/lib/pickedRead.ts:15:efd296a0`
-- `classKey.ts` ← imported by `portal/src/portal/newui/coaching/PlanSheet.tsx:2:9c25de35` · `portal/src/portal/teacher/coaching/NewObservation.tsx:36:2c86cb75`
+- `audioHash.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:11:0eeaa26e` · `portal/src/portal/lib/pickedRead.ts:15:efd296a0` · `portal/src/portal/lib/pieceUpload.ts:25:846e83df`
+- `classKey.ts` ← imported by `portal/src/portal/newui/coaching/PlanSheet.tsx:2:9c25de35` · `portal/src/portal/teacher/coaching/NewObservation.tsx:43:2c86cb75`
 - `clockText.ts` ← imported by `portal/src/portal/components/RecordingBar.tsx:4:01e07525` · `portal/src/portal/newui/AudioPlayer.tsx:4:01e07525` · `portal/src/portal/newui/coaching/LogoutWhileRecording.tsx:3:fd8fd456` · `portal/src/portal/newui/coaching/RecordPage.tsx:12:fd8fd456` (+3: `python3 kg/kg.py who-reads clockText.ts`)
-- `coachObserve.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:4:cd472dc3` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:24:2f9d6a72` · `portal/src/portal/coach/pages/CoachObservation.tsx:19:952d452e` · `portal/src/portal/coach/pages/CoachRecord.tsx:23:e8961fc6` (+7: `python3 kg/kg.py who-reads coachObserve.ts`)
+- `coachObserve.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:5:cd472dc3` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:24:e55e1873` · `portal/src/portal/coach/pages/CoachObservation.tsx:20:952d452e` · `portal/src/portal/coach/pages/CoachRecord.tsx:23:e8961fc6` (+8: `python3 kg/kg.py who-reads coachObserve.ts`)
 - `coachingCard.ts` ← imported by `portal/src/portal/components/coaching/LessonPage.tsx:11:da6e2961` · `portal/src/portal/newui/coaching/LessonView.tsx:14:da6e2961` · `portal/src/portal/pages/PortalCoachingDetail.tsx:15:80b15f32`
-- `coachingSend.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:2:8dcca6ca` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:3bd4760b` · `portal/src/portal/coach/reports/Debrief.tsx:12:31a21fd1` · `portal/src/portal/components/coaching/LibraryPicker.tsx:5:b29f1690` (+12: `python3 kg/kg.py who-reads coachingSend.ts`)
+- `coachingSend.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:3:8dcca6ca` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:23:3bd4760b` · `portal/src/portal/coach/reports/Debrief.tsx:12:31a21fd1` · `portal/src/portal/components/coaching/LibraryPicker.tsx:5:b29f1690` (+12: `python3 kg/kg.py who-reads coachingSend.ts`)
 - `coachingUi.ts` ← imported by `portal/src/portal/pages/PortalCoaching.tsx:18:57049ca0` · `portal/src/portal/pages/PortalCoachingDetail.tsx:19:57049ca0` · `portal/src/portal/pages/PortalCoachingRecord.tsx:24:57049ca0`
-- `coachingUpload.ts` ← imported by `portal/src/portal/coach/observe/format.ts:2:b413a3d0` · `portal/src/portal/coach/observe/sender.ts:3:5ddbff68` · `portal/src/portal/coach/pages/CoachAttach.tsx:14:3008fee3` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:22:489f6aad` (+15: `python3 kg/kg.py who-reads coachingUpload.ts`)
+- `coachingUpload.ts` ← imported by `portal/src/portal/coach/observe/PhoneRecord.tsx:13:3008fee3` · `portal/src/portal/coach/observe/format.ts:2:b413a3d0` · `portal/src/portal/coach/observe/sender.ts:4:5ddbff68` · `portal/src/portal/coach/pages/CoachAttach.tsx:14:3008fee3` (+17: `python3 kg/kg.py who-reads coachingUpload.ts`)
 - `dcUploadReport.ts` ← imported by `portal/src/portal/teacher/coaching/parts.tsx:6:3e448642` · `portal/src/portal/lib/coachingSend.ts:23:f294a37a` · `portal/src/portal/lib/pickedRead.ts:16:87e6a1b7`
 - `gradeSubjects.ts` ← imported by `portal/src/portal/fln/FlnBandBody.tsx:30:620bb4ea` · `portal/src/portal/fln/PlanPage.tsx:22:ab466394` · `portal/src/portal/teacher/assessment/AssessmentAll.tsx:4:d9bf80c5` · `portal/src/portal/teacher/assessment/NewPaperSteps.tsx:5:d9bf80c5` (+5: `python3 kg/kg.py who-reads gradeSubjects.ts`)
 - `homeRoute.ts` ← imported by `portal/src/portal/analytics/AnalyticsOnlyGuard.tsx:4:dbf21a70` · `portal/src/portal/analytics/SchoolsAnalytics.tsx:6:773ddff6` · `portal/src/portal/auth/AnalyticsLogin.tsx:5:efb89fd1` · `portal/src/portal/pages/PortalLogin.tsx:6:458c5cd8` (+5: `python3 kg/kg.py who-reads homeRoute.ts`)
 - `keepAwake.ts` ← imported by `portal/src/portal/components/assess/AssessEngineSlot.tsx:4:71d9260a` · `portal/src/portal/components/childTest/BlockRecorder.tsx:10:08526c26` · `portal/src/portal/lib/recordingSession.tsx:4:eb181c03` · `portal/src/portal/lib/useCoachRecording.ts:3:eb181c03`
-- `leaderRole.ts` ← imported by `portal/src/portal/coach/card/frame.tsx:4:a06a1dee` · `portal/src/portal/coach/training/CoachAppGuard.tsx:6:a06a1dee` · `portal/src/portal/coach/useCoachV2.ts:2:5fc21211` · `portal/src/portal/components/PortalNavigation.tsx:6:72df9b04` (+15: `python3 kg/kg.py who-reads leaderRole.ts`)
+- `keptOffer.ts` ← imported by `portal/src/portal/coach/observe/keptRecording.ts:5:391f93fc` · `portal/src/portal/teacher/coaching/keptCard.tsx:10:ee236843` · `portal/src/portal/lib/recordingSession.tsx:11:3cc197e4`
+- `leaderRole.ts` ← imported by `portal/src/portal/coach/card/frame.tsx:4:a06a1dee` · `portal/src/portal/coach/training/CoachAppGuard.tsx:6:a06a1dee` · `portal/src/portal/coach/useCoachV2.ts:2:5fc21211` · `portal/src/portal/components/PortalNavigation.tsx:6:72df9b04` (+17: `python3 kg/kg.py who-reads leaderRole.ts`)
 - `legalLinks.ts` ← imported by `portal/src/portal/analytics/AnalyticsFrame.tsx:6:709a02a6` · `portal/src/portal/auth/AuthFrame.tsx:7:cdccd347` · `portal/src/portal/coach/profile/CoachProfile.tsx:5:6b044365` · `portal/src/portal/pages/PortalAccount.tsx:7:cdccd347` (+2: `python3 kg/kg.py who-reads legalLinks.ts`)
 - `lessonHandoff.ts` ← imported by `portal/src/portal/components/coaching/CoachingHome.tsx:11:c3f78d14` · `portal/src/portal/newui/coaching/CoachingMain.tsx:11:c3f78d14` · `portal/src/portal/newui/coaching/useSendFlow.ts:7:1e61cfde` · `portal/src/portal/pages/PortalCoachingRecord.tsx:19:d8ce4570`
 - `lessonPlanOpen.ts` ← imported by `portal/src/portal/components/LessonPlanViewer.tsx:11:25ffad5f` · `portal/src/portal/newui/home/HomeList.tsx:8:2c42934c` · `portal/src/portal/newui/lessons/LessonPlanPages.tsx:9:5f2ae71c` · `portal/src/portal/newui/lessons/NewLessonPlans.tsx:6:2c3be284` (+10: `python3 kg/kg.py who-reads lessonPlanOpen.ts`)
-- `lessonRecorder.ts` ← imported by `portal/src/portal/coach/reports/Debrief.tsx:14:0a06a66a` · `portal/src/portal/components/childTest/BlockRecorder.tsx:8:41c894a0` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:6:062de58b` · `portal/src/portal/pages/LeaderObserveRecord.tsx:23:4fad32c4` (+3: `python3 kg/kg.py who-reads lessonRecorder.ts`)
-- `linkSession.ts` ← imported by `portal/src/portal/components/PortalLayout.tsx:17:2bc29f95` · `portal/src/portal/services/api.ts:3:424cc801`
+- `lessonRecorder.ts` ← imported by `portal/src/portal/coach/reports/Debrief.tsx:16:0a06a66a` · `portal/src/portal/components/childTest/BlockRecorder.tsx:8:41c894a0` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:6:062de58b` · `portal/src/portal/pages/LeaderObserveRecord.tsx:23:4fad32c4` (+4: `python3 kg/kg.py who-reads lessonRecorder.ts`)
+- `linkSession.ts` ← imported by `portal/src/portal/components/PortalLayout.tsx:17:2bc29f95` · `portal/src/portal/services/api.ts:4:424cc801`
 - `lpViewerReport.ts` ← imported by `portal/src/portal/components/LessonPlanViewer.tsx:5:a9077a5e`
 - `moduleQuiz.ts` ← imported by `portal/src/portal/pages/PortalTraining.tsx:34:24d43496` · `portal/src/portal/pages/PortalTrainingV2.tsx:63:24d43496`
 - `newUiMemory.ts` ← imported by `portal/src/portal/lib/recordingSession.tsx:5:81c708e1` · `portal/src/portal/lib/useNewUi.ts:4:34ae70a5`
@@ -132,14 +152,20 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `pdfjs.ts` ← imported by `portal/src/portal/components/LessonPlanViewer.tsx:4:e8099668`
 - `pdfjsRuntime.ts` ← imported by `portal/src/portal/lib/pdfjs.ts:22:560108a6`
 - `phone.ts` ← imported by `portal/src/portal/pages/PortalLogin.tsx:8:f26e479f` · `portal/src/portal/pages/PortalPasswordReset.tsx:4:29f10a0b`
-- `pickedRead.ts` ← imported by `portal/src/portal/coach/feedback/FeedbackPage.tsx:16:587a3aa5` · `portal/src/portal/coach/pages/CoachAttach.tsx:15:37140e61` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:27:37140e61` · `portal/src/portal/coach/reports/Debrief.tsx:11:37140e61` (+6: `python3 kg/kg.py who-reads pickedRead.ts`)
+- `pickedRead.ts` ← imported by `portal/src/portal/coach/feedback/FeedbackPage.tsx:16:587a3aa5` · `portal/src/portal/coach/observe/PhoneRecord.tsx:14:37140e61` · `portal/src/portal/coach/pages/CoachAttach.tsx:15:37140e61` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:29:37140e61` (+7: `python3 kg/kg.py who-reads pickedRead.ts`)
+- `pieceUpload.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:11:5c34b118` · `portal/src/portal/coach/pages/CoachSending.tsx:3:af54a466` · `portal/src/portal/coach/reports/Debrief.tsx:14:af54a466` · `portal/src/portal/services/api.ts:1:34b37752` (+3: `python3 kg/kg.py who-reads pieceUpload.ts`)
 - `planSteps.ts` ← imported by `portal/src/portal/components/LessonPlanPage.tsx:3:f2ff354d` · `portal/src/portal/components/stepMark.tsx:3:a3dc191d`
 - `recentLessonPlans.ts` ← imported by `portal/src/portal/components/RecentLessonPlans.tsx:19:0bdef622` · `portal/src/portal/newui/lessons/RecentPlans.tsx:5:8537de9b` · `portal/src/portal/teacher/lessons/LessonsHome.tsx:2:df62c16c` · `portal/src/portal/teacher/lessons/recent.ts:1:c43a169e`
-- `recordFlow.ts` ← imported by `portal/src/portal/newui/coaching/RecordPage.tsx:13:3d654a19` · `portal/src/portal/newui/coaching/useSendFlow.ts:8:c8a72620` · `portal/src/portal/pages/PortalCoachingRecord.tsx:23:c1900708` · `portal/src/portal/teacher/coaching/NewObservation.tsx:11:97f782ff` (+1: `python3 kg/kg.py who-reads recordFlow.ts`)
+- `recordFlow.ts` ← imported by `portal/src/portal/newui/coaching/RecordPage.tsx:13:3d654a19` · `portal/src/portal/newui/coaching/useSendFlow.ts:8:c8a72620` · `portal/src/portal/pages/PortalCoachingRecord.tsx:23:c1900708` · `portal/src/portal/teacher/coaching/NewObservation.tsx:13:97f782ff` (+1: `python3 kg/kg.py who-reads recordFlow.ts`)
 - `recordingBarShown.ts` ← imported by `portal/src/portal/coach/reports/FormV7.tsx:16:4bfdfe12` · `portal/src/portal/coach/reports/ReportsFrame.tsx:11:4bfdfe12` · `portal/src/portal/components/PortalLayout.tsx:7:b87c9694` · `portal/src/portal/newui/BottomButton.tsx:5:b87c9694` (+1: `python3 kg/kg.py who-reads recordingBarShown.ts`)
-- `recordingSession.tsx` ← imported by `portal/src/App.tsx:27:274089c5` · `portal/src/portal/coach/pages/CoachRecord.tsx:18:ffbfcd5e` · `portal/src/portal/coach/profile/CoachMore.tsx:4:63eb10bd` · `portal/src/portal/components/BackButtonHandler.tsx:4:1317bca8` (+20: `python3 kg/kg.py who-reads recordingSession.tsx`)
-- `recordingStore.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:5:277a112a` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:25:f5c1ef7c` · `portal/src/portal/coach/reports/Debrief.tsx:16:b3b29004` · `portal/src/portal/components/coaching/CoachingHome.tsx:10:203c6c37` (+7: `python3 kg/kg.py who-reads recordingStore.ts`)
-- `recordingSupport.ts` ← imported by `portal/src/portal/coach/reports/Debrief.tsx:15:404d621b` · `portal/src/portal/components/assess/AssessPreflight.tsx:5:b8ac5182` · `portal/src/portal/components/childTest/BlockRecorder.tsx:9:dd10a98a` · `portal/src/portal/components/coaching/CoachingHome.tsx:9:f88c2c76` (+8: `python3 kg/kg.py who-reads recordingSupport.ts`)
+- `recordingBeat.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:2:14af1a8a` · `portal/src/portal/coach/pages/CoachRecord.tsx:31:32053fe9` · `portal/src/portal/coach/reports/Debrief.tsx:43:ca73ed37` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:9:5dc83614` (+8: `python3 kg/kg.py who-reads recordingBeat.ts`)
+- `recordingLink.ts` ← imported by `portal/src/portal/coach/observe/keptRecording.ts:6:cf501783` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:26:bc809a29` · `portal/src/portal/teacher/coaching/NewObservation.tsx:16:92a8cc35` · `portal/src/portal/teacher/coaching/keptCard.tsx:9:de79308a` (+1: `python3 kg/kg.py who-reads recordingLink.ts`)
+- `recordingResume.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:19:c7599f6b`
+- `recordingSession.tsx` ← imported by `portal/src/App.tsx:27:274089c5` · `portal/src/portal/coach/observe/keptRecording.ts:3:5fd56703` · `portal/src/portal/coach/pages/CoachRecord.tsx:18:ffbfcd5e` · `portal/src/portal/coach/profile/CoachMore.tsx:4:63eb10bd` (+22: `python3 kg/kg.py who-reads recordingSession.tsx`)
+- `recordingStore.ts` ← imported by `portal/src/portal/coach/observe/KeptRows.tsx:5:297acccf` · `portal/src/portal/coach/observe/keptRecording.ts:2:14a692d3` · `portal/src/portal/coach/observe/sender.ts:6:277a112a` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:25:f5c1ef7c` (+18: `python3 kg/kg.py who-reads recordingStore.ts`)
+- `recordingSupport.ts` ← imported by `portal/src/portal/coach/reports/Debrief.tsx:17:404d621b` · `portal/src/portal/components/assess/AssessPreflight.tsx:5:b8ac5182` · `portal/src/portal/components/childTest/BlockRecorder.tsx:9:dd10a98a` · `portal/src/portal/components/coaching/CoachingHome.tsx:9:f88c2c76` (+8: `python3 kg/kg.py who-reads recordingSupport.ts`)
+- `retryClock.tsx` ← imported by `portal/src/portal/coach/pages/CoachSending.tsx:4:06a56b8f` · `portal/src/portal/coach/reports/Debrief.tsx:15:06a56b8f` · `portal/src/portal/teacher/coaching/NewObservation.tsx:9:02cf5dad`
+- `saveRecording.ts` ← imported by `portal/src/portal/coach/observe/KeptRows.tsx:10:8b25bd69` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:27:b3f424d3` · `portal/src/portal/coach/pages/CoachObservation.tsx:15:b3f424d3` · `portal/src/portal/coach/reports/Debrief.tsx:42:b3f424d3` (+3: `python3 kg/kg.py who-reads saveRecording.ts`)
 - `schoolSearch.ts` ← imported by `portal/src/portal/analytics/table.ts:4:222a05ff` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:25:501869f9` · `portal/src/portal/pages/LeaderAssess.tsx:29:32efae48` · `portal/src/portal/pages/LeaderObserveRecord.tsx:24:32efae48`
 - `scoreBands.ts` ← imported by `portal/src/portal/coach/analytics/model.ts:3:3a5c0f05` · `portal/src/portal/components/CoachingSessionCard.tsx:6:0492c2de` · `portal/src/portal/components/ObservationsSection.tsx:6:69c593d6` · `portal/src/portal/components/ScoreBreakdown.tsx:22:2e9a69e7` (+16: `python3 kg/kg.py who-reads scoreBands.ts`)
 - `shellHint.ts` ← imported by `portal/src/App.tsx:31:cd17d1c4` · `portal/src/lib/firstScreen.ts:10:d5e189fc` · `portal/src/portal/coach/card/CoachLanding.tsx:2:27b88e2b` · `portal/src/portal/coach/card/frame.tsx:6:27b88e2b` (+10: `python3 kg/kg.py who-reads shellHint.ts`)
@@ -149,30 +175,32 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `transcript.ts` ← imported by `portal/src/portal/components/coaching/LessonPage.tsx:10:57287a06` · `portal/src/portal/newui/coaching/LessonView.tsx:13:57287a06`
 - `unitLock.ts` ← imported by `portal/src/portal/newui/training/trainingApi.ts:3:67ac52f1` · `portal/src/portal/pages/PortalTrainingV2.tsx:73:072cef91`
 - `useBack.tsx` ← imported by `portal/src/portal/auth/AnalyticsLogin.tsx:6:ad58d2f4` · `portal/src/portal/coach/flow/FeedbackPage.tsx:4:00c0ddc3` · `portal/src/portal/coach/pages/CoachObservation.tsx:4:00c0ddc3` · `portal/src/portal/coach/report/CoachProgressPage.tsx:10:00c0ddc3` (+13: `python3 kg/kg.py who-reads useBack.tsx`)
-- `useChildTest.ts` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:11:6760a4aa` · `portal/src/portal/components/PortalNavigation.tsx:7:72067460` · `portal/src/portal/pages/LeaderChildTest.tsx:8:72067460`
-- `useChildTestSa.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:18:ed8eddf1` · `portal/src/portal/coach/pages/CoachHome.tsx:12:ed8eddf1` · `portal/src/portal/coach/profile/CoachMore.tsx:13:ed8eddf1` · `portal/src/portal/coach/training/CoachAppGuard.tsx:7:ed8eddf1` (+2: `python3 kg/kg.py who-reads useChildTestSa.ts`)
+- `useChildTest.ts` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:12:6760a4aa` · `portal/src/portal/components/PortalNavigation.tsx:7:72067460` · `portal/src/portal/pages/LeaderChildTest.tsx:8:72067460`
+- `useChildTestSa.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:19:ed8eddf1` · `portal/src/portal/coach/pages/CoachHome.tsx:13:ed8eddf1` · `portal/src/portal/coach/profile/CoachMore.tsx:13:ed8eddf1` · `portal/src/portal/coach/training/CoachAppGuard.tsx:7:ed8eddf1` (+2: `python3 kg/kg.py who-reads useChildTestSa.ts`)
 - `useCoachRecording.ts` ← imported by `portal/src/portal/coach/pages/CoachRecord.tsx:17:09926866` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:7:879b7888`
-- `useNewUi.ts` ← imported by `portal/src/App.tsx:36:e5e523e4` · `portal/src/lib/whatsapp.ts:2:0e65200b` · `portal/src/portal/coach/card/useSchoolCard.ts:2:7121dc62` · `portal/src/portal/coach/disagreements/api.ts:2:853829bc` (+28: `python3 kg/kg.py who-reads useNewUi.ts`)
+- `useNewUi.ts` ← imported by `portal/src/App.tsx:36:e5e523e4` · `portal/src/lib/whatsapp.ts:2:0e65200b` · `portal/src/portal/coach/card/useSchoolCard.ts:2:7121dc62` · `portal/src/portal/coach/disagreements/api.ts:2:853829bc` (+31: `python3 kg/kg.py who-reads useNewUi.ts`)
 - `useRecordingBackGuard.ts` ← imported by `portal/src/portal/coach/pages/CoachRecord.tsx:22:6a2c7889` · `portal/src/portal/components/coaching/coach/CoachRecorder.tsx:5:539ecce6`
 - `voiceAnswer.ts` ← imported by `portal/src/portal/coach/feedback/FeedbackPage.tsx:12:81d8a6c6` · `portal/src/portal/coach/feedback/send.ts:3:6f96a19d` · `portal/src/portal/teacher/coaching/ReportPage.tsx:8:04f727f9` · `portal/src/portal/teacher/coaching/useDcReport.ts:3:04f727f9`
-- `webmDuration.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:26:84f2c68b` · `portal/src/portal/newui/coaching/useSendFlow.ts:13:35ead1a3` · `portal/src/portal/pages/LeaderObserveRecord.tsx:20:5bd20715` · `portal/src/portal/pages/PortalCoachingRecord.tsx:21:5bd20715` (+2: `python3 kg/kg.py who-reads webmDuration.ts`)
+- `webmDuration.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:28:84f2c68b` · `portal/src/portal/coach/reports/Debrief.tsx:40:84f2c68b` · `portal/src/portal/newui/coaching/useSendFlow.ts:13:35ead1a3` · `portal/src/portal/pages/LeaderObserveRecord.tsx:20:5bd20715` (+5: `python3 kg/kg.py who-reads webmDuration.ts`)
+- `webmJoin.ts` ← imported by `portal/src/portal/lib/lessonRecorder.ts:24:e53bda0a` · `portal/src/portal/lib/recordingStore.ts:17:09db40ee`
 
 ## Tests (all, generated)
 - `appFunnel.ts` ← `portal/src/portal/lib/appFunnel.test.ts`
 - `assessmentRoutes.ts` ← `portal/src/portal/pages/PortalAssessment.test.tsx`
-- `audioHash.ts` ← `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/lib/coachingSend.saved.test.ts` · `portal/src/portal/pages/LeaderObserveRecord.androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx`
+- `audioHash.ts` ← `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/lib/coachingSend.saved.test.ts` · `portal/src/portal/lib/pieceUpload.test.ts` · `portal/src/portal/pages/LeaderObserveRecord.androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx`
 - `classKey.ts` ← `portal/src/portal/lib/classKey.test.ts`
-- `coachObserve.ts` ← `portal/src/portal/coach/observe/startRetry.test.ts` · `portal/src/portal/coach/pages/CoachBack.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.attachPlan.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.lesson.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.notes.test.tsx` · `portal/src/portal/coach/pages/CoachCheckSend.ownPlans.test.tsx` (+9: `python3 kg/kg.py who-reads portal/src/portal/lib/coachObserve.ts`)
-- `coachingSend.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/coach/observe/startRetry.test.ts` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/lib/coachingSend.pickedFile.test.ts` · `portal/src/portal/lib/coachingSend.saved.test.ts` · `portal/src/portal/lib/coachingSend.test.ts` (+11: `python3 kg/kg.py who-reads portal/src/portal/lib/coachingSend.ts`)
-- `coachingUpload.ts` ← `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx` · `portal/src/portal/lib/coachingUpload.audio.test.ts` · `portal/src/portal/lib/coachingUpload.opus.test.ts` · `portal/src/portal/lib/coachingUpload.sniff.test.ts` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.test.tsx` (+13: `python3 kg/kg.py who-reads portal/src/portal/lib/coachingUpload.ts`)
+- `coachObserve.ts` ← `portal/src/portal/coach/card/keptHome.test.tsx` · `portal/src/portal/coach/observe/inAppBack.test.tsx` · `portal/src/portal/coach/observe/keptLink.test.tsx` · `portal/src/portal/coach/observe/keptNeedsYou.test.tsx` · `portal/src/portal/coach/observe/resumeKept.test.tsx` · `portal/src/portal/coach/observe/startRetry.test.ts` (+19: `python3 kg/kg.py who-reads portal/src/portal/lib/coachObserve.ts`)
+- `coachingSend.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/coach/observe/startRetry.test.ts` · `portal/src/portal/coach/pages/CoachObserveFlow.test.tsx` · `portal/src/portal/lib/coachingSend.pickedFile.test.ts` · `portal/src/portal/lib/coachingSend.pieces.test.ts` · `portal/src/portal/lib/coachingSend.saved.test.ts` (+15: `python3 kg/kg.py who-reads portal/src/portal/lib/coachingSend.ts`)
+- `coachingUpload.ts` ← `portal/src/portal/coach/pages/CoachOwnPlan.test.tsx` · `portal/src/portal/lib/coachingUpload.audio.test.ts` · `portal/src/portal/lib/coachingUpload.opus.test.ts` · `portal/src/portal/lib/coachingUpload.sniff.test.ts` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.test.tsx` (+14: `python3 kg/kg.py who-reads portal/src/portal/lib/coachingUpload.ts`)
 - `dcUploadReport.ts` ← `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/photoHold.test.tsx`
 - `gradeSubjects.ts` ← `portal/src/portal/lib/gradeSubjects.test.ts` · `portal/src/portal/teacher/classes/ClassesPages.test.tsx` · `portal/src/portal/teacher/classes/classes.ur.test.tsx` · `portal/src/portal/teacher/classes/model.test.ts`
 - `homeRoute.ts` ← `portal/src/portal/auth/analytics-login.route.test.tsx` · `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/lib/homeRoute.test.ts`
 - `keepAwake.ts` ← `portal/src/portal/components/assess/AssessEngineSlot.lastrec.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.r20.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.r7b.test.tsx` · `portal/src/portal/components/assess/AssessEngineSlot.test.tsx` · `portal/src/portal/lib/keepAwake.test.ts` · `portal/src/portal/newui/coaching/RecordPage.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/lib/keepAwake.ts`)
+- `keptOffer.ts` ← `portal/src/portal/lib/keptOffer.test.ts` · `portal/src/portal/teacher/coaching/keptLink.test.tsx`
 - `leaderRole.ts` ← `portal/src/portal/lib/leaderRole.test.ts`
 - `lessonHandoff.ts` ← `portal/src/portal/newui/coaching/CoachingMain.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.test.tsx` · `portal/src/portal/pages/PortalCoaching.flagOff.test.tsx` · `portal/src/portal/pages/PortalCoaching.sendLesson.test.tsx` · `portal/src/portal/pages/PortalCoachingRecord.live.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/lib/lessonHandoff.ts`)
 - `lessonPlanOpen.ts` ← `portal/src/portal/components/LessonPlanViewer.ready.test.tsx` · `portal/src/portal/components/LessonPlanViewer.report.test.tsx` · `portal/src/portal/components/LessonPlanViewer.step.test.tsx` · `portal/src/portal/lib/lessonPlanOpen.page.test.tsx` · `portal/src/portal/lib/lessonPlanOpen.test.ts` · `portal/src/portal/pages/PortalCurriculum.viewer.test.tsx`
-- `lessonRecorder.ts` ← `portal/src/portal/lib/lessonRecorder.test.ts` · `portal/src/portal/pages/PortalCoachingRecord.session.test.tsx`
+- `lessonRecorder.ts` ← `portal/src/portal/lib/lessonRecorder.resume.test.ts` · `portal/src/portal/lib/lessonRecorder.test.ts` · `portal/src/portal/pages/PortalCoachingRecord.session.test.tsx`
 - `linkSession.ts` ← `portal/src/portal/services/api.trainingLink.test.ts`
 - `lpViewerReport.ts` ← `portal/src/portal/components/LessonPlanViewer.ready.test.tsx` · `portal/src/portal/components/LessonPlanViewer.report.test.tsx` · `portal/src/portal/lib/lpViewerReport.test.ts`
 - `obs612.ts` ← `portal/src/portal/coach/card/obs612.test.tsx` · `portal/src/portal/coach/flow/visit47.test.tsx` · `portal/src/portal/coach/pages/CoachObservation.obs612.test.tsx`
@@ -181,12 +209,16 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `pdfjs.ts` ← `portal/src/portal/components/LessonPlanViewer.ready.test.tsx` · `portal/src/portal/components/LessonPlanViewer.report.test.tsx` · `portal/src/portal/components/LessonPlanViewer.step.test.tsx` · `portal/src/portal/newui/lessons/NewLessonPlans.test.tsx` · `portal/src/portal/pages/PortalCurriculum.viewer.test.tsx`
 - `phone.ts` ← `portal/src/portal/lib/phone.test.ts`
 - `pickedRead.ts` ← `portal/src/portal/coach/feedback/FeedbackPage.test.tsx` · `portal/src/portal/coach/pages/CoachAndroidFiles.test.tsx` · `portal/src/portal/coach/reports/Debrief.test.tsx` · `portal/src/portal/lib/coachingSend.pickedFile.test.ts` · `portal/src/portal/lib/pickedRead.test.ts` · `portal/src/portal/pages/LeaderObserveTalk.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/lib/pickedRead.ts`)
+- `pieceUpload.ts` ← `portal/src/portal/coach/observe/weakLine.test.tsx` · `portal/src/portal/coach/reports/Debrief.weak261.test.tsx` · `portal/src/portal/lib/coachingSend.pieces.test.ts` · `portal/src/portal/lib/pieceUpload.test.ts` · `portal/src/portal/teacher/coaching/weakLine.test.tsx`
 - `planSteps.ts` ← `portal/src/portal/components/LessonPlanViewer.step.test.tsx` · `portal/src/portal/components/stepMark.test.tsx` · `portal/src/portal/lib/planSteps.test.ts`
 - `recentLessonPlans.ts` ← `portal/src/portal/fln/tests/readers.test.tsx` · `portal/src/portal/lib/recentLessonPlans.test.ts`
 - `recordingBarShown.ts` ← `portal/src/portal/coach/reports/FormToast.clear48.test.tsx` · `portal/src/portal/coach/reports/ReportsFrame.dockSpace40.test.tsx` · `portal/src/portal/newui/buttons.test.tsx` · `portal/src/portal/newui/coaching/RecordingBar.newUi.test.tsx`
+- `recordingBeat.ts` ← `portal/src/portal/lib/recordingBeat.test.ts` · `portal/src/portal/lib/voiceAnswer.shared.test.ts` · `portal/src/portal/lib/voiceAnswer.test.ts`
+- `recordingLink.ts` ← `portal/src/portal/lib/recordingLink.test.ts`
 - `recordingSession.tsx` ← `portal/src/portal/components/BackButtonHandler.recording.test.tsx` · `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/newui/audioPlayer.recording.test.tsx` · `portal/src/portal/newui/coaching/CoachingMain.test.tsx` · `portal/src/portal/newui/coaching/LogoutWhileRecording.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` (+12: `python3 kg/kg.py who-reads portal/src/portal/lib/recordingSession.tsx`)
-- `recordingStore.ts` ← `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/lib/recordingStore.test.ts` · `portal/src/portal/newui/coaching/CoachingMain.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.test.tsx` · `portal/src/portal/pages/LeaderObserveRecord.androidFiles.test.tsx` (+9: `python3 kg/kg.py who-reads portal/src/portal/lib/recordingStore.ts`)
+- `recordingStore.ts` ← `portal/src/portal/coach/card/keptHome.test.tsx` · `portal/src/portal/coach/observe/resumeKept.test.tsx` · `portal/src/portal/coach/observe/sender.test.ts` · `portal/src/portal/lib/recordingLink.store.test.ts` · `portal/src/portal/lib/recordingStore.resume.test.ts` · `portal/src/portal/lib/recordingStore.test.ts` (+15: `python3 kg/kg.py who-reads portal/src/portal/lib/recordingStore.ts`)
 - `recordingSupport.ts` ← `portal/src/portal/components/BackButtonHandler.recording.test.tsx` · `portal/src/portal/lib/recordingSupport.test.ts` · `portal/src/portal/newui/audioPlayer.recording.test.tsx` · `portal/src/portal/newui/coaching/CoachingMain.test.tsx` · `portal/src/portal/newui/coaching/LogoutWhileRecording.test.tsx` · `portal/src/portal/newui/coaching/RecordPage.live.test.tsx` (+13: `python3 kg/kg.py who-reads portal/src/portal/lib/recordingSupport.ts`)
+- `saveRecording.ts` ← `portal/src/portal/lib/saveRecording.test.tsx`
 - `schoolSearch.ts` ← `portal/src/portal/lib/schoolSearch.test.ts`
 - `scoreBands.ts` ← `portal/src/portal/lib/scoreBands.test.ts` · `portal/src/portal/newui/home/HomeList.test.tsx`
 - `shellHint.ts` ← `portal/src/portal/components/Skeleton.look.test.tsx`
@@ -198,8 +230,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `useBack.tsx` ← `portal/src/portal/lib/useBack.test.tsx`
 - `useChildTest.ts` ← `portal/src/portal/coach/home/CoachHome.test.tsx` · `portal/src/portal/coach/profile/CoachMore.test.tsx`
 - `useChildTestSa.ts` ← `portal/src/portal/coach/home/CoachHome.test.tsx` · `portal/src/portal/coach/insights/tests/r6b_more.test.tsx` · `portal/src/portal/coach/profile/CoachMore.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.test.tsx`
-- `useNewUi.ts` ← `portal/src/lib/whatsapp.botNumber.test.tsx` · `portal/src/portal/coach/disagreements/api.test.ts` · `portal/src/portal/coach/useCoachV2.test.ts` · `portal/src/portal/components/PortalLayout.loading.test.tsx` · `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/components/PortalNavigation.coachLibrary.test.tsx` (+47: `python3 kg/kg.py who-reads portal/src/portal/lib/useNewUi.ts`)
-- `voiceAnswer.ts` ← `portal/src/portal/lib/voiceAnswer.test.ts`
+- `useNewUi.ts` ← `portal/src/lib/whatsapp.botNumber.test.tsx` · `portal/src/portal/coach/disagreements/api.test.ts` · `portal/src/portal/coach/useCoachV2.test.ts` · `portal/src/portal/components/PortalLayout.loading.test.tsx` · `portal/src/portal/components/PortalLayout.newUi.test.tsx` · `portal/src/portal/components/PortalNavigation.coachLibrary.test.tsx` (+49: `python3 kg/kg.py who-reads portal/src/portal/lib/useNewUi.ts`)
+- `voiceAnswer.ts` ← `portal/src/portal/lib/voiceAnswer.shared.test.ts` · `portal/src/portal/lib/voiceAnswer.test.ts`
+- `webmJoin.ts` ← `portal/src/portal/lib/lessonRecorder.resume.test.ts` · `portal/src/portal/lib/webmJoin.test.ts`
 
 ## Related (all, generated)
 - docs: `dashboard/views/CLAUDE.md`? · `docs/app-funnel-telemetry.md`? · `portal/src/portal/CLAUDE.md`?

@@ -19,7 +19,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `Home.tsx` ← imported by `portal/src/App.tsx:57:c88a91a7` · `portal/src/portal/teacher/pages/routes.tsx:6:f24d299d`
-- `More.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:10:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` · `portal/src/portal/coach/profile/CoachProfile.tsx:7:0f6f4e8b` · `portal/src/portal/teacher/pages/routes.tsx:7:38887f9c`
+- `More.tsx` ← imported by `portal/src/portal/coach/pages/CoachHome.tsx:11:80ac37a5` · `portal/src/portal/coach/profile/CoachMore.tsx:6:6fd6bd67` · `portal/src/portal/coach/profile/CoachProfile.tsx:7:0f6f4e8b` · `portal/src/portal/teacher/pages/routes.tsx:7:38887f9c`
 - `Profile.tsx` ← imported by `portal/src/portal/coach/profile/CoachProfile.tsx:8:0572f196` · `portal/src/portal/teacher/pages/routes.tsx:8:591421e5`
 
 ## Tests (all, generated)

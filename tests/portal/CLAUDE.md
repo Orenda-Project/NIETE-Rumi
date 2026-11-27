@@ -1,7 +1,7 @@
 # portal — Root jest tests pinning the portal's dashboard routes, services and Android shell
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=183bd71f8c84 gen=72968096c712 overflow=207 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=tests/portal kg=135f583c07da gen=6036c0e7a660 overflow=221 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `portal-teacher-home.routes.test.js` — typical route suite: real Express over dashboard/routes, injected boundaries
@@ -23,7 +23,7 @@ Full index: `CLAUDE.index.md`
 | `bd-tacnwy-role-switch.test.js` | (unmapped) |
 | `bd-bfagiy-school-search.test.js` | (unmapped) |
 | `bd-z3cadk-report-extras.test.js` | Pins bd-z3cadk report-extras: portal report shows Last time we asked, journey note, repeat-recording date |
-| … | 274 more → `CLAUDE.index.md` |
+| … | 290 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

@@ -34,7 +34,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LessonPage.tsx` ← imported by `portal/src/portal/pages/PortalCoachingDetail.tsx:16:92dcd2ce`
 - `LibraryPicker.tsx` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:21:21554af0` · `portal/src/portal/pages/LeaderObserveRecord.tsx:11:a2b5b96a` · `portal/src/portal/pages/PortalCoachingRecord.tsx:13:a2b5b96a`
 - `NeedsAnswerBanner.tsx` ← imported by `portal/src/portal/components/coaching/CoachingHome.tsx:5:5f4621d4` · `portal/src/portal/components/coaching/LessonPage.tsx:5:5f4621d4`
-- `Obs612Block.tsx` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:14:68561ebd` · `portal/src/portal/coach/pages/CoachObservation.tsx:26:68561ebd` · `portal/src/portal/teacher/coaching/ReportPage.tsx:27:f6b363a7`
+- `Obs612Block.tsx` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:14:68561ebd` · `portal/src/portal/coach/pages/CoachObservation.tsx:27:68561ebd` · `portal/src/portal/teacher/coaching/ReportPage.tsx:27:f6b363a7`
 - `RecordIcon.tsx` ← imported by `portal/src/portal/pages/LeaderObserveTalk.tsx:8:00c65e2a` · `portal/src/portal/components/coaching/SendLessonSheet.tsx:4:c6c7407e`
 - `SendLessonButton.tsx` ← imported by `portal/src/portal/pages/LeaderObservations.tsx:6:9eaac3a3` · `portal/src/portal/components/coaching/CoachingHome.tsx:6:7928aa79`
 - `SendLessonSheet.tsx` ← imported by `portal/src/portal/pages/LeaderObserveRecord.tsx:13:08a4d639` · `portal/src/portal/components/coaching/CoachingHome.tsx:7:2acf3876`

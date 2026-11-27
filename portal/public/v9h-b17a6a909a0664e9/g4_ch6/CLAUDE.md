@@ -1,7 +1,7 @@
 # g4_ch6 — Hosted v9 pages, Grade 4 chapter 6 (28 segs: English 8, Math 14, Urdu 6)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch6 kg=e59d69465099 gen=1f2582264131 overflow=17 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/public/v9h-b17a6a909a0664e9/g4_ch6 kg=8631890cffcb gen=88c0ac5a4d61 overflow=18 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `g4_ch6_English_seg1.v9.html` — first page in the chapter; standalone HTML+KaTeX, fonts from ../fonts-*.css
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `g4_ch6_Maths_seg1.v9.html` | Hosted v9 lesson page G4 Math ch6 seg1 (en): Reading & writing decimals to 3 places; place value |
 | `g4_ch6_Maths_seg10.v9.html` | Hosted v9 lesson page G4 Math ch6 seg10 (en): Real-world decimal word problems |
 | `g4_ch6_Maths_seg11.v9.html` | Hosted v9 lesson page G4 Math ch6 seg11 (en): Decimal word problems — practice (money & menus) |
-| … | 17 more → `CLAUDE.index.md` |
+| … | 18 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

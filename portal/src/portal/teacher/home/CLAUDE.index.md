@@ -31,7 +31,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `LessonQuizButton.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:28:18b028fe` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:22:18b028fe`
 - `NextCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:17:f37f5d85` · `portal/src/portal/teacher/home/look/LookHome.tsx:16:6cf38df8`
-- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:22:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureTiles.tsx:8:e549d3a4`
+- `QuizTile.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:22:a8ed77a2` · `portal/src/portal/teacher/home/look/FeatureTiles.tsx:9:e549d3a4`
 - `ScoresRow.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:19:34259cf6`
 - `SlimCard.tsx` ← imported by `portal/src/portal/teacher/pages/Home.tsx:18:d625f5f2` · `portal/src/portal/teacher/home/look/LookHome.tsx:17:1c8bea70`
 - `api.ts` ← imported by `portal/src/portal/teacher/notices/ReadyForYou.tsx:6:e4864c9e` · `portal/src/portal/teacher/home/LessonQuizButton.tsx:7:e60ade0a` · `portal/src/portal/teacher/home/NextCard.tsx:9:f2ddb384` · `portal/src/portal/teacher/home/QuizTile.tsx:6:4de7cdaf` (+11: `python3 kg/kg.py who-reads api.ts`)
@@ -46,7 +46,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `QuizTile.tsx` ← `portal/src/portal/teacher/home/QuizTile.test.tsx`
 - `ScoresRow.tsx` ← `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/look/LookScores.test.tsx`
 - `SlimCard.tsx` ← `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/look/LookCard.test.tsx`
-- `api.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/activity/HomeActivity.test.tsx` (+17: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/api.ts`)
+- `api.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/ScoresRow.test.tsx` · `portal/src/portal/teacher/home/SlimCard.test.tsx` · `portal/src/portal/teacher/home/activity/HomeActivity.test.tsx` (+19: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/api.ts`)
 - `coolDown.ts` ← `portal/src/portal/teacher/home/look/LookCard.test.tsx`
 - `copy.ts` ← `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/NextCard.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/copy.test.ts` · `portal/src/portal/teacher/home/look/LookCard.test.tsx` · `portal/src/portal/teacher/home/look/cardWords.test.ts` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/copy.ts`)
 - `useHomeData.ts` ← `portal/src/portal/teacher/TeacherNavigation.test.tsx` · `portal/src/portal/teacher/home/LessonQuizButton.test.tsx` · `portal/src/portal/teacher/home/QuizTile.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.activity.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.steady.test.tsx` · `portal/src/portal/teacher/home/look/LookHome.test.tsx` (+6: `python3 kg/kg.py who-reads portal/src/portal/teacher/home/useHomeData.ts`)

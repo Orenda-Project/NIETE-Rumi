@@ -13,6 +13,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g1_ch8_English_seg5.v9.html` | Hosted v9 lesson page G1 English ch8 seg5 (en): Months of the Year & Position Words (above/below/behind) |
 | `g1_ch8_English_seg6.v9.html` | Hosted v9 lesson page G1 English ch8 seg6 (en): Rhyme Time & Word Family Path (-at) |
 | `g1_ch8_English_seg7.v9.html` | Hosted v9 lesson page G1 English ch8 seg7 (en): Treasure-Map Days of the Week (p.108) |
+| `g1_ch8_GK_seg2.v9.html` | (unmapped) |
 | `g1_ch8_Maths_seg1.v9.html` | Hosted v9 lesson page G1 Maths ch8 seg1 (en): Comparing Length: Longer & Shorter (vehicles) |
 | `g1_ch8_Maths_seg10.v9.html` | Hosted v9 lesson page G1 Maths ch8 seg10 (en): Temperature & the Thermometer |
 | `g1_ch8_Maths_seg11.v9.html` | Hosted v9 lesson page G1 Maths ch8 seg11 (en): Reading the Thermometer as a Number Line |
