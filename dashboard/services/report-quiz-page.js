@@ -195,11 +195,11 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       + `<p id="qmanual" class="qnote" hidden>${ux('qfix_offers_cq_copy_manual')}</p></div>`);
   } else if (m.state === 'failed') {
     if (m.retry) {
-      parts.push(`<p>${ux('qfix_offers_cq_failed_retry')}</p>`
+      parts.push(`<p>${ux(m.remakes > 0 ? 'qfix_offers_cq_failed_retry_last' : 'qfix_offers_cq_failed_retry')}</p>`
         + `<form method="post" action="${esc(base)}/make" onsubmit="this.querySelector('button').disabled=true">${hidden}`
         + `<button type="submit" class="btn">${ux('qfix_offers_cq_retry')}</button></form>`);
     } else if (m.capped) {
-      parts.push(`<p>${ux('qfix_offers_cq_failed_capped')}</p>`);
+      parts.push(`<p>${ux('qfix_offers_cq_failed_capped')}</p>${waQuiz(bot, ux)}`);
     } else {
       parts.push(`<p>${ux(m.reason === 'subject_not_allowed' ? 'qfix_offers_cq_failed_subject' : 'qfix_offers_cq_failed')}</p>${waQuiz(bot, ux)}`);
     }
