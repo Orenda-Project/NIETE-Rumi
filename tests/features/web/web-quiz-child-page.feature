@@ -2242,3 +2242,11 @@ Feature: Web child quiz page on the portal
     When a child opens the quiz's start card, in English or in Urdu
     Then the card says "7 questions" / «۷ سوال», the number the child will play, and the link preview says the same
     But a teacher's own quiz counts all its questions as before
+
+  @WQ286
+  Scenario: A quiz reopened after its saved place has expired starts fresh instead of pretending to save
+    Given a child answered 3 of 5 questions and the phone kept the place
+    And the saved place's session pass is more than 7 days old
+    When the link is opened again
+    Then the page does not offer "Go on: question 4 of 5"
+    And the child is on the landing with no answers sent under the expired pass
