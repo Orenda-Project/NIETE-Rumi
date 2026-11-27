@@ -719,6 +719,8 @@ export interface CoachingProgress {
   photoCount?: number;
   /** bd-aqotzx — why a stopped session stopped: 'not_a_class' | 'not_a_class_no_answer' | 'too_short' | … */
   stopReason?: string | null;
+  /** bd-8sr958 — a stopped lesson whose damaged file the team is recovering (app_settings.recording_repair on): no Send again. */
+  recovering?: boolean;
   /** bd-z3cadk — the same recording was sent before; the earlier report was reused. */
   duplicate?: boolean;
   createdAt?: string;

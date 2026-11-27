@@ -348,6 +348,13 @@ const PORTAL_OBSERVE_UPLOAD_ONLY_KEY = 'portal_observe_upload_only';
  * features.recordingResume. Coaches and principals have it on by default, unswitched.
  */
 const PORTAL_RECORDING_RESUME_KEY = 'portal_recording_resume';
+/**
+ * bd-8sr958 (queue #320) — recording_repair: the portal checks a picked recording (chips for a damaged file, an empty one
+ * refused) and a lesson the team is recovering reads "Recovering · With team" with no Send again; the coach's teacher card
+ * lists the lesson. One app-wide row, fail-closed (isFlagEnabled); served as features.recordingRepair. The worker's repair
+ * itself is not behind it (a finished file is untouched).
+ */
+const RECORDING_REPAIR_KEY = 'recording_repair';
 
 /**
  * bd-q261rec (queue #261) — portal_upload_pieces: a recording is sent IN PIECES (each one a short PUT, resumed after a
@@ -724,6 +731,7 @@ module.exports = {
   isUploadPiecesFor,
   PORTAL_UPLOAD_PIECES_KEY,
   PORTAL_RECORDING_RESUME_KEY,
+  RECORDING_REPAIR_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   PORTAL_LP_MAKE_OWN_KEY,

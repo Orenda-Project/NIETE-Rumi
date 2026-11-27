@@ -22,7 +22,9 @@ export type SendFailure = {
    * bd-bmc9a0.1: 'unreadable' — the phone could not read the file she picked. bd-r2uzg1.9: 'not_image' — a file she
    * picked as a photo is not a JPEG or PNG inside (`magic` says what it is).
    */
-  reason: 'http' | 'network' | 'abort' | 'unknown' | 'unreadable' | 'not_image';
+  reason: 'http' | 'network' | 'abort' | 'unknown' | 'unreadable' | 'not_image' | 'damaged' | 'empty';
+  /** bd-8sr958 — for reason 'damaged': the recorder's signature (brand + free-box size), no file name. */
+  recorder?: string | null;
   sizeBytes: number;
   /** The MIME type without parameters ("audio/webm;codecs=opus" → "audio/webm"), so the server can keep it. */
   type: string;

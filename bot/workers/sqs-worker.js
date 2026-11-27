@@ -195,6 +195,11 @@ class SQSCoachingWorker {
       replicaId: REPLICA_ID  // Issue #43 Phase 2: Track parallel worker replicas
     });
 
+    // bd-8sr958: is the damaged-recording repair engine (node-av in a child process) usable on THIS deploy? Logged once.
+    require('../shared/services/coaching/recording-repair').probeEngine()
+      .then((r) => require('../shared/utils/structured-logger').logEvent('recording.engine', r))
+      .catch(() => {});
+
     this.isRunning = true;
 
     // The quiz queue polls in its own loop beside main/video (see _quizOwnLoop).

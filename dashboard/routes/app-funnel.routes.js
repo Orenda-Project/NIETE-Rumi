@@ -228,6 +228,16 @@ function createAppFunnelRouter({ limiter } = {}) {
       const status = Number(body.status);
       const type = typeof body.type === 'string' && /^[a-z]+\/[a-z0-9.+-]{1,60}$/i.test(body.type) ? body.type.toLowerCase() : 'unknown';
       const { journeyId, ...base } = who(req, now);
+      // bd-8sr958 (queue #320) — a recording the page found damaged (or empty) at the pick is NOT a failed upload: it is
+      // counted on its own (recording.damaged_at_pick) and never adds to dc_upload.failed.
+      if (body.reason === 'damaged' || body.reason === 'empty') {
+        emit('recording.damaged_at_pick', {
+          ...base, journeyId, feature: 'ai_coaching', browser: browserClass(req, body.b),
+          kind: body.reason, sizeBytes: clampInt(body.sizeBytes, 2 * 1024 * 1024 * 1024), type,
+          recorder: typeof body.recorder === 'string' && /^[A-Za-z0-9 =._-]{1,60}$/.test(body.recorder) ? body.recorder : null,
+        });
+        return res.status(204).end();
+      }
       emit('dc_upload.failed', {
         ...base,
         journeyId,
