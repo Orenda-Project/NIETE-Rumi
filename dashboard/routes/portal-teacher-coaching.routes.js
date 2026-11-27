@@ -12,6 +12,11 @@
  *   GET /api/portal/teacher/coaching/history?range=…[&from=&to=][&prevFrom=&prevTo=]
  *       → { success, range, previous, kpis: { sessions, minutes, reports } (each { value, previous }),
  *           trend: { bucketDays, points }, items, total, truncated }
+ *   GET /api/portal/teacher/coaching/:id/quiz-block
+ *       → { success, mode: 'inline' | 'page', url: '/cq/<token>?embed=portal' | '/cq/<token>?from=portal' }
+ *         The "Make a quiz" block on the teacher's report screen (bd-kcv8s5). 404 { off: true } with quiz_portal_report_block
+ *         off or unreadable (the screen keeps today's quiz button); 404 when the lesson is not the teacher's, not ready, or a
+ *         coach's visit. The link lasts a day and is never logged.
  *
  * The teacher is ALWAYS the session's user; there is no user id parameter to trust. Dark unless
  * portal_teacher_v2 is on for her: off answers 404, the same as a path that does not exist, and
@@ -106,6 +111,39 @@ router.get('/teacher/coaching/history', requirePortalAuth, requireTeacherV2, asy
     console.error('❌ Portal teacher/coaching/history failed', { error: error && error.message });
     return res.status(502).json({ success: false, error: 'Could not load your lessons' });
   }
+});
+
+// The report link for the block: one day, minted per view (the /cr link sent on WhatsApp lasts 120 days).
+const QUIZ_BLOCK_TTL_S = 24 * 60 * 60;
+
+router.get('/teacher/coaching/:id/quiz-block', requirePortalAuth, requireTeacherV2, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  const id = String(req.params.id || '');
+  if (!UUID.test(id)) return res.status(404).json({ success: false });
+  let block;
+  try {
+    block = await require('../../bot/shared/services/quiz/report-page-quiz').fetchPortalBlock(supabase); // eslint-disable-line global-require
+  } catch (error) {
+    block = null; // a failed read is OFF, as every switch read is
+  }
+  if (!block || !block.on) return res.status(404).json({ success: false, off: true });
+  const userId = req.session.portalUserId;
+  try {
+    const { data: session, error } = await supabase.from('coaching_sessions')
+      .select('id, user_id, status, observation_type').eq('id', id).maybeSingle();
+    if (error) throw new Error(error.message || 'coaching_sessions read failed');
+    // the teacher's own, ready, and their own recording (a coach's visit has no quiz block, as the screen draws none)
+    if (!session || session.user_id !== userId || session.status !== 'completed' || session.observation_type) {
+      return res.status(404).json({ success: false });
+    }
+  } catch (error) {
+    console.error('❌ Portal teacher/coaching quiz-block failed', { error: error && error.message });
+    return res.status(502).json({ success: false });
+  }
+  const token = require('../../bot/shared/services/coaching/report-link-token').signReportLink({ sessionId: id, userId }, { ttlS: QUIZ_BLOCK_TTL_S }); // eslint-disable-line global-require
+  if (!token) return res.status(404).json({ success: false, off: true });
+  const url = `/cq/${token}?${block.mode === 'page' ? 'from' : 'embed'}=portal`;
+  return res.json({ success: true, mode: block.mode, url });
 });
 
 module.exports = router;

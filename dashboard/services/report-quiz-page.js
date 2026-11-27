@@ -51,8 +51,13 @@ const QZ_CSS = '<style>.qz a.btn,.qz button.btn{display:inline-block;min-height:
 const BEACON_EVENTS = Object.freeze(['copy', 'share', 'view_questions', 'make_timeout']);
 
 /** The page's own script: polling while making, Copy (clipboard, then the select-all fallback), the beacons. */
-function script(base, surface, state) {
+function script(base, surface, state, embed = false) {
   const j = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+  // the portal's door asks for its own state (a lesson with no quiz yet reads as held there), and while its make is
+  // queued, before the offer job takes the lesson, that held answer is not a change
+  const portal = surface === 'portal';
+  const stateUrl = portal ? "b+'/state?surface=portal'" : "b+'/state'";
+  const moved = portal ? "x.state!==st&&!((x.state==='held'||x.state==='none')&&Date.now()-t0<60000)" : 'x.state!==st';
   return `<script>(function(){var b=${j(base)},s=${j(surface)},st=${j(state)};`
     // form-encoded: a CORS-safelisted type, so sendBeacon never refuses it (a JSON Blob is refused by Chrome).
     + 'function ev(e,x){try{var o={ev:e,surface:s};for(var k in (x||{}))o[k]=String(x[k]);var d=new URLSearchParams(o);'
@@ -60,8 +65,8 @@ function script(base, surface, state) {
     + "fetch(b+'/e',{method:'POST',body:d,keepalive:true}).catch(function(){})}catch(_){}}"
     + "if(st==='making'){var t0=Date.now(),slow=false;"
     + "function next(){if(!slow&&Date.now()-t0>480000){slow=true;var w=document.getElementById('qslow');if(w)w.hidden=false;ev('make_timeout')}setTimeout(poll,slow?15000:4000)}"
-    + "function poll(){fetch(b+'/state',{headers:{accept:'application/json'},cache:'no-store'}).then(function(r){return r.ok?r.json():null})"
-    + '.then(function(x){if(x&&x.state&&x.state!==st){location.reload();return}next()},next)}next()}'
+    + `function poll(){fetch(${stateUrl},{headers:{accept:'application/json'},cache:'no-store'}).then(function(r){return r.ok?r.json():null})`
+    + `.then(function(x){if(x&&x.state&&${moved}){location.reload();return}next()},next)}next()}`
     + "var c=document.querySelector('[data-copy]'),m=document.getElementById('qmsg');"
     + "if(c&&m)c.addEventListener('click',function(){"
     + "function done(f){var k=document.getElementById('qcopied');if(k){k.hidden=false;setTimeout(function(){k.hidden=true},3000)}ev('copy',{fallback:f})}"
@@ -72,11 +77,15 @@ function script(base, surface, state) {
     + "[].forEach.call(document.querySelectorAll('textarea.qopttext'),function(t){function fit(){t.style.height='auto';t.style.height=t.scrollHeight+'px'}"
     + "t.addEventListener('input',fit);t.addEventListener('keydown',function(e){if(e.key==='Enter')e.preventDefault()});fit()});"
     + "var q=document.querySelector('details.qq');if(q){var seen=false;q.addEventListener('toggle',function(){if(q.open&&!seen){seen=true;ev('view_questions')}})}"
+    // in the portal's frame: its height to the screen around it, addressed to our own origin only
+    + (embed ? "function hp(){try{parent.postMessage({type:'rq-height',h:Math.ceil(document.body.getBoundingClientRect().height)},location.origin)}catch(_){}}"
+      + "hp();window.addEventListener('load',hp);window.addEventListener('resize',hp);document.addEventListener('toggle',hp,true);"
+      + "document.addEventListener('input',hp,true);if(window.ResizeObserver)new ResizeObserver(hp).observe(document.body);" : '')
     + '})();</script>';
 }
 
-function waQuiz(bot, ux) {
-  return bot ? `<a class="btn" href="${esc(`https://wa.me/${bot}?text=${encodeURIComponent('/quiz')}`)}">${ux('qfix_offers_cq_open_wa')}</a>` : '';
+function waQuiz(bot, ux, out = '') {
+  return bot ? `<a class="btn"${out} href="${esc(`https://wa.me/${bot}?text=${encodeURIComponent('/quiz')}`)}">${ux('qfix_offers_cq_open_wa')}</a>` : '';
 }
 
 /**
@@ -145,12 +154,19 @@ const NOTICE = Object.freeze({
  * the block); `surface` = 'cq' | 'cr' (logged, and where a form goes back to); `heading` draws the block's own title.
  * '' when there is nothing to show.
  */
-function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading = false, edit = null, notice = null } = {}) {
+function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading = false, edit = null, notice = null, shell: frame = null } = {}) {
   const l = language === 'ur' ? 'ur' : 'en';
   const ux = (key) => esc(resolveUx(key, { language: l }));
   const m = model || { state: 'none' };
-  const where = surface === 'cr' ? 'cr' : 'cq';
-  const hidden = `<input type="hidden" name="surface" value="${where}">`;
+  const where = ['cr', 'portal'].includes(surface) ? surface : 'cq';
+  // the portal's block is in a frame on its screen (embed) or a page of its own (page); a form says which, to come back
+  const shellKind = where === 'portal' ? (frame === 'page' ? 'page' : 'embed') : null;
+  const embed = shellKind === 'embed';
+  // a link that leaves (WhatsApp, the PDF, the student's view) opens in the whole window, never inside the frame
+  const out = embed ? ' target="_top"' : '';
+  // the PDF and the student's view log which door they came from
+  const sq = where === 'portal' ? '?surface=portal' : '';
+  const hidden = `<input type="hidden" name="surface" value="${where}">${shellKind ? `<input type="hidden" name="shell" value="${shellKind}">` : ''}`;
   const parts = [];
   if (heading) parts.push(`<h2>${ux('qfix_offers_cr_quiz_head')}</h2>`);
   if (m.state === 'held') {
@@ -172,9 +188,9 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       parts.push(`<p>${ux('qfix_offers_cq_closed')}</p>`);
       const shut = Array.isArray(m.questions) ? m.questions : [];
       if (shut.length) parts.push(questionsList(shut, l, ux, { langAttr }));
-      if (m.pdf) parts.push(`<p><a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a></p>`);
-      parts.push(`<p>${ux('qfix_offers_cq_closed_new')}</p>${waQuiz(bot, ux)}`);
-      return `<section class="qz" id="quiz">${QZ_CSS}${parts.join('')}${script(base, where, 'closed')}</section>`;
+      if (m.pdf) parts.push(`<p><a class="btn ghost"${out} href="${esc(base)}/pdf${sq}">${ux('qfix_offers_cq_pdf')}</a></p>`);
+      parts.push(`<p>${ux('qfix_offers_cq_closed_new')}</p>${waQuiz(bot, ux, out)}`);
+      return `<section class="qz" id="quiz">${QZ_CSS}${parts.join('')}${script(base, where, 'closed', embed)}</section>`;
     }
     const share = `https://wa.me/?text=${encodeURIComponent(m.message)}`;
     const said = Object.prototype.hasOwnProperty.call(NOTICE, notice)
@@ -186,11 +202,11 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
       + `<textarea id="qmsg" class="qsrc" readonly tabindex="-1" aria-hidden="true">${esc(m.message)}</textarea>`);
     const list = edit && Array.isArray(edit.questions) && edit.questions.length ? fromEdit(edit) : m.questions;
     if (Array.isArray(list) && list.length) parts.push(questionsList(list, l, ux, { edit, base, hidden, open: Boolean(said) && notice !== 'pdf_pending', langAttr }));
-    const links = [m.pdf || edit ? `<a class="btn ghost" href="${esc(base)}/pdf">${ux('qfix_offers_cq_pdf')}</a>` : '',
-      m.preview ? `<a class="btn ghost" href="${esc(base)}/try">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');
+    const links = [m.pdf || edit ? `<a class="btn ghost"${out} href="${esc(base)}/pdf${sq}">${ux('qfix_offers_cq_pdf')}</a>` : '',
+      m.preview ? `<a class="btn ghost"${out} href="${esc(base)}/try${sq}">${ux('qfix_offers_cq_try')}</a>` : ''].filter(Boolean).join(' ');
     if (links) parts.push(`<p>${links}</p>`);
     parts.push(`<div class="qbar"><button type="button" class="btn" data-copy>${ux('qfix_offers_cq_copy')}</button>`
-      + `<a class="btn" data-share href="${esc(share)}">${ux('qfix_offers_cq_send')}</a>`
+      + `<a class="btn" data-share${out} href="${esc(share)}">${ux('qfix_offers_cq_send')}</a>`
       + `<p id="qcopied" class="qnote" role="status" hidden>${ux('qfix_offers_cq_copied')}</p>`
       + `<p id="qmanual" class="qnote" hidden>${ux('qfix_offers_cq_copy_manual')}</p></div>`);
   } else if (m.state === 'failed') {
@@ -201,21 +217,36 @@ function renderQuizBlock(model, { language, base, surface = 'cq', bot, heading =
     } else if (m.capped) {
       parts.push(`<p>${ux('qfix_offers_cq_failed_capped')}</p>`);
     } else {
-      parts.push(`<p>${ux(m.reason === 'subject_not_allowed' ? 'qfix_offers_cq_failed_subject' : 'qfix_offers_cq_failed')}</p>${waQuiz(bot, ux)}`);
+      parts.push(`<p>${ux(m.reason === 'subject_not_allowed' ? 'qfix_offers_cq_failed_subject' : 'qfix_offers_cq_failed')}</p>${waQuiz(bot, ux, out)}`);
     }
-  } else if (where === 'cq') {
-    parts.push(`<p>${ux('qfix_offers_cq_none')}</p>${waQuiz(bot, ux)}`);
+  } else if (where !== 'cr') {
+    parts.push(`<p>${ux('qfix_offers_cq_none')}</p>${waQuiz(bot, ux, out)}`);
   } else {
     return '';
   }
-  return `<section class="qz" id="quiz">${QZ_CSS}${parts.join('')}${script(base, where, m.state)}</section>`;
+  return `<section class="qz" id="quiz">${QZ_CSS}${parts.join('')}${script(base, where, m.state, embed)}</section>`;
 }
 
-/** /cq/:token: the lesson, then the block. */
-function renderQuizPage({ language, topic, model, base, bot, edit = null, notice = null } = {}) {
+/**
+ * /cq/:token: the lesson, then the block. `back` (the portal's mode "page", ?from=portal): a link back to the report
+ * screen it came from, and the block posts as the portal.
+ */
+function renderQuizPage({ language, topic, model, base, bot, edit = null, notice = null, back = null } = {}) {
   const l = language === 'ur' ? 'ur' : 'en';
-  const head = `<header><section><h1>${esc(resolveUx('qfix_offers_cr_quiz_head', { language: l }))}</h1>${topic ? `<p class="muted">${esc(topic)}</p>` : ''}</section></header>`;
-  return shell(l, resolveUx('qfix_offers_cr_quiz_head', { language: l }), `${head}\n${renderQuizBlock(model, { language: l, base, surface: 'cq', bot, edit, notice })}`);
+  const backLink = back ? `<p><a href="${esc(back)}">${esc(resolveUx('videoRecoPlayerBack', { language: l }))}</a></p>` : '';
+  const head = `<header><section>${backLink}<h1>${esc(resolveUx('qfix_offers_cr_quiz_head', { language: l }))}</h1>${topic ? `<p class="muted">${esc(topic)}</p>` : ''}</section></header>`;
+  const block = renderQuizBlock(model, { language: l, base, surface: back ? 'portal' : 'cq', shell: back ? 'page' : null, bot, edit, notice });
+  return shell(l, resolveUx('qfix_offers_cr_quiz_head', { language: l }), `${head}\n${block}`);
 }
 
-module.exports = { renderQuizPage, renderQuizBlock, QZ_CSS, BEACON_EVENTS, NOTICE };
+// the frame page: the block alone, flush with the screen around it
+const EMBED_CSS = '<style>body{padding:0;background:transparent}main{max-width:none}section.qz{margin:0}</style>';
+
+/** /cq/:token?embed=portal: the block alone, for a frame on the portal's coaching screen (same origin). */
+function renderQuizEmbed({ language, model, base, bot, edit = null, notice = null } = {}) {
+  const l = language === 'ur' ? 'ur' : 'en';
+  return shell(l, resolveUx('qfix_offers_cr_quiz_head', { language: l }),
+    `${EMBED_CSS}${renderQuizBlock(model, { language: l, base, surface: 'portal', shell: 'embed', bot, edit, notice })}`);
+}
+
+module.exports = { renderQuizPage, renderQuizEmbed, renderQuizBlock, QZ_CSS, BEACON_EVENTS, NOTICE };

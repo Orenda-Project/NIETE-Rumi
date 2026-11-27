@@ -37,7 +37,7 @@ const pageTime = require('../services/report-page-time');
 const deliveryFixes = require('../../bot/shared/services/coaching/report-delivery-switch');
 const { cachedSwitch } = require('../../bot/shared/services/settings/switch-cache');
 const { fetchFrom: pageQuizSwitch, LANGS: QUIZ_LANGS, SURFACES: QUIZ_SURFACES } = require('../../bot/shared/services/quiz/report-page-quiz');
-const { renderQuizPage, renderQuizBlock, BEACON_EVENTS, NOTICE } = require('../services/report-quiz-page');
+const { renderQuizPage, renderQuizEmbed, renderQuizBlock, BEACON_EVENTS, NOTICE } = require('../services/report-quiz-page');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -168,9 +168,10 @@ function createCoachingReportRouter(opts = {}) {
     return r.status === 200 && r.body && r.body.editable !== false && Array.isArray(r.body.questions) ? r.body : null;
   };
   /** The bot's state for the quiz block, or null (switch off, the bot unreachable, not this teacher's). */
-  const quizModel = async (sessionId, userId) => {
+  const quizModel = async (sessionId, userId, surface) => {
     if (!(await quizPageOn())) return null;
-    const r = await reportQuiz('state', { sessionId, userId });
+    // the portal's door asks as itself: a lesson with no quiz yet reads as held there (report-page-quiz.js)
+    const r = await reportQuiz('state', { sessionId, userId, ...(surface === 'portal' ? { surface } : {}) });
     return r.status === 200 && r.body && r.body.state ? r.body : null;
   };
   const router = express.Router();
@@ -338,9 +339,22 @@ function createCoachingReportRouter(opts = {}) {
     return verified(String(req.params.token || ''), res);
   };
   const surfaceOf = (b) => (QUIZ_SURFACES.includes(b && b.surface) ? b.surface : 'cq');
-  const backTo = (token, surface) => (surface === 'cr' ? `${REPORT_PATH}/${token}#quiz` : `/cq/${token}`);
+  // where a form goes back to: the portal's block is in a frame on its screen (?embed=portal) or a page (?from=portal)
+  const placeOf = (surface, shell) => (surface === 'portal' ? (shell === 'page' ? 'portal-page' : 'portal-embed') : surface);
+  const pageOf = (token, place) => (place === 'cr' ? `${REPORT_PATH}/${token}`
+    : place === 'portal-embed' ? `/cq/${token}?embed=portal` : place === 'portal-page' ? `/cq/${token}?from=portal` : `/cq/${token}`);
+  const backTo = (token, place) => (place === 'cr' ? `${REPORT_PATH}/${token}#quiz` : pageOf(token, place));
   // back to the page with the outcome's line and the question in view
-  const backWith = (token, surface, code, qid) => `${surface === 'cr' ? `${REPORT_PATH}/${token}` : `/cq/${token}`}?e=${code}${qid ? `#q-${qid}` : ''}`;
+  const backWith = (token, place, code, qid) => {
+    const page = pageOf(token, place);
+    return `${page}${page.includes('?') ? '&' : '?'}e=${code}${qid ? `#q-${qid}` : ''}`;
+  };
+  // the portal's frame may be drawn only by our own origin (the portal's screen), never by any other site
+  const frameAncestors = () => {
+    let portal = '';
+    try { portal = process.env.PORTAL_URL ? new URL(String(process.env.PORTAL_URL).trim()).origin : ''; } catch (_) { portal = ''; }
+    return `frame-ancestors 'self'${portal ? ` ${portal}` : ''}`;
+  };
   const wantsJson = (req) => /application\/json/i.test(String(req.get('accept') || ''));
   const quizEvent = (name, v, props) => log({ coachingSessionId: v.sessionId, userId: v.userId, ...props }, name);
 
@@ -356,14 +370,24 @@ function createCoachingReportRouter(opts = {}) {
     }
     if (!data) return res.status(404).type('html').send(renderMessagePage('not_found'));
     const language = data.language === 'ur' ? 'ur' : 'en';
+    // ?embed=portal: the block alone, in the frame on the portal's coaching screen; ?from=portal: its page mode
+    const embed = req.query.embed === 'portal';
+    const fromPortal = !embed && req.query.from === 'portal';
+    const surface = embed || fromPortal ? 'portal' : 'cq';
     // The bot unreachable: the made quiz's message as the report has it, else the /quiz door.
-    const model = (await quizModel(v.sessionId, v.userId))
+    const model = (await quizModel(v.sessionId, v.userId, surface))
       || (data.quizMessage ? { state: 'ready', message: data.quizMessage, questions: [], pdf: false, preview: null } : { state: 'none' });
-    log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: model.state });
+    log({ outcome: 'ok', sessionId: v.sessionId, userId: v.userId, language, screen: 'quiz', state: model.state, ...(surface === 'portal' ? { surface } : {}) });
     const topic = data.session && data.session.analysis_data && data.session.analysis_data.topic;
     const token = String(req.params.token);
     const edit = await editView(model, v.userId);
-    return res.status(200).type('html').send(renderQuizPage({ language, topic, model, base: `/cq/${token}`, bot: botNumber(), edit, notice: noticeOf(req.query) }));
+    const page = { language, model, base: `/cq/${token}`, bot: botNumber(), edit, notice: noticeOf(req.query) };
+    if (embed) {
+      res.set('Content-Security-Policy', frameAncestors());
+      return res.status(200).type('html').send(renderQuizEmbed(page));
+    }
+    const back = fromPortal ? `/portal/teacher/coaching/report/${encodeURIComponent(v.sessionId)}` : null;
+    return res.status(200).type('html').send(renderQuizPage({ ...page, topic, back }));
   };
 
   /** make / lang: the bot's answer, then 303 back to the page the form was on (or the state as JSON). */
@@ -376,14 +400,14 @@ function createCoachingReportRouter(opts = {}) {
     if (r.status === 404) return res.status(404).type('html').send(renderMessagePage('not_found'));
     if (r.status !== 200 || !r.body) return res.status(503).type('html').send(renderMessagePage('error'));
     if (wantsJson(req)) return res.status(200).json(r.body);
-    return res.redirect(303, backTo(String(req.params.token), surface));
+    return res.redirect(303, backTo(String(req.params.token), placeOf(surface, b.shell)));
   };
 
   const quizState = async (req, res) => {
     if (!(await quizPageOn())) return res.status(404).json({ error: 'off' });
     const v = verifyReportLink(String(req.params.token || ''));
     if (!v.ok) return res.status(404).json({ error: 'not_found' });
-    const model = await quizModel(v.sessionId, v.userId);
+    const model = await quizModel(v.sessionId, v.userId, surfaceOf(req.query));
     return model ? res.status(200).json({ state: model.state }) : res.status(503).json({ error: 'unavailable' });
   };
 
@@ -410,7 +434,7 @@ function createCoachingReportRouter(opts = {}) {
     }
     // not ready yet (a slow render, a later save, a failure the bot logged): the page says so; Download again later
     quizEvent('transcript_quiz.page_pdf', v, { surface, remade: 'pending' });
-    return res.redirect(303, backWith(String(req.params.token), surface, 'pdf_pending'));
+    return res.redirect(303, backWith(String(req.params.token), placeOf(surface, 'page'), 'pdf_pending'));
   };
 
   /**
@@ -461,7 +485,7 @@ function createCoachingReportRouter(opts = {}) {
         if (ed.key !== false) ops.push({ op: 'key', qid: it.qid, slot: key });
       }
     }
-    if (!ops.length) return res.redirect(303, backWith(token, surface, held ? (view.locked ? 'locked' : 'not_editable') : 'none', it.qid));
+    if (!ops.length) return res.redirect(303, backWith(token, placeOf(surface, b.shell), held ? (view.locked ? 'locked' : 'not_editable') : 'none', it.qid));
     // the page drew v; the bot refuses a save over a newer one (stale)
     const r = await callBotSlow('POST', '/api/internal/wqedit/save', {
       quizId: model.quizId, teacherUserId: v.userId, v: drawn, ops, surface,
@@ -472,7 +496,7 @@ function createCoachingReportRouter(opts = {}) {
     quizEvent('transcript_quiz.page_edit_result', v, {
       quizId: model.quizId, outcome: code, fields: ops.map((o) => o.op).join(','), locked: Boolean(view.locked), surface,
     });
-    return res.redirect(303, backWith(token, surface, code, it.qid));
+    return res.redirect(303, backWith(token, placeOf(surface, b.shell), code, it.qid));
   };
 
   const quizTry = async (req, res) => {

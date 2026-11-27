@@ -42,7 +42,11 @@ const PAGE_NO_SEND = 'report_page:no_send';
 // A tap on a held row reads as "making" for this long, until the offer job turns the row.
 const TAP_FRESH_MS = 10 * 60 * 1000;
 const LANGS = Object.freeze(['ur', 'en']);
-const SURFACES = Object.freeze(['cq', 'cr']);
+// cq: the /cq page; cr: the block on the /cr report; portal: the block on the teacher's coaching screen in the portal / app
+const SURFACES = Object.freeze(['cq', 'cr', 'portal']);
+// The portal / app coaching screen's block: { "mode": "inline" | "page" }. Missing, not an object or unreadable = off.
+const PORTAL_SETTING = 'quiz_portal_report_block';
+const PORTAL_MODES = Object.freeze(['inline', 'page']);
 
 const OFF = Object.freeze({ reportPage: false, pageTemplate: null });
 /** Meta template names: lowercase letters, digits and underscores. */
@@ -82,6 +86,29 @@ async function readParts(db) {
 /** One read through the given client: report_page. Throws on a failed read (the caller decides: off). */
 async function fetchFrom(db) {
   return (await readParts(db)).reportPage;
+}
+
+/** { on, mode } from quiz_portal_report_block's value. Pure; anything unexpected is off; an unknown mode is inline. */
+function parsePortalBlock(value) {
+  let v = value;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch (_) { return { on: false, mode: null }; }
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v) || v.on === false) return { on: false, mode: null };
+  return { on: true, mode: PORTAL_MODES.includes(v.mode) ? v.mode : 'inline' };
+}
+
+/**
+ * The portal's question: is the block on? Both rows in one read; the block needs the /cq pages it embeds
+ * (quiz_offer_closed_window.report_page) as well as its own row. Throws on a failed read (the caller treats it as off).
+ */
+async function fetchPortalBlock(db) {
+  const { data, error } = await db.from('app_settings').select('key,value').in('key', [SETTING, PORTAL_SETTING]);
+  if (error) throw new Error(error.message || 'app_settings read failed');
+  const rows = data || [];
+  const valueOf = (k) => { const r = rows.find((x) => x.key === k); return r ? r.value : undefined; };
+  const block = parsePortalBlock(valueOf(PORTAL_SETTING));
+  return block.on && parseParts(valueOf(SETTING)).reportPage ? block : { on: false, mode: null };
 }
 
 let botSwitch = null;
@@ -135,6 +162,7 @@ function defaults() {
     log: (event, props) => require('../../utils/structured-logger').logEvent(event, props),
     presign: (key) => require('../../storage/r2').getPresignedGetUrl(key, 3600),
     preview: (code, ids) => require('./web-quiz-link').previewLink(code, ids),
+    eligible: (ids) => require('./transcript-quiz-offer.service').quizEligibleSession(ids),
     now: () => Date.now(),
   };
   /* eslint-enable global-require */
@@ -233,11 +261,28 @@ async function stateOf(d, q) {
   return { state: 'none', page };
 }
 
+/**
+ * The portal's coaching screen offers a quiz for any lesson that can take one, not only one a closed window held: a
+ * lesson with no quiz row yet, that the offer itself would take (quizEligibleSession), reads as held there. /cq and
+ * /cr are unchanged.
+ */
+async function freshForPortal(d, { q, sessionId, userId, surface }) {
+  if (surface !== 'portal' || q) return false;
+  try {
+    return Boolean(await d.eligible({ coachingSessionId: sessionId, userId }));
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The page's state for this session, for its own teacher only (null = not theirs). */
-async function pageState({ sessionId, userId }, deps = {}) {
+async function pageState({ sessionId, userId, surface }, deps = {}) {
   const d = { ...defaults(), ...deps };
   if (!(await ownedSession(d, sessionId, userId))) return null;
-  return stateOf(d, await quizOf(d, sessionId));
+  const q = await quizOf(d, sessionId);
+  const state = await stateOf(d, q);
+  if (state.state === 'none' && await freshForPortal(d, { q, sessionId, userId, surface })) return { state: 'held', page: false };
+  return state;
 }
 
 /**
@@ -256,7 +301,9 @@ async function makeFromPage({ sessionId, userId, surface }, deps = {}) {
   const q = await quizOf(d, sessionId);
   const before = await stateOf(d, q);
   if (before.state === 'failed' && before.retry) return retryFromPage(d, { q, session, sessionId, userId, where, reason: before.reason });
-  if (before.state !== 'held') return before;
+  // the portal's door on a lesson with no quiz yet: the same accepted offer job; its claim keeps one quiz per lesson
+  const fresh = before.state === 'none' && await freshForPortal(d, { q, sessionId, userId, surface: where });
+  if (before.state !== 'held' && !fresh) return before;
   const tapAt = new Date(d.now()).toISOString();
   if (isHeld(q)) {
     await d.db().from('quizzes').update({ meta: { ...(q.meta || {}), page_make_at: tapAt, page_surface: where } })
@@ -318,6 +365,7 @@ async function pdfFor({ sessionId, userId }, deps = {}) {
 function _resetCache() { if (botSwitch) botSwitch.reset(); }
 
 module.exports = {
-  SETTING, PAGE_NO_SEND, LANGS, SURFACES, parseParts, parseSwitch, fetchFrom, pageOffer, botSwitchOn,
+  SETTING, PORTAL_SETTING, PAGE_NO_SEND, LANGS, SURFACES, parseParts, parseSwitch, fetchFrom, parsePortalBlock,
+  fetchPortalBlock, pageOffer, botSwitchOn,
   pageState, makeFromPage, chooseLanguage, pdfFor, _resetCache,
 };

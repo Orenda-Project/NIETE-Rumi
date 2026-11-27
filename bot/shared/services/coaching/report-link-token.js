@@ -46,12 +46,18 @@ function key() {
 const sign = (k, payload) => crypto.createHmac('sha256', k).update(payload).digest('base64url').slice(0, SIG_LEN);
 const nowS = () => Math.floor(Date.now() / 1000);
 
-function signReportLink(ids) {
+/**
+ * `opts.ttlS`: a shorter life in seconds (the portal's coaching screen mints one per view, for a day). Anything that is
+ * not a positive whole number is today's 120 days, and nothing lasts longer than that. verify does not change.
+ */
+function signReportLink(ids, opts = {}) {
   const { sessionId, userId } = ids || {};
   if (!UUID_RX.test(String(sessionId || '')) || !UUID_RX.test(String(userId || ''))) return null;
   const k = key();
   if (!k) return null;
-  const payload = Buffer.from(JSON.stringify({ k: KIND, s: sessionId, u: userId, exp: nowS() + TTL_S })).toString('base64url');
+  const want = opts && opts.ttlS;
+  const ttl = Number.isInteger(want) && want > 0 ? Math.min(want, TTL_S) : TTL_S;
+  const payload = Buffer.from(JSON.stringify({ k: KIND, s: sessionId, u: userId, exp: nowS() + ttl })).toString('base64url');
   return `${payload}.${sign(k, payload)}`;
 }
 
