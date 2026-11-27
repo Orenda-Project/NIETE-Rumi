@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T13:19:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment spec_sync=true","sha":"361f32a61844","branch":"bd-nr8mrm.8-83971","user":""}
 {"ts":"2026-11-27T13:19:44Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment spec_sync=true","sha":"361f32a61844","branch":"bd-nr8mrm.8-83971","user":""}
 {"ts":"2026-11-27T13:35:09Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment=none-needed (361f32a618 IS the spec sync: it adds TA30 to teacher-assessment.feature plus its driver; driven at 361f32a618, TA30 ok)","sha":"361f32a61844","branch":"bd-nr8mrm.8-83971","user":""}
+{"ts":"2026-11-27T13:35:10Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e73fb571-116e-4b3e-89d7-6561c47dde5e","sha":"361f32a61844","branch":"bd-nr8mrm.8-83971","user":""}
