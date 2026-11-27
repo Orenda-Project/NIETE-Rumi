@@ -281,6 +281,9 @@ function withoutW3(battery) {
  *   r28_accept          on the EN familiar words: each item's `accept` holds the local forms that keep the same word,
  *                       which the scorer reads from the battery file (the words prompt); a phone never receives them,
  *                       OFF or ON, so the task goes out without `r28_accept` and its items (and ext_items) without `accept`.
+ *   practice_r28        on a one-at-a-time task, `{ r28: <kind>, practice }`: the task's practice under that kind's switch
+ *                       (the Urdu letter-names example ک under sa_r28_letter_pick). ON: served as the task's `practice`;
+ *                       OFF: today's `practice` stays. The `practice_r28` key never reaches a phone.
  *   Each ON adds battery.ui.r28_<x> = true for the engine (UI). A battery with nothing of round 28 comes back as it is.
  */
 const R28_KINDS = { r28LetterPick: 'letter_pick', r28Mcq: 'mcq' };
@@ -292,10 +295,16 @@ const withoutAccept = (t) => {
   return { ...rest, items: t.items.map(noAccept), ...(Array.isArray(t.ext_items) ? { ext_items: t.ext_items.map(noAccept) } : {}) };
 };
 function withR28(battery, on) {
-  const tasks = battery.tasks.map(withoutAccept);
-  const hasTask = tasks.some((t) => t && t.r28);
-  if (!hasTask && !battery.tasks.some((t) => t && (hasExt(t) || t.r28_accept)) && !battery.lines_r28 && !battery.r28_tasks) return battery;
   const kinds = new Set(Object.entries(R28_KINDS).filter(([k]) => on[k] === true).map(([, kind]) => kind));
+  // practice_r28 { r28: <kind>, practice }: ON, that practice takes the place of today's; OFF, today's stays. The key goes.
+  const practiceFor = (t) => {
+    if (!t || !t.practice_r28) return t;
+    const { practice_r28: pr, ...rest } = t;
+    return kinds.has(pr.r28) ? { ...rest, practice: pr.practice } : rest;
+  };
+  const tasks = battery.tasks.map(withoutAccept).map(practiceFor);
+  const hasTask = tasks.some((t) => t && t.r28);
+  if (!hasTask && !battery.tasks.some((t) => t && (hasExt(t) || t.r28_accept || t.practice_r28)) && !battery.lines_r28 && !battery.r28_tasks) return battery;
   // ON: the new task sits where the task it replaces sat; OFF: it is dropped.
   const byOld = new Map(tasks.filter((t) => t && t.r28 && kinds.has(t.r28) && t.replaces).map((t) => [t.replaces, t]));
   const placed = new Set();
