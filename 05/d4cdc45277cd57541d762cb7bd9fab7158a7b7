@@ -1,2 +1,5 @@
 {"ts":"2026-11-27T08:22:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"05d4cdc45277","branch":"bd-ek4vxb.1-65152","user":""}
 {"ts":"2026-11-27T08:22:59Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training,web-quiz-child-page owe their Gherkin","sha":"05d4cdc45277","branch":"bd-ek4vxb.1-65152","user":""}
+{"ts":"2026-11-27T08:22:59Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,web-quiz-child-page spec_sync=true","sha":"05d4cdc45277","branch":"bd-ek4vxb.1-65152","user":""}
+{"ts":"2026-11-27T08:23:35Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,web-quiz-child-page spec_sync=true","sha":"05d4cdc45277","branch":"bd-ek4vxb.1-65152","user":""}
+{"ts":"2026-11-27T08:24:34Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"0618a8a4-e2cd-456e-a2e3-65265da133d5","sha":"05d4cdc45277","branch":"bd-ek4vxb.1-65152","user":""}
