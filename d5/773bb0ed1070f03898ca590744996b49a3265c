@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T03:22:59Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d5773bb0ed10","branch":"bd-g2baes.3-48260","user":""}
 {"ts":"2026-11-27T03:23:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"d5773bb0ed10","branch":"bd-g2baes.3-48260","user":""}
 {"ts":"2026-11-27T03:23:18Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"d5773bb0ed10","branch":"bd-g2baes.3-48260","user":""}
+{"ts":"2026-11-27T03:23:26Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"d5773bb0ed10","branch":"bd-g2baes.3-48260","user":""}
