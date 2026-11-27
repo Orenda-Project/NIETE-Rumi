@@ -97,7 +97,8 @@
         var at = picked.indexOf(t);
         if (at >= 0) picked.splice(at, 1);
         else if (picked.length < MAX_PICKED) picked.push(t);
-        if (el) el.setAttribute('aria-pressed', picked.indexOf(t) >= 0 ? 'true' : 'false');
+        var on = picked.indexOf(t) >= 0;
+        if (el) { el.setAttribute('aria-pressed', on ? 'true' : 'false'); el.setAttribute('class', on ? 'wq-btn wq-go' : 'wq-btn wq-soft'); }
       });
     });
     tap('#wq-pd-start', function () {

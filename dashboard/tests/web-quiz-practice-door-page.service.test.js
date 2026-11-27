@@ -80,6 +80,9 @@ describe('a round: topics → 5 questions → the result', () => {
     expect(p.html()).toContain('Pick up to 3 topics');
     expect(p.html()).toContain('Naming words');
     p.els['#wq-pd-t-0'].fire('click');
+    // a picked topic looks picked, not only to a screen reader
+    expect(p.els['#wq-pd-t-0'].getAttribute('class')).toBe('wq-btn wq-go');
+    expect(p.els['#wq-pd-t-0'].getAttribute('aria-pressed')).toBe('true');
     p.els['#wq-pd-start'].fire('click');
     await flush(); await flush();
     expect(posts(p, 'start')[1]).toEqual({ st: 's1', topics: ['Naming words'] });
