@@ -28,6 +28,12 @@ export interface TrayProps {
    * Off by default, so every other sheet keeps 88% at most.
    */
   tall?: boolean;
+  /**
+   * bd-q8wt5e.15 — a row that stays under the list (a count and Done): drawn below the scrolling body, never inside
+   * it, so it is on the screen however far the list is scrolled. The body's children never shrink (bd-o15qnr.40.9),
+   * so a row put in `children` scrolls away with the list.
+   */
+  foot?: ReactNode;
 }
 
 /** How far the handle is dragged down before the sheet closes (bd-o15qnr.40.9). */
@@ -35,7 +41,7 @@ const CLOSE_DRAG = 80;
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId, tall = false }: TrayProps) {
+export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId, tall = false, foot }: TrayProps) {
   const kit = useKitCopy();
   const closeLabel = closeLabelProp ?? kit.close;
   const panel = useRef<HTMLDivElement>(null);
@@ -142,6 +148,7 @@ export function Tray({ open, title, onClose, children, closeLabel: closeLabelPro
           className="-mx-3.5 flex min-h-0 flex-1 touch-pan-y flex-col gap-3 overflow-y-auto overscroll-contain px-3.5 pb-1 [-webkit-overflow-scrolling:touch] [&>*]:shrink-0">
           {children}
         </div>
+        {foot != null && <div data-testid="tray-foot" className="shrink-0">{foot}</div>}
       </div>
     </div>,
     document.body,

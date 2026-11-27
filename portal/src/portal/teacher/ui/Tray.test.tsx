@@ -53,6 +53,24 @@ describe("Tray", () => {
     expect(screen.getByTestId("tray-handle")).toHaveClass("h-[5px]", "w-11");
   });
 
+  // bd-q8wt5e.15 — a sheet with a long list and a Done row: the row sits UNDER the scrolling body, never inside it,
+  // so Done stays on the screen however far the list is scrolled (TA19, 360x640).
+  it("a foot sits under the scrolling body, outside it, and never shrinks", () => {
+    render(<Tray open tall title="Types" onClose={() => {}} foot={<button type="button">Done</button>}><p>a long list</p></Tray>);
+    const body = screen.getByTestId("tray-body");
+    const foot = screen.getByTestId("tray-foot");
+    expect(body.contains(foot)).toBe(false);
+    expect(foot.contains(screen.getByRole("button", { name: "Done" }))).toBe(true);
+    expect(body.contains(screen.getByText("a long list"))).toBe(true);
+    expect(classes(foot)).toContain("shrink-0");
+    expect(screen.getByRole("dialog").lastElementChild).toBe(foot);
+  });
+
+  it("no foot: nothing is drawn under the body", () => {
+    render(<Tray open title="T" onClose={() => {}}><p>x</p></Tray>);
+    expect(screen.queryByTestId("tray-foot")).toBeNull();
+  });
+
   it("the round close is 56px; it, Escape and a tap on the dim all close it — a tap inside does not", () => {
     const onClose = vi.fn();
     const { unmount } = render(<Tray open title="T" onClose={onClose}><button type="button">Inside</button></Tray>);
