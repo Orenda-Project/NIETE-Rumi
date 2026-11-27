@@ -238,6 +238,9 @@
     return at < 0 ? 0 : (html.slice(0, at).match(/class="(?:wq-card|wq-htile|wqp-tile)\b/g) || []).length + 1;
   }
   function installed() { tap(IEV, 'install', { door: 'install', surface: 'hub' }); }
+  // the phone has Jugnu: the quiz finish screen (wq-remind.js) then draws no install card. An app installed before the hub
+  // manifest had its id keeps its old id, so this is how the finish screen learns of it, once the app is opened.
+  function rememberApp() { try { localStorage.setItem('wq_app', '1'); } catch (e) {} }
   // Every meter row says which platform (from the user agent) and display mode it came from, so installs count by
   // platform: android / ios / desktop / other; browser / standalone / minimal-ui / fullscreen.
   var PLATFORM = null;
@@ -382,6 +385,7 @@
         navigator.serviceWorker.getRegistration('/').then(function (r) { if (r) step('sw_registered'); }, function () {});
       }
     } catch (e) {}
+    if (WHERE === 'app') rememberApp();
     if (WHERE === 'app' || WHERE === 'none') { step('hub', WHERE === 'app' ? 'app' : 'iab'); outcome(WHERE === 'app' ? 'app' : 'iab', 'render'); return; }
     checkDay();
     if (!installWired) {
@@ -395,7 +399,7 @@
       try {
         // Our card offers it (when it may show); keep the event for "Add".
         window.addEventListener('beforeinstallprompt', function (e) { adopt(e, true); });
-        window.addEventListener('appinstalled', function () { deferred = null; step('installed'); if (door(IB, 'install')) installed(); });
+        window.addEventListener('appinstalled', function () { deferred = null; rememberApp(); step('installed'); if (door(IB, 'install')) installed(); });
         window.addEventListener('pagehide', onHide);
       } catch (e) {}
       try { document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') onHide(); }); } catch (e) {}

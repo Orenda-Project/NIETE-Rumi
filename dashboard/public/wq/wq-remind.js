@@ -111,6 +111,8 @@
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
+  // set on this origin once the phone has Jugnu (installed here, or a page running as the app); the hub sets it too
+  var APP_KEY = 'wq_app';
   function lsGet(k) { try { return window.localStorage.getItem(k); } catch (_) { return null; } }
   function lsSet(k, v) { try { window.localStorage.setItem(k, String(v)); } catch (_) { /* private mode: no snooze */ } }
   function within(k, days) { var t = Number(lsGet(k)) || 0; return t > 0 && Date.now() - t < days * DAY; }
@@ -383,6 +385,8 @@
     function instShow() {
       if (!inst.on || inst.done || !inst.settled || !inst.offer || instSnoozed()) return;
       inst.done = true;
+      // the phone has Jugnu already (an old hub app keeps its own id, so Chrome may offer again): no card; unreadable = card
+      if (lsGet(APP_KEY) === '1') { istep('had_app'); return; }
       istep('card_shown');
       slot.innerHTML = drawn + section(title(c.instTitle) + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
         + btn('wq-soft', 'inst_add', c.instAdd) + btn('wq-ghost', 'inst_later', c.remindLater) + '</div>');
@@ -399,7 +403,7 @@
         try { if (e && e.preventDefault) e.preventDefault(); } catch (_) { /* the browser's own banner then */ }
         inst.offer = e; istep('bip_fired'); instShow();
       });
-      window.addEventListener('appinstalled', function () { inst.offer = null; istep('installed'); });
+      window.addEventListener('appinstalled', function () { inst.offer = null; lsSet(APP_KEY, '1'); istep('installed'); });
     }
     // a snoozed ask: read the key only where the install card could show (an Android Chrome tab, not the installed app,
     // not within the card's own snooze); anywhere else no network, as before
@@ -533,6 +537,7 @@
 
   function run(slot, ctx, mode) {
     if (!slot) return Promise.resolve();
+    if (standalone()) lsSet(APP_KEY, '1');
     return Card(slot, ctx || {}, mode).start();
   }
 
