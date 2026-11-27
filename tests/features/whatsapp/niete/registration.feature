@@ -143,7 +143,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # A Principal is granted directly (operator, 2026-10-16) — it opens her school's My Patch.
     # @destructive: creates/updates the account.
 
-  @e2e @flow @destructive @P1
+  @e2e @flow @destructive @P1 @R30
   Scenario: Searching a school's EMIS code links the account to that school
     Given the NIETE bot chat is open
     And I am a fresh test teacher on the ROLE_SCHOOL screen
@@ -179,7 +179,7 @@ Feature: NIETE (ICT) WhatsApp bot — Registration
     # Operator, 2026-10-16: she can never add a school; she finishes without one and the school
     # features stay locked until a coach links her.
 
-  @e2e @flow @negative @P3 @wip
+  @e2e @flow @negative @P3 @wip @R31
   Scenario: A search that matches nothing offers only "My school isn't here"
     Given the NIETE bot chat is open
     And I am on the ROLE_SCHOOL screen

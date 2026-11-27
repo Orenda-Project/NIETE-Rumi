@@ -16,7 +16,7 @@ trap 'rm -rf "$T"' EXIT
 
 echo "engine bridge — no copy of the engine is committed here"
 extra=$(git ls-files .claude/qa/shared | sed 's#^\.claude/qa/shared/##' | grep -vE '^(features/|niete_|test_niete_)' \
-  | grep -vxE 'make-textbook-fixture\.py|make-pdf-fixtures\.js|app-redirect-case\.cjs|test_app_redirect_case\.js|coaching-ext\.cjs|handout-class-drive\.cjs|training-quiz-gen\.cjs|test_language_feature\.js|test_registration_feature_name_gate\.js|registration-itu\.cjs|test_registration_itu\.js|test_harness_users_columns\.py')
+  | grep -vxE 'make-textbook-fixture\.py|make-pdf-fixtures\.js|app-redirect-case\.cjs|test_app_redirect_case\.js|coaching-ext\.cjs|handout-class-drive\.cjs|training-quiz-gen\.cjs|test_language_feature\.js|test_registration_feature_name_gate\.js|registration-itu\.cjs|leader-lessons-case\.cjs|test_registration_itu\.js|test_harness_users_columns\.py')
 [ -z "$extra" ] && ok ".claude/qa/shared holds only NIETE's drivers, tools and helpers" \
   || bad "engine files committed in .claude/qa/shared: $(printf '%s ' $extra | cut -c1-220)"
 leaked=""

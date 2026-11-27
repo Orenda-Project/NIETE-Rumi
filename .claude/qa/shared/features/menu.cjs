@@ -365,4 +365,53 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   if (want('M32')) rec('M32', 'In log mode (the default) an unsigned message is still answered and recorded as unsigned', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
   if (want('M33')) rec('M33', 'A forged message is refused when the signature is enforced, and the teacher gets nothing', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
   if (want('M34')) rec('M34', "An unsigned Flow endpoint request is refused with Meta's signature code, and signed ones still open the form", 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+
+  // ── bd-q8wt5e.6.3: M38, M39, M41 ──
+  if (want('M38')) {
+    // M38 — a row tap ends the menu wait (menu.service.js handleMenuButtonResponse clears the 'menu' flow's wait), so
+    // the free text that follows is answered as a request, never with the "(1-4)" nudge.
+    s = t();
+    // M03 leaves coaching waiting for classroom audio (6 h), and that wait answers ANY free text with its own nudge:
+    // stop it through the product's own /status first, or the reply under test is that nudge, not an answer.
+    await require('./reset-state.cjs').run({ api, rec: () => {}, sleep });
+    await api.resetFlow();
+    await api.sendWait('/menu');
+    const row = await api.injectList('menu_lesson_plan', 'Lesson Plans');
+    api.resetConversation();   // clean history: the open-chat prompt is deterministic, so its cassette replays
+    await api.freshReset();
+    r = await api.sendWait('Lesson for class 4 Urdu', 120000);
+    await sleep(2500);
+    const after = [r, ...(await api.fresh())].filter((x) => x && (x.txt || (x.btns || []).length || x.doc || x.pdf || x.flow));
+    const nudge = after.some((x) => /\(1-4\)|choose an option|ایک آپشن منتخب|classroom audio|کلاس روم آڈیو/i.test(x.txt || ''));
+    rec('M38', 'Tapping a menu row ends the menu wait, so the next free text is answered',
+        r.ok && after.length > 0 && !nudge ? 'PASS' : 'FAIL',
+        { rowReply: (row.txt || '').slice(0, 80), answered: after.length, nudge,
+          replies: after.slice(0, 3).map((x) => ({ txt: (x.txt || '').slice(0, 120), btns: x.btns, flow: !!x.flow })) }, t() - s);
+    await api.resetFlow();
+  }
+
+  if (want('M39')) rec('M39', 'The coaching prompt says 20–45 minutes', 'BLOCKED',
+      { reason: '@wip @draft: not promoted to the lane — the 20–45 minute copy is not confirmed as shipped (promotion is the spec owner\'s call, bd-q8wt5e)' }, 0);
+
+  if (want('M41')) {
+    // M41 — a coach with leader_app_lesson_plan on taps the Lesson Plans row: ONE message, one "Lesson plans" button
+    // landing on the Lesson Plans tab signed in as her (the token carries her id), and no lesson-plan menu.
+    const LL = require('../leader-lessons-case.cjs');
+    const NAME41 = 'A coach tapping the Lesson Plans row gets one button that opens the Lesson Plans tab';
+    s = t();
+    const id = LL.driverId(api);
+    const x = await LL.withLeaderSwitch(api, true, 'coach', async () => {
+      const m = await api.sendWait('/menu');
+      const opener = (m.btns || []).find((b) => /See what I do|فہرست دیکھیں/.test(b));
+      const list = opener ? await api.openList(opener) : { rows: [] };
+      const c = await LL.collect(api, () => api.injectList('menu_lesson_plan', 'Lesson Plans'));
+      return { c, rows: list.rows };
+    });
+    if (!x.ran) rec('M41', NAME41, 'BLOCKED', { reason: LL.LEADER_BLOCKED, setAppSetting: x.reason }, 0);
+    else {
+      const [ok, ev] = LL.tabVerdict(x.value.c, id);
+      const rowShown = (x.value.rows || []).some((r) => /Lesson Plans|سبق کے منصوبے|لیسن پلان/.test(r));
+      rec('M41', NAME41, ok && rowShown ? 'PASS' : 'FAIL', { ...ev, coachMenuRows: x.value.rows }, t() - s);
+    }
+  }
 };

@@ -346,4 +346,115 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   blocked('LANG11', '/observe renders content in Urdu', '@config-gated @seeded @persona:coach — needs a leader-role driver with a seeded school + roster; the lane\'s driver is a teacher');
   blocked('LANG20', 'LP keeps enqueue language across a mid-generation switch', '@wip @draft — needs a generation job long enough to switch language mid-flight; not deterministic on any lane');
   blocked('LANG21', 'off-market language clamped and logged', '@defensive — the off-market code arrives from transcription language detection, which has no client-side path to forge');
+
+  await runNewTeacher({ api, rec, sleep, want });
+
+  // ── bd-q8wt5e.6.3: the spoken scenarios, and the @wip/@draft ones given ids (one call per id, see above) ──
+  const NOVOICE = 'needs a fixture voice note of a teacher %s plus its ASR, LLM and TTS cassettes; the lane\'s only spoken '
+    + 'request (fixtures/whatsapp/niete/media/lp_request_voice.ogg) asks for a lesson plan. Recording one is a paid live '
+    + 'call and needs an operator go (cassettes are replay-only on this lane)';
+  if (want('LANG25')) blocked('LANG25', "A spoken question is answered with a voice message the teacher can speed up, in the teacher's language", NOVOICE.replace('%s', 'asking a teaching question'));
+  if (want('LANG26')) blocked('LANG26', 'Saying "switch to Urdu" in a voice note switches the language, and the confirmation is itself an Urdu voice message', NOVOICE.replace('%s', 'saying "switch to Urdu"'));
+  const WIP = '@wip @draft: not promoted to the lane (promotion is the spec owner\'s call, bd-q8wt5e)';
+  if (want('LANG27')) blocked('LANG27', 'An Urdu line that opens with a name in English letters still reads right to left', WIP + '; an RTL mark is a rendering property the mock outbox carries as text only');
+  if (want('LANG28')) blocked('LANG28', 'The "try it yourself" line in my quiz caption is in my language', WIP + '; @config-gated quiz caption');
+  if (want('LANG29')) blocked('LANG29', "A coach reads the observation flow in the COACH's language, not the observed teacher's", WIP + '; needs a coach driver with a seeded school and an observed teacher (observe.feature owns that set-up)');
+  if (want('LANG30')) blocked('LANG30', 'A refusal for a cancelled session is worded in my language', WIP);
+  if (want('LANG32')) blocked('LANG32', 'The coaching ask after a lesson plan, and its recording instructions, arrive in my language', WIP + '; the ask follows a delivered plan on a daily clock');
+  if (want('LANG33')) blocked('LANG33', 'A lesson-plan-born quiz that cannot be written says so in the teacher\'s language', WIP + '; needs a quiz generation that fails, scripted');
+  if (want('LANG34')) blocked('LANG34', 'The afternoon quiz offer, and the list of classes it may show, arrive in my language', WIP + '; the offer is a scheduled nudge at the send hour');
+  if (want('LANG35')) blocked('LANG35', 'A child whose quiz was in English and who writes English is answered in English', WIP + '; @persona:student @seeded — a child phone with a seeded quiz');
+  if (want('LANG37')) blocked('LANG37', 'A child whose quiz was in English and who writes Roman Urdu is answered in Urdu script', WIP + '; @persona:student @seeded');
+  if (want('LANG38')) blocked('LANG38', 'A one-letter answer keeps the chat\'s language', WIP + '; @persona:student @seeded');
+  if (want('LANG39')) blocked('LANG39', 'A child whose quiz was in Urdu and who writes English is answered in English', WIP + '; @persona:student @seeded');
+  if (want('LANG40')) blocked('LANG40', 'The "not sure" line before the menu is in my language', WIP);
+  if (want('LANG41')) blocked('LANG41', 'A brand-new person whose first message is plainly English is answered in English, with the switch on', WIP + '; behind a first-message language switch');
+  if (want('LANG42')) blocked('LANG42', "A brand-new person's first message without clear English evidence is answered in Urdu, as today", WIP + '; behind a first-message language switch');
+  if (want('LANG43')) blocked('LANG43', 'A person who has messaged before keeps their stored Urdu for an English sentence', WIP + '; behind a first-message language switch');
+  if (want('LANG44')) blocked('LANG44', 'A child answering an Urdu quiz wrong is told so in Urdu', '@draft: not promoted to the lane; @persona:student — a child phone with a seeded Urdu quiz');
 };
+
+// ── LANG23 / LANG24 / LANG31 (bd-q8wt5e.6.3): a brand-new number, as a new teacher really arrives. The shared driver
+//    cannot be used: the bot caches its registration at stack start (registration.cjs line 1). The new number's
+//    first message makes her account and brings the registration card; registration-itu.cjs seeds the QA school
+//    (EMIS 215) the search must find and puts everything back. The stored v5.1 form, picked through by option id,
+//    because every label after the first screen is in the language she chose.
+const LATIN_COPY = /\b(Teacher|Principal|Search|Next|Finish|Grades?|Subjects?|Pick|school|Done|Role)\b/i;
+async function runNewTeacher({ api, rec, sleep, want }) {
+  const N23 = 'The registration Flow speaks the language she picks on its first screen';
+  const N24 = 'The registration welcome and its portal button are in the language she chose';
+  const N31 = 'A new teacher is offered Urdu first; English is only the emergency floor (D4)';
+  if (!want('LANG23', 'LANG24', 'LANG31')) return;
+  const itu = require('../registration-itu.cjs');
+  const it = itu.makeItu({ api, sleep });
+  const why = it.blocked();
+  const R = (id, name, ...v) => { if (want(id)) rec(id, name, ...v); };
+  if (why) { R('LANG23', N23, 'BLOCKED', { reason: why }, 0); R('LANG24', N24, 'BLOCKED', { reason: why }, 0); R('LANG31', N31, 'BLOCKED', { reason: why }, 0); return; }
+  const s = Date.now();
+  try {
+    await it.setUp();
+    const ph = itu.phonesFor(process.env.E2E_DRIVER || '0', 9);
+    const u = api.as(ph.me);
+    await u.freshReset();
+    await u.sendWait('/register');
+    const card = (await u.fresh()).reverse().find((i) => i.raw && i.raw.interactive && i.raw.interactive.type === 'flow');
+    // LANG31 — the offer as she sees it: the first screen's language options in order, and the one pre-selected
+    // (the endpoint's INIT fills both: languages + init_language). Read from the emulator's own probe, which keeps
+    // `selected`. The other floor (DEFAULT_LANGUAGE 'en' when no language resolves at all) has no client path.
+    const op = card ? await u.openFlow('Get started|شروع کریں', { from: card }) : { ok: false, err: 'no card' };
+    const fl = op.ok && u.flow && u.flow();
+    const opts = fl ? fl.probe().items.filter((i) => i.kind === 'option' && i.name === 'language') : [];
+    const langs = opts.map((i) => i.id);
+    const pre = (opts.find((i) => i.selected) || {}).id || null;
+    R('LANG31', N31, ...V(op.ok && langs[0] === 'ur' && pre === 'ur',
+      { card: !!card, opened: op.ok, err: op.err, languages: langs, preselected: pre,
+        notChecked: 'the English emergency floor (language-cache DEFAULT_LANGUAGE) is only reached when no language resolves; unit: tests on languages.js offerDefaultLanguage' }), Date.now() - s);
+    if (!want('LANG23', 'LANG24')) return;
+    if (!card) { R('LANG23', N23, 'FAIL', { err: 'no registration card after her first message' }, Date.now() - s); R('LANG24', N24, 'BLOCKED', { reason: 'LANG23 had no card' }, 0); return; }
+    if (!op.ok) { R('LANG23', N23, 'BLOCKED', { reason: 'Flow did not open: ' + op.err }, Date.now() - s); R('LANG24', N24, 'BLOCKED', { reason: 'Flow did not open' }, 0); return; }
+    const footer = async () => { const p = await u.flowProbe(); const f = (p.items || []).find((i) => i.kind === 'footer'); return f ? u.flowClick(f.text, { exact: true, settleMs: 2500 }) : { ok: false, err: 'NO_FOOTER' }; };
+    const optionOf = (p, name, pred) => (p.items || []).find((i) => i.kind === 'option' && i.name === name && (!pred || pred(i)));
+    const screens = {};
+    const name = 'Saima Bibi';
+    await u.flowType(name, { field: 'full_name' });
+    await u.flowClick('', { id: 'ur', settleMs: 300 });
+    await footer();
+    let p = await u.flowProbe(); screens.ROLE_SCHOOL = { screen: p.screen, text: p.text };
+    const role = optionOf(p, 'role', (i) => String(i.id) === 'teacher') || optionOf(p, 'role');
+    if (role) await u.flowClick('', { id: role.id, settleMs: 300 });
+    await u.flowType('215', { field: 'school_query' });
+    await footer();
+    p = await u.flowProbe(); screens.SCHOOL_PICK = { screen: p.screen, text: p.text };
+    const sch = optionOf(p, 'school_id', (i) => /G-7\/3-2/.test(i.text));
+    if (sch) await u.flowClick('', { id: sch.id, settleMs: 300 });
+    await footer();
+    p = await u.flowProbe(); screens.TEACHING = { screen: p.screen, text: p.text };
+    const gr = optionOf(p, 'grade'); const sub = optionOf(p, 'subjects');
+    if (gr) await u.flowClick('', { id: gr.id, settleMs: 300 });
+    if (sub) await u.flowClick('', { id: sub.id, settleMs: 300 });
+    const me1 = await it.user(`phone_number=eq.${ph.me}`);   // the first screen's submit has written the language
+    it.adopt(me1 && me1.id);
+    const urdu = (x) => !!x && UR.test(x.text || '') && !LATIN_COPY.test((x.text || '').replace(/IMSG|EMIS|G-7\/3-2/g, ''));
+    const allUrdu = ['ROLE_SCHOOL', 'SCHOOL_PICK', 'TEACHING'].every((k) => screens[k] && screens[k].screen === k && urdu(screens[k]));
+    R('LANG23', N23, ...V(allUrdu && me1 && me1.preferred_language === 'ur' && me1.language_locked === true,
+      { screens: Object.fromEntries(Object.entries(screens).map(([k, v]) => [k, { screen: v.screen, text: (v.text || '').slice(0, 160), urdu: urdu(v) }])),
+        preferred_language: me1 && me1.preferred_language, language_locked: me1 && me1.language_locked }), Date.now() - s);
+    if (!want('LANG24')) { u.closeFlow(); return; }
+    const s24 = Date.now();
+    await footer();                  // Finish
+    await footer();                  // Done on SUCCESS (completes the Flow)
+    u.closeFlow();
+    const seen = [];
+    for (let w = 0; w < 60000 && !seen.some((m) => /رجسٹریشن کا شکریہ/.test(m.txt || '')); w += 1000) { seen.push(...(await u.fresh())); await sleep(1000); }
+    await sleep(1500); seen.push(...(await u.fresh()));
+    const welcome = seen.find((m) => /رجسٹریشن کا شکریہ/.test(m.txt || ''));
+    const btn = welcome ? ((welcome.cta && welcome.cta.text) || (welcome.btns || [])[0] || '') : '';
+    R('LANG24', N24, ...V(!!welcome && welcome.txt.includes(`رجسٹریشن کا شکریہ، ${name.split(' ')[0]}!`) && /پورٹل کھولیں/.test(btn),
+      { welcome: welcome ? welcome.txt.slice(0, 160) : null, button: btn, seen: seen.map((m) => (m.txt || '').slice(0, 80)) }), Date.now() - s24);
+  } catch (e) {
+    R('LANG23', N23, 'FAIL', { err: String(e.message || e).slice(0, 200) }, Date.now() - s);
+    R('LANG24', N24, 'BLOCKED', { reason: 'LANG23 threw before the Flow finished: ' + String(e.message || e).slice(0, 120) }, 0);
+  } finally {
+    await it.tearDown();
+  }
+}

@@ -1141,7 +1141,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
 
   # UPDATED 2026-10-01 (FX3, bd-w2daa.24 / bd-fr45b): photos sent together no longer overwrite each
   # other — before, two photos in one go were stored as ONE and the prompt said "Photo 1 of 3".
-  @e2e @P1 @COA63b
+  @e2e @P1 @COA142
   Scenario: Photos sent together in one go are all kept, and the one prompt counts them all
     Given the NIETE bot chat is open
     And the coaching pipeline is waiting for my classroom photos
@@ -1280,7 +1280,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # hers to see only once the coach has SENT her the report
   # (teacher_delivery.status = 'sent'). Never the draft, the review or the debrief.
 
-  @e2e @P1
+  @e2e @P1 @COA143
   Scenario: A coach's observation appears in the teacher's portal only once the report is sent to her
     Given a coach has observed the teacher's lesson and is still checking the draft
     When the teacher opens Coaching in the portal
@@ -1290,7 +1290,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And her Coaching list shows the lesson with "Observed by" and the coach's name
     And its page shows the report picture, its caption and the coach's note, with who observed her and when
 
-  @e2e @negative @P1
+  @e2e @negative @P1 @COA144
   Scenario: The coach's debrief and her own feedback never reach the teacher's portal
     Given a coach has sent the teacher the report of an observation
     When the teacher opens that lesson in the portal
@@ -1468,7 +1468,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When I get a lesson plan or a coaching report
     Then the caption and the "Quick reminder" are exactly as before
 
-  @e2e @draft @P2
+  @e2e @draft @P2 @COA145
   Scenario: The chapter's close-out lessons are named for what they are in the lesson list
     Given I am choosing which lesson my recording was for
     When the list shows a chapter's two close-out lessons

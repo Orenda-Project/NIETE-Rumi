@@ -295,5 +295,5 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const itu = require('../registration-itu.cjs');
   if (api.caps && api.caps.method === 'mock') itu.deferChromeLane(rec, want); else await runChromeLane({ api, rec, sleep, want });
   const r = await itu.drive({ api, rec, sleep, want });
-  r('R23'); r('R24'); r('R25'); r('R26'); r('R27'); r('R28'); r('R29');
+  r('R23'); r('R24'); r('R25'); r('R26'); r('R27'); r('R28'); r('R29'); r('R30'); r('R31');
 };

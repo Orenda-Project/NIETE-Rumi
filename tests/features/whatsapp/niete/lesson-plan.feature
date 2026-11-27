@@ -50,7 +50,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Oxbridge is only the fallback when the flag is off or a grade's books are not yet segmented — an
     # Oxbridge reply for a secondary grade is now the FAILURE the driver reports (oxbridge:true).
 
-  @e2e @P1
+  @e2e @P1 @L67
   Scenario: Rating a 6-12 lesson plan useful asks whether I taught it
     Given the NIETE bot chat is open
     And a lesson plan from the Pakistan 6-12 corpus has just been delivered to the chat
@@ -66,7 +66,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Since FX1 (bd-w2daa.22) the receipt on a usage answer is the bot's OWN 🙏 on her tap
     # (lp612-feedback.shared.js _thank), not the webhook's 👍 (bd-kbo9h0.7: the step said 👍).
 
-  @e2e @P1
+  @e2e @P1 @L68
   Scenario: A survey answer that needs no follow-up is receipted by a reaction, not a message
     Given the NIETE bot chat is open
     And a Grades 1–5 lesson plan has just been delivered to the chat without a voice note
@@ -85,7 +85,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # with no voice note settles in lp-feedback.service once it has read the plan. Axiom:
     # inbound_typing.reaction_only_tap. Unit: tests/meta-bill-cut/fx7-reaction-only-taps.test.js.
 
-  @e2e @flow @P1
+  @e2e @flow @P1 @L69
   Scenario: Tapping the same lesson twice in the Pick Class Flow delivers it once
     Given the NIETE bot chat is open
     And I have opened the LP Flow and navigated to a Grades 1–5 chapter's lesson list
@@ -98,7 +98,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # After 2 minutes the same tap delivers again; a delivery that failed releases the claim.
     # Unit: tests/lp-v8/meta-bill-nl2-double-tap.test.js.
 
-  @e2e @flow @P2
+  @e2e @flow @P2 @L70
   Scenario: The same lesson delivered twice within ten minutes is surveyed once
     Given the NIETE bot chat is open
     And a Grades 1–5 lesson plan has been delivered and its feedback survey has arrived
@@ -109,7 +109,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # checked when the survey is about to send. A different lesson is still surveyed; after 10
     # minutes the same lesson is surveyed again. Unit: tests/lp-v8/meta-bill-nl4-survey-dedupe.test.js.
 
-  @e2e @config-gated @no-mock-driver @slow @P1
+  @e2e @config-gated @no-mock-driver @slow @P1 @L71
   Scenario: A plan I read in the teacher app gets the same "Was it useful?" survey on WhatsApp
     Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
     And I messaged the bot within the last 24 hours to ask for a Grades 1–5 lesson plan
@@ -127,7 +127,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same open also books the coaching ask a WhatsApp-delivered Grades 1–5 plan books (coaching.feature
     # @COA80/@COA81; tests/lp-v8/lp-coaching-ask-app-open.test.js).
 
-  @e2e @config-gated @no-mock-driver @slow @P1
+  @e2e @config-gated @no-mock-driver @slow @P1 @L72
   Scenario: My own Grades 1–5 plan read in the teacher app gets the Grades 1–5 survey, and my answer is kept
     Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
     And I messaged the bot within the last 24 hours
@@ -142,7 +142,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
-  @e2e @i18n @P2
+  @e2e @i18n @P2 @L73
   Scenario: The use question is asked in my language, not the document's
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And an English 6-12 lesson plan has just been delivered to the chat
@@ -151,7 +151,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The document's language and the bot's voice are separate territories: ordering an English
     # plan does not switch an Urdu-preference teacher into being spoken to in English.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L74
   Scenario: An Urdu plan that uses ordinary religious vocabulary is delivered, not withheld
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -167,7 +167,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # scenario: see grade_7_urdu.c11.p062-064.tafheem, which is delivered only because the model's
     # internal routing note is not teacher-facing.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L75
   Scenario: An Islamiat plan names and classifies its surahs correctly, even where the textbook page does not
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -185,7 +185,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # («مدنی نہیں»), exceptions («کے علاوہ») and «مدنی معاشرہ» (Madinan society) are never judged.
     # A sweep of the 954 Islamiat page truths flagged only the book's two real errors.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L76
   Scenario: A plan naming an ordinary person called محمد is delivered, because a reviewer cleared it
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -214,7 +214,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # ruler's laqab, never the Prophet; every real mention is still held (religious-detection-compound-
     # names.test.js pins the guards).
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L77
   Scenario: An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling
     Given the NIETE bot chat is open
     And the G5c review has decided "Muhammad Ali Jinnah" is an ordinary person, and the bare name "Muhammad" is the Prophet
@@ -240,7 +240,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # document, so an English maths lesson naming nobody religious would pass this proving nothing.
     # (The bd-nnd27p surah-fact check is the one part of the gate that runs on every plan.)
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L78
   Scenario: A chained Latin name the book saluted at the end of the chain is delivered
     Given the NIETE bot chat is open
     And the G5c review has decided the bare name "Muhammad" is the Prophet
@@ -262,7 +262,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # salutation itself ends the walk. A chain that runs out with no salutation is still withheld —
     # the outline below pins that, and it is the row that fails if this ever becomes a bypass.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L79
   Scenario: A Latin honorific the book printed reaches the teacher as the Arabic stamp
     Given the NIETE bot chat is open
     And the G5c review has decided "Hazrat Muhammad PBUH" is the Prophet, correctly saluted
@@ -285,7 +285,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The second Then is the load-bearing half. If the plan were delivered still reading "(PBUH)",
     # this scenario would be green and the ruling broken.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L80
   Scenario: An "Urdu" plan that is really English is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -307,7 +307,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # alternative was an English page delivered under an Urdu claim, which is what 8 of the 23
     # attempted 6-12 repair rows were on 2026-09-18.
 
-  @e2e @content-driven @P1
+  @e2e @content-driven @P1 @L81
   Scenario: A سیرت lesson already held for review is delivered in Urdu when the overlay keeps the ﷺ
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -326,7 +326,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
     # the honorific, because then the Urdu page would be the first anyone saw of it.
 
-  @e2e @content-driven @language @P1
+  @e2e @content-driven @language @P1 @L82
   Scenario: An Urdu 6-12 plan keeps the board in English and explains each board block in one Urdu line
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -340,7 +340,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
     # missing the line is still delivered, and the top-up pass adds the line later.
 
-  @e2e @content-driven @language @P2
+  @e2e @content-driven @language @P2 @L83
   Scenario: An Urdu 6-12 plan numbers its sections and support pages in Urdu, not Latin letters
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -354,7 +354,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # badge is the section's place, not its first letter. Renderer change in vendor/lp-v9
     # (lib/template.js, lib/overlay.js); English output is unchanged.
 
-  @e2e @content-driven @language @P2
+  @e2e @content-driven @language @P2 @L84
   Scenario: The common-mistakes box asks what pupils say or write, in both languages
     Given the NIETE bot chat is open on a teacher whose language is <language>
     And I have opened the LP Flow
@@ -369,7 +369,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # bd-k3ry8. The column lists what a pupil actually says or writes when they get it wrong, so
     # the teacher can recognise the mistake in class.
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @L85
   Scenario: Diagram labels on a 6-12 plan stay readable on a phone
     Given the NIETE bot chat is open on a teacher whose language is English
     And I have opened the LP Flow
@@ -383,7 +383,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
     # flags it as a blocking FIGURE defect.
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @L86
   Scenario: A worked scenario never guesses the gender of an unnamed character
     Given the NIETE bot chat is open on a teacher whose language is English
     And I have opened the LP Flow
@@ -396,7 +396,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # code invent O1-style codes, and a repeated one made homework tagged to the third objective read
     # as untaught; the author sanitizer now renumbers a repeat and leaves the first occurrence alone.
 
-  @e2e @content-driven @P2
+  @e2e @content-driven @P2 @L87
   Scenario: The last lesson of a chapter names no next lesson
     Given the NIETE bot chat is open on a teacher whose language is English
     And I have opened the LP Flow
@@ -407,7 +407,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The corpus marks a last lesson with an empty next_segment_id; the prompt tells the model
     # sequence.next must be null and the author sanitizer drops whatever it wrote anyway.
 
-  @e2e @negative @content-driven @P1
+  @e2e @negative @content-driven @P1 @L88
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
     And I have opened the LP Flow
@@ -430,7 +430,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
     # rule and looks identical to her, so it is not a separate scenario.
 
-  @e2e @flow @P1
+  @e2e @flow @P1 @L89
   Scenario: Under route-all, a typed lesson-plan request opens the Flow with the textbook line inside it
     Given the NIETE bot chat is open on a deployment with LP_612_ROUTE_ALL on
     When I send a free-text request like "make me a lesson plan on photosynthesis"
@@ -455,7 +455,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # past the stale window), after which the stale-request recovery re-queues the ask. Before, the re-queued
   # job lost its curriculum row: dropped here, and generated as a freeform plan where freeform generation
   # still runs. Unit: tests/lesson-plan-lifecycle/requeue-grounded.test.js, stale-recovery-limit.test.js.
-  @P2
+  @P2 @L90
   Scenario: A curriculum plan whose preparation was cut off is prepared again from the topic I asked for
     Given I asked for a lesson plan on a curriculum topic and it was being prepared
     And its preparation stopped before the plan was sent to me
@@ -473,7 +473,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ─────────────────────────────── Negative ───────────────────────────────
 
-  @e2e @config-gated @no-mock-driver @negative @P1
+  @e2e @config-gated @no-mock-driver @negative @P1 @L91
   Scenario: Opening the same plan in the app a second time asks nothing
     Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
     And I opened a lesson plan in the teacher app and its "Was it useful?" survey has arrived
@@ -482,7 +482,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # One survey per teacher per plan: an earlier open of the plan, viewer or hand-off (either language for
     # 6–12), is the guard (skip reason earlier_open). Another plan is still surveyed.
 
-  @e2e @config-gated @no-mock-driver @negative @P1
+  @e2e @config-gated @no-mock-driver @negative @P1 @L92
   Scenario: A plan that was already delivered to me on WhatsApp is not asked about again when I open it in the app
     Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
     And a lesson plan was delivered to me on WhatsApp and its survey was asked there
@@ -490,7 +490,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then no "Was it useful?" survey arrives for it
     # Skip reason delivered_on_whatsapp (niete_lp_downloads 'sent' / niete_lp612_deliveries surface 'whatsapp').
 
-  @e2e @config-gated @no-mock-driver @negative @P1
+  @e2e @config-gated @no-mock-driver @negative @P1 @L93
   Scenario: Outside my 24-hour WhatsApp window a plan opened in the app sends nothing, not even a template
     Given the NIETE bot chat is open on a teacher who has not messaged the bot for more than 24 hours
     When I open a lesson plan in the teacher app
@@ -499,7 +499,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # for a day. She normally IS inside the window, because she asked for the link on WhatsApp.
 
 
-  @e2e @negative @P2
+  @e2e @negative @P2 @L94
   Scenario: A thumbs-down asks why, and never asks whether I taught it
     Given the NIETE bot chat is open
     And a lesson plan from the Pakistan 6-12 corpus has just been delivered to the chat
@@ -509,7 +509,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Asking a teacher who has just said the plan was no use whether she taught it reads as not
     # listening — the reason window is the only follow-up on this branch.
 
-  @e2e @negative @content-driven @P1
+  @e2e @negative @content-driven @P1 @L95
   Scenario: A plan that names the Prophet without an honorific in teacher-facing text is still withheld
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -523,7 +523,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # phrases the reviewer saw. An unreviewed name — even one shaped exactly like a cleared one —
     # is not cleared. Fail-closed, always.
 
-  @e2e @negative @content-driven @P1
+  @e2e @negative @content-driven @P1 @L96
   Scenario Outline: A Latin name the G5c review did not clear still withholds the lesson
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -549,7 +549,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Arabic form. Neither row here is touched by that: neither carries a salutation of any kind, in
     # any script, so neither is rewritten and both stay withheld.
 
-  @e2e @negative @content-driven @P1
+  @e2e @negative @content-driven @P1 @L97
   Scenario Outline: A Latin salutation the gate cannot reach still withholds the lesson
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -571,7 +571,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # If any row here ever delivers, the change has stopped being about WHERE the stamp is looked
     # for and has started clearing religious content on the reviewer's behalf, which G5c forbids.
 
-  @e2e @negative @content-driven @coverage @P1
+  @e2e @negative @content-driven @coverage @P1 @L98
   Scenario: A cache repair that cannot clear its religious content leaves my lesson exactly as it was
     Given a 6-12 Urdu lesson I have already been served, stored and serving from the cache
     And the overlay repair job tops that stored lesson up with the pointers the current gate offers
@@ -639,7 +639,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the Flow screens and the "Sending…" ack are shown in English
     # English is the deliberate floor for this asset-poor surface (F-LP-i18n).
 
-  @e2e @lesson-plan @coaching @wip @draft @P2
+  @e2e @lesson-plan @coaching @wip @draft @P2 @L99
   Scenario: The first lesson plan of the day is followed by one coaching ask, and only the first
     Given the NIETE bot chat is open on a teacher who has taken no lesson plan today
     When I take a K-5 lesson plan before 14:00 PKT
@@ -662,7 +662,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # The driver number must have users.role='teacher' and must have written to the bot
   # within 24 hours (the free-form window), or the offer is skipped as window_closed.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L100
   Scenario: At the send hour a teacher who planned one lesson is offered a quiz
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
     And the teacher has not recorded a lesson or made a quiz today
@@ -671,7 +671,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the message has the buttons "Make the quiz" and "No thanks"
     And the message says "planned", never "taught" or "recorded"
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L101
   Scenario: A lesson plan read in the teacher app earns the same afternoon quiz offer as one received on WhatsApp
     Given the NIETE bot chat is open on a teacher who asked for a K-5 lesson plan today before 14:00 PKT and read it in the teacher app
     And the plan was NOT also delivered as a WhatsApp document
@@ -684,14 +684,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # asset current when she opened it, and the same exact-version slide-script rule applies. A plan both delivered and
     # opened is one lesson. No switch (bd-2wgr3d.22.1). No new message, string or button.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L102
   Scenario: A plan handed from the teacher app to another app earns the afternoon quiz offer too
     Given the NIETE bot chat is open on a teacher whose only plan today was opened from the teacher app in another app (source external)
     When the send hour passes and the teacher-nudge sweep runs
     Then the bot sends the same offer a WhatsApp-delivered plan gets
     # A hand-off only ever starts inside the app, so it is a plan taken (operator, 14 Oct 2026; bd-2wgr3d.22.1).
 
-  @e2e @lesson-plan @wip @draft @P2
+  @e2e @lesson-plan @wip @draft @P2 @L103
   Scenario: A lesson read in the teacher app shows the received tick on both lesson lists
     Given the NIETE bot chat is open on a teacher who opened one K-5 lesson plan in the teacher app's viewer
     And that lesson was never delivered to the teacher as a WhatsApp document
@@ -703,7 +703,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # An answer key opened in the viewer logs the assessment's own lesson id, as a WhatsApp delivery of the
     # assessment does. No switch (bd-2wgr3d.22.1). No new string; title lengths unchanged.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L104
   Scenario: A lesson with no quiz source is not offered
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
     And the version of that lesson the teacher received has no slide script in the lesson source store
@@ -730,7 +730,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lp_quiz.offer_skipped event; a dry-run reminder template reached nobody, so it is "none". No message, string
     # or button changes.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L105
   Scenario: An Islamiyat lesson plan, or an Urdu Hamd or Naat chapter, is never made into a quiz until its religious review
     Given the NIETE bot chat is open on a teacher who took one Grade 5 Islamiyat lesson plan and one Grade 5 Maths lesson plan today before 14:00 PKT
     When the send hour passes and the teacher-nudge sweep runs
@@ -742,7 +742,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # of an offer already out (answered "this lesson plan cannot be made into a quiz"), the /quiz provider and remake.
     # A code constant, so it holds with no setting changed; lifting it is a reviewed change. Unit: tests/quiz/lp-quiz-religious-hold.test.js.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L106
   Scenario: A teacher in the A/B trial's August group is quizzed on the August plan the app showed them
     Given the lesson-plan A/B trial is on and my school is in the group that reads the August plans
     And the NIETE bot chat is open on that teacher, who read a Grade 1-5 chapter 3-8 lesson in the teacher app today before 14:00 PKT
@@ -754,7 +754,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # chapters, group B and no group read the version current at the open, as before. The day's
     # lp_quiz_offer.cohort event counts teachers by surface: wa, app, both.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L107
   Scenario: A teacher who planned lessons for two classes gets a list to pick from
     Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today
     When the send hour passes and the teacher-nudge sweep runs
@@ -762,7 +762,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the list has one row per class titled like "Grade 4 · Mathematics", each showing that class's lesson topics
     And the last row is "Not today"
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L108
   Scenario: A teacher's first afternoon offer carries the intro film in their language
     Given LP_QUIZ_OFFER_INTRO_VIDEO_UR and LP_QUIZ_OFFER_INTRO_VIDEO_EN name films in the bucket
     And the NIETE bot chat is open on an English-speaking teacher who took one K-5 lesson plan today before 14:00 PKT
@@ -773,7 +773,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # LP_QUIZ_OFFER_INTRO_VIDEO_SHOWS (default 1) showings per teacher, counted in user_feature_first_use under
     # 'lp_quiz_offer' — the coaching offer's film count is separate. A film that fails to send leaves plain buttons.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L109
   Scenario: A two-class offer with the intro film is ONE message — the film above three buttons
     Given the offer films are configured
     And the NIETE bot chat is open on a teacher who planned lessons for two classes today and has never been shown the film
@@ -788,7 +788,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lpquiz_none_<nudge>); handleButton routes them to handleListPick. Any class title over 20 code
     # points even with its short subject name, or a body over 1,024, keeps the film-then-list shape.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L110
   Scenario: An offer for three or more classes sends the intro film first, then the list
     Given the offer films are configured
     And the NIETE bot chat is open on a teacher who planned lessons for three classes today and has never been shown the film
@@ -798,14 +798,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # A list message cannot carry a video header, and three classes plus "Not today" do not fit
     # three reply buttons.
 
-  @e2e @quiz @language @wip @draft @config-gated @P2
+  @e2e @quiz @language @wip @draft @config-gated @P2 @L111
   Scenario: The Urdu afternoon offer writes its numbers in Western digits
     Given the NIETE bot chat is open on an Urdu-speaking teacher who planned lessons for two classes today
     When the send hour passes and the teacher-nudge sweep runs
     Then the offer says "8 سوالوں" and the rows read like "جماعت 4 · ریاضی", with no Urdu digits
     # Same as the coaching offer and the quiz PDF. LP_QUIZ_OFFER_NATIVE_DIGITS=on brings back ۸ / ۴.
 
-  @e2e @quiz @wip @draft @config-gated @negative @P2
+  @e2e @quiz @wip @draft @config-gated @negative @P2 @L112
   Scenario: A teacher coached today is not offered the afternoon quiz
     Given the NIETE bot chat is open on a teacher who took a lesson plan today
     And the teacher sent a classroom recording for coaching today
@@ -813,7 +813,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then no afternoon quiz offer arrives
     And the teacher's lp_quiz_offer row for today is skipped with reason coached_today
 
-  @e2e @quiz @wip @draft @config-gated @edge @P2
+  @e2e @quiz @wip @draft @config-gated @edge @P2 @L113
   Scenario: A lesson planned after 14:00 is offered on the next school day
     Given the NIETE bot chat is open on a teacher who took a lesson plan today at 16:00 PKT and none before 14:00
     When the send hour passes today
@@ -821,14 +821,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And at the send hour on the next school day the offer names that lesson
     # Friday after 14:00 lands on Monday.
 
-  @e2e @quiz @wip @draft @config-gated @negative @P3
+  @e2e @quiz @wip @draft @config-gated @negative @P3 @L114
   Scenario: An assessment day is not offered a quiz
     Given the NIETE bot chat is open on a teacher whose only lesson plan today is an assessment segment
     When the send hour passes and the teacher-nudge sweep runs
     Then no afternoon quiz offer arrives
     And the teacher's lp_quiz_offer row for today is skipped with reason no_lesson
 
-  @e2e @quiz @wip @draft @config-gated @slow @P1
+  @e2e @quiz @wip @draft @config-gated @slow @P1 @L115
   Scenario: Make the quiz produces an lp_v8 quiz with a share link
     Given the NIETE bot chat is open and the afternoon quiz offer has arrived
     When I tap "Make the quiz"
@@ -838,7 +838,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the quizzes row has quiz_source lp_v8, no coaching session, and meta.lessons carrying the served lesson's version
     And tapping "Make the quiz" again says the quiz is already on its way and makes no second quiz
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L116
   Scenario: The afternoon offer never makes a second quiz for a lesson already made into a quiz from /quiz
     Given the NIETE bot chat is open and I took one Grade 4 Urdu lesson plan today before 14:00 PKT
     And I already made its quiz from "/quiz"
@@ -892,7 +892,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the bot still offers this teacher the afternoon quiz on that lesson
     # lp-quiz-offer-612 classesFor catches, logs lp_quiz_offer.cohort_612_failed and returns no 6-12 classes.
 
-  @e2e @quiz @language @wip @draft @config-gated @P1
+  @e2e @quiz @language @wip @draft @config-gated @P1 @L117
   Scenario: Make the quiz on a maths lesson asks which language the quiz is written in
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Maths lesson has arrived
     When I tap "Make the quiz"
@@ -906,7 +906,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # The same ask, buttons (tq_lang_<code>_<quizId>) and handler as the quiz born from a recording.
     # Every subject but Urdu and Islamiyat is asked; the subject rule's language is the first button.
 
-  @e2e @quiz @language @copy @wip @draft @config-gated @P2
+  @e2e @quiz @language @copy @wip @draft @config-gated @P2 @L118
   Scenario: The quiz language question gives examples of English terms that fit the lesson's subject
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 5 Science lesson has arrived
     When I tap "Make the quiz"
@@ -919,7 +919,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # verb); no examples at all for a subject with no pair. Proven for the offer, /quiz and this offer in
     # tests/quiz/language-ask-examples.test.js and lp-quiz-language-ask.test.js. @wip until driven live.
 
-  @e2e @quiz @language @wip @draft @config-gated @P2
+  @e2e @quiz @language @wip @draft @config-gated @P2 @L119
   Scenario: Urdu and Islamiyat lessons are not asked the quiz language
     Given the NIETE bot chat is open and the afternoon quiz offer on a Grade 4 Urdu lesson has arrived
     When I tap "Make the quiz"
@@ -927,7 +927,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a quiz arrives written in Urdu
     # Islamiyat follows the same rule, but no K-5 v8 lesson is Islamiyat, so only Urdu can be driven.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  @e2e @quiz @wip @draft @config-gated @P1 @L120
   Scenario: The quiz offer names the lesson the way its PDF caption does
     Given the NIETE bot chat is open on a teacher who took the Grade 4 Maths chapter 5 lesson "Comparing & ordering unlike fractions" today before 14:00 PKT
     When the send hour passes and the teacher-nudge sweep runs
@@ -937,7 +937,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # In a list, each row's description is the clean name clipped to 72 code points.
     # @wip — authored with the change, driven and promoted by the sandbox E2E run.
 
-  @e2e @quiz @wip @draft @config-gated @slow @P1
+  @e2e @quiz @wip @draft @config-gated @slow @P1 @L121
   Scenario: An Urdu LP-born quiz is called by the lesson's own name, never a clipped sentence
     Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
     And the afternoon quiz offer has arrived
@@ -948,7 +948,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lp-quiz-digest: topic_as_taught is set from the catalog lesson (meta.lessons[0]) after the model;
     # the model's English topic is kept for an English-language quiz.
 
-  @e2e @quiz @wip @draft @config-gated @slow @P1
+  @e2e @quiz @wip @draft @config-gated @slow @P1 @L122
   Scenario: The PDF of an LP-born quiz says planned, never taught
     Given the NIETE bot chat is open on a teacher whose language is English
     And the afternoon quiz offer on a Grade 3 Urdu lesson has arrived
@@ -960,7 +960,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # In Urdu the caption says «آپ کے سبق کا منصوبہ». A quiz written from a coaching recording keeps
     # "what you taught" — that lesson was taught.
 
-  @e2e @quiz @wip @draft @config-gated @P3
+  @e2e @quiz @wip @draft @config-gated @P3 @L123
   Scenario: The afternoon offer's WhatsApp message id is kept on its nudge row
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
     When the send hour passes and the teacher-nudge sweep runs
@@ -969,14 +969,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # lp-quiz-offer send(): the button and list senders report Meta's id through onMessageId; the sweeper
     # writes it with markSent. The boolean the send returns is still the delivery verdict. @wip.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L124
   Scenario: No thanks is remembered
     Given the NIETE bot chat is open and the afternoon quiz offer has arrived
     When I tap "No thanks"
     Then the bot replies that there is no quiz for today and that /quiz shows the teacher's quizzes
     And the teacher's lp_quiz_offer row records the choice no and no quiz is made
 
-  @e2e @quiz @wip @draft @config-gated @slow @P1
+  @e2e @quiz @wip @draft @config-gated @slow @P1 @L125
   Scenario: A quiz never keys the lesson's own misconception as correct
     Given the NIETE bot chat is open on a teacher who took the Grade 3 Urdu lesson "واحد اور جمع" today before 14:00 PKT
     And the afternoon quiz offer has arrived
@@ -992,7 +992,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ═══════════ ADDED 2026-09-24 · the afternoon offer keeps the day's other questions and the night (@wip) ═══════════
 
-  @e2e @quiz @wip @draft @config-gated @negative @P1
+  @e2e @quiz @wip @draft @config-gated @negative @P1 @L126
   Scenario: The afternoon quiz offer is never sent at night
     Given a teacher took a K-5 lesson plan today before 14:00 PKT
     And the teacher-nudge sweep did not run between 15:00 and 21:00 PKT
@@ -1003,7 +1003,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # send hour, so a late build is due at once. The likely way here is the switch going on in the evening.
     # The window is the shared one (NUDGE_QUIET_HOURS_PKT, default 21:00–07:00).
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L127
   Scenario: The afternoon quiz offer waits while a lesson-plan survey question is open
     Given a teacher took a K-5 lesson plan today before 14:00 PKT
     And at 14:58 PKT the teacher tapped "Not really" on another lesson plan's survey and was asked what did not work
@@ -1012,7 +1012,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the quiz offer arrives once the question's ten minutes are over
     # Same rule as the coaching ask: one open question at a time (teacher-nudges.sweeper → nudges/open-question).
 
-  @e2e @quiz @wip @draft @config-gated @P3
+  @e2e @quiz @wip @draft @config-gated @P3 @L128
   Scenario: With NUDGE_OPEN_QUESTION_DEFER off the afternoon offer no longer waits for a survey question
     Given NUDGE_OPEN_QUESTION_DEFER is "off" on the worker that runs the teacher-nudge sweep
     And a teacher took a K-5 lesson plan today before 14:00 PKT
@@ -1050,7 +1050,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ADDED 2026-10-01 (FX3, bd-w2daa.24): inside the quiet hour the bot answers nothing — and must not
   # look as if it is about to (it used to show "typing…" for ~25 s over silence).
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L129
   Scenario: Asking again inside the hour gets no reply and no "typing…"
     Given the NIETE bot chat is open
     And Lesson Plans has been switched to the NIETE app
@@ -1066,7 +1066,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # ADDED 2026-10-02 (FX4, bd-w2daa.26): a FREE-TEXT request is classified before the quiet hour can
   # silence it — 12.6 s on sandbox (1 Oct 18:39Z), longer than FX3's 3 s hold, so "typing…" showed.
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L130
   Scenario: A typed lesson-plan request inside the hour gets no reply and no "typing…", however long the bot takes to read it
     Given Lesson Plans has been moved to the NIETE app
     And the bot sent me the Play Store link less than an hour ago
@@ -1094,7 +1094,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # accounts still skipped. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
   # tests/app-redirect/app-link-leader-lessons-doors.test.js (each door, then /go), portal
   # src/portal/teacher/lessons/leaders.app.test.tsx (the tab opens for a coach on or off the coach app).
-  @obsolete @config-gated @P1
+  @obsolete @config-gated @P1 @L131
   Scenario: A coach asking for a lesson plan gets one button that opens Send a lesson plan in the app
     # OBSOLETE 2026-10-23 (bd-a73p5m): the link opens the Lesson Plans tab now, with new words — replaced by "A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app" below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
@@ -1105,7 +1105,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I tap "Send a plan"
     Then the app opens on Send a lesson plan, signed in, without typing a password
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @L132
   Scenario: A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
@@ -1119,7 +1119,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # only: Grades 1-5 and 6-12 plans have no send button for a leader.
     # Axiom: app_funnel.command feature=lesson_plan audience=leader verdict=link; app_link.open feature=leader_lessons.
 
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L133
   Scenario: A coach off the coach app, or without FLN share, still lands on the Lesson Plans tab
     Given the NIETE bot chat is open on a coach account that is not on the coach app and has no FLN share
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
@@ -1128,7 +1128,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the app opens on the Lesson Plans tab, signed in
     # The classic leader menu has Lesson Plans, and TeacherGate lets the leader family read the tab (bd-4joiqz).
 
-  @obsolete @config-gated @P2
+  @obsolete @config-gated @P2 @L134
   Scenario: A coach who names a topic keeps the WhatsApp lesson-plan path, switch on or off
     # OBSOLETE 2026-10-23 (bd-l6424d): a coach who names a topic gets the Lesson Plans tab too — replaced by "A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue" and its voice and in-flight twins below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
@@ -1146,7 +1146,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # lesson_plan_intent, voice_intent, voice_lesson_plan_intent, cutover_inflight_gamma. Unit:
   # tests/app-redirect/app-link-leader-lessons-doors.test.js (typed), app-link-leader-lessons-voice-topic.test.js
   # (voice), app-link-leader-lessons-rescue.test.js (in flight), app-link-leader-lesson-plan.test.js (each door).
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @L135
   Scenario: A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
@@ -1159,7 +1159,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # "Generate" button. Axiom: ONE app_funnel.command feature=lesson_plan audience=leader verdict=link door=intent
     # (door=lesson_plan_intent for those two), then app_funnel.link_sent; funnel.py reports it as lesson_plan@leader.
 
-  @e2e @voice @config-gated @P1
+  @e2e @voice @config-gated @P1 @L136
   Scenario: A coach who asks for a lesson-plan topic in a voice note gets the Lesson Plans tab button, and nothing else
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
@@ -1171,7 +1171,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # In Urdu: «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» with «لیسن پلان». Before this a coach got the spoken
     # answer, the sticker and the catalogue Flow. Axiom: app_funnel.command door=voice_intent audience=leader verdict=link.
 
-  @e2e @config-gated @no-mock-driver @P2
+  @e2e @config-gated @no-mock-driver @P2 @L137
   Scenario: A coach whose lesson-plan request was already being prepared at the cutover gets the Lesson Plans tab button, once
     # Not runnable on the mock lane: it needs a free-form lesson-plan job queued before the cutover.
     Given a coach's free-form lesson-plan request was still in the queue when free-form generation was retired
@@ -1188,7 +1188,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # (intent, then lesson_plan_intent) and voice (voice_intent, then voice_lesson_plan_intent) paths retry the same way.
     # Without LP_612_ROUTE_ALL the worker never asks: the not-in-catalogue line, for everyone, as before.
 
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L138
   Scenario: With the leader switch on "coaches", a principal who names a topic keeps the WhatsApp lesson-plan menu
     Given the NIETE bot chat is open on a principal account
     And lesson plans for leaders open in the app for coaches only (leader_app_lesson_plan is "coaches")
@@ -1196,14 +1196,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the lesson-plan menu opens on WhatsApp, as before, with no Lesson plans button
     # The same by voice, and for an analytics-only coach (the portal sends those to analytics, not the tab).
 
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L139
   Scenario: With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu
     Given the NIETE bot chat is open on a principal account
     And lesson plans for leaders open in the app for coaches only (leader_app_lesson_plan is "coaches")
     When I send "lesson plan"
     Then the lesson-plan menu opens on WhatsApp, as before
 
-  @e2e @config-gated @P2
+  @e2e @config-gated @P2 @L140
   Scenario: With the leader switch off, a coach keeps the WhatsApp lesson-plan menu
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders do not open in the app (no leader_app_lesson_plan row)
@@ -1216,7 +1216,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # until it is turned on). With it on, the same rules hold for the WhatsApp row and the web item.
   # Unit: tests/quiz/quiz-author-gates-figures.test.js, tests/quiz/lp612-quiz-generate.test.js.
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L141
   Scenario: A Grades 6-12 quiz can draw the lesson's own diagram
     Given quiz_author_gates_v2 is on
     And the NIETE bot chat is open on a teacher who took a Grades 6-12 lesson plan with a diagram in it
@@ -1224,7 +1224,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the quiz author is shown that lesson's diagrams as drawable specs
     And a picture question about the lesson's diagram shows the drawing the class saw
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L142
   Scenario: Pictures a child cannot tell apart are never shipped
     Given quiz_author_gates_v2 is on
     When a quiz question offers pictures P, Q and R that are the same drawing in different colours
@@ -1232,7 +1232,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then that question is refused and written again or left out
     And no option names a picture label that is not drawn
 
-  @e2e @quiz @wip @draft @config-gated @P2
+  @e2e @quiz @wip @draft @config-gated @P2 @L143
   Scenario: A place-value picture does not print the answer, and a mark lesson shows its mark
     Given quiz_author_gates_v2 is on
     When a question asks which place a digit is in over a place-value mat
@@ -1269,7 +1269,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # bd-fmf24g.66 — extraction of a plan the COACH attached to an observation. The session's user is the observed teacher.
   # Unit: tests/observe/bd-fmf24g.66-coach-plan-no-teacher-whatsapp.test.js (lesson-plan-extraction.worker notify*).
-  @e2e @config-gated @negative @P1
+  @e2e @config-gated @negative @P1 @L144
   Scenario: A plan a coach attached that is not a lesson plan, or is unreadable, never messages the teacher
     Given a coach observation of a teacher whose attached plan the extraction worker reads as not a lesson plan or as unreadable
     When the extraction worker finishes
@@ -1282,7 +1282,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ONE link. Unit: tests/lp612/bd-iceyyu-own-offer.test.js, bd-iceyyu-endpoint-own.test.js, bd-iceyyu-catalog-lead.test.js.
   # Flow screens render only on a real phone: sandbox, operator's number, flag on.
 
-  @e2e @config-gated @flow @P1
+  @e2e @config-gated @flow @P1 @L145
   Scenario: With Make my own on for me, a Grades 6-12 chapter opens with Make my own first, and one tap sends one link
     Given "portal_lp_make_own" is true, "teachers", or lists me, and I am on the teacher app
     When I open the lesson-plan Flow and pick a Grade 6-12 grade, subject and chapter
@@ -1294,7 +1294,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I tap the button
     Then the portal's Make my own opens signed in, on that chapter, at its first question
 
-  @e2e @config-gated @negative @flow @P1
+  @e2e @config-gated @negative @flow @P1 @L146
   Scenario: With Make my own off or not for me, the chapter's lesson screen is exactly as before
     Given "portal_lp_make_own" is absent, false, or a list without me, or I am not on the teacher app
     When I open the lesson-plan Flow and pick a Grade 6-12 chapter
@@ -1303,14 +1303,14 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
 
   # bd-2zopnc — operator, 16 Nov: Make my own is not live for GB. "teachers" checks the role only, so the region is
   # checked too (users.source / users.region / school region); a failed region read is off. Unit: bd-iceyyu-own-offer.test.js.
-  @e2e @config-gated @negative @flow @P1
+  @e2e @config-gated @negative @flow @P1 @L147
   Scenario: A GB teacher never sees Make my own, even with the switch on for teachers
     Given "portal_lp_make_own" is "teachers" and I am a GB teacher on the teacher app
     When I open the lesson-plan Flow and pick a Grade 6-12 chapter
     Then the lesson screen shows the lessons exactly as before, with no "Make my own" row
     And an ICT teacher with the same switch still sees "Make my own" first
 
-  @e2e @config-gated @P1
+  @e2e @config-gated @P1 @L148
   Scenario: A Make my own plan for a class of more than 70 fits one period with less to do
     Given "portal_lp_make_own" is on for me and my Grades 1-5 day plan states its period in minutes
     When I make my own plan for a class of more than 70 with only the textbook
@@ -1394,7 +1394,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a History lesson I make my own of shows no Urdu key-word names added
     # bd-snkn32.48 (shelf reviewer 9B: bilingual concept glossary). Unit: tests/lp612/own-gloss.test.js.
 
-  @e2e @draft @P1
+  @e2e @draft @P1 @L149
   Scenario: A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup
     Given the NIETE bot chat is open
     When I take a Grades 1–5 lesson plan from the LP Flow
@@ -1405,7 +1405,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # so every send and script lookup was failing. Code switch bot/shared/config/lp-v8-voicenote.js
     # (off; not an env flag). Unit: bot/tests/lp-v8/voicenote-off.test.js.
 
-  @e2e @content-driven @no-mock-driver @P2
+  @e2e @content-driven @no-mock-driver @P2 @L150
   Scenario: A long Grades 6-12 plan that is still over its teaching pages keeps its homework in the support pages
     Given the NIETE bot chat is open
     And I take an English Grades 6-12 lesson whose teaching part is still over 4 pages after common mistakes and differentiation move to the support pages
@@ -1422,7 +1422,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
 
   # ADDED 2026-11-22 (bd-zrdvmi.51): the cycle picture type.
-  @e2e @content-driven @no-mock-driver @P2
+  @e2e @content-driven @no-mock-driver @P2 @L151
   Scenario: A Grades 6-12 lesson on a cycle draws the cycle as a closed ring, not a line
     Given the NIETE bot chat is open
     And I take a Grade 9 Biology lesson on the Krebs cycle
@@ -1451,7 +1451,7 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # ADDED 2026-11-24 (bd-zrdvmi.60, ICT sheet Lesson Plan row 983): a grades 1-5 plan tapped in the Flow while PDFs are
   # off sends a link that opens THAT plan (/portal/teacher/lessons/open?plan=k5:<lesson_id>), not Lesson Plans home.
   # Unit: tests/app-redirect/app-link-lp-open.test.js, tests/lp-whatsapp-off/v8-delivery-pdf-off.test.js.
-  @e2e @config-gated @no-mock-driver @P1 @L13b
+  @e2e @config-gated @no-mock-driver @P1 @L152
   Scenario: With lesson-plan PDFs off, tapping one grades 1-5 plan in the Flow sends a link that opens that plan
     Given the NIETE bot chat is open
     And lesson-plan PDFs on WhatsApp are switched off for the ICT programme

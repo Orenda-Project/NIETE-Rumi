@@ -301,4 +301,165 @@ exports.run = async ({ api, rec, sleep = async (ms) => new Promise((r) => setTim
             ? V(true, { count: items.length, flowClaimedCount, items: items.slice(0, 8) })
             : ['BLOCKED', { reason: 'nothing was in flight, and this lane cannot start work (no upload)', observed: items }]), 0);
   }
+
+  await runSeeded({ api, rec, sleep, want });
 };
+
+// ── STA09–STA16 (bd-q8wt5e.6.3): training and 6-12 lesson plans in flight, seeded straight into the run's own
+//    database (teacher-state.service.js listActiveResources reads training_assessment_attempts and
+//    niete_lp612_renders). Every row seeded here is removed before the next scenario.
+const RENDER_SEG = 'grade_6_computer_science.c01.p006-006';   // in the lane seed (supabase/baseline/seed-keep.json)
+const TRAINING_ROW = /Teacher training/i;
+const QUESTION_OF = /question \d+ of \d+/i;
+
+/** PostgREST on the run's own database, or null off it (a seed here must never reach a shared database). */
+function localDb() {
+  const { url, key, kind } = dbCreds();
+  if (!url || !key || kind !== 'local') return null;
+  const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+  const call = async (method, p, body) => {
+    const r = await fetch(`${url}/rest/v1/${p}`, { method, headers: { ...H, Prefer: 'return=representation' }, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(`${method} ${p.split('?')[0]} ${r.status}: ${JSON.stringify(j).slice(0, 160)}`);
+    return j;
+  };
+  return { get: (p) => call('GET', p), post: (t, b) => call('POST', t, b), patch: (p, b) => call('PATCH', p, b), del: (p) => call('DELETE', p) };
+}
+
+async function runSeeded({ api, rec, sleep, want }) {
+  const ids = ['STA09', 'STA10', 'STA11', 'STA12', 'STA13', 'STA14', 'STA15', 'STA16'];
+  if (!ids.some((id) => want(id))) return;
+  const t = () => Date.now();
+  let s;
+  const NAMES = {
+    STA09: 'A training quiz in progress is reported as running, in the chat',
+    STA10: 'Alongside stoppable work, the training quiz is shown but not offered as a row',
+    STA11: 'A training quiz I have already finished is not reported as running',
+    STA12: 'A 6-12 lesson plan being prepared is reported as running',
+    STA13: 'A lesson plan that has already arrived is not reported as running',
+    STA14: 'A lesson plan another teacher is waiting on is never reported as mine',
+    STA15: 'A teacher who stops answering the reflection questions gets ONE reminder, not one per worker',
+    STA16: 'A stuck portal observation is retried and failed without a WhatsApp message to the coach',
+  };
+  const R = (id, ...v) => { if (want(id)) rec(id, NAMES[id], ...v); };
+
+  // Not drivable on this lane, with the reason.
+  R('STA15', 'BLOCKED', { reason: '@wip @draft, and the race it guards needs 2+ sqs-worker copies sweeping together with '
+    + 'COACHING_REMINDER_MINUTES=2; the mock lane runs ONE worker, where it passes either way (the spec says so). '
+    + 'Unit: the conditional-claim tests of stale-session.worker.js' }, 0);
+  R('STA16', 'BLOCKED', { reason: 'the recovery sweep (stale-session.worker.js) runs on its own timer inside the worker and '
+    + 'has no trigger this lane can call, and "shows as stopped in the portal" needs the portal, which the mock '
+    + 'lane does not run' }, 0);
+
+  const db = localDb();
+  if (!db) {
+    for (const id of ['STA09', 'STA10', 'STA11', 'STA12', 'STA13', 'STA14']) {
+      R(id, 'BLOCKED', { reason: 'seeds rows into training_assessment_attempts / niete_lp612_renders: only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    }
+    return;
+  }
+  const drv = process.env.E2E_DRIVER;
+  const [me] = await db.get(`users?select=id&phone_number=eq.${drv}`);
+  if (!me) { for (const id of ['STA09', 'STA10', 'STA11', 'STA12', 'STA13', 'STA14']) R(id, 'BLOCKED', { reason: 'driver user not found on the run database' }, 0); return; }
+  const clean = async () => {
+    try { api.db('cancel-stuck'); api.db('clear-training-inflight'); } catch (_) {}
+    // anything else stoppable left in the conversation store (the /status Flow's own Stop, as lesson-plan.cjs does)
+    try { await require('./reset-state.cjs').run({ api, rec: () => {}, sleep }); } catch (_) {}
+    try { await db.del(`training_assessment_attempts?user_id=eq.${me.id}`); } catch (_) {}
+    try { await db.del(`niete_lp612_renders?segment_id=eq.${RENDER_SEG}`); } catch (_) {}
+    await api.resetFlow();
+  };
+  /** One in-progress training attempt (question 3 of N) through the tool's own seed; `done` then finishes it the way
+   *  a completed attempt reads (status passed, completed_at set; last_activity_at is kept, as the spec says). */
+  const seedAttempt = async (done) => {
+    const r = api.db('seed-training-inflight');
+    if (!r || !r.ok) throw new Error('seed-training-inflight: ' + ((r && r.err) || 'failed'));
+    if (done) await db.patch(`training_assessment_attempts?user_id=eq.${me.id}&status=eq.in_progress`,
+      { status: 'passed', completed_at: new Date().toISOString(), score: 1, is_passed: true });
+    return r;
+  };
+  const seedRender = async (status, waiterId) => {
+    const [seg] = await db.get(`niete_lp612_segments?select=segment_id,menu_title&segment_id=eq.${RENDER_SEG}`);
+    const now = new Date().toISOString();
+    const [r] = await db.post('niete_lp612_renders', {
+      segment_id: RENDER_SEG, lang: 'en', template_version: 'qa-status-seed', status,
+      waiters: [{ user_id: waiterId }], requested_by: waiterId === me.id ? me.id : null, started_at: now,
+      ...(status === 'ready' ? { completed_at: now, r2_key: 'qa/status-seed.pdf' } : {}) });
+    return { render: r, title: seg && seg.menu_title };
+  };
+  /** /status in the chat: the reply text and whether a "What's running" card came instead. */
+  const ask = async () => {
+    await api.resetFlow();
+    const st = await api.sendWait('/status');
+    let txt = st.txt || '';
+    for (let w = 0; surfaceOf(txt) === 'neither' && w < 15000; w += 1000) {
+      const hit = (await api.fresh()).find((m) => surfaceOf(m.txt || '') !== 'neither');
+      if (hit) { txt = hit.txt; break; }
+      await sleep(1000);
+    }
+    const out = { txt, surface: surfaceOf(txt), card: CARD.test(txt) };
+    if (out.card) {   // say what was listed, so a card is never an unexplained FAIL
+      const op = await api.openFlow(CTA);
+      if (op.ok) { const p = await api.flowProbe(); out.listed = (p.text || '').slice(0, 300); api.closeFlow(); }
+    }
+    return out;
+  };
+  const step = async (id, fn) => {
+    if (!want(id)) return;
+    s = t();
+    try { await clean(); R(id, ...(await fn()), t() - s); } catch (e) { R(id, 'FAIL', { err: String(e.message || e).slice(0, 200) }, t() - s); }
+  };
+
+  await step('STA09', async () => {
+    await seedAttempt(false);
+    const a = await ask();
+    return V(a.surface === 'running-template' && TRAINING_ROW.test(a.txt) && QUESTION_OF.test(a.txt) && !a.card,
+      { surface: a.surface, namesTraining: TRAINING_ROW.test(a.txt), questionOf: (a.txt.match(QUESTION_OF) || [null])[0], card: a.card, reply: a.txt.slice(0, 200) });
+  });
+
+  await step('STA10', async () => {
+    await seedAttempt(false);
+    const coaching = await seedCoaching(api);   // an analysis in flight: a live conversation state, stoppable
+    await sleep(3000);
+    const l = await readListing(api);
+    if (l.surface !== 'flow-card') {
+      return ['BLOCKED', { reason: 'the seeded coaching session was not in flight when /status was read, so there was no stoppable work beside the quiz', listing: l, coaching }];
+    }
+    const rows = l.items.filter((x) => !/^You have|^•/.test(x));
+    const trainingRow = rows.some((x) => TRAINING_ROW.test(x));
+    // the summary bullets are part of the screen text; read it again for them
+    return V((l.claimed || 0) >= 2 && rows.length > 0 && !trainingRow,
+      { claimed: l.claimed, rows: rows.slice(0, 8), trainingOfferedAsRow: trainingRow, coaching });
+  });
+
+  await step('STA11', async () => {
+    await seedAttempt(true);
+    const a = await ask();
+    return V(a.surface === 'idle-template' && !TRAINING_ROW.test(a.txt), { surface: a.surface, reply: a.txt.slice(0, 160) });
+  });
+
+  await step('STA12', async () => {
+    const { title } = await seedRender('authoring', me.id);
+    const a = await ask();
+    const named = title ? a.txt.includes(title.slice(0, 40)) : /Lesson plan/i.test(a.txt);
+    return V(a.surface === 'running-template' && /Lesson plan/i.test(a.txt) && named && !a.card,
+      { surface: a.surface, menuTitle: title, named, card: a.card, reply: a.txt.slice(0, 200), listed: a.listed,
+        noStopRow: 'a text reply offers no row; the card (where rows live) did not come' });
+  });
+
+  await step('STA13', async () => {
+    await seedRender('ready', me.id);
+    const a = await ask();
+    return V(a.surface === 'idle-template', { surface: a.surface, reply: a.txt.slice(0, 160), listed: a.listed });
+  });
+
+  await step('STA14', async () => {
+    const other = '00000000-0000-4000-8000-0000000051a1';   // another teacher's id: only the waiters list names her
+    const { title } = await seedRender('authoring', other);
+    const a = await ask();
+    const leaked = !!(title && a.txt.includes(title.slice(0, 40)));
+    return V(a.surface === 'idle-template' && !leaked, { surface: a.surface, otherLessonNamed: leaked, reply: a.txt.slice(0, 160), listed: a.listed });
+  });
+
+  await clean();
+}
