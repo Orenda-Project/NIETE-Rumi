@@ -68,6 +68,21 @@ const setLang = async (api, row) => {
   throw last;
 };
 
+// The running stack's own .env (<RUN_DIR>/src/.env; dotenv keeps the FIRST value of a key), or null off the mock stack.
+const stackEnv = () => {
+  try {
+    const fs = require('fs'); const path = require('path');
+    const dir = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')).runDir();
+    if (!dir) return null;
+    const env = {};
+    for (const line of fs.readFileSync(path.join(dir, 'src', '.env'), 'utf8').split('\n')) {
+      const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+      if (m && !(m[1] in env)) env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    }
+    return env;
+  } catch (_) { return null; }
+};
+
 // Where an app link (a cta_url's /go/<token>) lands, read the way /go reads it: the token decoded with the bot's OWN
 // key (the run's src/.env; dotenv keeps the FIRST value of a key), then the School card target mapped to its page.
 // null when there is no stack to read (no RUN_DIR) or the token does not verify.
@@ -144,7 +159,8 @@ exports.run = async ({ api, rec, want = () => true }) => {
   // Every id below records exactly once. A step that fails leaves the ids downstream of it recorded
   // BLOCKED with the step that stopped them (`notReached`), never silently absent.
   const done = new Set();
-  const R = (id, name, verdict, ms = 0) => { if (done.has(id)) return; done.add(id); rec(id, name, verdict[0], verdict[1], ms); };
+  const verdictOf = {};   // id → PASS | FAIL | BLOCKED, for a scenario judged on others' results (OBS84)
+  const R = (id, name, verdict, ms = 0) => { if (done.has(id)) return; done.add(id); verdictOf[id] = verdict[0]; rec(id, name, verdict[0], verdict[1], ms); };
   const NAMES = {
     OBS03: 'The visit picker walks school → teacher → brief',
     OBS04: 'The scheduling menu shows live pending-debrief and upcoming counts',
@@ -177,6 +193,9 @@ exports.run = async ({ api, rec, want = () => true }) => {
     OBS62: 'The teacher gets the date and time on WhatsApp when a coach books her visit',
     OBS63: 'Moving or cancelling a visit tells the teacher',
     OBS64: 'Re-saving a visit unchanged, or a teacher with no number, sends nothing',
+    OBS84: 'A WhatsApp /observe observation is unchanged',
+    OBS97: "/observe's Start asks for the recording and says a recorder-app file goes as a Document",
+    OBS99: 'The send confirm names the teacher the report is going to',
   };
   const rr = (id, cond, ev, ms = 0) => R(id, NAMES[id], V(cond, ev), ms);
   const rb = (id, reason, ev) => R(id, NAMES[id], ['BLOCKED', { reason, ...(ev || {}) }], 0);
@@ -184,7 +203,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
 
   const SCHED = ['OBS03', 'OBS04', 'OBS05', 'OBS19', 'OBS62', 'OBS63', 'OBS64'];
   const CHAIN = ['OBS07', 'OBS08', 'OBS09', 'OBS10', 'OBS11', 'OBS12', 'OBS14', 'OBS15', 'OBS18', 'OBS27', 'OBS31',
-    'OBS37', 'OBS38', 'OBS40', 'OBS41', 'OBS42'];
+    'OBS37', 'OBS38', 'OBS40', 'OBS41', 'OBS42', 'OBS84', 'OBS99'];
   const CANCEL = ['OBS23', 'OBS29', 'OBS30', 'OBS39'];
   const isFlow = (m) => !!(m && m.raw && m.raw.interactive && m.raw.interactive.type === 'flow');
   const isForm = (m) => isFlow(m) && /FICO/i.test(m.txt || '');
@@ -258,7 +277,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
       if (U.gate) { await api.freshReset(); await api.tapAndWait('No', 60000); }
       got = await collect(600000, (x) => isForm(x) || REFUSED.test(x.txt || ''), true);
     }
-    return { armed: (armed.txt || '').slice(0, 200), upload: { txt: U.txt.slice(0, 300), btns: up.btns, raw: up },
+    return { armed: (armed.txt || '').slice(0, 600), upload: { txt: U.txt.slice(0, 300), btns: up.btns, raw: up },
       form: got.hit && isForm(got.hit) ? got.hit : null, seen: got.seen.map(brief) };
   };
   // Open the FICO form card, optionally edit the first rating + evidence on the first scored screen,
@@ -290,7 +309,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
     return { screens, prefilled, edited, success, ack: ack.hit, seen: ack.seen.map(brief) };
   };
 
-  if (want(...SCHED, ...CHAIN, ...CANCEL)) {
+  if (want(...SCHED, ...CHAIN, ...CANCEL, 'OBS97')) {
     s = Date.now();
     await api.setRole('coach');
     // Ayesha reads Urdu and Bilal English, the coach English: the notice must follow the TEACHER.
@@ -298,7 +317,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
     const reset = seed && seed.ok ? await api.resetObserve() : null;
     const [T1, T2] = (seed && seed.teachers) || [];
     if (!seed || !seed.ok || !reset || !reset.ok) {
-      notReached([...SCHED, ...CHAIN, ...CANCEL], 'the fixture roster could not be seeded: ' + JSON.stringify({ seed, reset }).slice(0, 200));
+      notReached([...SCHED, ...CHAIN, ...CANCEL, 'OBS97'], 'the fixture roster could not be seeded: ' + JSON.stringify({ seed, reset }).slice(0, 200));
     } else {
       const teacherApi = (t) => api.as(t.phone);
       const tA = teacherApi(T1); await tA.fresh();   // drain: notices from earlier runs are not this run's
@@ -404,8 +423,45 @@ exports.run = async ({ api, rec, want = () => true }) => {
         notReached(['OBS05', 'OBS62'], 'the walk did not reach the brief');
       }
 
+      // ── OBS97 · Start in the brief: the capture prompt names the teacher and says a recorder-app file goes as a
+      //    Document (observe-strings buildVisitCapturePrompt: withName + sendAsDocument). For an ICT coach with FDE's
+      //    grade 6-12 tools on (bd-pni007) the class is asked first; "Grade 1-5" keeps the FICO path. Nothing is
+      //    uploaded: the armed visit is cleared by resetObserve before the chain. ──
+      if (want('OBS97')) {
+        s = Date.now();
+        const m = await visitMenu();
+        const b = m.op && m.op.ok ? await toBrief(seed.schoolName, 'Bilal Ahmed') : { errs: ['visit Flow did not open'] };
+        if (b.errs.length) rb('OBS97', 'walk to the brief failed: ' + b.errs.join(', '));
+        else {
+          await api.flowClick('Record the lesson now', { settleMs: 2500 });
+          await api.freshReset();
+          await api.flowClick('Start observation', { settleMs: 3000 });
+          const fc = await api.flowComplete(60000);
+          const PROMPT = /record it and send me the audio/i;
+          const isClass = (x) => !!(x && x.list && x.list.rows.some((r) => r.title === 'Grade 1-5'));
+          const seen = [fc];
+          let c = PROMPT.test(fc.txt || '') ? { hit: fc, seen: [] } : await collect(30000, (x) => PROMPT.test(x.txt || '') || isClass(x));
+          seen.push(...c.seen);
+          const cls = (c.hit && isClass(c.hit)) ? c.hit : (!c.hit ? seen.find(isClass) : null);
+          let classAsked = null;
+          if (cls) {
+            const row = cls.list.rows.find((r) => r.title === 'Grade 1-5');
+            classAsked = (cls.txt || '').slice(0, 160);
+            await api.freshReset(); await api.tapId('list', row.id, row.title);
+            c = await collect(30000, (x) => PROMPT.test(x.txt || ''));
+            seen.push(...c.seen);
+          }
+          const ar = (c.hit && c.hit.txt) || '';
+          rr('OBS97', /You're observing \*?Bilal Ahmed/.test(ar) && PROMPT.test(ar)
+              && /recorder app goes as a \*?Document\*? \(📎 → \*?Document\*?\), not as audio/.test(ar) && /WhatsApp refuses audio over 16 MB/.test(ar),
+            { prompt: ar, classAsked, seen: seen.filter(Boolean).map(brief) }, Date.now() - s);
+          api.closeFlow(); await api.resetFlow(); await api.resetObserve();
+        }
+      }
+
       // ── the observation chain on Bilal (English) ──
       let form1 = null;
+      let guideSent;   // OBS84: did "Debrief now" put a guide in the chat at all (its CONTENT is OBS09's question)
       if (want(...CHAIN, 'OBS04')) {
         s = Date.now();
         const o = await observeAndAnalyse(seed.schoolName, 'Bilal Ahmed', 'hameeda_16min.m4a');
@@ -452,6 +508,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
             // ── OBS09 + OBS15 · "Debrief now" sends the guide; a second tap re-sends the stored one ──
             await api.freshReset();
             const g1 = await api.tapAndWait('Debrief now', 120000);
+            guideSent = !!g1.ok && String(g1.txt || '').trim().length > 40;
             const g1more = await collect(15000, null);
             const g1msgs = g1more.seen.filter((x) => x.txt);   // includes the tap's own reply
             const paras = (g1.txt || '').trim().split(/\n\s*\n/);
@@ -502,6 +559,18 @@ exports.run = async ({ api, rec, want = () => true }) => {
                 const row = preview.list.rows.find((r) => /Bilal/.test(r.title));
                 if (row) { await api.freshReset(); await api.pickRowAndWait(row.title, 120000); const c2 = await collect(180000, (x) => (x.btns || []).some((b) => /send now/i.test(b))); preview = c2.hit; previewBatch = c2.seen; }
               }
+              // ── OBS99 · the confirm above Send now names the teacher, her number and (when on file) her school ──
+              if (preview) {
+                const plain = String(preview.txt || '').replace(/[\u2066-\u2069]/g, '');
+                const who = (await api.rows('users', { phone_number: T2.phone })) || {};
+                const onFile = who.ok && who.rows && who.rows[0] ? (who.rows[0].school_name || null) : undefined;
+                const schoolOk = onFile === undefined ? true : onFile ? plain.includes('🏫 School: ' + onFile) : !/🏫 School:/.test(plain);
+                const b3 = preview.btns || [];
+                rr('OBS99', new RegExp('📨 To: Bilal Ahmed[^\\n]*\\(\\+?' + T2.phone + '\\)').test(plain) && schoolOk
+                    && ['Send now', 'Someone else', 'Cancel'].every((x) => b3.includes(x)),
+                  { confirm: plain.slice(0, 400), btns: b3, schoolOnFile: onFile === undefined ? 'not read (' + (who.notChecked || who.error || 'no row') + ')' : onFile,
+                    notDriven: '"Someone else" and "Cancel" are not tapped here: this preview goes on to Send now (OBS11). "Someone else" is OBS159.' });
+              }
               let delivered = null; let outcome = null;
               if (preview) {
                 await api.freshReset();
@@ -545,6 +614,21 @@ exports.run = async ({ api, rec, want = () => true }) => {
               { reply: dup2, noNewForm: noForm });
           }
         }
+      }
+
+      // ── OBS84 · the portal-observation pilot leaves a WhatsApp /observe observation as it was: the review form, the
+      //    debrief, the feedback card and the send all still happen on WhatsApp. The bot reads no switch for it (only the
+      //    portal reads app_settings.portal_coach_observation; a portal row is told apart by its R2 key), so the check is
+      //    the WhatsApp chain itself, judged on the steps above. ──
+      if (want('OBS84')) {
+        // the guide is judged on arriving, not on its wording: OBS09's step count is the open spec question bd-q8wt5e.23
+        const steps = { form: 'OBS07', submit: 'OBS08', feedbackCard: 'OBS10', send: 'OBS11' };
+        const got = Object.fromEntries(Object.entries(steps).map(([k, id]) => [k, id + ' ' + (verdictOf[id] || 'not run')]));
+        got.guideOnWhatsApp = guideSent === undefined ? 'not run' : guideSent;
+        const vs = [...Object.values(steps).map((id) => verdictOf[id]), guideSent === undefined ? 'BLOCKED' : guideSent ? 'PASS' : 'FAIL'];
+        if (vs.every((v) => v === 'PASS')) rr('OBS84', true, { steps: got });
+        else if (vs.some((v) => v === 'FAIL')) rr('OBS84', false, { steps: got });
+        else rb('OBS84', 'judged on the WhatsApp chain, and a step of it did not run', { steps: got });
       }
 
       // ── the cancel chain on Ayesha (Urdu): cancel, old buttons, the old form, then re-send ──
@@ -641,12 +725,12 @@ exports.run = async ({ api, rec, want = () => true }) => {
   rb('OBS16', "needs a send with an EMPTY roster: the report send asks for the teacher only when the observation is unbound and the coach's legacy users.preferences.observe_teachers is empty; this driver's coach has a fixture roster, and an unbound observation would have to be carried through form + debrief first");
   rb('OBS17', 'needs a school with more than 18 teachers; the fixture roster seeds two, and seeding 19+ persistent teacher users per driver into the shared sandbox users table was judged not worth the pollution');
   rb('OBS24', "needs a FICO form token naming ANOTHER leader's session; the emulator only opens the token the bot sent this driver, and minting one for another coach's observation would mean fabricating a session for a second leader");
-  notReached([...SCHED, ...CHAIN, ...CANCEL], 'not selected or an earlier step stopped');
+  notReached([...SCHED, ...CHAIN, ...CANCEL, 'OBS97'], 'not selected or an earlier step stopped');
 
   // ── unbound captures: each starts from a clean slate (resetObserve), so the duplicate guard never
   //    mistakes one scenario's fixture upload for another's ──
   const LONG = 'hameeda_15min_alt.m4a';
-  if (want('OBS06', 'OBS35', 'OBS25')) {
+  if (want('OBS06', 'OBS35', 'OBS25', 'OBS148')) {
     s = Date.now();
     await api.setRole('coach'); await api.resetObserve(); await api.resetFlow(); await api.freshReset();
     const up = await api.upload(MEDIA + '/' + LONG, 'Audio', 180000);
@@ -661,6 +745,14 @@ exports.run = async ({ api, rec, want = () => true }) => {
     rec('OBS25', "A leader's long audio with no active state never starts teacher coaching",
         ...V(up.ok && CAPTURED.test(upTxt) && !COACHING.test(upTxt),
           { wentToObserve: CAPTURED.test(upTxt), notCoaching: !COACHING.test(upTxt), reply: upTxt.slice(0, 160) }), 0);
+    // OBS148: this coach has only ever run classic /observe (the chain above, or nothing), so record-first
+    // (observe2/capture-link.js holdRecording, "💾 Saved: your … recording") must NOT take the recording.
+    const rest148 = await api.fresh();
+    const all148 = [upTxt, ...rest148.map((m) => m.txt || '')].join('\n');
+    rec('OBS148', 'Record first is for /observe2 coaches; a coach on classic /observe still gets "whose observation is this?"',
+        ...V(up.ok && /Whose observation is this/i.test(all148) && !/Saved: your .*recording, as one visit/i.test(all148),
+          { reply: all148.slice(0, 300), btns: (up.btns || []).slice(0, 6), list: rest148.filter((m) => m.list).map((m) => m.list.rows.map((r) => r.title)),
+            notDriven: 'no visit is booked at this point, so "scheduled teachers at the top" is not ordered here (OBS35 / the chain cover the list)' }), 0);
   }
 
   if (want('OBS36')) {
@@ -718,6 +810,60 @@ exports.run = async ({ api, rec, want = () => true }) => {
     rec('OBS33', "A principal's OWN lesson recording reaches Digital Coach, not the binding list",
         ...V(up.ok && !/Whose observation is this/i.test(all) && !/You're observing/i.test(all) && (COACHING.test(all) || (up.btns || []).some((b) => /Yes,?\s*Analyze/i.test(b))),
           { dcPrompt: (dc.txt || '').slice(0, 160), reply: (up.txt || '').slice(0, 200), btns: up.btns }), Date.now() - s);
+    await api.resetFlow();
+  }
+
+  // ── OBS100 / OBS101 · a principal's SECOND recording after her own lesson went to Classroom Coaching ──
+  //    COACHING_RECORDING_ENDS_WAIT (default on): the first recording ends the six-hour Classroom Coaching wait, so the
+  //    second is asked "whose"; off, the wait stands and the second goes to her own coaching again. Switched with
+  //    stack-control.restart, as OBS21 switches its gate.
+  if (want('OBS100', 'OBS101')) {
+    const N100 = "A principal's second recording after their own lesson was coached is asked whose it is";
+    const N101 = "With COACHING_RECORDING_ENDS_WAIT off a principal's second recording goes straight to their own coaching again";
+    const twoRecordings = async () => {
+      await api.setRole('principal'); await api.resetObserve(); await api.resetFlow(); await api.freshReset();
+      try { api.db('cancel-stuck'); api.db('reset-history'); } catch (_) {}
+      await api.sendWait('/menu'); await api.openList('See what I do');
+      const dc = await api.pickRowAndWait('Classroom Coaching');
+      await api.freshReset();
+      const up1 = await api.upload(MEDIA + '/' + LONG, 'Audio', 180000);
+      const yes = (up1.btns || []).find((b) => /Yes,?\s*Analy[sz]e/i.test(b));
+      let yesTap = null;
+      if (yes) { await api.freshReset(); yesTap = await api.tapAndWait(yes, 60000); }
+      const first = [up1.txt || '', (yesTap && yesTap.txt) || '', ...(await api.fresh()).map((m) => m.txt || '')].join('\n');
+      // the first analysis is still in flight; the in-flight guard would answer the second upload "still analysing"
+      // whatever the wait said, so it is cleared the way OBS33 clears it before the second recording
+      await new Promise((r) => setTimeout(r, 5000));
+      try { api.db('cancel-stuck'); } catch (_) {}
+      await api.freshReset();
+      const up2 = await api.upload(MEDIA + '/hameeda_16min.m4a', 'Audio', 180000);
+      const more2 = await api.fresh();
+      const second = [up2.txt || '', ...more2.map((m) => m.txt || '')].join('\n');
+      const choices = [...(up2.btns || []), ...more2.flatMap((m) => [...(m.btns || []), ...(m.list ? m.list.rows.map((r) => r.title) : [])])];
+      return { dc: (dc.txt || '').slice(0, 120), firstWentToCoaching: COACHING.test(first) || !!yes, first: first.slice(0, 200),
+        second: second.slice(0, 300), choices, asked: /Whose observation is this/i.test(second),
+        own: COACHING.test(second) || (up2.btns || []).some((b) => /Yes,?\s*Analy[sz]e/i.test(b)) };
+    };
+    if (want('OBS100')) {
+      s = Date.now();
+      const t = await twoRecordings();
+      rec('OBS100', N100, ...(t.firstWentToCoaching
+        ? V(t.asked && t.choices.some((c) => /My own lesson/i.test(c)), t)
+        : ['BLOCKED', { reason: 'the first recording did not go to Classroom Coaching, so the precondition never held', ...t }]), Date.now() - s);
+    }
+    if (want('OBS101')) {
+      s = Date.now();
+      let stack = null; try { stack = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) {}
+      if (!stack || !stack.runDir || !stack.runDir()) rec('OBS101', N101, 'BLOCKED', { reason: 'no RUN_DIR: COACHING_RECORDING_ENDS_WAIT is switched by stack-control.restart, which needs the mock stack' }, 0);
+      else {
+        const off = await stack.restart('bot', { COACHING_RECORDING_ENDS_WAIT: 'off' });
+        let t = null;
+        try { if (off && off.ok) t = await twoRecordings(); } finally { await stack.restart('bot', {}); }
+        rec('OBS101', N101, ...(!off || !off.ok ? ['BLOCKED', { reason: 'stack-control.restart(bot) failed: ' + JSON.stringify(off).slice(0, 160) }]
+          : !t.firstWentToCoaching ? ['BLOCKED', { reason: 'the first recording did not go to Classroom Coaching, so the precondition never held', ...t }]
+            : V(!t.asked && t.own, t)), Date.now() - s);
+      }
+    }
     await api.resetFlow();
   }
 
@@ -804,6 +950,380 @@ exports.run = async ({ api, rec, want = () => true }) => {
     }
     await api.resetFlow();
   }
+
+  // ── /observe2 (OBS105-OBS110, OBS161, OBS162). FEATURE_GATES.observe2 needs OBSERVE2_FIELD_FORM_FLOW_ID,
+  //    OBSERVE2_CHECK_FLOW_ID and OBSERVE_VISIT_FLOW_ID; the lane sets only the last, so /observe2 is plain text here
+  //    (OBS162) until the bot is restarted with the two ids. Placeholders are enough for what is driven below: the
+  //    planner is the /observe visit Flow (stored), the period list is a chat list, and the live form is a Flow
+  //    MESSAGE the mock Graph API accepts whatever its id. Opening the field form or the check needs their stored
+  //    FLOW_JSON, which the lane does not have (see OBSERVE2_FLOW below). ──
+  const ctaOf = (m) => { const a = m && m.raw && m.raw.interactive && m.raw.interactive.action; return (a && a.parameters && a.parameters.flow_cta) || ((m && m.btns) || [])[0] || null; };
+  const O2N = {
+    OBS105: "A coach's /observe2 opens the visit planner",
+    OBS106: 'A visit scheduled from /observe2 points back to /observe2',
+    OBS107: 'After Start, the coach chooses the period length',
+    OBS108: 'A Friday period of 25 minutes runs the form to minute 25',
+    OBS109: 'A period button sent before the list still opens the form',
+    OBS110: 'The period button sends the live form with the steps before the lesson',
+    OBS161: "A teacher's /observe2 is refused",
+  };
+  if (want('OBS162')) {
+    s = Date.now();
+    await api.setRole('coach'); api.closeFlow(); await api.resetFlow(); await api.freshReset();
+    const r = await api.sendWait('/observe2', 120000);
+    const items = await api.fresh();
+    const txt = items.map((m) => m.txt || '').join('\n') || (r.txt || '');
+    rec('OBS162', '/observe2 is plain text where its Flows are not configured',
+        ...V(!!r.ok && !!txt.trim() && !items.some(isFlow) && !/plan the \/observe2 visit|for coaches and school leaders|How long is this period/i.test(txt),
+          { reply: txt.slice(0, 240), flows: items.filter(isFlow).length, lane: 'OBSERVE2_FIELD_FORM_FLOW_ID / OBSERVE2_CHECK_FLOW_ID unset (local-lane.env)' }), Date.now() - s);
+  }
+  if (want(...Object.keys(O2N))) {
+    const o2 = (id, verdict, ms = 0) => rec(id, O2N[id], verdict[0], verdict[1], ms);
+    const o2b = (ids, reason) => { for (const id of ids) if (want(id)) o2(id, ['BLOCKED', { reason }]); };
+    let stack = null; try { stack = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) {}
+    if (!stack || !stack.runDir || !stack.runDir()) o2b(Object.keys(O2N), 'no RUN_DIR: /observe2 is switched on by stack-control.restart, which needs the mock stack');
+    else {
+      const on = await stack.restart('bot', { OBSERVE2_FIELD_FORM_FLOW_ID: 'e2e-observe2-form', OBSERVE2_CHECK_FLOW_ID: 'e2e-observe2-check' });
+      try {
+        if (!on || !on.ok) o2b(Object.keys(O2N), 'stack-control.restart(bot) with the /observe2 Flow ids failed: ' + JSON.stringify(on).slice(0, 160));
+        else {
+          if (want('OBS161')) {
+            s = Date.now();
+            await api.setRole('teacher'); api.closeFlow(); await api.resetFlow(); await api.freshReset();
+            const r = await api.sendWait('/observe2', 120000);
+            const items = await api.fresh();
+            const txt = items.map((m) => m.txt || '').join('\n') || (r.txt || '');
+            o2('OBS161', V(/\/observe2 is for coaches and school leaders\./.test(txt) && !items.some(isFlow), { reply: txt.slice(0, 200), flows: items.filter(isFlow).length }), Date.now() - s);
+          }
+          await api.setRole('coach');
+          const seed = await api.setRoster({ langs: ['ur', 'en'] });
+          if (!seed || !seed.ok) o2b(['OBS105', 'OBS106', 'OBS107', 'OBS108', 'OBS109', 'OBS110'], 'the fixture roster could not be seeded: ' + JSON.stringify(seed).slice(0, 160));
+          else {
+            await api.resetObserve();
+            const planner = async () => {
+              api.closeFlow(); await api.resetFlow(); await api.freshReset();
+              await api.sendWait('/observe2', 120000);
+              const items = await api.fresh();
+              return { card: items.find(isFlow) || null, items };
+            };
+            s = Date.now();
+            const p1 = await planner();
+            if (want('OBS105')) {
+              o2('OBS105', V(!!p1.card && /Let's plan the \/observe2 visit\. Pick a school, then a teacher\./.test(p1.card.txt || '') && ctaOf(p1.card) === 'Plan my visit',
+                { card: p1.card ? { txt: p1.card.txt, cta: ctaOf(p1.card) } : null, replies: p1.items.map(brief) }), Date.now() - s);
+            }
+            // ── OBS106 · schedule a visit from the /observe2 planner: the chat ack names /observe2 ──
+            if (want('OBS106')) {
+              s = Date.now();
+              const op = p1.card ? await api.openFlow('.', { from: p1.card }) : { ok: false, err: 'no planner card' };
+              const b = op.ok ? await toBrief(seed.schoolName, 'Ayesha Khan') : { errs: ['planner did not open: ' + op.err] };
+              let ack = null; let conf = null;
+              if (!b.errs.length) {
+                const d = new Date(Date.now() + 2 * 86400000); while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
+                await api.flowClick('Pick date & time', { settleMs: 2500 });
+                await api.flowType(d.toISOString().slice(0, 10), { field: 'Observation date' });
+                await api.flowPick('09:00', { exact: true });
+                await api.flowClick('Save schedule', { settleMs: 3000 });
+                conf = await api.flowProbe();
+                await api.freshReset();
+                await api.flowClick("I'm done for now", { settleMs: 2500 });
+                await api.flowPick("I'm done for now", { exact: true }); await api.flowClick('Continue', { settleMs: 3000 });
+                const fc = await api.flowComplete(30000);
+                ack = /Observation scheduled/i.test(fc.txt || '') ? fc : (await collect(20000, (x) => /Observation scheduled/i.test(x.txt || ''))).hit;
+              }
+              o2('OBS106', V(!!ack && /Observation scheduled for \*?Ayesha Khan/.test(ack.txt || '') && /Tap \/observe2 anytime to see your schedule/.test(ack.txt || ''),
+                { errs: b.errs, flowConfirm: conf && (conf.text || '').slice(0, 160), chat: ack && ack.txt }), Date.now() - s);
+              api.closeFlow(); await api.resetObserve();
+            }
+            // ── OBS107-OBS110 · Start from the /observe2 brief: the period list, then the live form per period ──
+            if (want('OBS107', 'OBS108', 'OBS109', 'OBS110')) {
+              s = Date.now();
+              const p2 = want('OBS106') || !p1.card ? await planner() : p1;
+              const op = p2.card ? await api.openFlow('.', { from: p2.card }) : { ok: false, err: 'no planner card' };
+              const b = op.ok ? await toBrief(seed.schoolName, 'Bilal Ahmed') : { errs: ['planner did not open: ' + op.err] };
+              if (b.errs.length) o2b(['OBS107', 'OBS108', 'OBS109', 'OBS110'], 'walk to the /observe2 brief failed: ' + b.errs.join(', '));
+              else {
+                await api.flowClick('Record the lesson now', { settleMs: 2500 });
+                await api.freshReset();
+                await api.flowClick('Start observation', { settleMs: 3000 });
+                const fc = await api.flowComplete(60000);
+                const got = await collect(30000, (x) => !!x.list);
+                const all = [fc, ...got.seen].filter((x) => x && (x.txt || x.list));
+                const listMsg = got.hit;
+                const rows = listMsg ? listMsg.list.rows : [];
+                const allTxt = all.map((x) => x.txt || '').join('\n');
+                o2('OBS107', V(!!listMsg && /You're observing \*?Bilal Ahmed[^*]*\*?\. How long is this period\?/.test(listMsg.txt || '')
+                    && JSON.stringify(rows.map((r) => r.title)) === JSON.stringify(['25 minutes', '30 minutes', '35 minutes', '40 minutes'])
+                    && !/record it and send me the audio/i.test(allTxt),
+                  { ask: listMsg && listMsg.txt, rows: rows.map((r) => r.title), others: all.map(brief) }), Date.now() - s);
+                const rowId = (m) => (rows.find((r) => r.title === m + ' minutes') || {}).id;
+                // the live form for a period: its body and the "Open the form" Flow message
+                // bd-pni007: with FDE's grade 6-12 tools on for an ICT coach (obs612_coach / FICO-S, on for every coach on
+                // the lane) the class is asked once, before any form. "Grade 1-5" keeps the FICO live form these
+                // scenarios are about; the class question is recorded in the evidence, it is not what they test.
+                let classAsked = null;
+                const liveForm = async (tap) => {
+                  await api.freshReset(); await tap();
+                  const isLive = (x) => isFlow(x) && /^Before the lesson starts:/.test(x.txt || '');
+                  let c = await collect(30000, (x) => isLive(x) || !!(x.list && x.list.rows.some((r) => r.title === 'Grade 1-5')));
+                  const seen = c.seen.map(brief);
+                  if (c.hit && !isLive(c.hit)) {
+                    const row = c.hit.list.rows.find((r) => r.title === 'Grade 1-5');
+                    classAsked = (c.hit.txt || '').slice(0, 160);
+                    await api.freshReset(); await api.tapId('list', row.id, row.title);
+                    c = await collect(30000, isLive);
+                    seen.push(...c.seen.map(brief));
+                  }
+                  return { form: c.hit, seen, classAsked };
+                };
+                const minuteOk = (f, n) => !!f && ctaOf(f) === 'Open the form' && new RegExp('until minute ' + n + '\\.').test(f.txt || '');
+                if (want('OBS108')) {
+                  s = Date.now();
+                  const r = rowId(25) ? await liveForm(() => api.tapId('list', rowId(25), '25 minutes')) : { form: null, seen: [], err: 'no "25 minutes" row' };
+                  o2('OBS108', V(minuteOk(r.form, 25), { form: r.form && { txt: r.form.txt, cta: ctaOf(r.form) }, seen: r.seen, classAsked: r.classAsked, err: r.err }), Date.now() - s);
+                }
+                if (want('OBS109')) {
+                  // the older message's three reply BUTTONS carried the same obs2_period:<form>:<minutes> ids the rows carry
+                  s = Date.now();
+                  const r = rowId(30) ? await liveForm(() => api.tapId('button', rowId(30), '30 minutes')) : { form: null, seen: [], err: 'no "30 minutes" row' };
+                  o2('OBS109', V(minuteOk(r.form, 30), { tapped: 'button ' + rowId(30), form: r.form && { txt: r.form.txt, cta: ctaOf(r.form) }, seen: r.seen, classAsked: r.classAsked, err: r.err }), Date.now() - s);
+                }
+                if (want('OBS110')) {
+                  s = Date.now();
+                  const r = rowId(40) ? await liveForm(() => api.tapId('list', rowId(40), '40 minutes')) : { form: null, seen: [], err: 'no "40 minutes" row' };
+                  const t = (r.form && r.form.txt) || '';
+                  o2('OBS110', V(minuteOk(r.form, 40) && /voice recorder app\*? \(not WhatsApp\)/.test(t)
+                      && /keeps recording while you take photos; a WhatsApp voice note stops when the camera opens/.test(t)
+                      && /Part 1 is up to and including guided practice: save it when the children start independent practice/.test(t)
+                      && /Upload saved photos/.test(t) && /Take photos with the phone's camera/.test(t)
+                      && /send the recording here as a \*?Document\*? \(📎 → \*?Document\*?\), not as audio\.?$/.test(t.trim()),
+                    { form: t, cta: r.form && ctaOf(r.form), seen: r.seen, classAsked: r.classAsked, err: r.err }), Date.now() - s);
+                }
+              }
+              api.closeFlow();
+            }
+          }
+        }
+      } finally {
+        await stack.restart('bot', {});
+        await api.resetFlow();
+      }
+    }
+  }
+
+  // ── Edit a teacher from the portal (OBS86-OBS90). The coach app's Save is a call to the bot's
+  //    POST /api/internal/observe/teacher-edit (internal-api.routes.js, run as the coach), and every outcome the
+  //    scenarios name — saved, cooldown with the hours left, free / shell / taken, not_found — is in its answer and in
+  //    the database. The lane runs no portal, so the call is made here with the bot's own key, and the screen is the
+  //    answer the portal prints (TAKEN heading, hoursRemaining); the portal's own copy lines are noted, not judged.
+  //    Ayesha is edited; her name, role and number are put back at the end (setRoster + a move back). ──
+  const EDIT_N = {
+    OBS86: 'A coach renames a teacher, sets her teaching levels and her role from the portal',
+    OBS87: 'Teaching level is Primary, Middle or High, and cannot change twice within 48 hours',
+    OBS88: "A teacher's new number is checked before it is changed",
+    OBS89: 'A number that belongs to a teacher with history is refused',
+    OBS90: "A teacher outside the coach's patch cannot be edited",
+  };
+  if (want(...Object.keys(EDIT_N))) {
+    const recE = (id, verdict) => { if (want(id)) rec(id, EDIT_N[id], verdict[0], verdict[1], Date.now() - s); };
+    const blockAll = (reason) => { for (const id of Object.keys(EDIT_N)) recE(id, ['BLOCKED', { reason }]); };
+    s = Date.now();
+    const env = stackEnv();
+    let stack = null; try { stack = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) {}
+    const ports = stack && stack.ports ? stack.ports() : null;
+    const botUrl = process.env.E2E_BOT_URL || (ports && ports.bot ? 'http://127.0.0.1:' + ports.bot : null);
+    const key = env && env.INTERNAL_API_KEY;
+    const post = async (path, body) => {
+      try {
+        const r = await fetch(botUrl + '/api/internal/observe/' + path, { method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': key }, body: JSON.stringify(body) });
+        return { status: r.status, body: await r.json().catch(() => null) };
+      } catch (e) { return { status: 0, err: String(e.message).slice(0, 120) }; }
+    };
+    const rowsOf = async (t, f) => { const r = await api.rows(t, f); return r && r.ok ? r.rows : null; };
+    await api.setRole('coach');
+    const seed = await api.setRoster({ langs: ['ur', 'en'] });
+    const ls = seed && seed.ok ? await rowsOf('leader_schools', { school_ext_id: seed.schoolExtId }) : null;
+    const leaderId = ls && ls[0] ? ls[0].leader_user_id : null;
+    const [T1, T2] = (seed && seed.teachers) || [];
+    const ay = T1 ? ((await rowsOf('users', { phone_number: T1.phone })) || [])[0] : null;
+    if (!botUrl || !key) blockAll('no running stack to call: the bot URL (E2E_BOT_URL) or its INTERNAL_API_KEY (<RUN_DIR>/src/.env) is missing');
+    else if (!leaderId || !ay) blockAll('the run\'s own database could not be read for the coach and her fixture teacher (api.rows reads only the local lane database): ' + JSON.stringify({ seed: seed && seed.ok, leaderId: !!leaderId, teacher: !!ay }));
+    else {
+      const sx = seed.schoolExtId;
+      const E = (edit, value, o = {}) => post('teacher-edit', { leaderUserId: leaderId, schoolExtId: o.school || sx, userId: o.user || ay.id, edit, value });
+      const me = async () => ((await rowsOf('users', { id: ay.id })) || [])[0] || {};
+      const audits = async (action) => ((await rowsOf('leader_roster_audit', { actor_user_id: leaderId, action })) || []).filter((r) => r.teacher_ext_id === ay.id).length;
+      const lvl = (u) => JSON.stringify(u.teacher_level || null);
+      const home = T1.phone;
+      try {
+        // ── OBS86 · name, levels, role saved as WhatsApp's Edit a teacher saves them, each with its audit row ──
+        const a0 = { name: await audits('edit_name'), level: await audits('edit_level'), role: await audits('edit_role') };
+        // the planner tidies a typed name (teacher-edit.service _cleanName) exactly as WhatsApp's Edit a teacher does,
+        // so the saved name is compared with what it answered, and with what was typed regardless of case
+        const nm = await E('name', 'Ayesha Siddiqui');
+        const lv = await E('level', ['PRIMARY', 'MIDDLE']);
+        const rl = await E('role', 'principal');
+        const u86 = await me();
+        const a1 = { name: await audits('edit_name'), level: await audits('edit_level'), role: await audits('edit_role') };
+        recE('OBS86', V(nm.status === 200 && nm.body.outcome === 'saved' && lv.status === 200 && lv.body.outcome === 'saved' && rl.status === 200 && rl.body.outcome === 'saved'
+            && u86.name === nm.body.name && /^ayesha siddiqui$/i.test(u86.name || '') && u86.role === 'principal' && /PRIMARY/.test(lvl(u86)) && /MIDDLE/.test(lvl(u86)) && !/HIGH/.test(lvl(u86))
+            && a1.name === a0.name + 1 && a1.level === a0.level + 1 && a1.role === a0.role + 1,
+          { name: nm, level: lv, role: rl, saved: { name: u86.name, role: u86.role, teacher_level: u86.teacher_level }, audit: { before: a0, after: a1 },
+            notDriven: 'the portal\'s "a principal can observe teachers" line is the coach app\'s own copy, which this lane does not render' }));
+        // put her name and role back (a principal is not in the coach's teacher patch); her levels stay (cooldown)
+        await api.setRoster({ langs: ['ur', 'en'] });
+
+        // ── OBS87 · only Primary / Middle / High; a second change inside 48 hours is refused with the hours left ──
+        let first = lv.status === 200 && lv.body.outcome === 'saved' ? lv : await E('level', ['HIGH']);
+        const early = await E('level', ['EARLY_YEARS']);
+        const again = await E('level', ['HIGH']);
+        const u87 = await me();
+        recE('OBS87', V(first.status === 200 && early.status === 400 && early.body.reason === 'empty_selection'
+            && again.status === 409 && again.body.reason === 'cooldown' && again.body.hoursRemaining >= 47 && again.body.hoursRemaining <= 48 && !/HIGH/.test(lvl(u87)),
+          { first: first.body, earlyYears: early, secondInside48h: again, levelAfter: u87.teacher_level,
+            notDriven: 'which boxes the screen offers is the coach app\'s; here the bot\'s planner is shown to take only PRIMARY/MIDDLE/HIGH (an early-years band alone is an empty selection)' }));
+
+        // ── OBS88 · check first (nothing changes), then the move: visits follow, a no-history account is retired ──
+        if (want('OBS88')) {
+          const shellPhone = '92398' + home.slice(-7);
+          const shellApi = api.as(shellPhone);
+          await shellApi.sendWait('/language', 60000).catch(() => null);   // any first message makes the account
+          const shell = ((await rowsOf('users', { phone_number: shellPhone })) || [])[0] || null;
+          const visitsBefore = ((await rowsOf('observation_schedules', { teacher_ext_id: home })) || []).length;
+          const ck = await E('phone_check', shellPhone);
+          const unchanged = (await me()).phone_number === home;
+          const mv = await E('phone', shellPhone);
+          const u88 = await me();
+          const visitsOld = ((await rowsOf('observation_schedules', { teacher_ext_id: home })) || []).length;
+          const visitsNew = ((await rowsOf('observation_schedules', { teacher_ext_id: shellPhone })) || []).length;
+          const retired = shell ? ((await rowsOf('users', { id: shell.id })) || [])[0] || null : null;
+          const back = await E('phone', home);
+          recE('OBS88', V(!!shell && ck.status === 200 && ck.body.outcome === 'shell' && unchanged
+              && mv.status === 200 && mv.body.outcome === 'moved' && u88.phone_number === shellPhone
+              && visitsOld === 0 && visitsNew >= visitsBefore
+              && !!retired && retired.phone_number === 'merged:' + shell.id && !!retired.deleted_at,
+            { check: ck, unchangedAfterCheck: unchanged, move: mv, phoneAfter: u88.phone_number, visits: { before: visitsBefore, oldNumberAfter: visitsOld, newNumberAfter: visitsNew },
+              shell: shell ? { id: shell.id, after: retired && { phone_number: retired.phone_number, deleted_at: retired.deleted_at } } : 'the first message did not create an account on ' + shellPhone,
+              movedBack: back.status === 200 ? back.body.outcome : back }));
+        }
+
+        // ── OBS89 · a number whose account has coaching history is refused, at the check and at the commit ──
+        if (want('OBS89')) {
+          const cands = [];
+          if (T2) { const b = ((await rowsOf('users', { phone_number: T2.phone })) || [])[0]; if (b) cands.push(b); }
+          const coach = ((await rowsOf('users', { id: leaderId })) || [])[0]; if (coach) cands.push(coach);
+          let target = null;
+          for (const c of cands) { if (((await rowsOf('coaching_sessions', { user_id: c.id })) || []).length) { target = c; break; } }
+          if (!target) recE('OBS89', ['BLOCKED', { reason: 'no account on the lane has history to collide with: neither Bilal nor the coach owns a coaching_sessions row (the chain above records Bilal\'s; run it with OBS89)' }]);
+          else {
+            const e0 = await audits('edit_phone_escalated');
+            const ck = await E('phone_check', target.phone_number);
+            const cm = await E('phone', target.phone_number);
+            const e1 = await audits('edit_phone_escalated');
+            const u89 = await me();
+            recE('OBS89', V(ck.status === 409 && ck.body.reason === 'taken' && ck.body.heading === 'Please wait while we fix your data'
+                && cm.status === 409 && cm.body.reason === 'taken' && u89.phone_number === home && e1 >= e0 + 1,
+              { against: target.id === leaderId ? 'the coach (owner of unbound captures)' : 'Bilal (observed in the chain)', check: ck, commit: cm,
+                phoneAfter: u89.phone_number === home ? 'unchanged' : u89.phone_number, escalatedAudit: { before: e0, after: e1 } }));
+          }
+        }
+
+        // ── OBS90 · outside her patch: another school, or a person not at her school ──
+        if (want('OBS90')) {
+          const before = (await me()).name;
+          const otherSchool = await E('name', 'Not Allowed (E2E)', { school: 'niete:E2EOBSNOTMINE' });
+          const notHers = await E('name', 'Not Allowed (E2E)', { user: leaderId });
+          const after = (await me()).name;
+          const coachAfter = (((await rowsOf('users', { id: leaderId })) || [])[0] || {}).name;
+          recE('OBS90', V(otherSchool.status === 404 && otherSchool.body.reason === 'not_found' && notHers.status === 404 && notHers.body.reason === 'not_found'
+              && after === before && coachAfter !== 'Not Allowed (E2E)',
+            { otherSchool, personNotAtHerSchool: notHers, nameUnchanged: after === before }));
+        }
+      } finally {
+        const now = await me();
+        if (now.phone_number && now.phone_number !== home) await E('phone', home);
+        await api.setRoster({ langs: ['ur', 'en'] });
+      }
+    }
+  }
+
+  // ── OBS77-OBS162 that this lane cannot drive, each with what stops it (bd-q8wt5e.6.2). Grouped by the one thing
+  //    missing, so adding that thing to the lane names every scenario it unblocks. ──
+  const PORTAL = 'the step is taken in the coach app (portal-observe.service through the portal\'s own server), and the mock lane starts the bot, its worker and the mock Graph API only: no portal server or page runs (PORTAL_URL in local-lane.env points at a dev portal nobody starts), so a portal recording, draft, talk, report send or plan upload cannot be made here.';
+  const CALENDAR = 'the coach\'s invite is a Google Calendar event (observe-calendar.service: OBSERVE_CALENDAR_ENABLED + her coach_directory work_email). The lane sets neither and has no Calendar mock, so "one invite / moved / removed" cannot be observed; and the booking is made on the portal, which the lane does not run.';
+  const OBSERVE2_FLOW = 'needs the /observe2 field form or its "Check the moments" Flow OPENED: the emulator plays a Flow from its stored FLOW_JSON (.claude/qa/fixtures/flows/manifest.json), and the lane has no copy of OBSERVE2_FIELD_FORM_FLOW_ID or OBSERVE2_CHECK_FLOW_ID (local-lane.env sets neither). Adding them is a lane change (the flows manifest + local-lane.env), outside this driver. OBS105-OBS110 drive everything before the form opens.';
+  const OBSERVE2_SEALED = 'needs an /observe2 visit sealed or recorded into: the seal is the field form\'s "Seal and send", inside a Flow the lane cannot open (' + 'no stored OBSERVE2_FIELD_FORM_FLOW_ID / OBSERVE2_CHECK_FLOW_ID), and the moments and the brief are model calls on an /observe2 transcript that have no recorded cassette (the lane makes no live paid calls).';
+  const LP_LIST = 'needs the lesson-plan step with plans listed for the observed teacher: the fixture teachers have no lesson plans and no Make my own plan, and the lane has no seed for one (the coaching_db/training_db tools seed the DRIVER\'s own rows only), so the capture gates are answered "No" and no plan list is ever sent.';
+  // the id is a literal first argument on purpose: check-scenario-coverage.py reads recorded ids from the source
+  const nb = (id, name, reason) => { if (want(id)) rec(id, name, 'BLOCKED', { reason }, 0); };
+  nb('OBS77', 'A visit booked on the portal sends the coach the same invite and the teacher the same message as one booked in WhatsApp', CALENDAR + ' The teacher half is the same announce WhatsApp uses, driven by OBS62.');
+  nb('OBS78', 'Moving or cancelling a portal visit updates the invite and tells the teacher, as WhatsApp does', CALENDAR + ' The teacher half is OBS63\'s announce.');
+  nb('OBS79', 'A portal visit booked or moved into the past sends nothing', 'the past-date booking is the portal\'s booking screen, and the invite it must not send is a Google Calendar event: ' + CALENDAR);
+  nb('OBS80', 'A lesson sent from the portal becomes a bound /observe observation', PORTAL);
+  nb('OBS81', 'The draft of a portal observation is checked in the portal, not in a WhatsApp form', PORTAL);
+  nb('OBS82', "The talk with the teacher and the coach's own feedback happen in the portal", PORTAL);
+  nb('OBS83', "The teacher's report is previewed and sent from the portal and reaches her WhatsApp", PORTAL);
+  nb('OBS85', 'A failed portal observation is shown in the portal, not announced on WhatsApp', PORTAL + ' It also needs a transcription or analysis fault on a portal row.');
+  nb('OBS91', "A coach attaches the teacher's own plan as a file and sees what became of it", PORTAL);
+  nb('OBS92', "A file that is not a lesson plan, or cannot be read, shows Couldn't read and messages no one", PORTAL);
+  nb('OBS93', 'The plan picker refuses what the reader cannot open', PORTAL + ' The refusal is the coach app\'s file picker.');
+  nb('OBS94', 'A coach sends the observation with a plan the teacher made herself', PORTAL);
+  nb('OBS95', 'A coach on WhatsApp picks the plan the teacher made with Make my own', LP_LIST);
+  nb('OBS96', 'A plan that finishes being read while the analysis runs still scores the lesson-plan part', PORTAL + ' It also needs the plan reader and the analysis to finish in a set order, which the lane cannot hold.');
+  nb('OBS98', 'Every Section B move on the form says why the grader rated it that way', 'Section B\'s per-move lines exist only when a lesson plan was graded (observe-draft.service composeEditableFidelity returns null without lesson_plan status ok), and the chain answers the lesson-plan gate "No": ' + LP_LIST);
+  nb('OBS102', "In Urdu, the observe messages never guess the coach's or the teacher's gender", 'needs the whole chain with the COACH in Urdu (register, start, debrief, send). The analysis, debrief-guide and coach-feedback prompts carry the coach\'s language, and the lane has cassettes only for the English coach\'s calls; an Urdu run would miss them and the lane makes no live paid calls. The Urdu strings are unit-pinned (tests/language/urdu-gender-neutral-copy.test.js).');
+  nb('OBS103', "Picking the teacher's lesson plan from the list asks me to confirm before it is used", LP_LIST);
+  nb('OBS104', 'Changing the lesson plan links nothing and returns to the lesson-plan list', LP_LIST);
+  nb('OBS111', 'Part 1 refuses a number that cannot be right', OBSERVE2_FLOW);
+  nb('OBS112', 'A form reopened after Part 1 continues with Part 2', OBSERVE2_FLOW);
+  nb('OBS113', 'Part 1 is up to and including guided practice, and Part 2 is independent practice and the wrap-up', OBSERVE2_FLOW);
+  nb('OBS114', 'With work of their own, Part 2 asks what the teacher did and what children did when stuck', OBSERVE2_FLOW);
+  nb('OBS115', "The teacher's checking moves during independent practice reach the levels they evidence", OBSERVE2_FLOW);
+  nb('OBS116', 'Part 1 asks what materials were used, and they are named, not scored', OBSERVE2_FLOW);
+  nb('OBS117', "Part 2 asks what the children's work showed: repeating, or reasoning", OBSERVE2_FLOW);
+  nb('OBS118', 'The check and the brief group the thinking indicators as "Thinking"', OBSERVE2_FLOW);
+  nb('OBS119', 'A form opened before the parts changed keeps its own Part 2', OBSERVE2_FLOW);
+  nb('OBS120', 'A reopened form shows the notes I typed', OBSERVE2_FLOW);
+  nb('OBS121', 'Going back to Part 1 does not empty Part 2', OBSERVE2_FLOW);
+  nb('OBS122', "After Part 2 the coach picks the lesson plan from the teacher's own plans", OBSERVE2_FLOW);
+  nb('OBS123', 'A plan the teacher read in the app yesterday is in "Which plan?"', OBSERVE2_FLOW);
+  nb('OBS124', "A plan the bot didn't give the teacher is added in the form as photos, a file, or typed text", OBSERVE2_FLOW);
+  nb('OBS125', 'An added plan is read and its steps checked after the recording, as /observe does', OBSERVE2_SEALED);
+  nb('OBS126', "A PDF of the teacher's own Rumi plan is graded from that plan's own steps", OBSERVE2_SEALED);
+  nb('OBS127', "An added plan that can't be read, or has no lesson steps, is named as such, with what to do next", OBSERVE2_SEALED);
+  nb('OBS128', 'No lesson plan goes on to the photos, then the seal', OBSERVE2_FLOW);
+  nb('OBS129', 'Classroom photos are taken now, or uploaded from the ones already on the phone', OBSERVE2_FLOW);
+  nb('OBS130', 'Sealing locks the record and the chat says what to do with the recording', OBSERVE2_FLOW);
+  nb('OBS131', 'The coach picks one thing to work on first, up to two more, and can pick the plan\'s steps', OBSERVE2_FLOW);
+  nb('OBS132', 'The same thing cannot be picked twice', OBSERVE2_FLOW);
+  nb('OBS133', 'The check keeps all three picks, and the brief and the report follow the first', OBSERVE2_SEALED);
+  nb('OBS134', '"Work on first" offers the coaching focus areas coaches asked for, and says what each choice means', OBSERVE2_FLOW);
+  nb('OBS135', "A coaching focus area carries through the check, the brief and the teacher's report", OBSERVE2_SEALED);
+  nb('OBS136', 'A check opened on the older Flow keeps a sealed coaching focus area it cannot show', OBSERVE2_FLOW);
+  nb('OBS137', 'The recording joins the sealed record and its moments come back to check', OBSERVE2_SEALED);
+  nb('OBS138', "Every moment's words are in the recording, at the minute they were said", OBSERVE2_SEALED);
+  nb('OBS139', 'A recording sent while the form waits for it always reaches the form, never general chat', OBSERVE2_SEALED);
+  nb('OBS140', 'A recording that was already analysed is refused and the form keeps waiting', OBSERVE2_SEALED);
+  nb('OBS141', 'A recording sent before the seal waits for it, and the plan attached afterwards is checked', OBSERVE2_SEALED);
+  nb('OBS142', 'Record first: a lesson recording sent with no form open is saved as its own visit', 'needs "my latest observation was an /observe2 visit": ' + OBSERVE2_SEALED);
+  nb('OBS143', 'The teacher is not on "Which teacher did you observe?": the coach types the name', 'the "Which teacher did you observe?" list is record-first\'s (OBS142): ' + OBSERVE2_SEALED);
+  nb('OBS144', 'A typed name that fits more than one teacher, or none', 'the "Someone else" typed-name wait follows record-first\'s list (OBS142): ' + OBSERVE2_SEALED + ' It also needs two fixture teachers sharing a first name.');
+  nb('OBS145', 'A command typed while the bot waits for a name is not taken as a name', 'the typed-name wait follows record-first\'s "Someone else" (OBS142): ' + OBSERVE2_SEALED);
+  nb('OBS146', 'Record first: two lessons back to back, each saved and named on its own', 'needs "my latest observation was an /observe2 visit": ' + OBSERVE2_SEALED);
+  nb('OBS147', 'Record first: the form is filled later, from the saved message or "Complete the form"', OBSERVE2_SEALED);
+  nb('OBS149', 'With a picked plan, the check shows each step of the plan pre-rated from the recording', OBSERVE2_SEALED);
+  nb('OBS150', 'Each moment is evidence about the teaching, and says why it was picked', OBSERVE2_SEALED);
+  nb('OBS151', 'A part of the lesson with no moment says so, never a blank question', OBSERVE2_SEALED);
+  nb('OBS152', 'The check pre-fills every level and Submit asks about the debrief, as /observe does', OBSERVE2_SEALED);
+  nb('OBS153', "The visit ends as /observe's does: the debrief recording, the coach card, the teacher's report", OBSERVE2_SEALED);
+  nb('OBS154', 'The brief carries every note I typed, by part', OBSERVE2_SEALED);
+  nb('OBS155', 'My notes come with the "Record sealed" message, before I talk with the teacher', OBSERVE2_FLOW);
+  nb('OBS156', 'With no notes typed, the "Record sealed" message is unchanged', OBSERVE2_FLOW);
+  nb('OBS157', 'The check\'s "Work on first" screen shows my notes, read-only, above the picks', OBSERVE2_FLOW);
+  nb('OBS158', "The teacher's report names the thing I picked to work on first", OBSERVE2_SEALED);
+  nb('OBS159', 'Choosing someone else after the report preview shows a new preview for that teacher', 'tapping "Someone else" and picking Ayesha generates a second report preview in HER language (Urdu); that preview\'s model calls have no recorded cassette and the lane makes no live paid calls. The confirm\'s three buttons are checked by OBS99.');
+  nb('OBS160', 'When WhatsApp refuses the list of my teachers, I am asked to type the details instead', 'needs Meta to refuse an interactive list twice (500 #131000): the mock Graph API refuses only an unreachable media link, and stack-control.faults scripts vendor (model) answers, not Graph API sends.');
 
   // ── BLOCKED, each with the evidence that says why ──
   rec('OBS22', '/observe before an account exists reports no account', 'BLOCKED', { reason:
