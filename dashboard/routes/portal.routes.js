@@ -8768,10 +8768,15 @@ router.post('/leader/observe/:id/report/preview', ...coachObserve, (req, res) =>
   }))
 ));
 
-/** POST /api/portal/leader/observe/:id/report/send — send it to the teacher's WhatsApp. */
+/**
+ * POST /api/portal/leader/observe/:id/report/send  Body { note?, note_reason? } — send it to the teacher's WhatsApp.
+ * bd-r2uzg1.23.12 (call 28): `note` is her note under the report as she left it; `note_reason` why she changed it.
+ */
 router.post('/leader/observe/:id/report/send', ...coachObserve, (req, res) => (
   relayToBot(res, 'observe-report-send', () => PortalCoachingClient.sendObservationReport({
     userId: sessionCoach(req), coachingSessionId: req.params.id,
+    note: req.body && typeof req.body.note === 'string' ? req.body.note : undefined,
+    noteReason: req.body && typeof req.body.note_reason === 'string' ? req.body.note_reason : undefined,
   }))
 ));
 
