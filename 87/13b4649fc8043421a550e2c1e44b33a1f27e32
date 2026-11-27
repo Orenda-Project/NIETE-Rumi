@@ -1,1 +1,2 @@
 {"ts":"2026-11-27T16:25:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=- engine=2.7.0","sha":"8713b4649fc8","branch":"bd-ehz254.17-96697","user":""}
+{"ts":"2026-11-27T16:52:09Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.7.0","sha":"8713b4649fc8","branch":"bd-tfya0m.2-97262","user":""}
