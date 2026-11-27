@@ -120,3 +120,18 @@ describe('the worker hands the writer the day with her goal', () => {
     expect(deps.rewriteK5.mock.calls[0][0].script.goal).toBe(DAY.goal);
   });
 });
+
+// q381 re-runs (outputs/q381-runs): after the notes change the refusals were "errors" that are teaching nits.
+describe('an error is a false statement, not a teaching nit', () => {
+  it('the checker is told what is not an error', () => {
+    const [sys] = A.goalCheckMessages({ plan: '{}', goal: { text: 'x' }, grade: 3 });
+    expect(sys.content).toMatch(/not taught earlier/i);
+    expect(sys.content).toMatch(/only a statement that is false/i);
+  });
+  it('a line it says is not factually wrong is not an error', () => {
+    const r = A.parseGoalCheck(JSON.stringify({ accurate: false, on_goal: true, off_goal: [], errors: [
+      "Bottle cap numbering used as a finger code -> this conflates two systems, which is confusing but not factually wrong; not listing as a factual error, only as a potential confusion.",
+    ] }));
+    expect(r.accurate).toBe(true);
+  });
+});

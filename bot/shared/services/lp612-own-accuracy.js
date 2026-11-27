@@ -60,7 +60,9 @@ function goalCheckMessages({ plan, goal, grade }) {
   const system = 'You check one classroom lesson plan for a government school in Pakistan, for two things only. '
     + `1) FACTUAL accuracy for ${grade ? `Grade ${grade}` : 'its grade'}: the class has no textbook, so every fact, `
     + 'definition, example answer, number, spelling and worked answer reaches the children as written; list each one that '
-    + 'is wrong or misleading (a simplification that is still true is fine). 2) Whether each section serves the goal: '
+    + 'is wrong (a simplification that is still true is fine). An error is only a statement that is false: a wrong fact, '
+    + 'answer, sum, count, spelling, word, sound or meaning. Something not taught earlier in the plan, a definition that '
+    + 'could say more, a word with other uses, or a step that could confuse is not an error. 2) Whether each section serves the goal: '
     + 'name a section only when its main activity teaches a different skill or topic than the teacher\'s goal. Do not judge '
     + 'method, length, style, language, or labels and titles. Never list a statement you find correct, acceptable or fine. '
     + 'A tip (a repeated example, an easier or harder item, a clearer step, something that could confuse) is not an error '
@@ -75,7 +77,7 @@ const lines = (v) => (Array.isArray(v) ? v : []).filter((e) => typeof e === 'str
 // bd-snkn32.58.9 — live re-runs: the checker listed lines it dismissed itself ("acceptable rounding, not an error",
 // "which is stated, so this is fine"), and any listed line refused the plan. A line that says so is not an error.
 // bd-snkn32.58.17 — and "-> this is correct, but could confuse" (q367 phonics re-run).
-const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b|->\s*this is correct\b/i;
+const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b|->\s*this is correct\b|\bnot factually wrong\b|\bnot listing (?:it |this )?as an? (?:factual )?error\b/i;
 
 /** { accurate, errors, onGoal, offGoal } from the reply, or null when it cannot be read. */
 function parseGoalCheck(content) {
