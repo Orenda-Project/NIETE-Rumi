@@ -1499,3 +1499,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a teacher whose school is in the coaching test gets what her group gets, switch on or off
     # bd-zrdvmi.71, queue #343: 82+ "plan too long" rows on the ICT feedback sheet (decision bd-jrarr).
     # Off by default. Unit: tests/lp-v8/lp-card-for-all.test.js.
+
+  @e2e @negative @content-driven @coverage @no-mock-driver @P2 @L153
+  Scenario: A lesson whose AI draft repeats one heading, once misspelled, still reaches me
+    Given I ask for a Grades 1-12 lesson that is written for me on the spot
+    When the AI's draft carries a page heading twice, the real one and a misspelled copy beside it
+    Then the misspelled copy is dropped and the real heading, with its text, is kept
+    And I get my lesson plan instead of being told it could not be made
+    But a heading that is close to nothing the plan expects is still refused by the final check
+    # bd-ehz254.17, live 27 Nov 2026 10:49Z: a Gilgit-Baltistan grade 3 Urdu plan failed all four
+    # writing rounds on "coaching_lookfan" sitting beside a present "coaching_lookfor". The earlier
+    # repair (bd-znzjqi) only renamed a misspelling when the real heading was MISSING, so it did nothing
+    # and the teacher got no plan. The But row bounds it: only a near-miss of a heading that is present
+    # is dropped, never an unknown one, so the schema gate still catches real drift.
+    # @coverage, not a live WhatsApp drive: no driver on this lane can make the model misspell a key.
+    # Executed by tests/lp612/key-repair.test.js ("the 27 Nov live case", "any stray near-miss").
