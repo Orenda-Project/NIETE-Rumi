@@ -33,6 +33,34 @@ const BAND_ONLY_VENDORS = Object.freeze({ ISAPS: 'HIGH' });
  */
 const BAND_PROGRAM_KEYS = Object.freeze(['niete_primary', 'niete_middle_high']);
 
+/**
+ * bd-tsa15l (Hashir's list, 27 Nov 2026): what a teacher is required to see follows her teaching levels, not the
+ * programme she was assigned. Through a band programme a provider needs one band:
+ *   niete_middle_high: NIETE levels 2-3, GBTLA (Oxbridge) and AI-Powered Subject Pedagogy (Beaconhouse) need MIDDLE;
+ *                      the Teacher Development Programme (I-SAPS) needs HIGH (above)
+ *   niete_primary:     NIETE levels 0-3 need PRIMARY
+ * so High-only sees the Teacher Development Programme only, and Primary+High sees NIETE 0-3 and the Teacher Development
+ * Programme. These are SOFT rules: a teacher with no band recorded keeps what her programmes give her (principals and
+ * coaches hold programmes and have none); earned work is never taken away, as for I-SAPS.
+ */
+const PROGRAM_VENDOR_BANDS = Object.freeze({
+  niete_middle_high: Object.freeze({ TALEEMABAD: 'MIDDLE', OXBRIDGE: 'MIDDLE', BEACONHOUSE: 'MIDDLE' }),
+  niete_primary: Object.freeze({ TALEEMABAD: 'PRIMARY' }),
+});
+
+/** What a teacher with these bands is required to take (Hashir's seven combinations). */
+function requirementsFor(bands) {
+  const mine = new Set((bands || []).map(b => String(b).trim().toUpperCase()));
+  const primary = mine.has('PRIMARY');
+  const middle = mine.has('MIDDLE');
+  return {
+    niete: primary ? [0, 1, 2, 3] : middle ? [2, 3] : [],
+    gbtla: middle,
+    aiPowered: middle,
+    tdp: mine.has('HIGH'),
+  };
+}
+
 /** The band a vendor needs, or null for a vendor open to every band. */
 function requiredBand(vendorKey) {
   const k = String(vendorKey == null ? '' : vendorKey).trim().toUpperCase();
@@ -50,12 +78,21 @@ const keyOf = (keys, id) => (keys instanceof Map ? keys.get(id) : (keys || {})[i
 function bandGatedRows({ scopes, vendorKeyById, programKeyById }) {
   const out = [];
   for (const row of scopes || []) {
-    const band = requiredBand(keyOf(vendorKeyById, row.vendor_id));
+    const vendorKey = String(keyOf(vendorKeyById, row.vendor_id) || '').trim().toUpperCase();
+    const programKey = keyOf(programKeyById, row.program_id);
+    if (!BAND_PROGRAM_KEYS.includes(programKey)) continue;
+    const hard = requiredBand(vendorKey);
+    const soft = hard ? null : (PROGRAM_VENDOR_BANDS[programKey] || {})[vendorKey] || null;
+    const band = hard || soft;
     if (!band) continue;
-    if (!BAND_PROGRAM_KEYS.includes(keyOf(programKeyById, row.program_id))) continue;
-    out.push({ row, vendorId: row.vendor_id, band });
+    out.push({ row, vendorId: row.vendor_id, band, soft: !hard });
   }
   return out;
+}
+
+/** Is this gated row met: her band is in her bands (a soft rule is also met by a teacher with no bands at all). */
+function met(g, mine) {
+  return mine.has(g.band) || (g.soft === true && mine.size === 0);
 }
 
 /**
@@ -75,13 +112,16 @@ function gateScopes({ scopes, vendorKeyById, programKeyById, bands, vendorIdsWit
   if (gated.length === 0) return rows;
   const mine = new Set((bands || []).map(b => String(b).trim().toUpperCase()));
   const work = vendorIdsWithWork || new Set();
-  const hidden = new Set(gated.filter(g => !mine.has(g.band) && !work.has(g.vendorId)).map(g => g.row));
+  const hidden = new Set(gated.filter(g => !met(g, mine) && !work.has(g.vendorId)).map(g => g.row));
   return hidden.size ? rows.filter(r => !hidden.has(r)) : rows;
 }
 
 module.exports = {
   BAND_ONLY_VENDORS,
   BAND_PROGRAM_KEYS,
+  PROGRAM_VENDOR_BANDS,
+  requirementsFor,
+  met,
   requiredBand,
   bandGatedRows,
   gateScopes,

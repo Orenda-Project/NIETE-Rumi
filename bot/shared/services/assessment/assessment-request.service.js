@@ -23,6 +23,7 @@
 
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const PageFit = require('./page-fit');
 
 /**
  * Where the paper goes when it is built.
@@ -84,6 +85,8 @@ async function createAndQueue(spec) {
     answerLines = true,
     // "Save paper" (bd-ipoxhx.5): a tighter A4 page. Job payload only, like totalMarks.
     compact = false,
+    // The page count she wants the paper to fit (bd-nr8mrm). Job payload only, only a real 1-5.
+    pages = null,
     outputFormat = 'pdf',
     // A board-pattern paper: the pattern id and where its pages came from
     // ({ kind: 'fde'|'chapters'|'pages', chapters, pages }). Job payload ONLY —
@@ -171,6 +174,7 @@ async function createAndQueue(spec) {
     // an undefined key, so it stays byte-for-byte the job it was before.
     ...(pattern ? { pattern, scope } : {}),
     ...(compact === true ? { compact: true } : {}),
+    ...(PageFit.pageTarget(pages) ? { pages: PageFit.pageTarget(pages) } : {}),
     ...(!pattern && paperKind === 'topic' ? { scope } : {}),
     // A board pattern is written against ICT's books (its own page ranges), so it never carries one.
     ...(!pattern && curriculum && curriculum !== 'ict' ? { curriculum } : {}),

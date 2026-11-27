@@ -10,7 +10,7 @@ Feature: FDE board-pattern paper for Grade 5
 
   # ── Positive / happy path ─────────────────────────────────────────────────────────────────────────────────────────
 
-  @sandbox @real-paper
+  @FB09 @sandbox @real-paper
   Scenario: A Grade 5 Maths teacher gets a board-pattern paper and a marking scheme in one tap after the subject
     Given the board-pattern switch is on
     And a registered teacher is on the Assessment hub
@@ -19,7 +19,7 @@ Feature: FDE board-pattern paper for Grade 5
     And a marking scheme PDF opens with "Teacher: before the exam", lists every question's marks and part marks, and ends with a 40-row class record on its own page
     And the ready screen names "Question paper" and "Marking scheme" with their page counts
 
-  @sandbox @real-paper
+  @FB10 @sandbox @real-paper
   Scenario: The ready screen says what the teacher adds and the page it goes on
     Given the board-pattern switch is on
     When a Grade 5 Social Studies teacher makes a board-pattern paper
@@ -49,27 +49,27 @@ Feature: FDE board-pattern paper for Grade 5
     When a Grade 5 English teacher picks the FDE board pattern card on Chapters or pages and taps Next
     Then they land on Check and make at "Step 2 of 2" with the FDE syllabus chosen
 
-  @sandbox @real-paper
+  @FB11 @sandbox @real-paper
   Scenario: A chapter-scoped FDE paper keeps the board shape and says what it covers
     Given the board-pattern switch is on
     When a Grade 5 English teacher customises the syllabus to units 3 and 4 and makes the paper
     Then Inside says "Covers Units 3–4; every section set from these units"
     And the paper has the same sections and marks as the full-syllabus paper
 
-  @sandbox @real-paper @urdu
+  @FB12 @sandbox @real-paper @urdu
   Scenario: An Urdu board-pattern paper is right-to-left with Urdu digits and no item from lessons 1 to 3
     Given the board-pattern switch is on
     When a Grade 5 Urdu teacher makes a board-pattern paper
     Then the paper reads right to left, its numbers are Urdu digits, its sections are حصہ الف, حصہ ب and حصہ ج, and no item is set on lessons 1, 2 or 3
 
-  @sandbox @real-paper
+  @FB13 @sandbox @real-paper
   Scenario: Removing a question from a choice group keeps the choice honest
     Given a ready board-pattern Maths paper
     When the teacher removes one Q2 question and makes version 2
     Then the editor said "Q2 will then say: any eight of eleven" and version 2 prints "Attempt any eight of the following eleven questions" with "(8×5=40)" and Total Marks 100
     And version 2 comes as two files, "Grade5_Maths_FDE_v2.pdf" and its marking scheme, and the scheme's box names the version 2 paper and its page count
 
-  @sandbox @real-paper
+  @FB14 @sandbox @real-paper
   Scenario: Removing more questions than the choice allows lowers the attempt count and the total
     Given a ready board-pattern Maths paper
     When the teacher removes five Q2 questions and makes version 2
@@ -90,7 +90,7 @@ Feature: FDE board-pattern paper for Grade 5
     When a request for Grade 4 Maths carries the pattern
     Then it is refused and no paper is queued
 
-  @sandbox
+  @FB15 @sandbox
   Scenario: A second paper for the same class is not made while the first is being made
     Given a Grade 5 Maths board-pattern paper is being made for this teacher
     When they reach Check and make for Grade 5 Maths again
@@ -105,13 +105,13 @@ Feature: FDE board-pattern paper for Grade 5
     Then it is refused with "You have made 10 papers this hour" and the time the next one can be made
     And no paper is queued
 
-  @sandbox @real-paper
+  @FB16 @sandbox @real-paper
   Scenario: Adding a question to a board-pattern paper is refused with a reason
     Given a ready board-pattern paper
     When the teacher tries to add a question
     Then the editor says "Board-pattern papers keep their shape" and no new version is made
 
-  @sandbox @real-paper
+  @FB17 @sandbox @real-paper
   # bd-zrdvmi.24: the editor's Bloom's summary is the same on a board-pattern paper; the paper and marking scheme are not touched.
   Scenario: Editing a board-pattern paper shows the Bloom's summary and leaves the printed files alone
     Given a ready board-pattern paper whose questions carry Bloom's levels
@@ -123,7 +123,7 @@ Feature: FDE board-pattern paper for Grade 5
     And on a Grade 5 Science board-pattern paper the summary shows "FDE target" with "Remember 30%", "Understand 30%" and "Apply 40%"
     And the printed paper and marking scheme show no FDE target
 
-  @sandbox @real-paper @no-mock-driver
+  @FB18 @sandbox @real-paper @no-mock-driver
   # No mock driver: the refusal is decided on a real paper's slot-tagged items, which only a sandbox paper carries.
   Scenario: Changing a board-pattern question's marks is refused, and sending the same marks back is not an edit
     Given a ready board-pattern paper
@@ -132,14 +132,14 @@ Feature: FDE board-pattern paper for Grade 5
     When the teacher saves an Urdu item worth 1.25 marks with its text changed and the marks left as they were
     Then a new version is made and the item is still worth 1.25 marks
 
-  @sandbox
+  @FB19 @sandbox
   # No mock driver: three creates must reach the bot at the same instant, which the web driver cannot do through one page.
   Scenario: Three requests for the same class at the same moment make one paper
     Given the board-pattern switch is on
     When three requests for a Grade 5 Maths board-pattern paper arrive for one teacher at the same moment
     Then one paper is queued and the other two are told "A paper for this class is being made" with that paper's request
 
-  @sandbox
+  @FB20 @sandbox
   Scenario: A reopened wait page still knows it is a board-pattern paper
     Given a Grade 5 Maths board-pattern paper is being made for this teacher
     When they close the app and open the paper's link again
@@ -147,20 +147,20 @@ Feature: FDE board-pattern paper for Grade 5
     And the portal's status answer for that request carries the pattern and when it was asked for
     And a paper made without the pattern gets a status answer with neither
 
-  @sandbox
+  @FB21 @sandbox
   Scenario: A Maths paper whose first draw set aside two MCQs is still made whole
     Given the board-pattern switch is on
     When a Grade 5 Maths board-pattern paper's first reply has two MCQs with two options of equal value
     Then that section is asked once more and the paper is ready with all 20 MCQs in Q1(a)
     And 18 of them are the first reply's
 
-  @sandbox
+  @FB22 @sandbox
   Scenario: A paper that still fails keeps what was written
     Given the board-pattern switch is on
     When a Grade 5 Maths board-pattern paper comes back short twice
     Then the paper fails "PATTERN_SHORT_SLOT" and its row keeps the paper as written and the model's name
 
-  @sandbox
+  @FB23 @sandbox
   Scenario: A board-pattern paper that comes back short is made once more before the teacher hears of it
     Given the board-pattern switch is on
     When a Grade 5 Urdu board-pattern paper's whole first run comes back short of a slot
@@ -187,20 +187,20 @@ Feature: FDE board-pattern paper for Grade 5
     And Next is off with "Select at least one chapter"
     And a teacher who entered by the FDE door and reloads Class after the switch went off sees today's Class: no "FDE pattern papers" eyebrow, every grade on offer
 
-  @sandbox
+  @FB24 @sandbox
   Scenario: A failed read on the FDE door keeps the teacher on Class with Try again
     Given the board-pattern switch is on
     When the teacher taps Maths on the FDE door and the connection drops before the options come back
     Then Class says "Could not load" with Try again instead of moving to Chapters or pages
     And Try again, once the connection is back, goes on to Check and make
 
-  @sandbox @real-paper
+  @FB25 @sandbox @real-paper
   Scenario: A paper for any other grade is unchanged
     Given the board-pattern switch is on
     When a Grade 3 Urdu teacher makes a paper with the default mix of types Questions starts with
     Then the screens, the request, the prompt and the printed paper are identical to those made with the switch off
 
-  @sandbox
+  @FB26 @sandbox
   # bd-zrdvmi.50.4 — AG row 21: Select from the book belongs to the teacher's own paper only.
   Scenario: A board-pattern paper never offers Select from the book
     Given the board-pattern switch is on and the book picker is on

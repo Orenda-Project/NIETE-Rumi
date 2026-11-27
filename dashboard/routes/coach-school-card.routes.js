@@ -52,7 +52,7 @@ function todayOf(req, now) {
  *   levelStates: the bot's training level states for a teacher (bd-hl4a4y: her Training page's "Level N of M").
  */
 function createCoachSchoolCardRouter(deps) {
-  const { guards = [], query, memo, now, levelStates } = deps;
+  const { guards = [], query, memo, now, levelStates, recordingRepairOn } = deps;
   const router = express.Router();
 
   const optsOf = (req, res) => {
@@ -118,7 +118,11 @@ function createCoachSchoolCardRouter(deps) {
     if (!EXT_RX.test(ext)) return notFound(res);
     const opts = optsOf(req, res);
     if (!opts) return undefined;
-    return answer(res, 'teacher', () => Card.getTeacherCard(query, coach(req), ext, opts));
+    return answer(res, 'teacher', async () => {
+      // bd-8sr958: recording_repair on → the card lists her damaged-audio lessons (no score). Fail-closed.
+      const on = recordingRepairOn ? await Promise.resolve(recordingRepairOn()).then((v) => v === true, () => false) : false;
+      return Card.getTeacherCard(query, coach(req), ext, { ...opts, recordingRepair: on });
+    });
   });
 
   router.get('/coach/teacher/:ext/items/:feature', ...guards, async (req, res) => {

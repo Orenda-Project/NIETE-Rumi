@@ -1722,6 +1722,7 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       outputFormat: String(data.output_format || 'pdf'),
       answerLines: data.answer_lines !== false && data.answer_lines !== 'false',
       compact: data.save_paper === true || data.save_paper === 'true',
+      pages: await pagesChoice(data.page_limit),
     });
 
     try {
@@ -1812,7 +1813,7 @@ async function rebuildFromCompletion({ flowToken, userId, user = null, onStart =
 
 // `answerKey` is no longer read: every paper gets a key and she is not asked. A
 // stale client that still posts one is ignored rather than obeyed.
-async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines, savePaper }) {
+async function submitFromCompletion({ flowToken, userId, outputFormat, answerLines, savePaper, pageLimit }) {
   const state = await readSession(flowToken);
 
   // A session that has expired or was never written cannot be completed into a
@@ -1833,6 +1834,7 @@ async function submitFromCompletion({ flowToken, userId, outputFormat, answerLin
     outputFormat: await resolveFormat(outputFormat),
     answerLines: answerLines !== false && answerLines !== 'false',
     compact: savePaper === true || savePaper === 'true',
+    pages: await pagesChoice(pageLimit),
   });
 
   try {
@@ -2013,6 +2015,22 @@ function fitLabel(text) {
   return `${(space >= 10 ? cut.slice(0, space) : cut).trim()}…`;
 }
 
+// bd-nr8mrm.7 — FEAT-209: the page count she may set on CONFIRM, as in the portal. A whole 1–5
+// while assessment_page_fit is on, else null: a stale client cannot switch fitting on.
+const PAGE_CHOICES = Object.freeze([
+  { id: 'none', title: 'No limit' },
+  { id: '1', title: '1 page' },
+  ...['2', '3', '4', '5'].map((n) => ({ id: n, title: `${n} pages` })),
+]);
+async function pageFitOn() {
+  const { isFlagEnabled } = require('../config/feature-flags');
+  return typeof isFlagEnabled === 'function' ? isFlagEnabled('assessment_page_fit') : false;
+}
+async function pagesChoice(value) {
+  const target = require('../services/assessment/page-fit').pageTarget(value);
+  return target !== null && await pageFitOn() ? target : null;
+}
+
 async function confirmScreen(state) {
   const source = {
     seen: 'Seen (from the book)',
@@ -2043,6 +2061,8 @@ async function confirmScreen(state) {
   return screen('CONFIRM', {
     recap: [summaryOf(state), `${source} · ${size}`].join('\n'),
     formats: await formatsOnOffer(),
+    page_choices: PAGE_CHOICES,
+    show_pages: await pageFitOn(),
     // Supplied HERE, on the render — the Footer can only send back data the
     // screen was drawn with.
     extension_message_response: completionPayload('queued', summaryOf(state)),
@@ -2167,6 +2187,7 @@ async function submit(state) {
     questionCount: state.questionCount || 20,
     seenCount: state.contentSource === 'both' ? (Number(state.seenCount) || null) : null,
     totalMarks: state.totalMarks ?? null,
+    ...(state.pages ? { pages: state.pages } : {}),
     questionTypes: types,
     // Her per-type Seen counts (bd-e5n2jf); absent on the old single-box path.
     ...(state.seenTypes && state.seenTypes.length ? { seenTypes: state.seenTypes } : {}),
@@ -2232,7 +2253,7 @@ module.exports = {
   submitFromCompletion,
   rebuildFromCompletion,
   // exported for tests
-  _internal: { summaryOf, submit, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
+  _internal: { summaryOf, submit, confirmScreen, chapterPageRange, GRADE_BANDS, COUNT_CHOICES,
     coverageLists, pickedChapterNumbers, compressRuns, NO_MORE_CHAPTERS_ID, CHAPTER_GROUP_CAP,
     paperIdFromToken, mergePageTicks, REVIEW_MARKER, SHAPE_SCREEN, navFit, NAV_MAX,
     listScreen, doneScreen, openList, LIST_PAGE_SIZE: Selection.LIST_PAGE_SIZE },

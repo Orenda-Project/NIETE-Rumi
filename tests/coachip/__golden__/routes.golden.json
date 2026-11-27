@@ -361,6 +361,7 @@
           "assessmentEditing": "boolean",
           "assessmentGenerator": "boolean",
           "assessmentGeneratorMessage": "string",
+          "assessmentPageFit": "boolean",
           "childTest": "boolean",
           "childTestSa": "boolean",
           "coachDisagreements": "boolean",
@@ -387,6 +388,7 @@
           "observeUploadOnly": "boolean",
           "principalApp": "boolean",
           "principalFlowV2": "boolean",
+          "recordingResume": "boolean",
           "roleSwitch": "boolean",
           "schoolCard": "boolean",
           "selfObservation": "boolean",
@@ -395,7 +397,8 @@
           "teacherHomeLook": "boolean",
           "teacherHomeOrder": "boolean",
           "teacherJourney": "boolean",
-          "teacherV2": "boolean"
+          "teacherV2": "boolean",
+          "uploadPieces": "boolean"
         },
         "roleSwitchRoles": [],
         "success": "boolean"

@@ -181,6 +181,23 @@ describe("on its way", () => {
     expect(await screen.findByTestId("where")).toHaveAttribute("data-state", JSON.stringify({ sendSheet: true }));
   });
 
+  it("a damaged file the team is recovering (recording_repair on): Recovering, With team, no Send again", async () => {
+    api.getCoachingProgress.mockResolvedValue(progress("stopped", { stopReason: "damaged_audio", recovering: true }));
+    renderAt();
+    expect(await screen.findByText("Recovering")).toBeInTheDocument();
+    expect(screen.getByText("With team")).toBeInTheDocument();
+    expect(screen.queryByText("Not analysed")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send again" })).toBeNull();
+  });
+
+  it("recording_repair OFF: the same damaged lesson reads exactly as it always did (Not analysed + Send again)", async () => {
+    api.getCoachingProgress.mockResolvedValue(progress("stopped", { stopReason: "damaged_audio" }));
+    renderAt();
+    expect(await screen.findByText("Not analysed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send again" })).toBeInTheDocument();
+    expect(screen.queryByText("Recovering")).toBeNull();
+  });
+
   it("not found", async () => {
     api.getCoachingProgress.mockRejectedValue({ response: { status: 404 } });
     renderAt();
