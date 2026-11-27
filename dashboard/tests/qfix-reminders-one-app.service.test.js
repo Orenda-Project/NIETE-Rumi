@@ -5,7 +5,8 @@
  * installed from either door as the same app and never offers the other. A hub app installed before the hub manifest
  * had an id keeps its old id (Chrome does not move it), so the page remembers on this origin that the phone has the
  * app: localStorage wq_app = '1' on appinstalled and whenever a page runs as the installed app. While it is set, the
- * finish card is not drawn (one install_prompt step 'had_app' says so); storage trouble draws the card as before.
+ * finish card is not drawn (one install_prompt step 'had_app' says so); storage trouble draws the card as before. The hub
+ * card skips the same way: an old hub app's own id differs from '/wq/jugnu', so Chrome offers again on the hub (red 173006).
  * Fake DOM; invented values.
  */
 const fs = require('fs');
@@ -124,7 +125,7 @@ describe('the finish card on a phone that has the app', () => {
 describe('the hub remembers the app', () => {
   const NOW = Date.parse('2026-10-15T21:00:00Z');
   function hub({ store = {}, standalone = false } = {}) {
-    const winL = {}; const timers = [];
+    const winL = {}; const timers = []; const tel = [];
     const box = { innerHTML: '', addEventListener() {} };
     const ROOT = { innerHTML: '<div id="wqp-inst" class="wq-inst"></div>', querySelector: (s) => (s === '#wqp-inst' ? box : null) };
     const ctx = {
@@ -136,10 +137,15 @@ describe('the hub remembers the app', () => {
     };
     vm.createContext(ctx);
     vm.runInContext(PLAY_SRC, ctx);
-    ctx.window.WQPLAY.install({ lang: 'en', play: { install: true, doors: ['install'] } }, () => {}, ROOT, { h3: true });
+    ctx.window.WQPLAY.install({ lang: 'en', play: { install: true, doors: ['install'] } }, (n, p) => { tel.push({ n, ...p }); }, ROOT, { h3: true });
     while (timers.length) timers.shift()();
-    return { store, fire: (n, e) => (winL[n] || []).forEach((f) => f(e)) };
+    return {
+      store, box, fire: (n, e) => { (winL[n] || []).forEach((f) => f(e)); while (timers.length) timers.shift()(); },
+      steps: () => tel.filter((e) => e.n === 'install_prompt').map((e) => e.step),
+    };
   }
+  // not the day's first hub view, so the card may show when Chrome offers
+  const SEEN = { wqp_hv_day: String(Math.floor((NOW + 5 * 3600000) / 86400000)) };
   test('installed from the hub card: wq_app is set', () => {
     const h = hub();
     expect(h.store.wq_app).toBeUndefined();
@@ -148,5 +154,19 @@ describe('the hub remembers the app', () => {
   });
   test('the hub running as the installed app (an old hub app too): wq_app is set', () => {
     expect(hub({ standalone: true }).store.wq_app).toBe('1');
+  });
+  test('wq_app set: Chrome offers on the hub, no card, one had_app step (an old hub app keeps its own id)', () => {
+    const h = hub({ store: { ...SEEN, wq_app: '1' } });
+    h.fire('beforeinstallprompt', bip());
+    expect(h.box.innerHTML).toBe('');
+    expect(h.steps().filter((s) => s === 'had_app')).toEqual(['had_app']);
+    expect(h.steps()).not.toContain('card_shown');
+  });
+  test('wq_app not set: the hub card as before', () => {
+    const h = hub({ store: { ...SEEN } });
+    h.fire('beforeinstallprompt', bip());
+    expect(h.box.innerHTML).toContain('data-inst="add"');
+    expect(h.steps()).toContain('card_shown');
+    expect(h.steps()).not.toContain('had_app');
   });
 });
