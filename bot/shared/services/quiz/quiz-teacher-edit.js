@@ -352,10 +352,13 @@ async function view({ quizId, teacherUserId } = {}, deps = {}) {
   });
 }
 
-/** Make sure the quiz has a PDF for its current version (Download on a 'pending' quiz). */
+/**
+ * Make sure the quiz has a PDF for its current version (Download on a 'pending' quiz). NOT switch-gated (QF-K1): the
+ * rollback is the switch-off, and a teacher who edited before it keeps a Download. The remake reads the current version
+ * and changes no question; view and save stay behind the switch. Owner and UUID checks still apply.
+ */
 async function ensurePdf({ quizId, teacherUserId } = {}, deps = {}) {
   const db = deps.db || supabase;
-  if (!(await switchOn(db))) return out(404, { off: true });
   if (!UUID_RX.test(String(quizId || '')) || !UUID_RX.test(String(teacherUserId || ''))) return refusal('bad_request');
   const { data: quiz, error } = await db.from('quizzes').select('id, teacher_id, meta').eq('id', quizId).maybeSingle();
   if (error) return out(502, { ok: false, reason: 'db_unavailable' });
