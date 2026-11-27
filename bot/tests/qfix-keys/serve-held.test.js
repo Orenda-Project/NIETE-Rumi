@@ -151,7 +151,7 @@ describe('WhatsApp quiz (startSession)', () => {
 
   test('a held question is never asked: the run is the other two', async () => {
     stub([{ question_id: 'q-a', status: 'ambiguous' }]);
-    await VideoQuiz.startSession({ phone: '923000000000', userId: null, quizId: 'quiz1', videoId: null, language: 'en', source: 'video_solo' });
+    await VideoQuiz.startSession({ phone: '+92300FIXTURE1', userId: null, quizId: 'quiz1', videoId: null, language: 'en', source: 'video_solo' });
     const first = sender.sendPhase.mock.calls[0][1];
     expect(first.find((m) => m.counter).counter).toEqual({ i: 1, n: 2 });
     const bodies = first.map((m) => m.body || '').join(' | ');
@@ -161,7 +161,7 @@ describe('WhatsApp quiz (startSession)', () => {
 
   test('an open (unreviewed) flag still serves', async () => {
     stub([{ question_id: 'q-a', status: 'open' }]);
-    await VideoQuiz.startSession({ phone: '923000000000', userId: null, quizId: 'quiz1', videoId: null, language: 'en', source: 'video_solo' });
+    await VideoQuiz.startSession({ phone: '+92300FIXTURE1', userId: null, quizId: 'quiz1', videoId: null, language: 'en', source: 'video_solo' });
     expect(sender.sendPhase.mock.calls[0][1].find((m) => m.counter).counter).toEqual({ i: 1, n: 3 });
   });
 });
