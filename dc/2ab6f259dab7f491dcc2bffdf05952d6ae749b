@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T09:27:38Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coaching,teacher-coaching,coach-portal,portal-smoke spec_sync=true","sha":"dc2ab6f259da","branch":"sandbox","user":"Mah Noor"}
+{"ts":"2026-11-27T09:27:46Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: coaching,teacher-coaching,coach-portal,portal-smoke owe their Gherkin","sha":"dc2ab6f259da","branch":"sandbox","user":"Mah Noor"}
