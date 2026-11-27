@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { overlayOpen } from './overlayBack';
 
 /**
  * bd-5rz1v.8 — while a lesson (or a coach's talk) is being recorded, Back must
@@ -48,6 +49,8 @@ export function useRecordingBackGuard(active: boolean, onBack: () => void): void
     if (!active) return undefined;
     pushGuard();
     const onPop = () => {
+      // bd-kijmb8 — a layer over the page (the Lesson plan sheet) is open: this Back closes it, it does not leave the recorder.
+      if (overlayOpen()) return;
       if (!onTop()) pushGuard();
       onBackRef.current();
     };

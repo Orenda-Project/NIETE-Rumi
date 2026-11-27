@@ -7,7 +7,7 @@ import { RecordingContinuesChip } from './RecordingBar';
 import { useStepJump, useStepMark } from './stepMark';
 import { PAGE_STYLE, PdfPage, type PdfDocLike } from './LessonPlanPage';
 import {
-  fetchLessonPlanPdf, LessonPlanNotReady, openLessonPlanOutside, sourceKey, type LessonPlanView,
+  fetchLessonPlanPdf, fileKindOfSource, LessonPlanNotReady, openLessonPlanOutside, sourceKey, type LessonPlanView,
 } from '../lib/lessonPlanOpen';
 
 /**
@@ -108,6 +108,9 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [progress, setProgress] = useState<number | null>(null);
   const [doc, setDoc] = useState<PdfDocLike | null>(null);
+  // bd-kijmb8 — a photo of the plan: drawn as a fitted image, with the same zoom.
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const fileKind = fileKindOfSource(source);
   const [zoom, setZoom] = useState(0);
   const [ratios, setRatios] = useState<Record<number, number>>({});
   const [boxWidth, setBoxWidth] = useState(0);
@@ -160,13 +163,25 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
     setState('loading');
     setProgress(null);
     setDoc(null);
+    setImageUrl(null);
     setRatios({});
+    let imageObjectUrl: string | null = null;
     let stage: LpViewerFailure['stage'] = 'download';
     fileFacts.current = { t0: Date.now(), sizeBytes: 0, pages: 0, pageWidth: 0, pageHeight: 0 };
     (async () => {
+      // bd-kijmb8 — a Word file cannot be drawn here: the existing "Can't show it here" answer, no download first.
+      if (fileKind === 'word') { fail(); return; }
       const bytes = await fetchLessonPlanPdf(source, (p) => { if (!cancelled) setProgress(p); });
       if (cancelled) return;
       fileFacts.current.sizeBytes = bytes.byteLength;
+      if (fileKind === 'image') {
+        const type = source.lane === 'local' ? (source.file.type || 'image/jpeg') : 'image/jpeg';
+        imageObjectUrl = URL.createObjectURL(new Blob([bytes], { type }));
+        setImageUrl(imageObjectUrl);
+        setState('ready');
+        readyRef.current?.();
+        return;
+      }
       stage = 'reader';
       const pdfjs = await loadPdfjs();
       if (cancelled) return;
@@ -186,6 +201,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
     return () => {
       cancelled = true;
       if (loaded) void Promise.resolve(loaded.destroy()).catch(() => {});
+      if (imageObjectUrl) { try { URL.revokeObjectURL(imageObjectUrl); } catch { /* nothing to release */ } }
     };
     // `source` is identified by `key`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,7 +287,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
         </div>
       )}
 
-      {state === 'ready' && doc && chrome === 'own' && (
+      {state === 'ready' && (doc || imageUrl) && chrome === 'own' && (
         <div className={VIEWER_STYLE.toolbar}>
           <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
             className={VIEWER_STYLE.zoomButton}>
@@ -291,7 +307,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
         </div>
       )}
 
-      {state === 'ready' && doc && chrome === 'none' && (
+      {state === 'ready' && (doc || imageUrl) && chrome === 'none' && (
         <div className={VIEWER_STYLE.toolbar}>
           <button type="button" aria-label={COPY.zoomOut} disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}
             className={VIEWER_STYLE.zoomTarget}>
@@ -308,6 +324,10 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
       {/* Always mounted while loading or ready, so its width is known before the first page. */}
       {state !== 'failed' && (
         <div ref={scroller} className={`w-full ${zoom > 0 ? 'overflow-x-auto' : 'overflow-x-hidden'}`}>
+          {state === 'ready' && imageUrl && (
+            <img data-testid="lesson-plan-image" src={imageUrl} alt={title} draggable={false}
+              style={{ width: pageWidth, maxWidth: 'none', height: 'auto' }} className="block rounded-lg bg-white" />
+          )}
           {state === 'ready' && doc && (
             <div className={VIEWER_STYLE.pages} style={{ width: pageWidth }}>
               {Array.from({ length: doc.numPages }, (_, i) => i + 1).map((n) => (

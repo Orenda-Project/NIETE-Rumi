@@ -17,6 +17,10 @@ import { linkOf, newAttemptId } from '../../lib/recordingLink';
 import { pkTime } from '../../coach/reports/data';
 import { KeptRecordingCard, teacherKeptFrom, useClassLabel, type TeacherKept } from './keptCard';
 import { useRecordingResume } from '../../lib/recordingResume';
+import { useLessonPlanOpen } from '../../lib/lessonPlanSwitch';
+import { planFileKindOf, type LessonPlanView } from '../../lib/lessonPlanOpen';
+import LessonPlanSheet from '../../components/LessonPlanSheet';
+import { LessonPlanOpenRow } from '../../components/LessonPlanOpenRow';
 import { tellSent } from '../../lib/recordingBeat';
 import { withDuration } from '../../lib/webmDuration';
 import { isInAppBrowser } from '@/lib/runtime';
@@ -547,6 +551,19 @@ export function NewObservationPage() {
     }
     : undefined;
 
+  // bd-kijmb8 (queue #318, portal_lesson_plan_open) — her plan opens OVER this page, whatever it is (a library lesson, a
+  // photo, a PDF or a Word file); the recording goes on underneath. A pick the viewer cannot name keeps the eye's old way.
+  const lpOpenOn = useLessonPlanOpen();
+  const [lpSheet, setLpSheet] = useState<LessonPlanView | null>(null);
+  const sheetView = (): LessonPlanView | null => {
+    if (!plan) return null;
+    if (plan.kind === 'file') return { source: { lane: 'local', file: plan.file, fileKind: planFileKindOf(plan.file) }, title: C.lessonPlan };
+    if ('lessonId' in plan.pick) return { source: { lane: 'k5', lessonId: plan.pick.lessonId, assetKind: 'lesson' }, title: plan.title };
+    return null;
+  };
+  const planView = lpOpenOn ? sheetView() : null;
+  const openPlanView = planView ? () => setLpSheet(planView) : viewPlan;
+
   // At least 15 minutes (bd-fgj73x.7): a shorter recording cannot be submitted. An unknown length is not held back.
   const tooShort = !!audio && audio.durationMs != null && audio.durationMs < DC_MIN_SECONDS * 1000;
   const ready = !!cls && !!audio && !tooShort;
@@ -658,7 +675,7 @@ export function NewObservationPage() {
           <FlowStep n={2} state={s2} chips={[C.optional]}>{C.lessonPlan}</FlowStep>
           {/* While she records, the plan she picked stays in sight, to read with the eye (operator, 16 Oct); no Change
               mid-lesson. The recording goes on in the background while the plan is open (the frame's recording bar). */}
-          {cls && phase === 'recording' && plan ? <PlanPicker plan={plan} readOnly onOpen={() => {}} onView={viewPlan} /> : null}
+          {cls && phase === 'recording' && plan ? <PlanPicker plan={plan} readOnly onOpen={() => {}} onView={openPlanView} /> : null}
           {cls && phase !== 'recording' ? (
             <>
               {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
@@ -677,9 +694,11 @@ export function NewObservationPage() {
               <span role="timer" data-testid="dc-record-clock" className="text-[48px] font-light leading-none tracking-[-0.02em] tabular-nums">{clockText(elapsed)}</span>
               <LevelBars live={!session?.paused} level={level} />
               <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+              {planView && plan ? <LessonPlanOpenRow compact source={plan.kind === 'file' ? 'own' : 'library'} onOpen={() => setLpSheet(planView)} /> : null}
               {live.state ? <div className="w-full"><LiveMovesPanel live={live} /></div> : null}
             </section>
           ) : null}
+          {lpSheet ? <LessonPlanSheet view={lpSheet} recording={!!session?.active} onClose={() => setLpSheet(null)} /> : null}
           {cls && !audio && phase === 'starting' ? (
             <p aria-live="polite" className="mx-1 text-[15px] font-semibold text-[#6b7280]">{C.starting}</p>
           ) : null}

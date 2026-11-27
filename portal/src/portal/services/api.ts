@@ -849,7 +849,9 @@ export type CoachObservationView = {
   teacher: { name: string | null; phone: string | null } | null;
   lesson: { topic: string | null; subject: string | null; hasLessonPlan: boolean };
   /** bd-fmf24g.66 — what became of the plan attached: her own file (reading / read / unreadable), a library plan, or none. Absent from an older bot. */
-  lessonPlan?: { source: 'own' | 'library' | 'none'; format: string | null; state: 'reading' | 'read' | 'unreadable' | null; topic: string | null };
+  lessonPlan?: { source: 'own' | 'library' | 'none'; format: string | null; state: 'reading' | 'read' | 'unreadable' | null; topic: string | null;
+    /** bd-kijmb8 — the plan can be opened over the page (the Lesson plan button), its file kind, and the name to show; absent from an older bot. */
+    openable?: boolean; fileKind?: 'pdf' | 'image' | 'word' | null; title?: string | null };
   draft: { edited: boolean };
   /** bd-o15qnr.39 — `audioUrl`: a signed link to the debrief recorded or attached in the portal (none for a WhatsApp one). */
   talk: { guide: TalkGuide | null; recordedAt: string | null; audioUrl?: string | null; feedback: CoachFeedback | null };

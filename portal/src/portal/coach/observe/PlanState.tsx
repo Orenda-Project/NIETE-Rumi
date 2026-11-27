@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FileText, Paperclip } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { StatusChip } from "../../teacher/ui/StatusChip";
@@ -5,6 +6,10 @@ import { LIST_CARD } from "../../teacher/ui/styles";
 import type { CoachObservationView } from "../../services/api";
 import { OBSERVE } from "./copy";
 import { planKindLabel, planKindOfFormat } from "./format";
+import { useLessonPlanOpen } from "../../lib/lessonPlanSwitch";
+import { LessonPlanOpenRow } from "../../components/LessonPlanOpenRow";
+import LessonPlanSheet from "../../components/LessonPlanSheet";
+import type { PlanFileKind } from "../../lib/lessonPlanOpen";
 
 /**
  * bd-fmf24g.66 — what became of the plan the coach attached, on the observation page and the Feedback Form. Only the
@@ -14,7 +19,41 @@ import { planKindLabel, planKindOfFormat } from "./format";
  */
 type LessonPlanView = NonNullable<CoachObservationView["lessonPlan"]>;
 
-export function LessonPlanRow({ lp }: { lp: CoachObservationView["lessonPlan"] }) {
+/**
+ * bd-kijmb8 (queue #318) — with portal_lesson_plan_open on, a linked plan is a button: "Lesson plan · NIETE plan / Teacher's
+ * own plan · Open", which opens it over this page (the page is never left). Nothing linked, or the switch off: nothing.
+ */
+export function LessonPlanOpen({ lp, sessionId }: { lp: CoachObservationView["lessonPlan"]; sessionId: string }) {
+  const on = useLessonPlanOpen();
+  const [open, setOpen] = useState(false);
+  if (!on || !sessionId || !lp || !lp.openable || (lp.source !== "own" && lp.source !== "library")) return null;
+  const fileKind = (lp.fileKind || "pdf") as PlanFileKind;
+  return (
+    <>
+      <LessonPlanOpenRow source={lp.source} title={lp.title || (lp.state === "read" ? lp.topic : null)} onOpen={() => setOpen(true)} />
+      {open && (
+        <LessonPlanSheet recording={false} onClose={() => setOpen(false)}
+          view={{ source: { lane: "session", sessionId, fileKind }, title: lp.title || (lp.state === "read" && lp.topic) || "" }} />
+      )}
+    </>
+  );
+}
+
+export function LessonPlanRow({ lp, sessionId }: { lp: CoachObservationView["lessonPlan"]; sessionId?: string }) {
+  const on = useLessonPlanOpen();
+  if (on && sessionId && lp && lp.openable) {
+    // The button replaces the flat row; her own plan's reading state still shows while it is not yet read.
+    return (
+      <>
+        <LessonPlanOpen lp={lp} sessionId={sessionId} />
+        {lp.source === "own" && lp.state && lp.state !== "read" ? <FlatRow lp={lp} /> : null}
+      </>
+    );
+  }
+  return <FlatRow lp={lp} />;
+}
+
+function FlatRow({ lp }: { lp: CoachObservationView["lessonPlan"] }) {
   const C = useCopy(OBSERVE);
   if (!lp || lp.source !== "own" || !lp.state) return null;
   const kind = planKindLabel(planKindOfFormat(lp.format), C);

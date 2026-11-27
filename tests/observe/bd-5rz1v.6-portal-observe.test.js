@@ -640,7 +640,7 @@ describe('observationView — lessonPlan (bd-fmf24g.66)', () => {
   }));
 
   test('no plan at all', async () => {
-    expect((await view({ has_lesson_plan: false })).lessonPlan).toEqual({ source: 'none', format: null, state: null, topic: null });
+    expect((await view({ has_lesson_plan: false })).lessonPlan).toMatchObject({ source: 'none', format: null, state: null, topic: null, openable: false });
   });
 
   test.each([
@@ -652,8 +652,10 @@ describe('observationView — lessonPlan (bd-fmf24g.66)', () => {
       lesson_plan_extraction_status: status,
       lesson_plan_structured: status === 'completed' ? { topic: 'Place value & counting 4-digit numbers' } : null,
     });
+    // bd-kijmb8 — plus openable / fileKind / title, the Lesson plan button's fields.
     expect(out.lessonPlan).toEqual({
       source: 'own', format: 'pdf', state, topic: status === 'completed' ? 'Place value & counting 4-digit numbers' : null,
+      openable: true, fileKind: 'pdf', title: status === 'completed' ? 'Place value & counting 4-digit numbers' : null,
     });
   });
 
