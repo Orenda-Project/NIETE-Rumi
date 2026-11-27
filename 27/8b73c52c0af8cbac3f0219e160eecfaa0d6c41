@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T16:11:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"278b73c52c0a","branch":"bd-8bf9la-staging","user":""}
 {"ts":"2026-11-27T16:19:47Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"send-pacer=none-needed (cherry-pick of the sandbox fix; retry timing after a Meta 131056, no scenario can trigger it; covered by tests/whatsapp/send-pacing.test.js)","sha":"278b73c52c0a","branch":"bd-8bf9la-main","user":""}
 {"ts":"2026-11-27T16:19:47Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"quiz-funnel-watch=none-needed (operator Slack alert counting only; nothing a teacher sees; covered by tests/quiz/quiz-funnel-watch.test.js)","sha":"278b73c52c0a","branch":"bd-8bf9la-main","user":""}
+{"ts":"2026-11-27T16:19:48Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-278b73c52c0a","sha":"278b73c52c0a","branch":"bd-8bf9la-main","user":""}
