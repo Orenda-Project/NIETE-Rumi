@@ -41,7 +41,11 @@
  *   WA_PAIR_INTERVAL_MS         6000   sustained spacing per phone (Meta: 1 per 6 s)
  *   WA_PAIR_BURST               8      sends a quiet phone may receive back to back
  *   WA_PAIR_MAX_WAIT_MS         120000 shed a send that would wait longer
- *   WA_RATE_LIMIT_MAX_ATTEMPTS  3      attempts per send, first included
+ *   WA_RATE_LIMIT_MAX_ATTEMPTS  3      attempts per send, first included. A 131056 may
+ *                                      take more (up to PAIR_MAX_ATTEMPTS) while its total
+ *                                      backoff stays within WA_PAIR_MAX_WAIT_MS: in prod
+ *                                      (30 d to 27 Nov 2026) every real message lost to
+ *                                      131056 gave up at try 3, ~25 s in, well inside 120 s.
  *   WA_RATE_LIMIT_RETRY_BASE_MS 6000   first backoff; doubles per attempt, plus jitter
  */
 
@@ -52,6 +56,19 @@ const { metaErrorCodeOf } = require('../config/meta-messaging-window');
 /** Meta codes that mean "refused for rate — nothing was sent, try later". */
 const PAIR_LIMIT = 131056;
 const RETRYABLE_CODES = new Set([130429, PAIR_LIMIT, 131048]);
+
+/** Hard ceiling on tries for a 131056, whatever the wait budget allows. */
+const PAIR_MAX_ATTEMPTS = 8;
+
+/**
+ * May attempt `n` (just refused with `code`) be followed by another after `delayMs`?
+ * Every code gets WA_RATE_LIMIT_MAX_ATTEMPTS; a pair refusal keeps going while the total
+ * backoff (`waitedMs` so far plus this delay) stays within the phone's wait budget.
+ */
+function mayRetry(code, n, waitedMs, delayMs, cfg) {
+  if (n < cfg.maxAttempts) return true;
+  return code === PAIR_LIMIT && n < PAIR_MAX_ATTEMPTS && waitedMs + delayMs <= cfg.maxWaitMs;
+}
 
 /** A proactive wait shorter than this is ordinary pacing, not worth a log line. */
 const PACED_LOG_THRESHOLD_MS = 1000;
@@ -337,6 +354,7 @@ async function send(meta, attempt) {
     await sleep(slot.delayMs);
   }
 
+  let waitedMs = 0;
   for (let n = 1; ; n += 1) {
     // eslint-disable-next-line no-await-in-loop
     const out = await attempt();
@@ -364,12 +382,12 @@ async function send(meta, attempt) {
       });
       return settle();
     }
-    if (n >= cfg.maxAttempts) {
+    let delayMs = backoffMs(n, cfg);
+    if (!mayRetry(code, n, waitedMs, delayMs, cfg)) {
       emit('error', 'whatsapp.rate_limited', m, { code, attempt: n, delayMs: 0, gaveUp: true });
       return settle();
     }
 
-    let delayMs = backoffMs(n, cfg);
     if (code === PAIR_LIMIT) {
       // Push the PHONE back, not just this send: every other sender to it now
       // waits too, and it comes back at the sustained rate with no burst. The
@@ -387,6 +405,7 @@ async function send(meta, attempt) {
       if (again) delayMs = again.delayMs;
     }
     emit('warn', 'whatsapp.rate_limited', m, { code, attempt: n, delayMs });
+    waitedMs += delayMs;
     // eslint-disable-next-line no-await-in-loop
     await sleep(delayMs);
   }
