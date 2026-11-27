@@ -129,7 +129,23 @@ EXTRA = {
   # bd-yef5iq.6 + bd-gbf8ix: an I-SAPS module page carries the partner's required reading, matched on the vendor KEY
   # (the vendor's display name was renamed and every page lost its list). Reads /training/modules as the demo teacher;
   # BLOCKED when the run's database has no I-SAPS course she can open.
-  'teacher-training': ('../flows/teacher-training-readings.cjs', [
+  # TT03 (bd-te5lae): the written capstone exam — real exam page, the level's modules marked done in the run's own DB.
+  'teacher-training': [('../flows/teacher-training-capstone.cjs', [
+    "  # TT03 (bd-te5lae, 19 Oct 2026): the written capstone exam submit used to answer 500 on the portal (\"Cannot find",
+    "  # module 'dotenv'\") and the teacher could never finish a level. Marking now goes to the bot over the internal API",
+    "  # inside a 90 s deadline, under a 120 s route budget. Covers TrainingLevelExam.tsx, trainingApi.ts and the capstone",
+    "  # attempts route in portal.routes.js.",
+    "  @TT03 @draft",
+    "  Scenario: A teacher submits the written capstone exam: it is marked and recorded, and a marking outage records nothing",
+    "    Given the teacher app v2 is on and the coach app v2 is off",
+    "    And demo teacher 0300" "0000911 is signed in and has unlocked a level with a written capstone exam",
+    "    When they answer every question and submit the exam",
+    "    Then the attempt is marked and recorded once, and the result shows their score",
+    "    When marking is unavailable and they submit the exam again",
+    "    Then the screen says \"Not sent\" with the server's words that nothing has been recorded",
+    "    And their answers are still in the form",
+    "",
+  ]), ('../flows/teacher-training-readings.cjs', [
     "  # TT04 (bd-yef5iq.6 + bd-gbf8ix, 26 Oct 2026): I-SAPS module pages lost their reading list when the vendor was",
     "  # renamed (it was matched by name); it is now matched on the vendor key, and Level 2 has its own list.",
     "  @TT04",
@@ -139,7 +155,7 @@ EXTRA = {
     "    When she opens that course's module page",
     "    Then it lists the partner's required reading, each with a link",
     "",
-  ]),
+  ])],
   # The Home's new look (portal_teacher_home_look, only ever on with portal_teacher_home_card): portal/src/portal/teacher/
   # home/look/** and pages/Home.tsx. Today's Home answer is fixed per scenario; the switches are real (see the flow).
   'teacher-home': ('../flows/teacher-home-look.cjs', [
@@ -436,8 +452,8 @@ EXTRA['teacher-home'] = [EXTRA['teacher-home'], ('../flows/teacher-home-activity
     "",
 ])]
 
-# The class link card on Home: hand-written scenarios joined onto the generated teacher-home spec. Spec-only so far: the flow
-# module names them and reports each BLOCKED until its driver code is written (flows/teacher-home-class-link.cjs).
+# The class link card on Home: hand-written scenarios joined onto the generated teacher-home spec, driven by
+# flows/teacher-home-class-link.cjs against the run's own bot, database and Redis (bd-q8wt5e.6.5).
 EXTRA['teacher-home'].append(('../flows/teacher-home-class-link.cjs', [
     "  # The class link card on Home (app_settings web_quiz_class_link with web_quiz_challenge_v2 and web_quiz_challenge, and for tonight's",
     "  # line web_quiz_evening_round; all off by default, the bot decides). Home asks GET /api/portal/class-link and draws nothing for a 404.",
@@ -605,7 +621,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "    And it shows no transcript and no \"Focus here\"",
     "    And no page error or 5xx happened",
     "",
-]), (None, [
+]), ('../flows/coach-lesson-plans.cjs', [
     "  # bd-4joiqz — the coach app's Lesson Plans tab: the teacher Lesson Plans pages, read as a leader. Written by hand; the",
     "  # web driver has no code for it yet (@draft). The full journey is teacher-lessons LDR01.",
     "  @LDR07 @draft",
@@ -622,6 +638,39 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "    Then /portal/teacher/lessons/all does not open for them",
     "",
 ])]
+
+# bd-4joiqz LDR08 (bd-q8wt5e.6.5): the leader family on the Lesson Plans pages, a principal then a coach, each page healthy.
+EXTRA['portal-smoke'] = ('../flows/portal-smoke-leader-lessons.cjs', [
+    "  # bd-4joiqz — the leader family on the Lesson Plans pages. Written by hand; driven by",
+    "  # .claude/qa/web/flows/portal-smoke-leader-lessons.cjs (bd-q8wt5e.6.5).",
+    "  @LDR08 @draft",
+    "  Scenario: Leader family: the Lesson Plans pages open healthy for a coach and a principal off the teacher app",
+    "    Given the teacher app v2 and the coach app v2 are off",
+    "    And demo principal 0300" "0000902 is signed in",
+    "    When they open /portal/teacher/lessons",
+    "    Then it opens healthy",
+    "    When they open /portal/teacher/lessons/new",
+    "    Then it opens healthy",
+    "    Given the coach app v2 is on",
+    "    And demo coach 0300" "0000901 is signed in",
+    "    When they open /portal/teacher/lessons",
+    "    Then it opens healthy",
+    "    When they open /portal/teacher/lessons/new",
+    "    Then it opens healthy",
+    "",
+])
+
+# teacher-assessment TA03–TA17 and TA23–TA29 (bd-q8wt5e.6.5): hand-written flows. Their Gherkin, and TA18–TA22's driver code,
+# are still hand-written in the spec and the driver and are NOT reproduced here (bd-q8wt5e.22): never re-run this generator
+# over teacher-assessment until that is mirrored. Listed so a regenerated driver at least keeps requiring the flows.
+EXTRA['teacher-assessment'] = [(f'../flows/teacher-assessment-{n}.cjs', []) for n in ('fde', 'questions', 'papers', 'sandbox')]
+
+# bd-q8wt5e.6.6 — driver code for the hand-written teacher-lessons and leader-portal scenarios. Their Gherkin is written by
+# hand in the specs and is NOT carried here yet (bd-q8wt5e.22: re-running this generator drops it), so these entries add
+# the drivers' requires only; the empty Gherkin lists keep the generated part of each spec as it is.
+EXTRA['teacher-lessons'] = [('../flows/teacher-lessons-fln.cjs', []), ('../flows/teacher-lessons-leaders.cjs', []),
+                            ('../flows/teacher-lessons-own.cjs', []), ('../flows/teacher-lessons-viewer.cjs', [])]
+EXTRA['leader-portal'] = [('../flows/leader-assess.cjs', [])]
 
 ROLE_TXT = {'teacher': 'demo teacher 0300' '0000911', 'coach': 'demo coach 0300' '0000901', 'principal': 'demo principal 0300' '0000902'}
 MODE_TXT = {'classic': 'the teacher app v2 and the coach app v2 are off', 'teacherV2': 'the teacher app v2 is on and the coach app v2 is off',

@@ -108,6 +108,7 @@ const {
   isObserveUploadOnlyFor,
   isUploadPiecesFor,
   PORTAL_RECORDING_RESUME_KEY,
+  RECORDING_REPAIR_KEY,
   isFlagEnabled,
   ASSESSMENT_PAGE_FIT_KEY,
   COACH_REPORTS_APP_KEY,
@@ -2482,6 +2483,8 @@ router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
   query: (sql, params) => pool.query(sql, params),
   // bd-hl4a4y: her Training page's "Level N of M", from the bot as her own Training page reads it.
   levelStates: (userId) => TrainingRules.getLevelStates(userId),
+  // bd-8sr958 (queue #320): a lesson whose damaged file the team is recovering shows on her card (recording_repair).
+  recordingRepairOn: () => isFlagEnabled(supabase, RECORDING_REPAIR_KEY),
 }));
 // bd-33wxxi.2: the principal app's school API — her OWN school's card, counts only (portal_principal_app; off → 404).
 router.use(require('./portal-principal.routes').createPrincipalRouter({
@@ -8572,6 +8575,9 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, async (req, res)
       photoCount: Array.isArray(row.classroom_photos) ? row.classroom_photos.length : 0,
       // bd-aqotzx — why a stopped session stopped ('not_a_class', 'not_a_class_no_answer', 'too_short', …).
       stopReason: stage === 'stopped' ? (row.failed_step || null) : null,
+      // bd-8sr958 (queue #320) — a damaged file the team is recovering (recording_repair on): the page says "Recovering",
+      // with no Send again. Off: false, and the page reads as it always has.
+      recovering: stage === 'stopped' && row.failed_step === 'damaged_audio' && (await isFlagEnabled(supabase, RECORDING_REPAIR_KEY)) === true,
       // bd-z3cadk — the same recording was sent before: the earlier report was reused (the bot says so on WhatsApp).
       duplicate: !!row.duplicate_of_session_id,
       createdAt: row.created_at,
@@ -9709,6 +9715,7 @@ router.get('/config', async (req, res) => {
       recordingResumeRaw,
       assessmentPageFit,
       lessonPlanOpen,
+      recordingRepairRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9788,6 +9795,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabled(supabase, ASSESSMENT_PAGE_FIT_KEY),
       // bd-kijmb8 (queue #318) — the Lesson plan button on recordings and observations; per user, fail-closed.
       isFlagEnabledForUser(supabase, 'portal_lesson_plan_open', userId),
+      // bd-8sr958 (queue #320) — damaged-recording check at the pick and "Recovering" on the lesson page; fail-closed.
+      isFlagEnabled(supabase, RECORDING_REPAIR_KEY),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9857,6 +9866,7 @@ router.get('/config', async (req, res) => {
         observeUploadOnly,
         // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
         recordingResume: recordingResumeRaw === true,
+        recordingRepair: recordingRepairRaw === true,
         // bd-nr8mrm.4 — the Pages box (1-5) under Save paper (assessment_page_fit, fail-closed).
         assessmentPageFit,
         // bd-kijmb8 — Lesson plan button (portal_lesson_plan_open, fail-closed; a real true only).
@@ -9912,6 +9922,7 @@ router.get('/config', async (req, res) => {
         // bd-ih6cej — fail-closed: a broken read is the in-app recorder (Upload recording beside it).
         observeUploadOnly: false,
         recordingResume: false,
+        recordingRepair: false,
         uploadPieces: false,
         assessmentPageFit: false,
       },

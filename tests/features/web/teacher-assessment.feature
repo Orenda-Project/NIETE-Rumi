@@ -233,7 +233,7 @@ Feature: Teacher assessment
 
   # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
   # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
-  @sandbox
+  @TA23 @sandbox
   Scenario: A plain paper refused for the hour's limit says so above the rows
     Given the soft paper limit is on
     And the teacher has asked for 10 papers in the last hour
@@ -241,7 +241,7 @@ Feature: Teacher assessment
     Then the screen says "Paper limit reached · try again at" with the time, above the rows, in the teacher's language
 
   # The A/B source tag (bd-pw1ccr.1). Run on sandbox by the QA agent, reading the request row after each paper.
-  @sandbox
+  @TA24 @sandbox
   Scenario: A paper made from the class report's button is marked as one; the next paper she starts is not
     Given the demo teacher opened the paper maker from the report link for Grade 3, English, chapter 4
     When she taps Make my paper
@@ -250,7 +250,7 @@ Feature: Teacher assessment
     Then that request carries no report mark
     And a request whose grade has no such subject keeps her on Class, still marked as from the report
 
-  @sandbox @real-paper
+  @TA25 @sandbox @real-paper
   # bd-zrdvmi.24 — ICT Feedback sheet, Assessment Generator rows 6-7 (an RM asked to see Bloom's levels while choosing).
   Scenario: Edit paper shows each question's Bloom's level and a summary that follows Remove
     Given a plain paper whose questions carry Bloom's levels is open in Edit paper
@@ -262,7 +262,7 @@ Feature: Teacher assessment
     And the printed paper and answer key show no levels and no summary
     And a paper whose questions carry no level shows no summary, as before
 
-  @sandbox @real-paper
+  @TA26 @sandbox @real-paper
   # bd-zrdvmi.50.2 — ICT Feedback sheet, Assessment Generator row 7 point 7 (Amena 21 Nov): FDE's expected mix to compare.
   Scenario: Edit paper shows FDE's target thinking-level mix for Grades 1-5 beside the paper's own mix by marks
     Given a Grade 5 Maths paper whose questions carry Bloom's levels is open in Edit paper
@@ -274,7 +274,7 @@ Feature: Teacher assessment
     And a Grade 6-12 paper, or a subject FDE gives no table for, shows no FDE target
     And nothing stops the teacher keeping a paper that differs from the target
 
-  @sandbox
+  @TA27 @sandbox
   # bd-zrdvmi.50.3 — ICT Feedback sheet, Assessment Generator row 12 (Saba Kokab; Amena 21 Nov): a group of MCQs or
   # blanks under one heading counts as one question toward the 50.
   Scenario: A group of MCQs, blanks or true/false counts as one question toward the 50
@@ -288,7 +288,7 @@ Feature: Teacher assessment
     Then Next is held with "Printed items: up to 100"
     And on WhatsApp the same paper is accepted on the counts screen, and 51 written questions are refused naming 50
 
-  @sandbox @real-paper
+  @TA28 @sandbox @real-paper
   # bd-zrdvmi.50.4 — ICT Feedback sheet, Assessment Generator row 21 (Hafsa; Amena 21 Nov: a tick-list): after
   # choosing a chapter she sees that chapter's own questions and picks the ones she wants. Behind
   # app_settings assessment_book_picker_enabled.
@@ -305,7 +305,7 @@ Feature: Teacher assessment
     When she makes the paper
     Then the paper's seen questions are those 3, word for word, each with marks and an answer
 
-  @sandbox
+  @TA29 @sandbox
   Scenario: Select from the book follows the chapters on the paper and the switch
     Given the book picker is on
     And a teacher on Questions for a Grade 4 Urdu paper on two chapters

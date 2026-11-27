@@ -1,6 +1,6 @@
 /**
  * A fixed, checked set of whole-book papers per subject. A full-book request on a pattern that has a
- * set is served from it: a paper from the set she has not had, else the one she had longest ago. The
+ * set is served from it: a paper from the set she has not had, else null (a fresh paper). The
  * set is the rows stamped `_reuse.set = '<set>/<subject>'`; her copies point at them through `_reuse.from`.
  */
 const FixedSet = require('../../bot/shared/services/assessment/paper-fixed-set');
@@ -70,7 +70,7 @@ describe('findSetPaper', () => {
     expect(got.id).toBe('s3');
   });
 
-  test('when she has had all of them, the one she had longest ago comes back', async () => {
+  test('when she has had all of them, null: she gets a fresh paper, not a repeat', async () => {
     const own = [
       copy('c1', 's1', '2026-11-20T00:00:00Z'),
       copy('c2', 's2', '2026-11-05T00:00:00Z'),
@@ -78,7 +78,7 @@ describe('findSetPaper', () => {
       copy('c4', 's2', '2026-11-25T00:00:00Z'),
     ];
     const got = await FixedSet.findSetPaper({ db: fakeDb({ set: SET, own }), set: 'S', subject: 'maths', userId: 'u1' });
-    expect(got.id).toBe('s3');
+    expect(got).toBeNull();
   });
 
   test('null when the set is empty', async () => {

@@ -86,7 +86,7 @@ function makeItu({ api, sleep }) {
     if (!r.ok) throw new Error(`${table} insert ${r.status}: ${JSON.stringify(j).slice(0, 160)}`);
     return j[0];
   };
-  const USER = 'id,name,phone_number,registration_completed,deleted_at,deleted_by,school_id,first_message_at,is_test_user';
+  const USER = 'id,name,phone_number,registration_completed,deleted_at,deleted_by,school_id,region,first_message_at,is_test_user,preferred_language,language_locked';
   const user = async (q) => (await get(`users?select=${USER}&${q}`))[0] || null;
   let secret = '';
   try { secret = envValue(fs.readFileSync(path.join(__dirname, '..', 'config', 'local-lane.env'), 'utf8'), 'WHATSAPP_APP_SECRET'); } catch (_) { /* unsigned */ }
@@ -105,7 +105,7 @@ function makeItu({ api, sleep }) {
 
   async function setUp() {
     api.db('seed-school');
-    [school] = await get(`schools?select=id,name&emis=eq.${SEARCH_EMIS}&source_system=eq.qa_seed`);
+    [school] = await get(`schools?select=id,name,region&emis=eq.${SEARCH_EMIS}&source_system=eq.qa_seed`);
     if (!school) throw new Error('the QA school was not seeded');
   }
 
@@ -199,7 +199,7 @@ function makeItu({ api, sleep }) {
     } catch (_) { /* best effort */ }
   }
 
-  return { blocked, setUp, newTeacher, toAfterSchool, finish, tearDown };
+  return { blocked, setUp, newTeacher, toAfterSchool, finish, tearDown, school: () => school, user, adopt: (id) => { if (id) made.push(id); } };
 }
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
@@ -243,6 +243,8 @@ const NAMES = {
   R27: 'No keeps both accounts',
   R28: 'An account used in the last 30 days is never offered',
   R29: 'A session opened on the previous form finishes without the question',
+  R30: "Searching a school's EMIS code links the account to that school",
+  R31: 'A search that matches nothing offers only "My school isn\'t here"',
 };
 const CHROME_LANE_IDS = ['R01', 'R02', 'R03', 'R05', 'R06', 'R07', 'R08', 'R09', 'R10', 'R11', 'R12', 'R13',
   'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R20', 'R21', 'R22'];
@@ -253,9 +255,10 @@ function deferChromeLane(rec, want) {
 
 /** Drive R24–R29 (R23 is DEFERRED). Returns r(id): records that scenario's verdict, when `want` selected it. */
 async function drive({ api, rec, sleep, want }) {
-  const res = { R23: ['DEFERRED', { reason: 'not driven yet: needs a never-offered number and the lesson-plan catalogue turn; covered by tests/registration/front-door-invite.test.js' }, 0] };
+  const res = { R23: ['DEFERRED', { reason: 'not driven yet: needs a never-offered number and the lesson-plan catalogue turn; covered by tests/registration/front-door-invite.test.js' }, 0],
+    R31: ['BLOCKED', { reason: '@wip: not promoted to the lane (promotion is the spec owner\'s call, bd-q8wt5e); the same empty search is what R13 drives on the chrome lane' }, 0] };
   const r = (id) => { if (res[id] && want(id)) rec(id, NAMES[id], ...res[id]); };
-  const ids = ['R24', 'R25', 'R26', 'R27', 'R28', 'R29'].filter((id) => want(id));
+  const ids = ['R24', 'R25', 'R26', 'R27', 'R28', 'R29', 'R30'].filter((id) => want(id));
   if (!ids.length) return r;
   const it = makeItu({ api, sleep });
   const why = it.blocked();
@@ -317,6 +320,21 @@ async function drive({ api, rec, sleep, want }) {
         && f.welcomed && !f.welcome.includes(LINKED) && !f.welcome.includes(CHECKED);
       return V(asBefore && f.data.ok, { afterSchool: p.screen, completed: f.me && f.me.registration_completed, numbersKept: kept(f, t),
         greetingEnd: f.greeting.slice(-120), data: f.data });
+    });
+    // R30 (bd-q8wt5e.6.3) — a new teacher on the stored v5.1 form searches the QA school's EMIS (215), picks it and
+    // finishes: her users row then carries that school's id and its region (registration-endpoint.js SCHOOL_PICK,
+    // findPickableSchool). Her number is new, so the bot makes her row on her first message, as for a real teacher.
+    await run('R30', async () => {
+      const t = await it.newTeacher(8, 'Ayesha Malik');
+      const p = await it.toAfterSchool(t, { v6: false });
+      if (p.screen !== 'TEACHING') { t.u.closeFlow(); return V(false, { afterSchool: p.screen, err: p.err }); }
+      const f = await it.finish(t, null);
+      const sch = it.school();
+      const linked = Boolean(f.me && sch && f.me.school_id === sch.id);
+      const region = Boolean(f.me && sch && f.me.region === sch.region);
+      return V(Boolean(f.me && f.me.registration_completed) && linked && region && f.data.ok,
+        { completed: f.me && f.me.registration_completed, schoolId: f.me && f.me.school_id, wantSchool: sch && sch.id,
+          region: f.me && f.me.region, wantRegion: sch && sch.region, data: f.data });
     });
   } finally {
     await it.tearDown();

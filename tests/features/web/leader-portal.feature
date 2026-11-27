@@ -55,7 +55,8 @@ Feature: School leader (principal) portal
 
   # ── Round 7b · C · the results dashboard: mode, date and coach filters; every skip and stop by type and coach ──
 
-  @LP06 @config-gated
+  # @LP33 was a second @LP06 (bd-q8wt5e.6.6: ids are never reused)
+  @LP33 @config-gated
   Scenario: Results dashboard: a coach-led / auto filter applies across the whole dashboard (sa_dash_filters)
     Given the live results dashboard is on and sa_dash_filters is on for the signed-in user
     When they open /portal/leader/assess/dashboard
@@ -126,7 +127,8 @@ Feature: School leader (principal) portal
     Then "Getting Jugnu ready on this phone" shows with "Downloading… <done> of <total>" until it is all on the phone, then the test opens
     And once the test has started it needs no network: "The voice is not ready yet" can no longer appear in the middle of a test
 
-  @LP21 @negative @config-gated
+  # @LP34 was a second @LP21 (bd-q8wt5e.6.6: ids are never reused)
+  @LP34 @negative @config-gated
   Scenario: Learning assessment: no internet and the test is not on the phone yet (sa_r8_offline_first)
     Given sa_r8_offline_first is on and the phone has no internet and has never downloaded this grade's test
     When the coach taps "Start"

@@ -258,7 +258,8 @@ Feature: Teacher lesson plans
   # Covers dashboard/routes/portal-fln-pdf.routes.js, dashboard/services/fln-pdf-sign.js, fln/plan/DownloadPdf.tsx.
   # @draft: needs scripts/fln-pdf/render.js run against the sandbox bucket for the live corpus version first.
   # Pinned by tests/portal/fln-pdf-route.test.js (root) and downloadPdf.test.tsx (portal).
-  @FLNPDF01 @draft @config-gated
+  # @TL03 was @FLNPDF01 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL03 @draft @config-gated
   Scenario: FLN plan page: Download PDF saves the plan, and the button is hidden when no PDF exists
     Given portal_fln_lessons is on for demo teacher 03000000911
     And the plan's PDF was rendered to the bucket for the live corpus version
@@ -412,7 +413,8 @@ Feature: Teacher lesson plans
   # portal/src/portal/teacher/lessons/own/OwnExtend.test.tsx; the server-side refusal is tests/lp612/own-extend.test.js.
   # Re-running the generator rewrites this file — carry this block over when it does.
 
-  @OWN02 @draft @config-gated
+  # @OWN15 was a second @OWN02 (bd-q8wt5e.6.6: ids are never reused)
+  @OWN15 @draft @config-gated
   Scenario: Make my own offers the next lesson's pages, and the plan she asks for covers both lessons
     Given portal_lp_make_own is on for demo teacher 03000000911
     And she opens Make my own on a Grades 6–12 chapter and picks a lesson that is not the chapter's last
@@ -423,7 +425,8 @@ Feature: Teacher lesson plans
     When she makes the plan
     Then her plan is made from both lessons' pages, at two periods' length
 
-  @OWN03 @draft @config-gated
+  # @OWN16 was a second @OWN03 (bd-q8wt5e.6.6: ids are never reused)
+  @OWN16 @draft @config-gated
   Scenario: On the last lesson of a chapter there is no next lesson to add
     Given portal_lp_make_own is on for demo teacher 03000000911
     When she opens Make my own on a Grades 6–12 chapter and picks its last lesson
@@ -528,7 +531,8 @@ Feature: Teacher lesson plans
   # across screens, so a chapter list opened part-way down when she had scrolled Grade and subject to reach her subject.
   # TeacherPage now opens every new page at its top. Unit: portal/src/portal/teacher/TeacherPage.scroll.test.tsx.
   # Hand-written (@draft): the web driver has no scroll step yet.
-  @OWNSCROLL01 @draft
+  # @TL04 was @OWNSCROLL01 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL04 @draft
   Scenario: Make my own: after scrolling down Grade and subject, the chapter list opens at chapter 1
     Given the teacher app v2 is on and Make my own is on for demo teacher 03000000911
     And demo teacher 03000000911 is signed in on a 360 px phone
@@ -721,7 +725,8 @@ Feature: Teacher lesson plans
   # last page here. Covered by portal/src/portal/teacher/lessons/FeedbackBar.test.tsx + ViewerPage tests (vitest) and
   # tests/portal/lp-feedback-route.test.js, tests/feedback/lp-in-app-feedback*.test.js (one row per teacher per plan,
   # trigger_mode 'in_app', the grades 1-5 column). Checked by hand on sandbox with a test teacher.
-  @LPBAR01 @draft @config-gated
+  # @TL05 was @LPBAR01 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL05 @draft @config-gated
   Scenario: Teacher app v2: with the survey bar on, a grades 1-5 plan ends with "This plan · Useful · Not useful", and Useful asks In class
     Given the teacher app v2 is on and the survey bar is on for the demo teacher
     And she opens one of her grades 1-5 lesson plans in the viewer
@@ -729,7 +734,8 @@ Feature: Teacher lesson plans
     Then "In class" asks "Taught it today · Planning to · Not yet" in the same place, never as a pop-up
     And tapping "Taught it today" shows "Thanks" and saves one answer for her and this plan
 
-  @LPBAR02 @draft @config-gated @negative
+  # @TL06 was @LPBAR02 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL06 @draft @config-gated @negative
   Scenario: Teacher app v2: a plan she already answered, in the app or on WhatsApp, shows no survey bar
     Given the survey bar is on for the demo teacher and she has already answered this grades 1-5 plan
     When she opens the plan and reaches its end
@@ -737,14 +743,16 @@ Feature: Teacher lesson plans
 
   # bd-m8zwt1.15 / bd-m8zwt1.16 (queue #164 testing), pinned by FeedbackBar.test.tsx and ViewerPage.feedback.test.tsx.
   # bd-96f69c.16 (21 Nov): grades 6-12 plans get the bar too, so the grades 7 line now expects it.
-  @LPBAR03 @draft @config-gated
+  # @TL07 was @LPBAR03 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL07 @draft @config-gated
   Scenario: Teacher app v2: a GB plan ends with the survey bar, grades 3 or grades 7
     Given the survey bar is on for a GB teacher
     When she opens a grades 3 plan and reaches its end
     Then "This plan · Useful · Not useful" is drawn
     And a grades 7 plan ends with the same survey bar
 
-  @LPBAR04 @draft @config-gated @negative
+  # @TL08 was @LPBAR04 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL08 @draft @config-gated @negative
   Scenario: Teacher app v2: the same plan open in two tabs follows the answer already saved
     Given she answered "Useful" for a plan in one tab
     When she taps "Not useful" for the same plan in a second tab
@@ -753,14 +761,16 @@ Feature: Teacher lesson plans
   # bd-96f69c.16 (21 Nov): the survey bar on grades 6-12 plans, asked per render (kind g612). Opening one tells the bot the
   # survey is in the app, so it sends no WhatsApp survey for that open. Pinned by ViewerPage.feedback.test.tsx,
   # lessonPlansApi.test.ts, own/ChangePage.test.tsx (portal) and tests/portal/lp-feedback-bar-open-survey.test.js.
-  @LPBAR05 @draft @config-gated
+  # @TL09 was @LPBAR05 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL09 @draft @config-gated
   Scenario: Teacher app v2: a grades 6-12 plan ends with the survey bar, and no WhatsApp survey follows the open
     Given the teacher app v2 is on and the survey bar is on for an ICT grades 9 teacher
     When she opens one of her grades 9 lesson plans and reaches its end
     Then "This plan · Useful · Not useful" is drawn, asked for this plan's render
     And her open is recorded as surveyed in the app, so the bot sends her no WhatsApp survey for it
 
-  @LPBAR06 @draft @config-gated @negative
+  # @TL10 was @LPBAR06 (bd-q8wt5e.6.6: an @ID the lane's matchers read is two letters and digits)
+  @TL10 @draft @config-gated @negative
   Scenario: Teacher app v2: a grades 6-12 shelf plan or her own made plan shows no survey bar
     Given the survey bar is on for an ICT grades 9 teacher
     When she opens another teacher's plan from the shelf, or a plan she made herself

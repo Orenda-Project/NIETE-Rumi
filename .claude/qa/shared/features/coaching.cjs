@@ -798,4 +798,67 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   rec('COA108', 'My own report on an observation form the clips cannot read gets no clip, and the skip is recorded', 'BLOCKED', { reason: 'no driver yet: bd-tp4w7n.5 (VIDREC R9c) added these @wip @draft scenarios behind VIDEO_RECO_ALIGNED with the fix; the unit suite tests/coaching/video-reco/r9-aligned.test.js covers them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
   rec('COA109', 'After my first clip, a wait tacked onto another step gets no wait-time clip', 'BLOCKED', { reason: 'no driver yet: bd-tp4w7n.6 (VIDREC R9d) added these @wip @draft scenarios behind VIDEO_RECO_ALIGNED with the fix; the unit suite tests/coaching/video-reco/r9-aligned.test.js covers them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
   rec('COA110', 'With later visits switched off, a teacher who already got a clip gets no other', 'BLOCKED', { reason: 'no driver yet: bd-tp4w7n.6 (VIDREC R9d) added these @wip @draft scenarios behind VIDEO_RECO_ALIGNED with the fix; the unit suite tests/coaching/video-reco/r9-aligned.test.js covers them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
+
+  // ── bd-q8wt5e.6.3: COA142–COA145 ──
+  if (want('COA142')) await drivePhotoBurst({ api, rec, sleep });
+  const NO_PORTAL = 'the teacher portal (dashboard/ server: Coaching list and report page) is not on the mock lane\'s stack, which runs '
+    + 'the bot and the mock Graph API only; the web lane (.claude/qa/web) drives portal pages. Needs a coach observation sent '
+    + 'through /observe as well, which observe.feature owns';
+  if (want('COA143')) rec('COA143', "A coach's observation appears in the teacher's portal only once the report is sent to her", 'BLOCKED', { reason: NO_PORTAL }, 0);
+  if (want('COA144')) rec('COA144', "The coach's debrief and her own feedback never reach the teacher's portal", 'BLOCKED', { reason: NO_PORTAL }, 0);
+  if (want('COA145')) rec('COA145', "The chapter's close-out lessons are named for what they are in the lesson list", 'BLOCKED',
+      { reason: '@draft: not promoted to the lane; needs a recording whose lesson list reaches a chapter\'s segment 990/995 lessons. Unit: bot/tests/unit/lp-selection-format-segment-label.test.js' }, 0);
 };
+
+/** COA142 (bd-q8wt5e.6.3) — two photos sent together on the photo step: each is kept, and ONE prompt counts both
+ *  (capture.service appendPhotoLocked + promptOncePerBurst). A fresh analysis is started on the driver's own account;
+ *  the photo step is answered "Yes", then both photos are injected at once. Everything is cancelled afterwards. */
+async function drivePhotoBurst({ api, rec, sleep }) {
+  const NAME = 'Photos sent together in one go are all kept, and the one prompt counts them all';
+  const s = Date.now();
+  const P = require('path');
+  const jsonOf = (o) => { try { const l = String(o.out || '').trim().split('\n').reverse().find((x) => x.trim().startsWith('{')); return l ? JSON.parse(l) : null; } catch (_) { return null; } };
+  const btn = (r, rx) => ((r && r.btns) || []).find((b) => rx.test(b));
+  try {
+    try { api.db('cancel-stuck'); api.db('reset-history'); } catch (_) {}
+    await api.resetFlow();
+    await api.freshReset();
+    const up = await api.upload(P.join(MEDIA, 'hameeda_16min.m4a'), 'Document', 180000);
+    let card = up;
+    for (let w = 0; !btn(card, /Yes,? Analyze|تجزیہ کریں/i) && w < 30000; w += 1000) { const b = (await api.fresh()).find((r) => btn(r, /Yes,? Analyze|تجزیہ کریں/i)); if (b) card = b; else await sleep(1000); }
+    if (!btn(card, /Yes,? Analyze|تجزیہ کریں/i)) { rec('COA142', NAME, 'BLOCKED', { reason: 'no "Yes, Analyze" card after the upload', reply: (up.txt || '').slice(0, 120) }, Date.now() - s); return; }
+    await api.tapAndWait(btn(card, /Yes,? Analyze|تجزیہ کریں/i), 120000);
+    let offer = null;
+    for (let w = 0; !offer && w < 150000; w += 1500) {
+      offer = (await api.fresh()).find((r) => /add up to \d+ photos|تصاویر بھی شامل|تصویر/i.test(r.txt || '') && (r.btns || []).length);
+      if (!offer) await sleep(1500);
+    }
+    if (!offer) {
+      rec('COA142', NAME, 'BLOCKED', { reason: 'the photo step never came: the session stalled before it, which on this lane is the stale coaching '
+        + 'cassettes (prompts changed since ~30 Sep; re-record is bd-q8wt5e.13, not done live here)' }, Date.now() - s);
+      return;
+    }
+    if (btn(offer, /^(Yes|ہاں|جی ہاں)$/i)) await api.tapAndWait(btn(offer, /^(Yes|ہاں|جی ہاں)$/i), 4000).catch(() => null);
+    await api.freshReset();
+    const [a, b] = await Promise.all([api.upload(P.join(MEDIA, 'textbook_page.png'), 'Photos & videos', 60000),
+                                      api.upload(P.join(MEDIA, 'board_fractions.png'), 'Photos & videos', 60000)]);
+    await sleep(9000);   // past the burst debounce (COACHING_PHOTO_PROMPT_DEBOUNCE_MS, 5 s) and the prompt it sends
+    const seen = [a, b, ...(await api.fresh())].filter((x) => x && x.txt);
+    const uniq = seen.filter((x, i, arr) => arr.findIndex((y) => (y.seq != null && y.seq === x.seq) || (y.txt === x.txt && y.seq == null)) === i);
+    const prompts = uniq.filter((x) => /photos? received|تصاویر موصول|تصویر موصول/i.test(x.txt));
+    const two = prompts.filter((x) => /2 of 3 photos received|2 of 3/i.test(x.txt));
+    const promptBtns = (two[0] && two[0].btns) || [];
+    const done = btn(two[0], /^Done$|مکمل/i);
+    if (done) await api.tapAndWait(done, 60000).catch(() => null);
+    const sess = jsonOf(api.db('session-get')) || {};
+    const photos = ((sess.conversation_state || {}).classroom_photos) || [];
+    rec('COA142', NAME, ...((prompts.length === 1 && two.length === 1 && promptBtns.some((x) => /Add another|مزید تصویر/i.test(x)) && !!done && photos.length === 2)
+      ? ['PASS'] : ['FAIL']).concat([{ prompts: prompts.map((x) => ({ txt: x.txt.slice(0, 120), btns: x.btns })), photosKept: photos.length,
+        sessionId: sess.id || null, notChecked: 'the 👍 on each photo is a reaction: the mock Graph API counts reactions but keeps no emoji' }]), Date.now() - s);
+  } catch (e) {
+    rec('COA142', NAME, 'FAIL', { err: String(e.message || e).slice(0, 200) }, Date.now() - s);
+  } finally {
+    try { api.db('cancel-stuck'); } catch (_) {}
+    await api.resetFlow();
+  }
+}

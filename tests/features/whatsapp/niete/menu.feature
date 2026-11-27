@@ -202,7 +202,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # portal_password_hash NULL. bd-kkpg4t sent them the set-up invite; now no account is asked for a password —
     # the WhatsApp sign-in link is the way in, password or not (portal-command.handler.js).
 
-  @obsolete @config-gated @P3
+  @obsolete @config-gated @P3 @M37
   Scenario: /settings degrades gracefully when the Settings Flow is not configured
     # OBSOLETE 2026-09-16 (operator): removed from the E2E lane — its precondition (SETTINGS_FLOW_ID unset) cannot be met on any reachable env here, so it only ever SKIPped; the degrade path stays covered by unit tests. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open
@@ -250,7 +250,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # message (text-message.handler.js, the AWAITING_MENU_CHOICE block). A digit 1-4 still picks from
     # the numbered TEXT menu, which is sent when the list cannot be.
 
-  @e2e @menu @edge @P2
+  @e2e @menu @edge @P2 @M38
   Scenario: Tapping a menu row ends the menu wait, so the next free text is answered
     Given the NIETE bot chat is open
     And I have just sent "/menu"
@@ -349,7 +349,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # lpAskYesReply — the same copy the lesson-plan coaching ask's "Record my lesson"
   # sends (intended: it changes every entry). Driven by the E2E lane.
 
-  @e2e @menu @wip @draft @P1
+  @e2e @menu @wip @draft @P1 @M39
   Scenario: The coaching prompt says 20–45 minutes
     Given the NIETE bot chat is open
     And my role is "teacher"
@@ -379,7 +379,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # WhatsApp lesson-plan menu until the switch is true. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js.
   # UPDATED 2026-10-23 (bd-a73p5m): the row (and its number) opens the Lesson Plans tab now (/portal/teacher/lessons),
   # not Send a lesson plan, and needs no FLN share. Unit: tests/app-redirect/app-link-leader-lessons-doors.test.js.
-  @obsolete @menu @config-gated @P1
+  @obsolete @menu @config-gated @P1 @M40
   Scenario: A coach tapping the Lesson Plans row gets one button that opens Send a lesson plan
     # OBSOLETE 2026-10-23 (bd-a73p5m): the row opens the Lesson Plans tab now — replaced by "A coach tapping the Lesson Plans row gets one button that opens the Lesson Plans tab" below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
@@ -390,7 +390,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then I get one message with a "Send a plan" button that opens Send a lesson plan, signed in
     And no lesson-plan menu opens
 
-  @e2e @menu @config-gated @P1
+  @e2e @menu @config-gated @P1 @M41
   Scenario: A coach tapping the Lesson Plans row gets one button that opens the Lesson Plans tab
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)

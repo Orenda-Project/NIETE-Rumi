@@ -104,8 +104,8 @@ Feature: Portal-wide smoke — every main page, every role
     When she opens /portal/delete-account
     Then it opens healthy
 
-  # bd-4joiqz — the leader family on the Lesson Plans pages. Written by hand; the web driver has no code for it yet
-  # (@draft).
+  # bd-4joiqz — the leader family on the Lesson Plans pages. Written by hand; driven by
+  # .claude/qa/web/flows/portal-smoke-leader-lessons.cjs (bd-q8wt5e.6.5).
   @LDR08 @draft
   Scenario: Leader family: the Lesson Plans pages open healthy for a coach and a principal off the teacher app
     Given the teacher app v2 and the coach app v2 are off

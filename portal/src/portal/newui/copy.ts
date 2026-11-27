@@ -377,6 +377,13 @@ export const COACHING_COPY = {
   tooLarge: 'Too large',
   /** bd-bsc0ox — the phone would not read a file she picked (the Android app loses picked files). */
   fileWontOpen: 'File will not open',
+  /** bd-8sr958 (queue #320) — a damaged recording: checked at the pick, rebuilt by the server. Words, never a sentence. */
+  damagedFile: 'Damaged file',
+  autoRepair: 'Auto repair',
+  emptyFile: 'Empty file',
+  /** A lesson whose file the team is recovering: no Send again. */
+  recovering: 'Recovering',
+  withTeam: 'With team',
 
   /* ── /portal/coaching/new: record ─────────────────────────────────────── */
   recordTitle: 'Record live lecture',

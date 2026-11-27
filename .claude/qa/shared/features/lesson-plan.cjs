@@ -297,4 +297,498 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     const x = await require('../niete_lp_whatsapp_off_case.cjs').sendLpWithPdfOff(api, ['gb'], CARD), e = x.value || {};
     if (x.ran) rec('L14', L14, ...V(e.card && !e.appLink, e), x.ms); else rec('L14', L14, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
   }
+
+  await runNew({ api, rec, sleep, want, openLP, waitFresh });
 };
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// bd-q8wt5e.6.3 — L67–L149: the scenarios given ids in that bead. Driven where the lane can reach them; otherwise
+// recorded BLOCKED with what is missing (each call names its id literally: check-scenario-coverage reads `fn('L..'`).
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+const PATH = require('path');
+const { UX_STRINGS: UX } = require(PATH.resolve(__dirname, '..', '..', '..', '..', 'bot/shared/config/ux-strings.js'));
+const LL = require('../leader-lessons-case.cjs');
+const SEG612 = 'grade_6_computer_science.c01.p005-005';   // the one 6-12 lesson the lane serves (seed-files.txt: its lp.json)
+// A K-5 survey is told from the 6-12 one by its button ids (lp_feedback_yes_<plan> vs lp612_fb_yes_…): the Urdu titles are the same.
+const btnIds = (x) => ((((x || {}).raw || {}).interactive || {}).action || {}).buttons ? x.raw.interactive.action.buttons.map((b) => (b.reply || {}).id || '') : [];
+const isK5Survey = (x) => btnIds(x).some((id) => /^lp_feedback_(yes|no)_/.test(id));
+
+/** The run's stack: its private Redis and the mock Graph API's signal counter (reactions, read receipts, typing). */
+function stack() {
+  const SC = require(PATH.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs'));
+  let mockUrl = null;
+  try { mockUrl = JSON.parse(require('fs').readFileSync(PATH.join(SC.runDir(), 'stack.json'), 'utf8')).mock_url; } catch (_) {}
+  const signals = async () => { try { return (await (await fetch(mockUrl + '/health')).json()).signals; } catch (_) { return null; } };
+  /** Cassette keys this run missed since `t0` (the replay-only lane cannot answer them). */
+  const misses = (t0) => {
+    try {
+      return require('fs').readFileSync(PATH.join(SC.runDir(), 'cassette-trace.jsonl'), 'utf8').split('\n').filter(Boolean)
+        .map((l) => JSON.parse(l)).filter((j) => j.ts >= t0 && j.outcome && j.outcome !== 'hit').map((j) => j.kind + ':' + String(j.key).slice(0, 24));
+    } catch (_) { return []; }
+  };
+  return { redis: SC.redis, signals, misses };
+}
+
+/** PostgREST on the run's own database (null elsewhere — every write here is a scenario's own set-up). */
+function localDb() {
+  const { dbCreds } = require(PATH.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs'));
+  const { url, key, kind } = dbCreds();
+  if (!url || !key || kind !== 'local') return null;
+  const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=representation' };
+  const call = async (method, q, body) => { const r = await fetch(`${url}/rest/v1/${q}`, { method, headers: H, body: body ? JSON.stringify(body) : undefined }); return r.ok ? r.json().catch(() => []) : []; };
+  return { get: (q) => call('GET', q), patch: (q, b) => call('PATCH', q, b), del: (q) => call('DELETE', q) };
+}
+
+async function runNew({ api, rec, sleep, want, openLP, waitFresh }) {
+  const t = () => Date.now();
+  const ST = stack();
+  const db = localDb();
+  const uid = LL.driverId(api);
+  const verdict = (ok, ev, t0) => {
+    // A step that went to a vendor the lane has no cassette for is not the product's answer: BLOCKED, with the key.
+    const m = ST.misses(t0);
+    if (!ok && m.length) return ['BLOCKED', { reason: 'cassette miss on the replay-only lane — recording it is a paid live call and needs an operator go', misses: m.slice(0, 5), ...ev }];
+    return [ok ? 'PASS' : 'FAIL', ev];
+  };
+  const clearClaims = async () => {
+    if (!uid) return;
+    for (const pat of [`lpv8_deliver:${uid}:*`, `lp_feedback_asked:${uid}:*`]) {
+      const k = await ST.redis(['KEYS', pat]);
+      const keys = (k && (k.out || k.value || k.result)) || [];
+      const list = Array.isArray(keys) ? keys : String(keys).split(/\s+/).filter(Boolean);
+      for (const key of list) await ST.redis(['DEL', key]);
+    }
+  };
+  /** Walk the Pick-Class Flow with fixed picks (null = the first pickable row); 'English' is preferred where offered. */
+  const walk = async (picks) => {
+    const CHROME = /^(Back|Close|Powered by|Tap to open|Lesson Plans|📘)/i;
+    const trail = [];
+    for (const fixed of picks) {
+      const pr = await api.flowProbe();
+      if (!pr.screen && !pr.text) break;
+      const pickable = (pr.items || []).filter((i) => i.text && !i.disabled && !CHROME.test(i.text.trim()));
+      const eng = pickable.find((i) => /^English$/i.test(i.text.trim()));
+      const label = fixed || (eng && eng.text) || (pickable[0] && pickable[0].text.split('\n')[0].trim());
+      const c = label ? await api.flowClick(label, { settleMs: 3000 }) : { ok: false, err: 'NOTHING_TO_PICK' };
+      trail.push({ screen: pr.screen, picked: label, ok: !!c.ok, after: c.ok ? undefined : c.err });
+      if (!c.ok) break;
+    }
+    return trail;
+  };
+  const isPdf = (x) => !!(x.pdf || x.doc);
+  /** Ask for a lesson through the Flow and collect what the chat receives in `windowMs` after the Flow closes. */
+  const deliver = async (picks, windowMs, { reset = true } = {}) => {
+    await api.resetFlow();
+    await api.sendWait('/lp');
+    const op = await openLP();
+    if (!op.ok) return { ok: false, err: 'Flow did not open: ' + op.err };
+    if (reset) await api.freshReset();
+    const trail = await walk(picks);
+    const closing = await api.flowProbe();
+    api.closeFlow();
+    const seen = [];
+    const t0 = t();
+    while (t() - t0 < windowMs) { seen.push(...(await api.fresh())); if (seen.some(isPdf) && windowMs <= 0) break; await sleep(1500); }
+    return { ok: true, trail, closing: (closing.text || '').slice(0, 120), seen };
+  };
+  const K5 = ['Grade 1', 'English', 'Ch 1', 'Day 1'];
+  const G6 = ['Grade 6', 'Computer Science', null, null, null];
+  const survey = (seen, rx) => seen.filter((x) => (rx === 'k5' ? isK5Survey(x) : (x.btns || []).some((b) => rx.test(b))));
+  /** Wait (up to `ms`) for a survey message; returns it or null. */
+  const waitSurvey = async (rx, ms = 60000, already = []) => {
+    const hit = survey(already, rx)[0];
+    if (hit) return hit;
+    const w = await waitFresh((x) => (rx === 'k5' ? isK5Survey(x) : (x.btns || []).some((b) => rx.test(b))), ms);
+    return w.ok ? w.hit : null;
+  };
+  /** Tap a reply button and read what follows for `ms`: messages with words, and the mock's signal count delta. */
+  const tapQuiet = async (label, ms = 8000) => {
+    const s0 = await ST.signals();
+    await api.freshReset();
+    await api.tapAndWait(label, 2000).catch(() => null);
+    await sleep(ms);
+    const after = (await api.fresh()).filter((x) => x.txt || (x.btns || []).length);
+    const s1 = await ST.signals();
+    return { messages: after.map((x) => (x.txt || '').slice(0, 100)), signals: s0 == null || s1 == null ? null : s1 - s0 };
+  };
+  /** Send a free-text answer and read what follows (a reason is receipted by a reaction, not a message). */
+  const tapQuietText = async (text, ms = 5000) => {
+    await api.freshReset();
+    await api.sendWait(text, ms).catch(() => null);
+    const after = (await api.fresh()).filter((x) => x.txt);
+    if (uid) await ST.redis(['DEL', `lp612_feedback_pending:${uid}`]);
+    return { messages: after.map((x) => (x.txt || '').slice(0, 100)) };
+  };
+  const NOT_SEEN = 'the mock Graph API counts reactions, read receipts and typing indicators as one number and keeps no emoji, so 🙏-vs-👍 and "no typing…" are not observable here';
+  let s;
+
+  // ── K-5 survey: L69 (double tap), L70 (surveyed once in ten minutes), L68 (receipt by reaction) ──
+  if (want('L69', 'L70', 'L68')) {
+    // Drain what earlier scenarios left in flight: L01's survey (same lesson) and L03's 6-12 survey land 30 s after
+    // their deliveries, and L01's would claim this lesson's ten-minute survey window inside L69.
+    if (want('L01', 'L03')) await waitFresh(() => false, 32000);
+    await clearClaims();
+    s = t();
+    // L69 — the same lesson tapped twice inside a minute (the Flow reopened for the second tap).
+    const a = await deliver(K5, 0);
+    const b = await deliver(K5, 45000, { reset: false });   // ~45 s: past the 30 s survey delay; one read of both taps
+    const all = [...(a.seen || []), ...(b.seen || [])];
+    const pdfs = all.filter(isPdf).length;
+    const voices = all.filter((x) => x.audio || x.voice).length;
+    const preparing = all.filter((x) => /(سبق کا منصوبہ تیار|Preparing|Sending your lesson plan)/i.test(x.txt || '')).length;
+    const surveys69 = survey(all, 'k5');
+    if (want('L69')) rec('L69', 'Tapping the same lesson twice in the Pick Class Flow delivers it once',
+      ...verdict(a.ok && b.ok && pdfs === 1 && voices <= 1 && preparing <= 1 && surveys69.length === 1,
+        { pdfs, voiceNotes: voices, preparing, surveys: surveys69.length, closingScreens: [a.closing, b.closing], trails: [a.trail, b.trail] }, s), t() - s);
+
+    // L70 — the same lesson again after the first survey: the 2-minute double-tap claim is let go (as if 3 minutes
+    // had passed), the 10-minute survey claim is kept. The PDF comes again; no second survey.
+    s = t();
+    if (uid) for (const k of String(((await ST.redis(['KEYS', `lpv8_deliver:${uid}:*`])) || {}).out || '').split(/\s+/).filter(Boolean)) await ST.redis(['DEL', k]);
+    const c = await deliver(K5, 45000);
+    const again = (c.seen || []).filter(isPdf).length;
+    const surveys70 = survey(c.seen || [], 'k5').length;
+    if (want('L70')) rec('L70', 'The same lesson delivered twice within ten minutes is surveyed once',
+      ...verdict(surveys69.length === 1 && again === 1 && surveys70 === 0,
+        { firstSurveyed: surveys69.length, pdfAgain: again, secondSurveys: surveys70, note: 'the 2-minute double-tap claim was cleared to stand for the 3 minutes the spec waits' }, s), t() - s);
+
+    // L68 — a fresh survey, 👍, and the answer that needs no follow-up is receipted without a message. The lane's one
+    // Grades 1-5 lesson arrives WITH its voice note, so its 👍 rightly asks the usage question (after_voice_note); the
+    // receipt rule is then read on the usage answer, which the spec puts under the same rule (NL1/FX7).
+    s = t();
+    await clearClaims();
+    const d = await deliver(K5, 0);
+    const sv = await waitSurvey('k5', 60000, d.seen || []);
+    let ev68 = { surveyed: !!sv };
+    let ok68 = false;
+    if (sv) {
+      const yes = sv.btns.find((x) => /👍/.test(x));
+      const s0 = await ST.signals();
+      await api.freshReset();
+      const r = await api.tapAndWait(yes, 8000).catch(() => null);
+      await sleep(4000);
+      const afterYes = [r, ...(await api.fresh())].filter((x) => x && (x.txt || (x.btns || []).length));
+      const usage = afterYes.find((x) => (x.btns || []).includes('Taught it today') || (x.btns || []).includes('آج پڑھا دیا'));
+      const thanks = /Thanks — glad it helped|شکریہ — خوشی ہے یہ مفید تھی/;
+      if (usage) {
+        const q = await tapQuiet((usage.btns || []).find((x) => /Taught it today|آج پڑھا دیا/.test(x)));
+        ok68 = q.messages.length === 0 && (q.signals == null || q.signals > 0);
+        ev68 = { path: 'voice note delivered → usage question → "Taught it today"', afterTap: q, notChecked: NOT_SEEN };
+      } else {
+        const s1 = await ST.signals();
+        ok68 = !afterYes.some((x) => thanks.test(x.txt || '')) && afterYes.length === 0;
+        ev68 = { path: '👍 with no voice note', afterYes: afterYes.map((x) => (x.txt || '').slice(0, 100)), signals: s0 == null ? null : s1 - s0, notChecked: NOT_SEEN };
+      }
+    }
+    if (want('L68')) rec('L68', 'A survey answer that needs no follow-up is receipted by a reaction, not a message', ...verdict(ok68, ev68, s), t() - s);
+  }
+
+  // ── 6-12 survey: L67 (👍 asks whether I taught it), L94 (👎 asks why), L73 (asked in my language) ──
+  const fresh612 = async () => { if (db && uid) await db.del(`lp_feedback?user_id=eq.${uid}&lp612_segment_id=eq.${SEG612}`); };
+  const s612 = async ({ beforeSurvey } = {}) => {
+    await fresh612();
+    const d = await deliver(G6, 0);
+    const pdf = (d.seen || []).find(isPdf) || (await waitFresh(isPdf, 150000, 2000)).hit;
+    if (beforeSurvey) await beforeSurvey();
+    const sv = await waitSurvey(/👍 (Yes|ہاں)/, 60000, d.seen || []);
+    return { d, pdf, sv };
+  };
+  const usedAsk = (r, lang) => (r && r.txt || '').includes(UX.lp612UsedAsk[lang]);
+  const threeUsed = (r, lang) => JSON.stringify((r && r.btns) || []) === JSON.stringify([UX.lp612UsedTaught[lang], UX.lp612UsedPlanned[lang], UX.lp612UsedNotYet[lang]]);
+  if (want('L67')) {
+    s = t();
+    const x = await s612();
+    let ok = false, ev = { pdf: !!x.pdf, surveyed: !!x.sv, file: x.pdf && x.pdf.media && x.pdf.media.filename };
+    if (x.sv) {
+      const r = await api.tapAndWait(UX.lp612FeedbackYes.en, 60000);
+      const q = usedAsk(r, 'en') && threeUsed(r, 'en') ? await tapQuiet(UX.lp612UsedTaught.en) : null;
+      ok = usedAsk(r, 'en') && threeUsed(r, 'en') && !!q && q.messages.length === 0;
+      ev = { ...ev, question: (r.txt || '').slice(0, 80), replies: r.btns, afterTaught: q, notChecked: NOT_SEEN };
+    }
+    rec('L67', 'Rating a 6-12 lesson plan useful asks whether I taught it', ...verdict(ok, ev, s), t() - s);
+  }
+  if (want('L94')) {
+    s = t();
+    const x = await s612();
+    let ok = false, ev = { pdf: !!x.pdf, surveyed: !!x.sv };
+    if (x.sv) {
+      await api.freshReset();
+      const r = await api.tapAndWait(UX.lp612FeedbackNo.en, 60000);
+      await sleep(4000);
+      const more = await api.fresh();
+      const asksUse = [r, ...more].some((m) => usedAsk(m, 'en') || ((m && m.btns) || []).includes(UX.lp612UsedTaught.en));
+      ok = (r.txt || '').includes(UX.lp612FeedbackAskReason.en) && !asksUse;
+      // answer it in her own words, as asked: the reason window (10 min) otherwise takes the next free text
+      const why = await tapQuietText('The timings were too long for my class');
+      ev = { ...ev, reply: (r.txt || '').slice(0, 100), asksWhetherTaught: asksUse, reasonAnswered: why };
+    }
+    rec('L94', 'A thumbs-down asks why, and never asks whether I taught it', ...verdict(ok, ev, s), t() - s);
+  }
+  if (want('L73')) {
+    s = t();
+    const [orig] = db && uid ? await db.get(`users?select=preferred_language,language_locked&id=eq.${uid}`) : [];
+    let ok = false, ev = {};
+    try {
+      // The English 6-12 lesson, ordered while English; she is Urdu by the time the survey asks (30 s later, in the
+      // voice read at send time: lp612-feedback.shared.js _voiceOf). An Urdu account would be sent the Urdu document.
+      const x = await s612({ beforeSurvey: () => api.setUser({ preferred_language: 'ur', language_locked: true }) });
+      ev = { pdf: !!x.pdf, file: x.pdf && x.pdf.media && x.pdf.media.filename, surveyed: !!x.sv, surveyBtns: x.sv && x.sv.btns };
+      if (x.sv) {
+        const r = await api.tapAndWait(UX.lp612FeedbackYes.ur, 60000);
+        ok = /_en\.pdf$/i.test((x.pdf && x.pdf.media && x.pdf.media.filename) || '') && usedAsk(r, 'ur') && threeUsed(r, 'ur');
+        ev = { ...ev, question: (r.txt || '').slice(0, 80), replies: r.btns };
+      }
+    } finally {
+      await api.setUser({ preferred_language: (orig && orig.preferred_language) || 'en', language_locked: !!(orig && orig.language_locked) });
+    }
+    rec('L73', "The use question is asked in my language, not the document's", ...verdict(ok, ev, s), t() - s);
+  }
+  await fresh612();
+
+  // ── leaders and the Lesson Plans tab (leader_app_lesson_plan): L132 L133 L135 L136 L138 L139 L140 ──
+  const READ_BODY = true;   // the leader body, either language (leader-lessons-case.cjs LEADER_BODY)
+  const leader = async (id, name, value, role, act, judge) => {
+    if (!want(id)) return;
+    const s0 = t();
+    const x = await LL.withLeaderSwitch(api, value, role, async () => LL.collect(api, act, 5000));
+    if (!x.ran) return rec(id, name, 'BLOCKED', { reason: LL.LEADER_BLOCKED, setAppSetting: x.reason }, 0);
+    const [ok, ev] = judge(x.value);
+    rec(id, name, ...verdict(ok, ev, s0), t() - s0);
+  };
+  const tab = (body, extra) => (c) => { const [ok, ev] = LL.tabVerdict(c, uid, { body }); const e = extra ? extra(c) : { ok: true }; return [ok && e.ok, { ...ev, ...e }]; };
+  const keepsMenu = (c) => [c.lpMenu && c.ctas.length === 0, { lpMenu: c.lpMenu, ctas: c.ctas.length, messages: c.messages }];
+  await leader('L132', 'A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app', true, 'coach',
+    () => api.sendWait('lesson plan'), tab(READ_BODY, () => ({ ok: true, notChecked: 'opening a plan inside the tab is the portal\'s, which the mock lane does not run' })));
+  // L133 — the lane's driver is on neither the coach app (portal_coach_v2) nor FLN share: read them to say so.
+  await leader('L133', 'A coach off the coach app, or without FLN share, still lands on the Lesson Plans tab', true, 'coach',
+    () => api.sendWait('lesson plan'), tab(false, () => ({ ok: true })));
+  await leader('L135', 'A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue', 'coaches', 'coach',
+    () => api.sendWait('make me a lesson plan on fractions', 120000), tab(READ_BODY, (c) => ({ ok: !c.textbookLine })));
+  await leader('L136', 'A coach who asks for a lesson-plan topic in a voice note gets the Lesson Plans tab button, and nothing else', 'coaches', 'coach',
+    () => api.upload(FIX + '/lp_request_voice.ogg', 'Audio', 150000),
+    (c) => { const [ok, ev] = LL.tabVerdict(c, uid); const spoken = c.all.some((m) => m.audio || m.voice);
+      return [ok && !spoken, { ...ev, spokenAnswer: spoken, fixture: 'lp_request_voice.ogg ("I had to make a lesson plan" — no topic named; the same voice_intent door)' }]; });
+  await leader('L138', 'With the leader switch on "coaches", a principal who names a topic keeps the WhatsApp lesson-plan menu', 'coaches', 'principal',
+    () => api.sendWait('make me a lesson plan on fractions', 120000), keepsMenu);
+  await leader('L139', 'With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu', 'coaches', 'principal',
+    () => api.sendWait('lesson plan'), keepsMenu);
+  await leader('L140', 'With the leader switch off, a coach keeps the WhatsApp lesson-plan menu', false, 'coach',
+    () => api.sendWait('lesson plan'), keepsMenu);
+  if (db && want('L133')) { /* evidence only */ }
+
+  // ── inside the quiet hour (app_redirect_lesson_plan): L129, L130 ──
+  const quiet = async (id, name, text, quietMs) => {
+    if (!want(id)) return;
+    s = t();
+    const x = await withRedirect(api, 'app_redirect_lesson_plan', async () => {
+      const first = await api.sendWait('lp', 90000);
+      await api.freshReset();
+      await api.sendWait(text, quietMs).catch(() => null);
+      await sleep(1000);
+      const later = (await api.fresh()).filter((m) => m.txt || (m.btns || []).length || m.doc || m.flow);
+      return { firstNotice: isStoreNotice(first.txt || ''), later: later.map((m) => (m.txt || '').slice(0, 100)) };
+    });
+    if (!x.ran) rec(id, name, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: x.reason }, 0);
+    else rec(id, name, ...verdict(x.value.firstNotice && x.value.later.length === 0, { ...x.value, watchedMs: quietMs, notChecked: NOT_SEEN }, s), t() - s);
+  };
+  await quiet('L129', 'Asking again inside the hour gets no reply and no "typing…"', 'lp', 10000);
+  await quiet('L130', 'A typed lesson-plan request inside the hour gets no reply and no "typing…", however long the bot takes to read it', 'please make me a lesson plan for grade 4 maths fractions', 30000);
+
+  // ── L89 route-all: LP_612_ROUTE_ALL is an environment variable read by the bot (lp612-flags.js) ──
+  if (want('L89')) {
+    const on = /^LP_612_ROUTE_ALL=(1|true)$/m.test((() => { try { return require('fs').readFileSync(PATH.join(require(PATH.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')).runDir(), 'src', '.env'), 'utf8'); } catch (_) { return ''; } })());
+    if (!on) rec('L89', 'Under route-all, a typed lesson-plan request opens the Flow with the textbook line inside it', 'BLOCKED',
+      { reason: 'LP_612_ROUTE_ALL is an environment variable the bot reads at start (config/lp612-flags.js), and the lane\'s bot runs without it (.claude/qa/config/local-lane.env); a driver cannot flip it mid-run' }, 0);
+    else {
+      s = t();
+      const c = await LL.collect(api, () => api.sendWait('make me a lesson plan on photosynthesis', 120000), 4000);
+      const card = c.all.filter((m) => /Lesson Plans|سبق کے منصوبے/.test(m.txt || '') && (m.btns || []).length);
+      const body = (card[0] && card[0].txt) || '';
+      rec('L89', 'Under route-all, a typed lesson-plan request opens the Flow with the textbook line inside it',
+        ...verdict(c.all.length === 1 && card.length === 1 && /Lesson plans now come straight from your own textbook|اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں/.test(body) && /Pick your class|جماعت/.test(body),
+          { messages: c.messages }, s), t() - s);
+    }
+  }
+
+  // ── Make my own on the 6-12 lesson screen (portal_lp_make_own + the teacher app): L145 L146 L147; L148 ──
+  if (want('L145', 'L146', 'L147')) await makeOwn({ api, rec, sleep, want, openLP, walk, uid, verdict });
+  if (want('L148')) rec('L148', 'A Make my own plan for a class of more than 70 fits one period with less to do', 'BLOCKED',
+    { reason: 'the plan is written by the portal\'s Make my own generator (an LLM call behind the portal page), and the mock lane runs neither the portal nor that vendor; unit coverage is the portal\'s' }, 0);
+  if (want('L144')) rec('L144', 'A plan a coach attached that is not a lesson plan, or is unreadable, never messages the teacher', 'BLOCKED',
+    { reason: 'needs a coach observation (/observe, with a seeded school and observed teacher — observe.feature owns that set-up) whose attached file the extraction worker reads with an LLM; the stale coaching cassettes are being re-recorded under bd-q8wt5e.13' }, 0);
+
+  // ── the 6-12 content gate (RELIGIOUS_MARKS, G5c review, overlay): each needs ONE segment authored through the LLM ──
+  await contentGate({ rec, want, db });
+
+  // ── @wip/@draft scenarios given ids (bd-q8wt5e.6.3) — not promoted; recorded so every run lists them ──
+  const W = '@wip @draft: not promoted to the lane (promotion is the spec owner\'s call, bd-q8wt5e)';
+  const QZ = W + '; the afternoon quiz offer is a scheduled nudge (send hour, school days, quiet hours) behind its config gate, with no trigger this lane calls';
+  if (want('L99')) rec('L99', 'The first lesson plan of the day is followed by one coaching ask, and only the first', 'BLOCKED', { reason: W + '; the ask runs on a daily clock' }, 0);
+  if (want('L100')) rec('L100', 'At the send hour a teacher who planned one lesson is offered a quiz', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L101')) rec('L101', 'A lesson plan read in the teacher app earns the same afternoon quiz offer as one received on WhatsApp', 'BLOCKED', { reason: QZ + '; and the teacher app' }, 0);
+  if (want('L102')) rec('L102', 'A plan handed from the teacher app to another app earns the afternoon quiz offer too', 'BLOCKED', { reason: QZ + '; and the teacher app' }, 0);
+  if (want('L103')) rec('L103', 'A lesson read in the teacher app shows the received tick on both lesson lists', 'BLOCKED', { reason: W + '; the lists are the portal\'s, not on this lane' }, 0);
+  if (want('L104')) rec('L104', 'A lesson with no quiz source is not offered', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L105')) rec('L105', 'An Islamiyat lesson plan, or an Urdu Hamd or Naat chapter, is never made into a quiz until its religious content is reviewed', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L106')) rec('L106', "A teacher in the A/B trial's August group is quizzed on the August plan the app showed them", 'BLOCKED', { reason: QZ }, 0);
+  if (want('L107')) rec('L107', 'A teacher who planned lessons for two classes gets a list to pick from', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L108')) rec('L108', "A teacher's first afternoon offer carries the intro film in their language", 'BLOCKED', { reason: QZ }, 0);
+  if (want('L109')) rec('L109', 'A two-class offer with the intro film is ONE message — the film above three buttons', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L110')) rec('L110', 'An offer for three or more classes sends the intro film first, then the list', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L111')) rec('L111', 'The Urdu afternoon offer writes its numbers in Western digits', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L112')) rec('L112', 'A teacher coached today is not offered the afternoon quiz', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L113')) rec('L113', 'A lesson planned after 14:00 is offered on the next school day', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L114')) rec('L114', 'An assessment day is not offered a quiz', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L115')) rec('L115', 'Make the quiz produces an lp_v8 quiz with a share link', 'BLOCKED', { reason: QZ + '; @slow quiz generation' }, 0);
+  if (want('L116')) rec('L116', 'The afternoon offer never makes a second quiz for a lesson already made into a quiz from /quiz', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L117')) rec('L117', 'Make the quiz on a maths lesson asks which language the quiz is written in', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L118')) rec('L118', "The quiz language question gives examples of English terms that fit the lesson's subject", 'BLOCKED', { reason: QZ }, 0);
+  if (want('L119')) rec('L119', 'Urdu and Islamiyat lessons are not asked the quiz language', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L120')) rec('L120', 'The quiz offer names the lesson the way its PDF caption does', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L121')) rec('L121', "An Urdu LP-born quiz is called by the lesson's own name, never a clipped sentence", 'BLOCKED', { reason: QZ + '; @slow quiz generation' }, 0);
+  if (want('L122')) rec('L122', 'The PDF of an LP-born quiz says planned, never taught', 'BLOCKED', { reason: QZ + '; @slow quiz generation' }, 0);
+  if (want('L123')) rec('L123', "The afternoon offer's WhatsApp message id is kept on its nudge row", 'BLOCKED', { reason: QZ }, 0);
+  if (want('L124')) rec('L124', 'No thanks is remembered', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L125')) rec('L125', "A quiz never keys the lesson's own misconception as correct", 'BLOCKED', { reason: QZ + '; @slow quiz generation' }, 0);
+  if (want('L126')) rec('L126', 'The afternoon quiz offer is never sent at night', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L127')) rec('L127', 'The afternoon quiz offer waits while a lesson-plan survey question is open', 'BLOCKED', { reason: QZ }, 0);
+  if (want('L128')) rec('L128', 'With NUDGE_OPEN_QUESTION_DEFER off the afternoon offer no longer waits for a survey question', 'BLOCKED', { reason: QZ + '; NUDGE_OPEN_QUESTION_DEFER is an environment variable' }, 0);
+  if (want('L141')) rec('L141', "A Grades 6-12 quiz can draw the lesson's own diagram", 'BLOCKED', { reason: W + '; quiz picture generation behind its config gate' }, 0);
+  if (want('L142')) rec('L142', 'Pictures a child cannot tell apart are never shipped', 'BLOCKED', { reason: W + '; quiz picture generation behind its config gate' }, 0);
+  if (want('L143')) rec('L143', 'A place-value picture does not print the answer, and a mark lesson shows its mark', 'BLOCKED', { reason: W + '; quiz picture generation behind its config gate' }, 0);
+  if (want('L149')) rec('L149', 'A Grades 1–5 lesson plan arrives with no voice note and no voice-note script lookup', 'BLOCKED', { reason: '@draft: not promoted; the lane\'s Grades 1-5 lesson still carries its voice note (lp-cache .ogg in the seed)' }, 0);
+}
+
+/** L145–L147: the lesson screen of a 6-12 chapter with Make my own on / off / for a GB teacher. The switch is held
+ *  in-process for 30 s (lp612-own-offer.js TTL_MS), so each flip waits that out before the Flow is opened. */
+async function makeOwn({ api, rec, sleep, want, openLP, walk, uid, verdict }) {
+  const N = {
+    L145: 'With Make my own on for me, a Grades 6-12 chapter opens with Make my own first, and one tap sends one link',
+    L146: "With Make my own off or not for me, the chapter's lesson screen is exactly as before",
+    L147: 'A GB teacher never sees Make my own, even with the switch on for teachers',
+  };
+  const R = (id, ...v) => { if (want(id)) rec(id, N[id], ...v); };
+  const OWN = /^‏?(Make my own|اپنا پلان بنائیں)/;
+  const lessonScreen = async () => {
+    await api.resetFlow();
+    await api.sendWait('/lp');
+    const op = await openLP();
+    if (!op.ok) return { ok: false, err: op.err };
+    const trail = await walk(['Grade 6', 'Computer Science', null]);
+    const p = await api.flowProbe();
+    const rows = (p.items || []).filter((i) => i.kind === 'nav' || i.kind === 'option');
+    return { ok: true, trail, screen: p.screen, rows: rows.map((i) => i.text.split('\n')[0]), first: rows[0] && rows[0].text };
+  };
+  const set = async (k, v) => { const r = await api.setAppSetting(k, v); return r && r.ok; };
+  const s = Date.now();
+  if (!(await set('portal_teacher_v2', true)) || !(await set('portal_lp_make_own', 'teachers'))) {
+    for (const id of ['L145', 'L146', 'L147']) R(id, 'BLOCKED', { reason: 'portal_lp_make_own and portal_teacher_v2 are global app_settings: flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    await api.restoreAppSettings();
+    return;
+  }
+  try {
+    await sleep(31000);
+    // L145 — on for her (teachers, an ICT teacher on the teacher app)
+    const on = await lessonScreen();
+    let ok145 = false, ev145 = on;
+    if (on.ok && OWN.test(on.first || '')) {
+      await api.freshReset();
+      const c = await api.flowClick(on.first, { settleMs: 3000 });
+      const closing = await api.flowProbe();
+      api.closeFlow();
+      await sleep(4000);
+      const msgs = (await api.fresh()).filter((m) => m.txt || m.cta);
+      const cta = msgs.find((m) => m.cta && m.cta.url);
+      const land = cta ? LL.landingOfLink(cta.cta.url) : null;
+      ok145 = c.ok && on.rows.length <= 20 && msgs.length === 1 && !!cta && /Make my own|اپنا پلان بنائیں/.test(cta.cta.text || '') && !!land && land.feature === 'lp_make_own' && land.user === uid;
+      ev145 = { rows: on.rows.slice(0, 6), rowCount: on.rows.length, closing: (closing.text || '').slice(0, 100), messages: msgs.map((m) => (m.txt || '').slice(0, 80)),
+        button: cta && cta.cta.text, landing: land, notChecked: 'the portal page opening at the first question is the portal\'s, not on this lane' };
+    }
+    R('L145', ...verdict(ok145, ev145, s), Date.now() - s);
+    const s47 = Date.now();
+    // L147 — the same switch, the driver as a GB teacher (users.source main_rumi_gb: region.service GB_SOURCES)
+    await api.setUser({ source: 'main_rumi_gb' });
+    const gb = await lessonScreen();
+    api.closeFlow();
+    await api.setUser({ source: null });
+    R('L147', ...verdict(gb.ok && on.ok && !gb.rows.some((x) => OWN.test(x)) && OWN.test(on.first || ''),
+      { gbRows: gb.rows && gb.rows.slice(0, 4), ictFirstRow: on.first, err: gb.err }, s47), Date.now() - s47);
+    // L146 — switch off: no row, and a row tapped from scrollback (its data_exchange, forged) sends nothing
+    const s46 = Date.now();
+    await set('portal_lp_make_own', false);
+    await sleep(31000);
+    const off = await lessonScreen();
+    let forged = null, sent = [];
+    if (off.ok && api.flowRaw) {
+      await api.freshReset();
+      forged = await api.flowRaw({ step: 'lp612_own', grade: '6', subject: 'Computer Science', chapter_key: 'c01' });
+      await sleep(4000);
+      sent = (await api.fresh()).filter((m) => m.txt || m.cta).map((m) => (m.txt || '').slice(0, 80));
+    }
+    api.closeFlow();
+    R('L146', ...verdict(off.ok && !off.rows.some((x) => OWN.test(x)) && off.rows.length > 0 && sent.length === 0,
+      { rows: off.rows && off.rows.slice(0, 4), scrollbackTap: forged && (forged.res ? JSON.stringify(forged.res).slice(0, 160) : forged.err), sentAfterTap: sent }, s46), Date.now() - s46);
+  } finally {
+    await api.setUser({ source: null }).catch(() => null);
+    await api.restoreAppSettings();
+    await api.resetFlow();
+  }
+}
+
+/** L74–L88, L95–L98: the content gate. Each needs one particular 6-12 segment AUTHORED (the LLM writes the plan the gate
+ *  then reads). The lane seeds Grade 6 and six single segments (supabase/baseline/seed-keep.json) and serves exactly
+ *  one authored lesson (grade_6_computer_science c01 p5, from seed-files.txt); a new authoring is a cassette the lane
+ *  has never recorded. So each scenario looks its segment up in the run's database and records which part is missing. */
+async function contentGate({ rec, want, db }) {
+  const AUTHOR = 'authoring it is an LLM call the replay-only lane has no cassette for; recording one is a paid live call and needs an operator go';
+  const CASES = [
+    ['L74', 'An Urdu plan that uses ordinary religious vocabulary is delivered, not withheld', 'an Urdu 6-12 segment whose text uses «انبیاء»', null],
+    ['L75', 'An Islamiat plan names and classifies its surahs correctly, even where the textbook page does not', 'the Grade 11 Islamiat ch 2 segment on pages 10-12', 'grade_11_islamiat%c02%p010-012'],
+    ['L76', 'A plan naming an ordinary person called محمد is delivered, because a reviewer cleared it', 'grade_10_urdu.p2c05.p135-135', 'grade_10_urdu.p2c05.p135-135'],
+    ['L77', 'An English-medium plan naming the Quaid is delivered, because the same review cleared the Latin spelling', 'an English 6-12 segment with religious content naming "Quaid-e-Azam Muhammad Ali Jinnah"', null],
+    ['L78', 'A chained Latin name the book saluted at the end of the chain is delivered', 'an English 6-12 segment naming "Hazrat Muhammad Rasulullah" saluted at the end of the chain', null],
+    ['L79', 'A Latin honorific the book printed reaches the teacher as the Arabic stamp', 'an English 6-12 segment naming "Hazrat Muhammad (PBUH)"', null],
+    ['L80', 'An "Urdu" plan that is really English is refused, and the English lesson is delivered instead', 'an English-medium 6-12 segment whose Urdu overlay answers in English', null],
+    ['L81', 'A سیرت lesson already held for review is delivered in Urdu when the overlay keeps the ﷺ', 'the Grade 9 Islamiyat سیرت segment of an English-medium book, held for G5c review', 'grade_9_islamiyat%'],
+    ['L82', 'An Urdu 6-12 plan keeps the board in English and explains each board block in one Urdu line', 'a Grade 8 segment from an English-medium book, in Urdu', 'grade_8_%'],
+    ['L83', 'An Urdu 6-12 plan numbers its sections and support pages in Urdu, not Latin letters', 'a 6-12 segment authored in Urdu (the lane\'s one served lesson is English)', null],
+    ['L84', 'The common-mistakes box asks what pupils say or write, in both languages', 'a 6-12 segment whose plan lists common mistakes, in English and in Urdu', null],
+    ['L85', 'Diagram labels on a 6-12 plan stay readable on a phone', 'a Grade 9 Chemistry segment whose plan carries a labelled diagram', 'grade_9_chemistry%'],
+    ['L86', 'A worked scenario never guesses the gender of an unnamed character', 'a 6-12 segment whose worked example has an unnamed helper', null],
+    ['L87', 'The last lesson of a chapter names no next lesson', 'the last 6-12 segment of a chapter, authored', null],
+    ['L88', 'An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead', 'the Grade 9 Islamiyat سیرت segment, with an overlay that drops the ﷺ', 'grade_9_islamiyat%'],
+    ['L95', 'A plan that names the Prophet without an honorific in teacher-facing text is still withheld', 'a segment whose teacher-facing body names the Prophet with no honorific', null],
+    ['L96', 'A Latin name the G5c review did not clear still withholds the lesson', 'English 6-12 segments with religious content naming "Muhammad" / "Muhammad Zubair Farooqi"', null],
+    ['L97', 'A Latin salutation the gate cannot reach still withholds the lesson', 'English 6-12 segments with the three uncleared salutations', null],
+    ['L98', 'A cache repair that cannot clear its religious content leaves my lesson exactly as it was', 'a served Urdu 6-12 lesson and the overlay repair job, run on demand', null],
+  ];
+  const gate = async (id) => {
+    const [, name, need, like] = CASES.find((c) => c[0] === id);
+    if (!want(id)) return;
+    let found = null;
+    if (like && db) { const rows = await db.get(`niete_lp612_segments?select=segment_id&segment_id=like.${encodeURIComponent(like)}&limit=1`); found = rows[0] ? rows[0].segment_id : false; }
+    const where = found ? `${found} is in the lane's seed, but ${AUTHOR}`
+      : `${need} is not in the lane's seed (supabase/baseline/seed-keep.json: Grade 6 and six single segments), and ${AUTHOR}`;
+    rec(id, name, 'BLOCKED', { reason: 'needs ' + need + ' authored on the lane: ' + where, segment: found }, 0);
+  };
+  // one call per id: check-scenario-coverage reads `fn('L..'` call sites, never an id inside an array
+  await gate('L74');
+  await gate('L75');
+  await gate('L76');
+  await gate('L77');
+  await gate('L78');
+  await gate('L79');
+  await gate('L80');
+  await gate('L81');
+  await gate('L82');
+  await gate('L83');
+  await gate('L84');
+  await gate('L85');
+  await gate('L86');
+  await gate('L87');
+  await gate('L88');
+  await gate('L95');
+  await gate('L96');
+  await gate('L97');
+  await gate('L98');
+}

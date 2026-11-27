@@ -53,6 +53,10 @@ const ALLOWLIST = new Set([
   'jest',
   // Express view engine — loaded by name via app.set('view engine', 'ejs').
   'ejs',
+  // bd-8sr958 (queue #320) — the damaged-recording frame finder. node-av is an ES module imported by
+  // shared/services/coaching/recording-repair/frame-finder.mjs, which the repair module runs as a CHILD process
+  // (never require()d from the worker: a native, GPL-licensed lib kept out of the worker's own process).
+  'node-av',
 ]);
 
 function findJsFiles(dir) {

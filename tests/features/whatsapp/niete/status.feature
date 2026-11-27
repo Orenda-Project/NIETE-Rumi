@@ -138,7 +138,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
   # quiz at all: the question she stopped on is recorded, and the surface built
   # to answer "what is running" said nothing.
 
-  @e2e @training @P2
+  @e2e @training @P2 @STA09
   Scenario: A training quiz in progress is reported as running, in the chat
     Given the NIETE bot chat is open
     And I have answered at least one question of a training quiz and not finished it
@@ -157,7 +157,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # within six hours — the same TTL the coaching step uses for "stepped away,
     # may come back". Served by the existing partial index idx_taa_abandon_sweep.
 
-  @e2e @training @P2
+  @e2e @training @P2 @STA10
   Scenario: Alongside stoppable work, the training quiz is shown but not offered as a row
     Given the NIETE bot chat is open
     And I have a training quiz in progress
@@ -171,7 +171,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # training is resumed with /training instead. Because no row id is emitted,
     # parseResourceId and cancelResource stay untouched — no tap can be dropped.
 
-  @e2e @training @negative @P2
+  @e2e @training @negative @P2 @STA11
   Scenario: A training quiz I have already finished is not reported as running
     Given the NIETE bot chat is open
     And I have just finished a training quiz
@@ -182,7 +182,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # keeps its last_activity_at when it finishes, so recency alone would report a
     # quiz she passed minutes ago as still running.
 
-  @e2e @lesson-plan @P1
+  @e2e @lesson-plan @P1 @STA12
   Scenario: A 6-12 lesson plan being prepared is reported as running
     Given the NIETE bot chat is open
     And I have asked for a grade 6-12 lesson plan and it is still being prepared
@@ -203,7 +203,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # lesson, so a Stop tap would discard work other teachers are waiting for. The
     # item carries `summaryOnly`, exactly as a training quiz does.
 
-  @e2e @lesson-plan @negative @P2
+  @e2e @lesson-plan @negative @P2 @STA13
   Scenario: A lesson plan that has already arrived is not reported as running
     Given the NIETE bot chat is open
     And the grade 6-12 lesson plan I asked for has already been delivered to me
@@ -217,7 +217,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # thirty minutes: one still 'authoring' hours later is a stranded run the
     # sweeper has not reached, not work she is waiting on.
 
-  @e2e @lesson-plan @negative @P1
+  @e2e @lesson-plan @negative @P1 @STA14
   Scenario: A lesson plan another teacher is waiting on is never reported as mine
     Given the NIETE bot chat is open
     And another teacher has a grade 6-12 lesson plan being prepared
@@ -235,7 +235,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
 
   # ═══════════════════════ SCHEDULED REMINDERS (the recovery sweep) ═══════════════════════
 
-  @e2e @wip @draft @config-gated @negative @P1
+  @e2e @wip @draft @config-gated @negative @P1 @STA15
   Scenario: A teacher who stops answering the reflection questions gets ONE reminder, not one per worker
     Given the NIETE bot chat is open
     And the runtime has COACHING_REMINDER_MINUTES=2
@@ -254,7 +254,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
 
   # ── The stuck-session watchdog and portal observations (bd-5rz1v.6) ────────
 
-  @e2e @config-gated @negative @P2
+  @e2e @config-gated @negative @P2 @STA16
   Scenario: A stuck portal observation is retried and failed without a WhatsApp message to the coach
     Given a coach's observation started in the portal has stopped moving mid-analysis
     When the recovery sweep finds it a second time

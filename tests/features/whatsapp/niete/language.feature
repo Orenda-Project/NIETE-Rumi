@@ -158,7 +158,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # path feature-registration.service.js:156-161). Minor: pre-language a new user has no stored
     # pref anyway, but a returning user re-registering in Urdu still gets the English bubble.
 
-  @e2e @language @flow @P1
+  @e2e @language @flow @P1 @LANG23
   Scenario: The registration Flow speaks the language she picks on its first screen
     Given the NIETE bot chat is open
     And I open the registration Flow
@@ -170,7 +170,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # the language she picked (registration-endpoint.js screenCopy, ux-strings regForm* keys).
     # The choice is written through setUserLanguage, locked, as the first screen is submitted.
 
-  @e2e @language @destructive @P1
+  @e2e @language @destructive @P1 @LANG24
   Scenario: The registration welcome and its portal button are in the language she chose
     Given the NIETE bot chat is open
     And I am a fresh test teacher who chose "اردو" on the registration Flow
@@ -190,7 +190,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ── E1. Localized correctly (positive) ──
 
-  @e2e @language @content-driven @P1
+  @e2e @language @content-driven @P1 @LANG25
   Scenario: A spoken question is answered with a voice message the teacher can speed up, in the teacher's language
     Given the NIETE bot chat is open
     And my language is set to English
@@ -202,7 +202,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # audio FILES a teacher could not speed up — the send never said voice=true. Asserted by the
     # bubble (voice-note waveform + speed control), not by the audio bytes, which were right all along.
 
-  @e2e @language @content-driven @P2
+  @e2e @language @content-driven @P2 @LANG26
   Scenario: Saying "switch to Urdu" in a voice note switches the language, and the confirmation is itself an Urdu voice message
     Given the NIETE bot chat is open
     And my language is set to English
@@ -273,7 +273,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # Only the entry launcher localizes: training-entry.service.js:59-60 COPY.body[language]||en (real
     # Urdu at :23,:27). Everything INSIDE the Flow is English — see E2 (F-TRAIN-i18n).
 
-  @e2e @language @copy @wip @draft @P2
+  @e2e @language @copy @wip @draft @P2 @LANG27
   Scenario: An Urdu line that opens with a name in English letters still reads right to left
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -287,7 +287,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # the English mirror case). Proven over every placeholder-led paragraph in the catalog by
     # tests/config/ux-strings-paragraph-direction.test.js. @wip.
 
-  @e2e @language @quiz @wip @draft @config-gated @P2
+  @e2e @language @quiz @wip @draft @config-gated @P2 @LANG28
   Scenario: The "try it yourself" line in my quiz caption is in my language
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -372,7 +372,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # were __TODO_TRANSLATE__ sentinels. Driven 2026-10-06 on the mock lane: the detection card is
     # "مجھے 16 منٹ کی آڈیو ریکارڈنگ ملی ہے", the progress line is "مرحلہ 3/5", every text is Urdu.
 
-  @e2e @wip @draft @language @config-gated @P1
+  @e2e @wip @draft @language @config-gated @P1 @LANG29
   Scenario: A coach reads the observation flow in the COACH's language, not the observed teacher's
     Given the NIETE bot chat is open as a COACH whose language is English
     And I am observing a teacher whose account language is Urdu
@@ -385,7 +385,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # still follows the teacher. Needs an Urdu teacher + an English coach; BLOCKED (state)
     # on the shared English driver.
 
-  @e2e @wip @draft @language @negative @P2
+  @e2e @wip @draft @language @negative @P2 @LANG30
   Scenario: A refusal for a cancelled session is worded in my language
     Given the NIETE bot chat is open
     And my account language is Urdu
@@ -398,7 +398,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ═══════════════ F. DESIGN-DECISION CONTRACTS (guard-style, from OPS-118) ══════════════
 
-  @e2e @language @P2
+  @e2e @language @P2 @LANG31
   Scenario: A new teacher is offered Urdu first; English is only the emergency floor (D4)
     Given a brand-new teacher whose language is not yet known
     When the sign-up language choice is presented
@@ -441,7 +441,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # Only "/language" (case-insensitive) matches text-message.handler.js:1715. Bare "language"
     # falls through to the general/AI handler. Counterpart to menu.feature's bare-"menu" negative.
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG32
   Scenario: The coaching ask after a lesson plan, and its recording instructions, arrive in my language
     Given my account is set to Urdu
     When the coaching ask that follows my first lesson plan of the day is sent
@@ -454,7 +454,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # door, whose inline English/Urdu ternary moved into the catalogue with this change. Gender-neutral
     # is a standing operator rule, not a preference. @wip — driven and promoted by the sandbox E2E run.
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG33
   Scenario: A lesson-plan-born quiz that cannot be written says so in the teacher's language
     Given my account is set to Urdu
     And a quiz is being written from a lesson plan I was served
@@ -467,7 +467,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # (transcript-quiz-generate.service.js failureCopyKey). Rule 24d: the copy names the state that
     # actually stopped. @wip — authored with the change, driven and promoted by the sandbox E2E run.
 
-  @e2e @language @quiz @wip @draft @config-gated @P2
+  @e2e @language @quiz @wip @draft @config-gated @P2 @LANG34
   Scenario: The afternoon quiz offer, and the list of classes it may show, arrive in my language
     Given my account is set to Urdu
     And I planned lessons for two classes today
@@ -490,14 +490,14 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   # handleGeneralConversation, where the decision is made. Seed: the child-join method (a share code owned
   # by a test teacher, so the driver's handset joins as a child); restore the owner afterwards.
 
-  @e2e @language @persona:student @wip @draft @seeded @P2
+  @e2e @language @persona:student @wip @draft @seeded @P2 @LANG35
   Scenario: A child whose quiz was in English and who writes English is answered in English
     Given a child whose last quiz was in English
     And the study-helper chat has already drifted into Urdu
     When the child writes an English question
     Then the reply is in English
 
-  @api @language @quiz @wip @draft @config-gated @P2
+  @api @language @quiz @wip @draft @config-gated @P2 @LANG36
   Scenario: The web quiz's forwarded message is in the quiz's language and says only the name is asked
     Given the web quiz is on for a teacher, and the quiz is in Urdu or in English
     When the teacher gets the message to forward to the class
@@ -505,20 +505,20 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     And the WhatsApp quiz's message is unchanged
     # ux-strings tqStudentMessageWeb (en + ur) beside tqStudentMessage. Unit: tests/quiz/web-quiz-forward-message.test.js. @wip.
 
-  @e2e @language @persona:student @wip @draft @seeded @P2
+  @e2e @language @persona:student @wip @draft @seeded @P2 @LANG37
   Scenario: A child whose quiz was in English and who writes Roman Urdu is answered in Urdu script
     Given a child whose last quiz was in English
     When the child writes a question in Roman Urdu
     Then the reply is in Urdu, in Urdu script (English subject terms may stay in English letters)
     And the reply is not Urdu written in English letters
 
-  @e2e @language @persona:student @wip @draft @seeded @P2
+  @e2e @language @persona:student @wip @draft @seeded @P2 @LANG38
   Scenario: A one-letter answer keeps the chat's language
     Given a child in a study-helper chat whose last reply was in Urdu
     When the child answers "b" to the helper's practice question
     Then the reply stays in Urdu, even if the child's last quiz was in English
 
-  @e2e @language @persona:student @wip @draft @seeded @P2
+  @e2e @language @persona:student @wip @draft @seeded @P2 @LANG39
   Scenario: A child whose quiz was in Urdu and who writes English is answered in English
     Given a child whose last quiz was in Urdu
     When the child writes an English question
@@ -530,7 +530,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   # A message that asks for a feature the classifier cannot tell gets ux-strings menuMatchUnsure, then the menu.
   # Unit: tests/menu-match/voice-routing.test.js (Urdu), tests/menu-match/fallthrough-routing.test.js (English).
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG40
   Scenario: The "not sure" line before the menu is in my language
     Given the NIETE bot chat is open
     And my language is Urdu
@@ -545,7 +545,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   # It shapes THIS turn's reply only: nothing is stored (preferred_language and language_locked unchanged).
   # Unit: bot/tests/first-touch/first-reply-english.text-turn.test.js, first-reply-english-evidence.test.js.
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG41
   Scenario: A brand-new person whose first message is plainly English is answered in English, with the switch on
     Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
     And a phone number that has never messaged the bot
@@ -554,7 +554,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     And the registration offer that follows is in English
     And users.preferred_language is still "ur" and users.language_locked is still false
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG42
   Scenario Outline: A brand-new person's first message without clear English evidence is answered in Urdu, as today
     Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
     And a phone number that has never messaged the bot
@@ -567,14 +567,14 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
       | aoa sir                    |
       | Hello                      |
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG43
   Scenario: A person who has messaged before keeps their stored Urdu for an English sentence
     Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
     And my language is Urdu and I have messaged the bot before
     When I send "I need a lesson plan on fractions for class 4"
     Then the bot reply is in Urdu
 
-  @e2e @draft @P1
+  @e2e @draft @P1 @LANG44
   Scenario: A child answering an Urdu quiz wrong is told so in Urdu
     Given a child is taking an Urdu quiz, either the parent roster quiz or a single-answer video quiz
     When the child picks a wrong answer

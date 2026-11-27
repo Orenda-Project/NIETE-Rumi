@@ -245,6 +245,19 @@ async function uploadClassroomAudio(filePath, userId, sessionId, metadata = {}) 
 }
 
 /**
+ * bd-8sr958: store audio bytes under a key the caller chose (a repaired copy of a portal upload must keep the
+ * portal key shape, which uploadClassroomAudio's <sessionId>_<ts> key would not).
+ * @returns {Promise<string>} the same URL shape uploadClassroomAudio returns
+ */
+async function uploadAudioBuffer(buffer, key, contentType = 'audio/mp4') {
+  await getR2Client().send(new PutObjectCommand({
+    Bucket: BUCKET_NAME, Key: key, Body: buffer, ContentType: contentType,
+    Metadata: { uploadedAt: new Date().toISOString(), repaired: 'true' },
+  }));
+  return `${process.env.R2_ENDPOINT}/${BUCKET_NAME}/${key}`;
+}
+
+/**
  * Upload lesson plan document to R2
  * @param {string} filePath - Local file path
  * @param {string} userId - User's phone number
@@ -1127,6 +1140,7 @@ module.exports = {
   uploadVideoAsset,
   isPermanentR2Url,
   buildPresignOverrides, // signed response-header overrides (attachment mode)
+  uploadAudioBuffer, // bd-8sr958: a repaired recording under a chosen key
   getPresignedUrl,  // SECURE: Generate temporary presigned URLs for external access
   toPublicUrl,  // Alias for getPresignedUrl (backward compat, async!)
   uploadBuffer, // Generic buffer upload for attendance Excel

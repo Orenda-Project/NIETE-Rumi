@@ -38,7 +38,7 @@ const questionLineOf = (txt) => {
 };
 exports.questionLineOf = questionLineOf;
 
-exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
+exports.run = async ({ api, rec: rec0, sleep, want = () => true, lang = 'en' }) => {
   const seenIds = new Set();
   const rec = (id, ...rest) => { seenIds.add(id); return rec0(id, ...rest); };
   const t = () => Date.now();
@@ -2010,8 +2010,357 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           + 'Behaviour is unit-tested in bot/tests/training/bd-jtgjt8-chain-level-exam-certifies.test.js (bd-jtgjt8.1)' }, 0);
 
   // bd-e1qvrf: the saved grade is observable as meta.grade_source = 'profile' on the quiz row.
-  rec('T1184', 'A class quiz is pitched at the grade the teacher saved on their profile', 'BLOCKED',
+  rec('T942', 'A class quiz is pitched at the grade the teacher saved on their profile', 'BLOCKED',
       { reason: 'needs a recorded lesson transcript and its digest LLM call, which the mock cassettes do not hold; '
           + 'unit-tested in bot/tests/quiz/transcript-quiz-digest-grade.test.js (bd-e1qvrf)' }, 0);
+
+  // ════ bd-q8wt5e.6.4 — scenarios that carried an id but no driver code ════════════════════════════════════
+  // Driven live where every Then step is something the lane shows (a WhatsApp message, a ledger row); the rest
+  // are recorded BLOCKED with WHAT the lane cannot do. The lane runs the bot and the worker only — no portal, no
+  // child's web page, no clock — so a Then step on a portal page, a scheduled job or a cassette the lane does not
+  // hold cannot be observed here. A live block whose WhatsApp half passes but whose other Then steps live on the
+  // portal is BLOCKED (never PASS) with what it did check; a WhatsApp half that is wrong is FAIL.
+  const SC6 = (() => { try { return require(path.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) { return null; } })();
+  const DBT6 = (() => { try { return require(path.join(__dirname, '..', '..', 'engine', 'bin', 'db-target.cjs')); } catch (_) { return null; } })();
+  const canFlip6 = () => !!(DBT6 && DBT6.canFlipGlobal());
+  const LANE_BASE = 'https://portal.example.test';
+  const collect6 = async (actor, ms) => {
+    const t0 = Date.now(); const seen = [];
+    while (Date.now() - t0 < ms) { for (const r of await actor.fresh()) seen.push(r); await sleep(800); }
+    return seen;
+  };
+  const ask6 = async (actor, text, ms = 10000) => { await actor.freshReset(); await actor.sendWait(text); return collect6(actor, ms); };
+  const tap6 = async (actor, label, ms = 10000) => {
+    await actor.freshReset();
+    try { await actor.tapAndWait(label); } catch (e) { return { err: String(e.message || e).slice(0, 160), seen: [] }; }
+    return { seen: await collect6(actor, ms) };
+  };
+  const brief6 = (seen) => seen.map((x) => ({ type: x.type, txt: String(x.txt || '').slice(0, 110), btns: x.btns,
+    tpl: x.template ? x.template.name : undefined, url: x.cta ? String(x.cta.url || '').replace(/\/(h|r|t)\/[^/?]+/, '/$1/<token>') : undefined }));
+  const isCard6 = (x) => CARD.test(String(x.txt || '')) && (x.btns || []).some((b) => new RegExp(CTA).test(b));
+  const restart6 = async (env) => (SC6 && SC6.runDir() ? SC6.restart('bot', env) : { ok: false, err: 'no RUN_DIR (stack-control unavailable)' });
+  // The lane runs the bot with APP_SETTINGS_FLAG_TTL_MS=1000 and settles 1.5 s, but some gates keep their OWN fixed
+  // 30 s cache and ignore that knob: teacher-report-gate.js, portal-web-link.js and web-quiz-identity-flags.js (TTL_MS = 30 * 1000). A flip read
+  // inside 30 s of the last read is invisible to them, so their blocks settle GATE_SETTLE (run 20261127-1533: T330/T333
+  // saw the cached "not listed" and T248 the cached "not listed" from T249).
+  const GATE_SETTLE = 31000;
+  const flipAll6 = async (pairs, settleMs) => {   // all but the last skip the settle; the last waits it out
+    const out = {};
+    for (let i = 0; i < pairs.length; i++) out[pairs[i][0]] = await api.setAppSetting(pairs[i][0], pairs[i][1], i < pairs.length - 1 ? { settleMs: 0 } : (settleMs != null ? { settleMs } : undefined));
+    return Object.values(out).every((r) => r && r.ok) ? { ok: true } : { ok: false, out };
+  };
+  const randPhone6 = () => '92300' + String(Math.floor(1e6 + Math.random() * 8.9e6));
+  const NOT_ME = '00000000-0000-4000-8000-00000000d6a4';
+
+  // ── T248 / T249 — Training on the web: the training_open_v1 template, or today's Flow ──────────────────────
+  // training-entry.service → training-web-link (portal-web-link): with web_training_enabled and the teacher listed,
+  // /training sends the template whose URL button carries a portal link token; anything else is the Flow card.
+  // The bot signs that token with WEB_TRAINING_TOKEN_SECRET, which the lane's bot does not carry, so the block
+  // restarts it with one (as T692 does for the hub) and puts it back after.
+  if (want('T248', 'T249')) {
+    const T248 = 'With web training on for me, Training opens the portal\'s training pages inside WhatsApp';
+    const T249 = 'With web training off, not listed, or the template failing, Training is the Flow as before';
+    if (!canFlip6()) {
+      for (const [id, n] of [['T248', T248], ['T249', T249]]) if (want(id)) rec(id, n, 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_training_enabled / web_training_teachers are flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    } else {
+      const restarted = await restart6({ WEB_TRAINING_TOKEN_SECRET: 'mock-lane-web-training-secret' });
+      try {
+        const isTpl = (x) => x.type === 'template' && x.template && x.template.name === 'training_open_v1';
+        const open = async () => { await api.resetFlow(); const seen = await ask6(api, '/training', 9000); return { seen, card: seen.some(isCard6), tpl: seen.filter(isTpl) }; };
+        if (want('T249')) {
+          s = t();
+          const off = await flipAll6([['web_training_enabled', false]], GATE_SETTLE);
+          const a = await open();
+          const notListed = await flipAll6([['web_training_enabled', true], ['web_training_teachers', [NOT_ME]]], GATE_SETTLE);
+          const b = await open();
+          const ev = { off: { card: a.card, templates: a.tpl.length, seen: brief6(a.seen) }, notListed: { card: b.card, templates: b.tpl.length, seen: brief6(b.seen) },
+            templateFailing: 'not forced: the mock Graph API accepts every template send; unit-covered by tests/training/web-training-link.test.js' };
+          if (!off.ok || !notListed.ok) rec('T249', T249, 'BLOCKED', { harness: 'could not set the web training switches', off, notListed }, t() - s);
+          else rec('T249', T249, ...V(a.card && !a.tpl.length && b.card && !b.tpl.length, ev), t() - s);
+        }
+        if (want('T248')) {
+          s = t();
+          const on = await flipAll6([['web_training_enabled', true], ['web_training_teachers', 'all']], GATE_SETTLE);
+          const r = await open();
+          const tp = r.tpl[0];
+          const wa = { templates: r.tpl.length, name: tp && tp.template.name, language: tp && tp.template.language,
+            tokenParam: !!(tp && (tp.template.params || []).some((p) => typeof p === 'string' && p.length >= 16)), flowCard: r.card, seen: brief6(r.seen) };
+          const waOk = r.tpl.length === 1 && !r.card && wa.tokenParam && (wa.language === (lang === 'ur' ? 'ur' : 'en'));
+          if (!on.ok) rec('T248', T248, 'BLOCKED', { harness: 'could not set the web training switches', on }, t() - s);
+          else if (!(restarted && restarted.ok) && !r.tpl.length) rec('T248', T248, 'BLOCKED', { harness: 'could not restart the bot with WEB_TRAINING_TOKEN_SECRET: ' + JSON.stringify(restarted).slice(0, 120), wa }, t() - s);
+          else if (!waOk) rec('T248', T248, 'FAIL', wa, t() - s);
+          else rec('T248', T248, 'BLOCKED', { reason: 'WhatsApp half checked and right (one training_open_v1 template in my language, a link token on its button, no Flow). '
+            + 'The rest are portal pages — /t/:token signed in as me, link-only navigation, 24 h and training-only scope — and the lane serves no portal; '
+            + 'covered by tests/training/web-training-portal-link.test.js and portal PortalLayout.trainingLink.test.tsx', wa }, t() - s);
+        }
+      } finally {
+        await api.restoreAppSettings({ settleMs: 0 });
+        if (restarted && restarted.ok) await restart6({});
+        await api.resetFlow();
+      }
+    }
+  }
+
+  // ── T330–T334 — the teacher's /quiz home, "My quiz reports" and "Class progress" ───────────────────────────
+  // quiz-menu-entry openQuizMenu → teacher-quiz-home (teacher_report_teachers covers me AND a portal base URL is
+  // set); the report link is <base>/r/<token>, signed with WEB_QUIZ_TOKEN_SECRET. The lane's bot has neither, so
+  // the block restarts it with both. quiz_one_door is held off: with it on, /quiz is the one door and never the home.
+  if (want('T330', 'T331', 'T332', 'T333', 'T334')) {
+    const N = {
+      T330: 'With the teacher report on for me, /quiz opens a home with three choices',
+      T331: 'With the teacher report off or not listing me, /quiz is exactly what it was',
+      T332: '"My quiz reports" lists my sent quizzes with who played, and a tap sends that quiz\'s live report',
+      T333: '"Class progress" sends the link to the report of all my classes',
+      T334: 'A report row for a quiz that is not mine sends no link',
+    };
+    const ids = Object.keys(N).filter((id) => want(id));
+    if (!canFlip6()) {
+      for (const id of ids) rec(id, N[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: teacher_report_teachers / quiz_one_door are flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    } else {
+      const HOME = { en: ['Make a quiz', 'My quiz reports', 'Class progress'], ur: ['کوئز بنائیں', 'میری کوئز رپورٹس', 'کلاس کی پیش رفت'] }[lang === 'ur' ? 'ur' : 'en'];
+      const isHome = (x) => JSON.stringify(x.btns || []) === JSON.stringify(HOME);
+      const hasAnyHomeBtn = (x) => (x.btns || []).some((b) => HOME.includes(b));
+      const reportLink = (x) => (String(x.txt || '').includes(LANE_BASE + '/r/') ? 'text'
+        : (x.type === 'template' && x.template && (x.template.params || []).some((p) => typeof p === 'string' && p.length >= 16) ? 'template' : null));
+      // the shape /quiz had before the home: the Flow card (a flow CTA) or the lesson list — its type and first line
+      const shapeOf = (seen) => seen.filter((x) => !hasAnyHomeBtn(x)).map((x) => ({ type: x.type, head: String(x.txt || '').split('\n')[0].slice(0, 80), btns: x.btns }));
+      const restarted = await restart6({ WEB_QUIZ_BASE_URL: LANE_BASE, WEB_QUIZ_TOKEN_SECRET: 'mock-lane-teacher-report-secret' });
+      try {
+        const door = await flipAll6([['quiz_one_door', false], ['teacher_report_teachers', [NOT_ME]]], GATE_SETTLE);
+        let before = null;
+        if (want('T331') || want('T330')) {
+          s = t();
+          await api.resetFlow();
+          const seen = await ask6(api, '/quiz', 9000);
+          before = shapeOf(seen);
+          if (want('T331')) {
+            if (!door.ok) rec('T331', N.T331, 'BLOCKED', { harness: 'could not set teacher_report_teachers / quiz_one_door', door }, t() - s);
+            else rec('T331', N.T331, ...V(seen.length > 0 && !seen.some(hasAnyHomeBtn) && before.length > 0, { notListingMe: [NOT_ME], seen: brief6(seen) }), t() - s);
+          }
+        }
+        const on = await flipAll6([['teacher_report_teachers', 'all']], GATE_SETTLE);
+        const harness = !door.ok || !on.ok ? { harness: 'could not set teacher_report_teachers / quiz_one_door', door, on }
+          : !(restarted && restarted.ok) ? { harness: 'could not restart the bot with WEB_QUIZ_BASE_URL + WEB_QUIZ_TOKEN_SECRET: ' + JSON.stringify(restarted).slice(0, 120) } : null;
+        const home = async () => { await api.resetFlow(); return ask6(api, '/quiz', 9000); };
+        if (want('T330')) {
+          s = t();
+          const seen = await home();
+          const homes = seen.filter(isHome);
+          const make = homes.length ? await tap6(api, HOME[0], 9000) : { err: 'no home', seen: [] };
+          const after = shapeOf(make.seen);
+          const same = !!before && before.length > 0 && after.length > 0 && after[0].type === before[0].type && after[0].head === before[0].head;
+          const ev = { home: brief6(seen), oneMessageThreeButtons: homes.length === 1 && seen.filter(hasAnyHomeBtn).length === 1, makeAQuiz: brief6(make.seen), before, sameAsBefore: same, tapErr: make.err };
+          if (harness) rec('T330', N.T330, 'BLOCKED', { ...harness, ...ev }, t() - s);
+          else rec('T330', N.T330, ...V(ev.oneMessageThreeButtons && same, ev), t() - s);
+        }
+        if (want('T333')) {
+          s = t();
+          await home();
+          const r = await tap6(api, HOME[2], 9000);
+          const links = r.seen.map(reportLink).filter(Boolean);
+          const allClasses = r.seen.some((x) => /by class and subject|کلاس اور مضمون کے لحاظ سے/.test(String(x.txt || '') + JSON.stringify((x.template && x.template.params) || [])));
+          const ev = { links, allClasses, seen: brief6(r.seen), tapErr: r.err };
+          if (harness) rec('T333', N.T333, 'BLOCKED', { ...harness, ...ev }, t() - s);
+          else rec('T333', N.T333, ...V(links.length === 1 && allClasses, ev), t() - s);
+        }
+        if (want('T334')) {
+          s = t();
+          await api.freshReset();
+          await api.injectList('tqr_00000000-0000-4000-8000-0000000d6a40', 'Older quiz');
+          const seen = await collect6(api, 8000);
+          const notFound = seen.some((x) => /couldn.t find that|نہیں ملا/.test(String(x.txt || '')));
+          const ev = { notFound, links: seen.map(reportLink).filter(Boolean).length, seen: brief6(seen) };
+          if (harness) rec('T334', N.T334, 'BLOCKED', { ...harness, ...ev }, t() - s);
+          else rec('T334', N.T334, ...V(notFound && ev.links === 0, ev), t() - s);
+        }
+        if (want('T332')) {
+          s = t();
+          await home();
+          const r = await tap6(api, HOME[1], 9000);
+          const list = r.seen.find((x) => x.list && x.list.rows);
+          const empty = r.seen.some((x) => /No quiz has been sent to a class yet|ابھی تک کسی کلاس کو کوئز نہیں بھیجا گیا/.test(String(x.txt || '')));
+          if (harness) rec('T332', N.T332, 'BLOCKED', { ...harness, seen: brief6(r.seen) }, t() - s);
+          else if (!list && empty) rec('T332', N.T332, 'BLOCKED', { reason: 'the driver has sent no quiz to a class on this run\'s database, so "My quiz reports" answers its empty line; '
+            + 'the list, its counts and the per-quiz link need a sent quiz with plays (unit: teacher-report-list.test.js)', seen: brief6(r.seen) }, t() - s);
+          else if (!list) rec('T332', N.T332, 'FAIL', { error: 'neither the list nor the empty line', seen: brief6(r.seen), tapErr: r.err }, t() - s);
+          else {
+            const rows = list.list.rows.filter((x) => !/^tqr_page_/.test(x.id || ''));
+            const STATUS = /no one yet|ابھی کسی نے نہیں کھیلا|\d+ (of \d+ )?played|نے کھیلا/;
+            const rowsOk = rows.length > 0 && rows.every((x) => String(x.title || '').trim() && STATUS.test(String(x.description || '')));
+            const older = list.list.rows.some((x) => /^tqr_page_/.test(x.id || ''));
+            const pick = rows[0] ? await (async () => { await api.freshReset(); await api.pickRowAndWait(rows[0].title).catch(() => null); return collect6(api, 8000); })() : [];
+            const link = pick.map(reportLink).filter(Boolean);
+            const counts = pick.some((x) => /played|still to play|no one has played yet|نے کھیلا|ابھی باقی/.test(String(x.txt || '') + JSON.stringify((x.template && x.template.params) || [])));
+            rec('T332', N.T332, ...V(rowsOk && (rows.length <= 9 || older) && link.length === 1 && counts,
+              { rows: rows.map((x) => ({ title: x.title, desc: x.description })), olderRow: older, link, counts, picked: brief6(pick),
+                newestFirst: 'not re-derived: the row order is the bot\'s query order (loadSentQuizzes, sent_at desc)' }), t() - s);
+          }
+        }
+      } finally {
+        await api.restoreAppSettings({ settleMs: 0 });
+        if (restarted && restarted.ok) await restart6({});
+        await api.resetFlow();
+      }
+    }
+  }
+
+  // ── T999 — a text sent while the exam checker waits always gets a reply ─────────────────────────────────
+  // exam-checker.handler: a typed message mid-step must be answered with the current step (reply buttons when the
+  // step has them), never silence (bd-97daxo.8.12). The checker is started by a KEYWORD ("check papers"): a slash
+  // command never reaches it (text-message.handler skips '/' for the checker), and /exam is the assessment generator
+  // (menu_assessment) — run 20261127-1533 drove /exam and typed into the generator's Flow. "cancel" ends it after.
+  if (want('T999')) {
+    const N999 = 'A text I send while the exam checker is waiting always gets a reply';
+    s = t();
+    await api.resetFlow();
+    const start = await ask6(api, 'check papers', 9000);
+    const stepBtns = start.some((x) => (x.btns || []).length > 0);
+    const typed = start.length ? await ask6(api, 'I am not sure what to send now', 9000) : [];
+    const replyBtns = typed.some((x) => (x.btns || []).length > 0);
+    await ask6(api, 'cancel', 4000);
+    const ev = { start: brief6(start), typed: brief6(typed), stepHadButtons: stepBtns, replyHadButtons: replyBtns };
+    const store = start.some((x) => /play\.google\.com|Play Store|ایپ/.test(String(x.txt || '') + JSON.stringify(x.cta || {})));
+    if (!start.length || store) rec('T999', N999, 'BLOCKED', { reason: store ? '"check papers" was answered with the app redirect (exam_checker), so no checker step opened in chat'
+      : '"check papers" got no reply on this lane, so there is no exam-checker step to type into', ...ev }, t() - s);
+    else rec('T999', N999, ...V(typed.length > 0 && (!stepBtns || replyBtns), ev), t() - s);
+  }
+
+  // ── T758 / T703 — an unknown phone's /quiz (guest home) and STOP (family phone binding) ───────────────────
+  // student-ingress guestVerdict → student-quiz open → web-quiz-guest-home offer: needs web_quiz_hub,
+  // web_quiz_identity_canon, web_quiz_phone_bind, web_quiz_guest_home, WQ_TOMB_SALT and a portal base + token
+  // secret, and the student door (STUDENT_MODE_ENABLED). quiz_first_door is held off (it answers an unknown phone's
+  // /quiz before the guest verdict). Each run uses fresh random phones: the guest reply cap lives in Redis.
+  if (want('T758', 'T703')) {
+    const N758 = 'With web_quiz_guest_home on, /quiz from a phone the bot does not know gets one guest reply';
+    const N703 = 'With web_quiz_phone_bind on, STOP removes every child\'s place from the phone and gets one reply';
+    if (!canFlip6()) {
+      if (want('T758')) rec('T758', N758, 'BLOCKED', { reason: 'GLOBAL_SWITCH: the web_quiz_* switches are flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+      if (want('T703')) rec('T703', N703, 'BLOCKED', { reason: 'GLOBAL_SWITCH: the web_quiz_* switches are flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    } else {
+      const { url, key } = DBT6.dbCreds();
+      const H = { apikey: key, Authorization: `Bearer ${key}` };
+      const count = async (table, q = '') => {
+        try { const r = await fetch(`${url}/rest/v1/${table}?select=*${q}`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
+          const m = String(r.headers.get('content-range') || '').match(/\/(\d+)$/); return m ? Number(m[1]) : null; } catch (_) { return null; }
+      };
+      // The lane's database is built from supabase/baseline/schema.sql plus the migrations schema.migrations.txt does
+      // NOT list. That list names child_identity.sql and web_quiz_message_ledger*.sql as already in the dump, but the
+      // dump has neither table, so the lane has no child_phone_bindings / message_ledger (run 20261127-1533: PostgREST
+      // 404 on both; the bot's findByTomb failed and an unknown phone's "stop" fell through to the LLM). bd-q8wt5e.25.
+      const has = async (table) => { try { const r = await fetch(`${url}/rest/v1/${table}?select=*&limit=0`, { headers: H }); return r.status !== 404; } catch (_) { return null; } };
+      const lane = { child_phone_bindings: await has('child_phone_bindings'), message_ledger: await has('message_ledger') };
+      const LANE_GAP = 'the lane\'s database has no ' + Object.keys(lane).filter((k) => lane[k] === false).join(' / ')
+        + ' table: supabase/baseline/schema.migrations.txt lists child_identity.sql and web_quiz_message_ledger*.sql as carried by schema.sql, which holds neither, so the local DB never gets them';
+      const restarted = await restart6({ STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: LANE_BASE, WEB_QUIZ_TOKEN_SECRET: 'mock-lane-guest-secret', WQ_TOMB_SALT: 'mock-lane-tomb-salt' });
+      try {
+        const sw = await flipAll6([['quiz_one_door', false], ['quiz_first_door', false], ['web_quiz_hub', true], ['web_quiz_identity_canon', true], ['web_quiz_phone_bind', true], ['web_quiz_guest_home', true]]);
+        const harness = !sw.ok ? { harness: 'could not set the web_quiz_* switches', sw }
+          : !(restarted && restarted.ok) ? { harness: 'could not restart the bot with STUDENT_MODE_ENABLED, WQ_TOMB_SALT and a portal base: ' + JSON.stringify(restarted).slice(0, 120) } : null;
+        if (want('T758')) {
+          s = t();
+          const P = randPhone6(); const g = api.as(P);
+          const isGuest = (x) => x.type === 'interactive.cta_url' && /\/h\//.test((x.cta && x.cta.url) || '');
+          const noPhone = (x) => !String((x.cta && x.cta.url) || '').includes(P.slice(-7));
+          const ledger0 = await count('message_ledger', '&trigger=eq.guest_reply');
+          const kids0 = await count('students'); const binds0 = await count('child_phone_bindings');
+          const one = await ask6(g, '/quiz', 9000);
+          const ledger1 = await count('message_ledger', '&trigger=eq.guest_reply');
+          const two = await ask6(g, '/quiz', 9000);
+          const three = await ask6(g, '/quiz', 9000);
+          const other = await ask6(api.as(randPhone6()), 'hello', 9000);
+          const kids1 = await count('students'); const binds1 = await count('child_phone_bindings');
+          const teacher = await ask6(api, '/quiz', 9000);
+          await flipAll6([['web_quiz_guest_home', false]], GATE_SETTLE);   // web-quiz-identity-flags keeps its own 30 s cache too
+          const off = await ask6(api.as(randPhone6()), '/quiz', 9000);
+          const ev = {
+            first: brief6(one), oneGuestReply: one.length === 1 && isGuest(one[0]) && (one[0].btns || []).some((b) => /^(Play|کھیلیں)$/.test(b)), linkCarriesNoPhone: one.every(noPhone),
+            ledger: { before: ledger0, after: ledger1 }, second: brief6(two), third: brief6(three),
+            thirdIsNoQuizzesLine: three.length > 0 && !three.some(isGuest) && three.some((x) => /No quizzes yet|ابھی کوئی quiz نہیں/.test(String(x.txt || ''))),
+            nothingWritten: { students: [kids0, kids1], bindings: [binds0, binds1] },
+            otherMessage: brief6(other), teacherQuiz: brief6(teacher), guestHomeOff: brief6(off),
+          };
+          // the ledger row is one per (PKT day, trigger, …) with a count: the first reply adds one row or bumps one count
+          const ledgerOk = ledger0 !== null && ledger1 !== null && ledger1 >= 1;
+          const waOk = ev.oneGuestReply && ev.linkCarriesNoPhone && two.some(isGuest) && ev.thirdIsNoQuizzesLine
+            && kids0 === kids1 && other.length > 0 && !other.some(isGuest) && teacher.length > 0 && !teacher.some(isGuest)
+            && off.length > 0 && !off.some(isGuest);
+          ev.lane = lane;
+          if (harness) rec('T758', N758, 'BLOCKED', { ...harness, ...ev }, t() - s);
+          else if (!waOk) rec('T758', N758, 'FAIL', ev, t() - s);
+          else if (lane.message_ledger === false || lane.child_phone_bindings === false) rec('T758', N758, 'BLOCKED', { reason: 'every WhatsApp Then step checked and right; "counted once on the send ledger as a guest reply" and "no saved place written" cannot be read: ' + LANE_GAP, ...ev }, t() - s);
+          else rec('T758', N758, ...V(ledgerOk && binds0 === binds1, ev), t() - s);
+        }
+        if (want('T703')) {
+          s = t();
+          if (lane.child_phone_bindings === false) { rec('T703', N703, 'BLOCKED', { reason: LANE_GAP + '; with no bindings table the binder cannot answer "stop" at all', lane }, 0); }
+          else {
+          const nothing = await ask6(api.as(randPhone6()), 'stop', 9000);
+          const nothingOk = nothing.length === 1 && /Nothing was saved for this phone/.test(String(nothing[0].txt || ''));
+          const ev = { unknownPhoneNothingSaved: brief6(nothing) };
+          if (harness) rec('T703', N703, 'BLOCKED', { ...harness, ...ev }, t() - s);
+          else if (!nothingOk) rec('T703', N703, 'FAIL', ev, t() - s);
+          else rec('T703', N703, 'BLOCKED', { reason: 'the "nothing saved" reply was checked and right; erasing a saved place needs a JUGNU- code minted by a child\'s '
+            + 'web page (the lane serves none), and the teacher-phone and mid-quiz cases need that saved state too; unit: web-quiz-bind.service tests', ...ev }, t() - s);
+          }
+        }
+      } finally {
+        await api.restoreAppSettings({ settleMs: 0 });
+        if (restarted && restarted.ok) await restart6({});
+      }
+    }
+  }
+
+  // ── recorded BLOCKED: what each needs that this lane cannot do ─────────────────────────────────────────
+  {
+    const PORTAL = 'its Then steps are on a portal page or a portal API route, and the mock lane runs only the bot and the worker (no dashboard/portal process)';
+    const CHILD_WEB = 'its Then steps are on the child\'s web quiz / hub page (web-quiz-internal.routes behind the portal), which the mock lane does not serve';
+    const JOB = (j) => 'it is decided by ' + j + ', which the mock lane has no lever to run or to move the clock for';
+    const b6 = (id, name, reason) => { if (want(id)) rec(id, name, 'BLOCKED', { reason }, 0); };
+    b6('T250', 'An expired or altered training link starts nothing and tells me how to get a new one', PORTAL + ' (/t/:token, portal-link.routes.js); unit: tests/training/web-training-portal-link.test.js');
+    b6('T262', 'A portal module-exam question with nothing to pick from is answered in writing and saves', PORTAL + ' (TrainingModuleExam, submitModuleExamPaper); unit: tests/training/portal-exam-no-options-is-written.test.js');
+    b6('T810', 'With web_quiz_challenge_v2 and web_quiz_challenge_period on, a child\'s first play of a stop this month is the record', CHILD_WEB + '; unit: challenge-serve-v2.test.js');
+    b6('T811', 'With web_quiz_challenge_pool on, a child reads a story they have never met, or is told a new one is on its way', CHILD_WEB + '; unit: challenge-draw.test.js');
+    b6('T855', 'With web_quiz_challenge_story on, a story tapped on the Story Time shelf is the story the child plays', CHILD_WEB + '; unit: challenge-story-serve.test.js');
+    b6('T698', 'With web_quiz_identity_canon on, a child merged into a class-list child is known by that child\'s id', 'it is a server-side id fold for hub links and sessions (canonicalStudentIds) with no WhatsApp message to observe; ' + CHILD_WEB);
+    b6('T699', 'With web_quiz_identity_canon on, a new name typed again on the same phone for the same teacher is the same child', 'the name is typed on the child\'s web quiz page; ' + CHILD_WEB);
+    b6('T700', 'A family phone binding is erased, never kept, when it is undone, stopped or expires', 'a binding is made only from a JUGNU- code a child\'s web page mints, and "undone on the page" is a page action; ' + CHILD_WEB);
+    b6('T701', 'With web_quiz_phone_bind on, a family\'s "JUGNU-" message saves the child\'s place and gets one reply', 'the JUGNU- code is minted by the child\'s web page (child_bind_codes) less than an hour before; ' + CHILD_WEB);
+    b6('T702', 'With web_quiz_phone_bind on, a code is refused for a teacher\'s phone, a full phone, or a stale code', 'each case needs a JUGNU- code minted by the child\'s web page and phones already holding saved places; ' + CHILD_WEB);
+    b6('T704', 'With web_quiz_phone_bind on, /quiz opens the same children the door counts', 'needs a phone holding a saved place, made only from a page-minted JUGNU- code; ' + CHILD_WEB);
+    b6('T705', 'With web_quiz_phone_bind on, a family phone gets at most 8 service replies in one Pakistan day', 'needs 8 binder replies already counted today on one phone, i.e. eight page-minted codes or saved places; ' + CHILD_WEB);
+    b6('T706', 'With web_quiz_phone_bind on, the STOP reply says only that the phone was removed', 'needs a phone holding a saved place, made only from a page-minted JUGNU- code; ' + CHILD_WEB);
+    b6('T707', 'With web_quiz_phone_bind on, a JUGNU- code or STOP from an unknown phone keeps the phone key off the decision log', 'its Then step is a field of the bot\'s structured decision log (ingress.decision), which the lane\'s driver does not read');
+    b6('T754', 'With web_quiz_identity_canon on, my "same child?" queue pairs a chat child with one child on my class list', 'the "same child?" queue is a portal class-tab page; ' + PORTAL);
+    b6('T755', 'Only my tap joins a child, once, and I can undo it', 'the "Same child" / "Undo" taps are on the portal class tab; ' + PORTAL);
+    b6('T756', '"Link this class\'s quiz codes" binds only my unbound codes to my own class', 'the "Link this class\'s quiz codes" tap is on the portal; ' + PORTAL);
+    b6('T938', 'A tap in my "same child?" queue answers from my kept queue, without working the queue out again', 'the queue and its taps are on the portal class tab; ' + PORTAL);
+    b6('T939', 'The automatic join never undoes my "Different", and a child I joined still holds back their look-alike', 'the queue taps are on the portal, and the automatic join is a server sweep the lane does not run; ' + PORTAL);
+    b6('T940', 'While my "same child?" tab is open, my kept queue stays ready for my next tap, for up to an hour', 'portal tab timing over ten minutes to an hour; ' + PORTAL);
+    b6('T941', 'My kept "same child?" queue waits half an hour for my tap, and a configured test teacher\'s taps never hold a tier', 'portal tab timing over 25 minutes; ' + PORTAL);
+    b6('T964', 'The hub\'s lantern names the story of the tile under it', 'the lantern is on the child\'s hub page; ' + CHILD_WEB);
+    b6('T850', 'With web_quiz_challenge_clip_warm off, the queue service\'s sweep tick records no clip', JOB('the queue service\'s hourly sweep tick (clip warm)') + ' — stack-control sweep() knows teacher-nudges, resume, stale and quiz-offer-prepare only');
+    b6('T851', 'With web_quiz_challenge_v2 off, the clip warm switch alone does nothing', JOB('the clip warm job on the sweep tick') + ' — no sweep() lever for it');
+    b6('T852', 'With web_quiz_challenge_clip_warm on, released passages and next week\'s are ready before a child taps', JOB('the first sweep tick after boot (clip warm), with passages released on chosen days') + '; it also records TTS clips the lane\'s cassettes do not hold');
+    b6('T853', 'With web_quiz_challenge_clip_warm on, a clip already in the store is not made again', JOB('the clip warm job run twice on one Pakistan day') + ' — no sweep() lever for it');
+    b6('T854', 'With web_quiz_challenge_clip_warm on, the job never records more than a child\'s first taps could', JOB('the clip warm job against a per-process recording limit') + ' — no sweep() lever for it');
+    b6('T757', 'A saved place on a family phone ends on the 31 March that closes its school year', JOB('the daily binding-expiry job at 31 March 23:59:59 PKT') + ', and the saved place itself needs a page-minted JUGNU- code');
+    b6('T839', 'A child called in the class round plays the tap games as themself, and the runs say so', 'the class round ("Hold to call the next child", the tap games, "Done ✓") is played on the teacher\'s portal page and the child\'s web games; ' + PORTAL);
+    b6('T840', 'Outside an open round turn a round link or claim stores nothing, and my phone stays practice', 'round turn links and challenge tokens are redeemed by the child\'s web page; ' + CHILD_WEB);
+    b6('T856', 'A paused class round\'s card on my class tab says where it stopped', 'the round card is on the portal class tab; ' + PORTAL);
+    b6('T962', 'My Urdu round list keeps each name whole, and a round turn is never counted, even across a restart', 'the round list is a portal page and the turns are served to the child\'s web games; ' + PORTAL);
+    b6('T923', 'A run that comes by the class link inside my class\'s open week is stored in the class-week sample', 'the run is served to the child\'s web game from the class link; ' + CHILD_WEB);
+    b6('T921', 'The term\'s class round draw is refused when the school break list is missing or a class week falls in a break', 'the draw is an operator script run with a term plan and window, not a chat step; no lever on this lane runs it');
+    b6('T922', 'A drawn class\'s teacher invitation needs the operator\'s dated go for this term', 'needs a class drawn by the operator\'s term draw (not run on this lane) before any invitation can be sent');
+    b6('T937', 'With web_quiz_events_v2 on, my Undo of a child\'s saved place is counted like the family\'s own undo', 'the "Undo" beside "Saved on WhatsApp ✓" is on the portal class tab, and a saved place needs a page-minted JUGNU- code; ' + PORTAL);
+    b6('T870', 'A child\'s round game ends with the phone handed back, and a resumed turn shows the game played done', 'the end card and the trail are on the child\'s web game inside the portal class round; ' + PORTAL);
+    b6('T963', 'A read that was not a reading earns no sticker on my card and nothing in my Book', 'the read result card and the Book are on the child\'s web page; ' + CHILD_WEB);
+    b6('T966', 'A recording held for its subject is listed as under review and tapping it makes no quiz', 'needs a recorded lesson of a held subject (Islamiat) on the driver whose quiz the offer skipped; the lane seeds no recorded-lesson transcript, and making one needs the transcription and digest calls its cassettes do not hold. Unit: tests/quiz/transcript-quiz-subject-held.test.js');
+    b6('T967', 'In the /quiz Flow a recording held for its subject offers nothing to make', 'needs a recorded lesson of a held subject on the driver (as T966), which the lane does not seed');
+    b6('T968', '/quiz lists a lesson plan I read in the teacher app', 'needs a lesson-plan open recorded by the teacher app (lp-app-opens.store), which is written by the portal\'s app route the lane does not run');
+    b6('T998', 'A child who sends the class quiz code again mid-quiz gets the same quiz back, not a new one', 'needs a class quiz share link minted for a quiz on the driver and a child more than a minute into it; the lane has no sent class quiz at this point and the minute wait is not clock-movable. Unit: tests/quiz/video-quiz-reuse-open-run.test.js');
+    b6('T943', 'With the one-tap send on, the quiz I am handed carries one tap to my class group', 'needs a quiz PDF hand-out on the driver (a recorded lesson\'s quiz, a library quiz send, or the six-hour nudge), none of which this block can make without the recorded-lesson cassettes. Unit: bot/tests/qfix-forward/forward-messages.test.js');
+    b6('T944', 'In Urdu, the message my class reads says کوئز, never a Latin word', 'needs an Urdu quiz hand-out on the driver (as T943). Unit: bot/tests/qfix-forward/forward-urdu-words.test.js');
+    b6('T945', 'The quiz message I send again from my quiz home is in one language, the quiz\'s', 'the resend is from the portal quiz home or the one-tap link route (teacher-home.send.js); ' + PORTAL);
+  }
 
 };

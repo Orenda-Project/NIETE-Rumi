@@ -332,6 +332,33 @@
               "title": "PDF — ready to print"
             }
           ],
+          "page_choices": [
+            {
+              "id": "none",
+              "title": "No limit"
+            },
+            {
+              "id": "1",
+              "title": "1 page"
+            },
+            {
+              "id": "2",
+              "title": "2 pages"
+            },
+            {
+              "id": "3",
+              "title": "3 pages"
+            },
+            {
+              "id": "4",
+              "title": "4 pages"
+            },
+            {
+              "id": "5",
+              "title": "5 pages"
+            }
+          ],
+          "show_pages": false,
           "extension_message_response": {
             "params": {
               "assessment_action": "queued",

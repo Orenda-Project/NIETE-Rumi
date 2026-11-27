@@ -384,7 +384,8 @@ Feature: NIETE (ICT) Teacher Training
   # tap re-made it with no subject check: 7 such quizzes reached children (6 Islamiat). Needs a
   # recorded Islamiat lesson on the driver number whose quiz the offer skipped. @wip until seeded.
 
-  @e2e @quiz @wip @draft @P1 @T1182
+  # @T966 was @T1182 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @wip @draft @P1 @T966
   Scenario: A recording held for its subject is listed as under review and tapping it makes no quiz
     Given the NIETE bot chat is open and I recorded an Islamiat lesson whose quiz was held back because the subject is still under review
     When I send "/quiz"
@@ -396,7 +397,8 @@ Feature: NIETE (ICT) Teacher Training
     # refuses a held quiz on every door. Urdu: «زیرِ نظرثانی». A recording skipped for any other reason
     # (too short) is still offered to make, as before. tests/quiz/transcript-quiz-subject-held.test.js. @wip.
 
-  @e2e @quiz @flow @wip @draft @P1 @T1183
+  # @T967 was @T1183 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @flow @wip @draft @P1 @T967
   Scenario: In the /quiz Flow a recording held for its subject offers nothing to make
     Given the NIETE bot chat is open and I recorded an Islamiat lesson whose quiz was held back because the subject is still under review
     When I open that lesson in the /quiz Flow
@@ -406,7 +408,8 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-flow-endpoint actionsFor({state:'held'}) → [], flowStatus → tqFlowStatusHeld, DONE copy
     # tqFlowDoneHeldHead/Body; startTranscriptLesson via 'flow' returns outcome 'held'. @wip.
 
-  @e2e @quiz @wip @draft @config-gated @P1
+  # @T968 given 2026-11-27, bd-q8wt5e.6.4 (it had no id tag).
+  @e2e @quiz @wip @draft @config-gated @P1 @T968
   Scenario: /quiz lists a lesson plan I read in the teacher app
     Given the NIETE bot chat is open on a teacher who read a Grade 1-5 lesson plan in the teacher app this week and never received it on WhatsApp
     When I send "quiz"
@@ -578,7 +581,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # @no-mock-driver: the late check fires at the next 07:00 PKT through the scheduled report job; the mock lane
   # cannot move the clock. bot/tests/workers/video-quiz-report-late-finishers.test.js drives it through the worker.
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1196
+  # @T969 was @T1196 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T969
   Scenario: Children who finish after my class report reach me the next morning
     Given app_settings "video_quiz_late_report" is on with k 5
     And my class report for a quiz went out yesterday
@@ -591,7 +595,8 @@ Feature: NIETE (ICT) Teacher Training
     # report_sent{trigger:'followup'}. @wip.
 
   # @no-mock-driver: same 07:00 scheduled check as the scenario above; executed in the same worker test.
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1197
+  # @T970 was @T1197 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T970
   Scenario: Fewer late finishers than the switch's k send nothing, and the switch off is today's one report
     Given my class report for a quiz went out yesterday
     And 4 children finished it after the report
@@ -605,7 +610,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # @no-mock-driver: the ask is a WhatsApp Flow / list tap racing a scheduled job; executed in
   # bot/tests/workers/video-quiz-report-late-finishers.test.js and bot/tests/quiz/report-not-through.test.js.
-  @e2e @quiz @wip @draft @no-mock-driver @P2 @T1198
+  # @T971 was @T1198 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @wip @draft @no-mock-driver @P2 @T971
   Scenario: Asking for the report from /quiz early does not cancel the automatic class report
     Given the NIETE bot chat is open and children have started my quiz
     When I ask for its report from /quiz before the 12 hours are up
@@ -616,7 +622,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # @no-mock-driver: the review queue is written by the nightly key job and read when the class report is built (PDF);
   # the mock lane has neither. Executed in bot/tests/quiz/web-quiz/report-key-review.test.js through generate().
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1199
+  # @T972 was @T1199 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T972
   Scenario: A question whose answer key is under review is in my class report without a "right answer"
     Given app_settings "video_quiz_report_key_review" is on
     And most of my class got a question wrong whose answer key is waiting for a person to check it
@@ -1274,7 +1281,8 @@ Feature: NIETE (ICT) Teacher Training
     # command's own 24 h link, minted on the server; the switch rides the page read (PAGE_KEYS). Off: the page and its
     # JSON are today's byte for byte. Unit: bot/tests/first-touch/teacher-home.portal-link.test.js.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P1 @T1178
+  # @T973 was @T1178 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P1 @T973
   Scenario: "Create Quick Quiz" on a Digital Coach report makes the quiz for that lesson, not a list of past sessions
     Given app_settings "quiz_teacher_home_one_lesson" is true
     And I am a registered teacher on the portal, on the ready report of a lesson I recorded ("Plants")
@@ -1288,14 +1296,16 @@ Feature: NIETE (ICT) Teacher Training
     # /api/th/quiz/make kind coaching) right after paint and never reads /api/th/home. A quiz already made for the
     # lesson shows at once. Unit: bot/tests/first-touch/teacher-home.one-lesson.test.js, teacher-home.page-run.test.js.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1179
+  # @T974 was @T1179 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T974
   Scenario: With the one-lesson switch off, the report's "Create Quick Quiz" opens the quiz home as before
     Given app_settings "quiz_teacher_home_one_lesson" is false
     And I am a registered teacher on the portal, on the ready report of a lesson I recorded
     When I tap "Create Quick Quiz"
     Then my quiz home opens with its list of my lessons, exactly as before, and no quiz is started on its own
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1180
+  # @T975 was @T1180 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T975
   Scenario: A quiz-home link carrying another teacher's lesson makes nothing
     Given app_settings "quiz_teacher_home_one_lesson" is true
     And my quiz-home link carries the id of a lesson another teacher recorded
@@ -1305,7 +1315,8 @@ Feature: NIETE (ICT) Teacher Training
     # The server decides whose lesson it is: quiz/make → the transcript provider's coaching_sessions read by the
     # token's teacher (user_id) → not_found → 404. Unit: teacher-home.one-lesson.test.js ("another teacher").
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1246
+  # @T976 was @T1246 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T976
   Scenario: The quiz home opened for one lesson plan names that lesson under "Quiz from this lesson"
     Given app_settings "quiz_teacher_home_one_lesson" is true
     And a lesson plan "All About Me: Key Words" was sent to me on WhatsApp, or I read it in the app
@@ -1495,7 +1506,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
   # cassette. tests/assessment/drawn-items-picture.test.js executes the drop and the prompt.
-  @e2e @flow @draft @no-mock-driver @P2 @T1245
+  # @T977 was @T1245 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @flow @draft @no-mock-driver @P2 @T977
   Scenario: On a paper from the book, a question that needs a picture comes with it or is left off
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen Grade 5, Science and pages that have a labelled diagram
@@ -1507,7 +1519,8 @@ Feature: NIETE (ICT) Teacher Training
     # with no diagram data and each one cost a paid picture call that could not draw anything.
   # @no-mock-driver: needs a paper the model writes. tests/assessment/mcq-answer-check.test.js
   # executes the check: an answer that is not one of its options is matched or the item dropped.
-  @e2e @flow @draft @no-mock-driver @P2 @T1247
+  # @T978 was @T1247 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @flow @draft @no-mock-driver @P2 @T978
   Scenario: Each MCQ on a plain paper has one right option, and its answer is that option
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen Grade 4, Science and the pages to cover
@@ -1635,7 +1648,8 @@ Feature: NIETE (ICT) Teacher Training
   # @no-mock-driver (all four): the mock lane cannot age the teacher's last message past 24 hours, and the report
   # quiz template is not approved on any WABA yet. Executed with the network mocked in
   # tests/qfix-offers/closed-window-offer.test.js and tests/qfix-offers/report-quiz-tap-webhook.test.js.
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T1240
+  # @T979 was @T1240 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T979
   Scenario: With my window closed, my coaching report carries "Make a quiz", and one tap makes the quiz
     Given app_settings "quiz_offer_closed_window" names an approved report quiz template
     And I recorded a lesson long enough for a quiz and have not written to the bot for more than 24 hours
@@ -1648,7 +1662,8 @@ Feature: NIETE (ICT) Teacher Training
     # handleOfferButton(yes): the language ask or straight to generating, as a "Yes" tap. The tap opens the
     # window, so neither the once-per-teacher rule nor the window check applies to it. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @negative @P1 @T1241
+  # @T980 was @T1241 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @negative @P1 @T980
   Scenario: With the switch off, or the quiz template refused, my report is today's report template
     Given I recorded a lesson long enough for a quiz and have not written to the bot for more than 24 hours
     When app_settings "quiz_offer_closed_window" is missing, not an object or unreadable
@@ -1660,7 +1675,8 @@ Feature: NIETE (ICT) Teacher Training
     # share_send.dry_run with the button it would have sent and never calls Meta. A report that carries the lesson
     # clip keeps its own template and button, and gets no quiz button. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T1242
+  # @T981 was @T1242 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P2 @T981
   Scenario: A "Make a quiz" tap always gets a true answer
     Given my coaching report reached me as the report template with a "Make a quiz" button
     When I tap it after I already made that lesson's quiz from /quiz
@@ -1673,7 +1689,8 @@ Feature: NIETE (ICT) Teacher Training
     # allowed) -> failureCopyKey(reason, 'transcript'). handleReportQuizTap: transcript_quiz.report_tap
     # {outcome: not_owner} and nothing sent. @wip.
 
-  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T1243
+  # @T982 was @T1243 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T982
   Scenario: A quiz offer held for a closed window is on record, and is taken up again when I come back
     Given app_settings "quiz_offer_closed_window" has "trace" on
     And I have not written to the bot for more than 24 hours when my lesson's quiz offer is due
@@ -1693,7 +1710,8 @@ Feature: NIETE (ICT) Teacher Training
   # page is live on sandbox. Unit: bot/tests/quiz/web-quiz/*.test.js (fake Supabase, real scoring,
   # real one-attempt and self-test rules, real report scheduler).
 
-  @api @quiz @web @wip @draft @P1 @T100 @no-mock-driver
+  # @T983 was @T100 (duplicate of @T100 (line 2106 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @wip @draft @P1 @T983 @no-mock-driver
   Scenario: A returning child plays the class quiz on the web and the teacher's report is scheduled
     Given a teacher's class code whose children have played before
     When the page asks for the quiz by its code
@@ -1753,7 +1771,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # The class table and the school league with the child home on (app_settings web_quiz_class_doors, off by default).
 
-  @api @quiz @web @config-gated @wip @draft @P1 @T1171 @no-mock-driver
+  # @T984 was @T1171 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @config-gated @wip @draft @P1 @T984 @no-mock-driver
   Scenario: With the child home on, a class child's card still leads to the class table and the school league
     Given app_settings "web_quiz_home_v3" and "web_quiz_class_doors" are true
     And a child of my class finishes my class quiz on the web page
@@ -1770,7 +1789,8 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz.service board + web-quiz-schools board -> class_doors; wq.js classDoors on foldCard + results, board, drawSchools.
     # unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
-  @api @quiz @web @config-gated @wip @draft @P1 @T1172 @no-mock-driver
+  # @T985 was @T1172 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @config-gated @wip @draft @P1 @T985 @no-mock-driver
   Scenario: A class child's home has "My class" and "My school" under the Next tile
     Given app_settings "web_quiz_home_v3" and "web_quiz_class_doors" are true
     And a child of my class has played one of my class quizzes
@@ -1783,7 +1803,8 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-hub-home homeField -> {class_doors: {class, schools}} (web-quiz-class-doors-flag linksOf with the watch root, the hub's own history);
     # wq-home.js socialHtml. unit: bot/tests/quiz/web-quiz/web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
-  @api @quiz @web @config-gated @wip @draft @P1 @T1173 @no-mock-driver
+  # @T986 was @T1173 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @config-gated @wip @draft @P1 @T986 @no-mock-driver
   Scenario: The class table and the school league open in the child's language, titled with the child's class
     Given app_settings "web_quiz_class_doors" is true
     And an Urdu child of my class has played one of my English class quizzes
@@ -1802,7 +1823,8 @@ Feature: NIETE (ICT) Teacher Training
     # board -> my_class + one_class; web-quiz.routes uiLangOf -> payload.ui_lang; wq.js LANG/UI_SWAP/quizPage, board title.
     # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-class-doors.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
-  @api @quiz @web @config-gated @wip @draft @P1 @T1174 @no-mock-driver
+  # @T987 was @T1174 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @config-gated @wip @draft @P1 @T987 @no-mock-driver
   Scenario: A class table of more than one class lets the child see their own class; Play opens the quiz in the child's language
     Given app_settings "web_quiz_class_doors" is true
     And my class quiz's table holds children of class 3 and class 4, and the child viewing it is in class 3
@@ -1816,7 +1838,8 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-class-twin (web-quiz-hub lessonRefs); wq.js drawBoard chips + quizPage(twin).
     # unit: bot/tests/quiz/web-quiz/web-quiz.service.test.js, web-quiz-schools.test.js, dashboard/tests/web-quiz-class-doors.service.test.js. @wip.
 
-  @web @quiz @config-gated @wip @draft @P2 @T1175 @no-mock-driver
+  # @T988 was @T1175 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @web @quiz @config-gated @wip @draft @P2 @T988 @no-mock-driver
   Scenario: The class table opens at once from the card, and tells the child how they moved since last time
     Given app_settings "web_quiz_class_doors" is true
     And a class child's folded card or results show "See my class"
@@ -2117,7 +2140,8 @@ Feature: NIETE (ICT) Teacher Training
     # token module signs one. The code is the same in both channels, so QUIZ-<code> still works in WhatsApp.
     # Unit: tests/quiz/web-quiz-link.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T107 @no-mock-driver
+  # @T989 was @T107 (duplicate of @T107 (line 1851 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @wip @draft @P1 @T989 @no-mock-driver
   Scenario: A web-arm quiz carries web items written from its own source, and WhatsApp is unchanged
     Given the web quiz is switched on for me and app_settings "web_quiz_items_v2" is true
     When my class quiz is made from my lesson
@@ -2129,7 +2153,8 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate process() before the insert. Flag absent = no call, no media.web.
     # Unit: bot/tests/quiz/web-quiz/web-quiz-items.test.js, tests/quiz/web-quiz-items-generate.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T108 @no-mock-driver
+  # @T990 was @T108 (duplicate of @T108 (line 1860 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @wip @draft @P1 @T990 @no-mock-driver
   Scenario: A child plays picture, listen, order and match questions on the web
     Given a web quiz whose questions carry web items
     When the page loads the quiz
@@ -2174,7 +2199,8 @@ Feature: NIETE (ICT) Teacher Training
     # wq.js jugBroken (capture-phase error listener on the page root); wq.css .wq-jgone.
     # Unit: dashboard/tests/web-quiz-mascot.service.test.js, dashboard/tests/web-quiz-page-mascot-diet.service.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T201 @no-mock-driver
+  # @T991 was @T201 (duplicate of @T201 (line 2025 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @wip @draft @P1 @T991 @no-mock-driver
   Scenario: An Urdu quiz opens in a Nastaliq font a child can read, from the first screen
     Given a web quiz in Urdu, opened on an Android phone on a slow connection
     When the first screen appears
@@ -2183,7 +2209,8 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz.routes head(): preload /wq/fonts/wq-nastaliq-1.woff2 (Beaconhouse Nastaliq, OFL, Urdu subset);
     # wq.css @font-face "WQ Nastaliq". Unit: dashboard/tests/web-quiz-urdu-font.service.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P1 @T202 @no-mock-driver
+  # @T992 was @T202 (duplicate of @T202 (line 2034 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @web @wip @draft @P1 @T992 @no-mock-driver
   Scenario: No Urdu line sits on another on any quiz screen
     Given a web quiz in Urdu with long questions, numbers, fractions and English words in its questions and reasons
     When the child plays it to the end on a small phone and on a large phone
@@ -2516,7 +2543,8 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
 
-  @api @quiz @wip @draft @config-gated @P2 @T242 @no-mock-driver
+  # @T993 was @T242 (duplicate of @T242 (line 2059 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @wip @draft @config-gated @P2 @T993 @no-mock-driver
   Scenario: With the author gates on, a question never points at a picture my class cannot see
     Given app_settings "quiz_author_gates_v2" is true
     And a question supposes or describes a picture ("If a diagram shows…", "The image shows…", "according to the chart", "the shaded part") but carries none
@@ -2535,7 +2563,8 @@ Feature: NIETE (ICT) Teacher Training
     And a quiz made before this, an English quiz, and my own messages keep the title they had
     # lp-quiz-digest title_ur (quiz-child-title cleanUrduTitle); web-quiz.service getQuiz pageTopic.
     # Unit: bot/tests/quiz/web-quiz/web-quiz-urdu-title.test.js, tests/quiz/lp-quiz-digest.test.js. @wip.
-  @api @quiz @wip @draft @config-gated @P2 @T241 @no-mock-driver
+  # @T994 was @T241 (duplicate of @T241 (line 2052 keeps it)); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @api @quiz @wip @draft @config-gated @P2 @T994 @no-mock-driver
   Scenario: With the author gates on, a young child hears reasons short enough to follow
     Given app_settings "quiz_author_gates_v2" is true
     And my class is in grade 1 to 5
@@ -2583,7 +2612,7 @@ Feature: NIETE (ICT) Teacher Training
   # Training is sent as the training_open_v1 template whose button logs THIS teacher into the
   # portal's training pages. The Flow is the kill switch: anything else is today's Flow.
 
-  @web @config-gated @wip @draft @P1 @T248
+  @e2e @web @config-gated @wip @draft @P1 @T248
   Scenario: With web training on for me, Training opens the portal's training pages inside WhatsApp
     Given app_settings "web_training_enabled" is true and "web_training_teachers" lists me or is "all"
     When I open Teacher Training from the menu or with /training
@@ -2597,13 +2626,13 @@ Feature: NIETE (ICT) Teacher Training
     # Unit: tests/training/web-training-link.test.js, tests/training/web-training-portal-link.test.js,
     # portal PortalLayout.trainingLink.test.tsx. Log: web_link.open (area, ua, x-requested-with, iab). @wip.
 
-  @web @config-gated @negative @wip @draft @P1 @T249
+  @e2e @web @config-gated @negative @wip @draft @P1 @T249
   Scenario: With web training off, not listed, or the template failing, Training is the Flow as before
     Given "web_training_enabled" is false or absent, or "web_training_teachers" does not include me, or the template send fails
     When I open Teacher Training
     Then I get the Teacher Training Flow exactly as before, and no template
 
-  @web @negative @wip @draft @P2 @T250
+  @e2e @web @negative @wip @draft @P2 @T250
   Scenario: An expired or altered training link starts nothing and tells me how to get a new one
     Given a training link older than 24 hours, or one that was altered
     When I open it
@@ -2634,7 +2663,7 @@ Feature: NIETE (ICT) Teacher Training
     And no quiz is written from a different version of that lesson
     # transcript-quiz-generate sourceMissing → logEvent lp_quiz.source_missing (ids only) + meta.source_reason.
     # Unit: tests/quiz/lp-quiz-generate-v9-source.test.js. @wip.
-  @web @api @negative @P1 @T262
+  @e2e @web @api @negative @P1 @T262
   Scenario: A portal module-exam question with nothing to pick from is answered in writing and saves
     Given a module exam question has no options (and no option images), even if it still carries an answer key
     When I open that exam in the portal and type a sentence longer than 32 characters
@@ -2721,7 +2750,7 @@ Feature: NIETE (ICT) Teacher Training
   # The report link is the portal's /r/<token> (the training login link owns /t/).
 
   # ── the Challenge's content draw and monthly record (web_quiz_challenge_v2 / _period / _pool) ──
-  @quiz @config-gated @wip @draft @P2 @T810
+  @e2e @quiz @config-gated @wip @draft @P2 @T810
   Scenario: With web_quiz_challenge_v2 and web_quiz_challenge_period on, a child's first play of a stop this month is the record
     Given web_quiz_challenge and web_quiz_challenge_v2 and web_quiz_challenge_period are on
     When a child opens a stop of the Challenge for the first time this month
@@ -2730,7 +2759,7 @@ Feature: NIETE (ICT) Teacher Training
     But with web_quiz_challenge_v2 off the Challenge serves, records and logs exactly as before
     # web-quiz-challenge.js serveV2; web-quiz-challenge-draw.js recordAtServe. Unit: challenge-serve-v2.test.js. @wip.
 
-  @quiz @config-gated @wip @draft @P2 @T811
+  @e2e @quiz @config-gated @wip @draft @P2 @T811
   Scenario: With web_quiz_challenge_pool on, a child reads a story they have never met, or is told a new one is on its way
     Given web_quiz_challenge_v2 and web_quiz_challenge_pool are on
     When a child opens the read stop
@@ -2738,7 +2767,7 @@ Feature: NIETE (ICT) Teacher Training
     And when every story at that level and the one below has been met, the child sees "A new story is on its way." and nothing is recorded
     # web-quiz-challenge-draw.js drawPassage; each draw logged in challenge_draws. Unit: challenge-draw.test.js. @wip.
 
-  @quiz @config-gated @wip @draft @P2 @T855
+  @e2e @quiz @config-gated @wip @draft @P2 @T855
   Scenario: With web_quiz_challenge_story on, a story tapped on the Story Time shelf is the story the child plays
     Given web_quiz_challenge_v2 and web_quiz_challenge_pool and web_quiz_challenge_story are on
     When a child taps a story on the Story Time shelf
@@ -2747,7 +2776,7 @@ Feature: NIETE (ICT) Teacher Training
     But with web_quiz_challenge_story off the stop serves exactly as before
     # web-quiz-internal.routes.js room/pid; web-quiz-challenge.js serveV2; draw storyPassageFor. Unit: challenge-story-serve.test.js. @wip.
 
-  @quiz @config-gated @wip @draft @P1 @T330
+  @e2e @quiz @config-gated @wip @draft @P1 @T330
   Scenario: With the teacher report on for me, /quiz opens a home with three choices
     Given app_settings "teacher_report_teachers" is "all" or lists me
     When I send "/quiz"
@@ -2758,13 +2787,13 @@ Feature: NIETE (ICT) Teacher Training
     # whatsapp-bot.js tqh_ branch → handleHomeButton → openMakeQuiz. Events quiz_menu.home_shown, quiz_menu.choice.
     # Unit: bot/tests/quiz/teacher-quiz-menu/teacher-quiz-home.test.js, teacher-quiz-routing.test.js. @wip.
 
-  @quiz @config-gated @negative @wip @draft @P1 @T331
+  @e2e @quiz @config-gated @negative @wip @draft @P1 @T331
   Scenario: With the teacher report off or not listing me, /quiz is exactly what it was
     Given "teacher_report_teachers" is absent, unreadable, or does not include me
     When I send "/quiz"
     Then I get the /quiz Flow of my lessons, or the lessons list when the Flow is off, and no home buttons
 
-  @quiz @config-gated @wip @draft @P1 @T332
+  @e2e @quiz @config-gated @wip @draft @P1 @T332
   Scenario: "My quiz reports" lists my sent quizzes with who played, and a tap sends that quiz's live report
     Given the teacher report is on for me and I have sent quizzes to my class
     When I tap "My quiz reports"
@@ -2779,19 +2808,19 @@ Feature: NIETE (ICT) Teacher Training
     # teacher-report-link sendTeacherReportLink (template body {{1}} topic, URL button = token; text fallback).
     # Event teacher_report.link_sent {userId, quizId, scope, how}. Unit: teacher-report-list.test.js. @wip.
 
-  @quiz @config-gated @wip @draft @P2 @T333
+  @e2e @quiz @config-gated @wip @draft @P2 @T333
   Scenario: "Class progress" sends the link to the report of all my classes
     Given the teacher report is on for me
     When I tap "Class progress"
     Then I get a link to the report of all my classes, by class and subject, in my language
 
-  @quiz @negative @wip @draft @P2 @T334
+  @e2e @quiz @negative @wip @draft @P2 @T334
   Scenario: A report row for a quiz that is not mine sends no link
     Given a "My quiz reports" row id naming another teacher's quiz
     When it reaches the bot from my phone
     Then I am told the quiz could not be found, and no report link is sent
 
-  @quiz @config-gated @wip @draft @P2 @T698
+  @e2e @quiz @config-gated @wip @draft @P2 @T698
   Scenario: With web_quiz_identity_canon on, a child merged into a class-list child is known by that child's id
     Given web_quiz_hub and web_quiz_identity_canon are on
     And a loose child record was merged into a class-list child
@@ -2799,7 +2828,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the merged record's id becomes the class-list child's id, following one merge only
     But with web_quiz_identity_canon off every id folds exactly as before
 
-  @quiz @config-gated @wip @draft @P2 @T699
+  @e2e @quiz @config-gated @wip @draft @P2 @T699
   Scenario: With web_quiz_identity_canon on, a new name typed again on the same phone for the same teacher is the same child
     Given web_quiz_hub and web_quiz_identity_canon are on and identity v2 is on
     And a child typed a name that is not on the class list on one phone for one of my codes
@@ -2807,7 +2836,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the quiz is recorded for the same child, and no second child record is made
     But another phone, another teacher's code, or two matching records make a new record as today
 
-  @quiz @config-gated @wip @draft @P2 @T700
+  @e2e @quiz @config-gated @wip @draft @P2 @T700
   Scenario: A family phone binding is erased, never kept, when it is undone, stopped or expires
     Given a child's binding to a family phone exists
     When it is undone on the page, stopped, or expires
@@ -2815,7 +2844,7 @@ Feature: NIETE (ICT) Teacher Training
     And with no fingerprint salt configured no binding is written at all
     And a "JUGNU-" code in a message is recognised only as the message's last word, and never as a quiz share code
 
-  @quiz @config-gated @wip @draft @P2 @T701
+  @e2e @quiz @config-gated @wip @draft @P2 @T701
   Scenario: With web_quiz_phone_bind on, a family's "JUGNU-" message saves the child's place and gets one reply
     Given web_quiz_hub, web_quiz_identity_canon and web_quiz_phone_bind are on
     And a child's page made a "JUGNU-" code less than an hour ago
@@ -2825,7 +2854,7 @@ Feature: NIETE (ICT) Teacher Training
     And the reply is counted once on the send ledger
     And the phone's next /quiz within ten minutes is answered as that child's phone
 
-  @quiz @config-gated @wip @draft @P2 @T702
+  @e2e @quiz @config-gated @wip @draft @P2 @T702
   Scenario: With web_quiz_phone_bind on, a code is refused for a teacher's phone, a full phone, or a stale code
     Given web_quiz_phone_bind is on
     When a teacher's phone sends a "JUGNU-" code
@@ -2835,7 +2864,7 @@ Feature: NIETE (ICT) Teacher Training
     When the code is unknown, already used, more than an hour old, for a child no longer on record, or the child is already on three phones
     Then nothing is saved and no message is sent
 
-  @quiz @config-gated @wip @draft @P2 @T703
+  @e2e @quiz @config-gated @wip @draft @P2 @T703
   Scenario: With web_quiz_phone_bind on, STOP removes every child's place from the phone and gets one reply
     Given web_quiz_phone_bind is on
     When a phone sends exactly "stop", "بند", "سٹاپ" or "اسٹاپ" as the whole message
@@ -2844,7 +2873,7 @@ Feature: NIETE (ICT) Teacher Training
     But a teacher's phone with nothing saved that sends "stop" is answered exactly as before
     And a child in the middle of a quiz who sends "stop" ends the quiz as before, and nothing saved is erased
 
-  @quiz @config-gated @wip @draft @P2 @T704
+  @e2e @quiz @config-gated @wip @draft @P2 @T704
   Scenario: With web_quiz_phone_bind on, /quiz opens the same children the door counts
     Given web_quiz_phone_bind is on
     And a phone holds one saved child and four children who joined by chat
@@ -2852,7 +2881,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the home button opens a page for the phone's children, four at most, and the dropped child is logged
     But with web_quiz_phone_bind off the /quiz reply is exactly as before
 
-  @quiz @config-gated @wip @draft @P2 @T705
+  @e2e @quiz @config-gated @wip @draft @P2 @T705
   Scenario: With web_quiz_phone_bind on, a family phone gets at most 8 service replies in one Pakistan day
     Given web_quiz_phone_bind is on
     And a phone has already been sent 8 binder replies today
@@ -2860,7 +2889,7 @@ Feature: NIETE (ICT) Teacher Training
     Then the binder does its work but sends no reply, and the capped reply is logged without the phone
     But when the number of replies allowed today cannot be counted, the reply is still sent
 
-  @quiz @config-gated @wip @draft @P2 @T706
+  @e2e @quiz @config-gated @wip @draft @P2 @T706
   Scenario: With web_quiz_phone_bind on, the STOP reply says only that the phone was removed
     Given web_quiz_phone_bind is on
     And a phone holds a child's saved place
@@ -2868,14 +2897,14 @@ Feature: NIETE (ICT) Teacher Training
     Then the one "Done" reply says the phone number was removed from the children's names
     And it never says that any recording was deleted, in English or in Urdu
 
-  @quiz @config-gated @wip @draft @P2 @T707
+  @e2e @quiz @config-gated @wip @draft @P2 @T707
   Scenario: With web_quiz_phone_bind on, a JUGNU- code or STOP from an unknown phone keeps the phone key off the decision log
     Given web_quiz_phone_bind is on
     And a phone that is not known to Rumi
     When the phone sends a JUGNU- code or "stop"
     Then the door's decision log line carries no phone key
     But the same phone sending /quiz is logged exactly as before
-  @quiz @config-gated @wip @draft @P2 @T754
+  @e2e @quiz @config-gated @wip @draft @P2 @T754
   Scenario: With web_quiz_identity_canon on, my "same child?" queue pairs a chat child with one child on my class list
     Given web_quiz_hub and web_quiz_identity_canon are on
     And a child who played from a family phone is not on my class list, but one child on my list has the same name or every word of it
@@ -2884,7 +2913,7 @@ Feature: NIETE (ICT) Teacher Training
     And a same-name record of mine on another phone or device stops the automatic join and puts the pair in my queue instead
     But a kind of pair whose checked accuracy has not passed is not shown to me, and with the switch off my queue is empty
 
-  @quiz @config-gated @wip @draft @P2 @T755
+  @e2e @quiz @config-gated @wip @draft @P2 @T755
   Scenario: Only my tap joins a child, once, and I can undo it
     Given web_quiz_hub and web_quiz_identity_canon are on and a pair is in my queue
     When I tap "Same child"
@@ -2892,14 +2921,14 @@ Feature: NIETE (ICT) Teacher Training
     And tapping again writes nothing more, and "Undo" separates them again
     But a child on another teacher's class list is refused and nothing is written
 
-  @quiz @config-gated @wip @draft @P2 @T756
+  @e2e @quiz @config-gated @wip @draft @P2 @T756
   Scenario: "Link this class's quiz codes" binds only my unbound codes to my own class
     Given web_quiz_hub and web_quiz_identity_canon are on
     When I link my quiz codes to one of my classes
     Then each of my codes with no class gets that class, and a second tap links none
     But a code that already has a class, another teacher's code, or a class that is not mine is never changed
 
-  @quiz @config-gated @wip @draft @P2 @T938
+  @e2e @quiz @config-gated @wip @draft @P2 @T938
   Scenario: A tap in my "same child?" queue answers from my kept queue, without working the queue out again
     Given web_quiz_hub and web_quiz_identity_canon are on and two pairs are in my queue
     When I tap "No" on one pair
@@ -2909,7 +2938,7 @@ Feature: NIETE (ICT) Teacher Training
     But a pair that changed meanwhile and is refused clears my kept queue, and it is worked out afresh on my next visit
     # web-quiz-join-queue.js removeFromQueue/restoreToQueue; unit: teacher-join-queue-cache-filter.test.js
 
-  @quiz @config-gated @wip @draft @P1 @T939
+  @e2e @quiz @config-gated @wip @draft @P1 @T939
   Scenario: The automatic join never undoes my "Different", and a child I joined still holds back their look-alike
     Given web_quiz_hub and web_quiz_identity_canon are on
     And one child on my class list has two look-alikes from two different family phones, both in my queue
@@ -2920,7 +2949,7 @@ Feature: NIETE (ICT) Teacher Training
     And "Undo" on my "Same child" brings that child back as a look-alike, and neither is joined automatically
     # web-quiz-join-queue.js teacherLoose blockers / runBackwardJoin refused_by_teacher; unit: teacher-join-queue-backward-no.test.js
 
-  @quiz @config-gated @wip @draft @P2 @T940
+  @e2e @quiz @config-gated @wip @draft @P2 @T940
   Scenario: While my "same child?" tab is open, my kept queue stays ready for my next tap, for up to an hour
     Given web_quiz_hub and web_quiz_identity_canon are on and my queue has been worked out
     When I keep reading the tab for more than ten minutes and then tap "Same child"
@@ -2928,7 +2957,7 @@ Feature: NIETE (ICT) Teacher Training
     But an hour after my queue was worked out, my next visit works it out afresh once
     # web-quiz-join-queue.js cachedCompute slide + QUEUE_MAX_AGE_S; unit: teacher-join-queue-cache-slide.test.js
 
-  @quiz @config-gated @wip @draft @P2 @T941
+  @e2e @quiz @config-gated @wip @draft @P2 @T941
   Scenario: My kept "same child?" queue waits half an hour for my tap, and a configured test teacher's taps never hold a tier
     Given web_quiz_hub and web_quiz_identity_canon are on and my queue has been worked out
     When I read the tab for 25 minutes without reloading it and then tap "Different"
@@ -2938,7 +2967,7 @@ Feature: NIETE (ICT) Teacher Training
     And the tier's result says how many of its taps came from the configured test teachers (excluded_n; unit: teacher-join-queue-excluded-count.test.js)
     # web-quiz-join-queue.js QUEUE_TTL_S + precisionByTier decider filter; unit: teacher-join-queue-decider-filter.test.js
 
-  @quiz @config-gated @wip @draft @P2 @T964
+  @e2e @quiz @config-gated @wip @draft @P2 @T964
   Scenario: The hub's lantern names the story of the tile under it
     Given app_settings "web_quiz_challenge_v2" and "web_quiz_challenge_story" are true
     And this week's read story and a newer listen story are both new to me
@@ -2952,21 +2981,21 @@ Feature: NIETE (ICT) Teacher Training
 
   # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
 
-  @quiz @config-gated @wip @draft @P2 @T850
+  @e2e @quiz @config-gated @wip @draft @P2 @T850
   Scenario: With web_quiz_challenge_clip_warm off, the queue service's sweep tick records no clip
     Given web_quiz_challenge_clip_warm is off
     When the queue service's hourly sweep tick runs
     Then no passage is read and no clip is recorded
     And the tick does exactly what it did before, apart from reading the one switch
 
-  @quiz @config-gated @wip @draft @P2 @T851
+  @e2e @quiz @config-gated @wip @draft @P2 @T851
   Scenario: With web_quiz_challenge_v2 off, the clip warm switch alone does nothing
     Given web_quiz_challenge_clip_warm is on
     But web_quiz_challenge_v2 is off
     When the clip warm job runs
     Then no passage is read and no clip is recorded
 
-  @quiz @config-gated @wip @draft @P2 @T852
+  @e2e @quiz @config-gated @wip @draft @P2 @T852
   Scenario: With web_quiz_challenge_clip_warm on, released passages and next week's are ready before a child taps
     Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
     And two passages are released, one is released in three days and one in thirty days
@@ -2975,7 +3004,7 @@ Feature: NIETE (ICT) Teacher Training
     And the passage released in thirty days is left for later
     And one clip warm count is logged with the clips asked for and the clips still missing
 
-  @quiz @config-gated @wip @draft @P2 @T853
+  @e2e @quiz @config-gated @wip @draft @P2 @T853
   Scenario: With web_quiz_challenge_clip_warm on, a clip already in the store is not made again
     Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
     And a passage's story clip is already in the store
@@ -2983,14 +3012,14 @@ Feature: NIETE (ICT) Teacher Training
     Then that story is never sent to the voice again
     And a second run on the same Pakistan day from the sweep tick does nothing
 
-  @quiz @config-gated @wip @draft @P2 @T854
+  @e2e @quiz @config-gated @wip @draft @P2 @T854
   Scenario: With web_quiz_challenge_clip_warm on, the job never records more than a child's first taps could
     Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
     And more passages are coming than the process may record clips for
     When the clip warm job runs
     Then it stops recording at the same limit a child's first tap has
     And the clips it did not record are counted as missing
-  @quiz @config-gated @wip @draft @P2 @T757
+  @e2e @quiz @config-gated @wip @draft @P2 @T757
   Scenario: A saved place on a family phone ends on the 31 March that closes its school year
     Given a child's place is saved on a family phone until 31 March, 23:59:59 Pakistan time
     When the daily job runs one second before that moment
@@ -3001,7 +3030,7 @@ Feature: NIETE (ICT) Teacher Training
     And a place erased more than thirteen months ago is deleted for good
     And a stop finished as that child on that phone keeps the place until the next 31 March
 
-  @quiz @config-gated @wip @draft @P2 @T758
+  @e2e @quiz @config-gated @wip @draft @P2 @T758
   Scenario: With web_quiz_guest_home on, /quiz from a phone the bot does not know gets one guest reply
     Given web_quiz_hub, web_quiz_identity_canon, web_quiz_phone_bind and web_quiz_guest_home are on
     And a phone that is not a teacher's has no child on it
@@ -3015,7 +3044,7 @@ Feature: NIETE (ICT) Teacher Training
     And a teacher's phone that sends /quiz is answered as a teacher
     And with web_quiz_guest_home off an unknown phone's /quiz is answered exactly as before
 
-  @quiz @config-gated @wip @draft @P1 @T839
+  @e2e @quiz @config-gated @wip @draft @P1 @T839
   Scenario: A child called in the class round plays the tap games as themself, and the runs say so
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And my class was drawn for this term's class round and I have started it on my phone
@@ -3026,14 +3055,14 @@ Feature: NIETE (ICT) Teacher Training
     And once their round games are stored they are ticked "Done ✓" and their identity is confirmed by the class round
     # web-quiz-class-round.js entryOf/claimFor/gameStored; web-quiz-challenge.js round claim (cr); unit: class-round-challenge.test.js
 
-  @quiz @config-gated @negative @wip @draft @P1 @T840
+  @e2e @quiz @config-gated @negative @wip @draft @P1 @T840
   Scenario: Outside an open round turn a round link or claim stores nothing, and my phone stays practice
     Given the class round is off, not started, finished, or the turn on the phone is another child's or closed
     When a round turn link or a challenge token carrying a round claim is used
     Then the Challenge refuses it and no run is stored
     And a quiz or hub link on my phone plays as today, with no round column on its runs
 
-  @quiz @config-gated @wip @draft @P2 @T856
+  @e2e @quiz @config-gated @wip @draft @P2 @T856
   Scenario: A paused class round's card on my class tab says where it stopped
     Given app_settings "web_quiz_class_round" is true
     And my class's round is paused with 3 of its 9 positions played
@@ -3044,7 +3073,7 @@ Feature: NIETE (ICT) Teacher Training
     And with the round not started, running, resumed or closed the card is exactly as before
     # web-quiz-class-round.js cardFor/pausedOf; class-round.page.js renderCard/pausedLine; unit: class-round-paused-card.test.js, class-round-paused-continue.test.js
 
-  @quiz @config-gated @wip @draft @P2 @T962
+  @e2e @quiz @config-gated @wip @draft @P2 @T962
   Scenario: My Urdu round list keeps each name whole, and a round turn is never counted, even across a restart
     Given app_settings "web_quiz_class_round" and "web_quiz_challenge_v2" are true
     And my class's round lists two children who share a first name, shown as "Bilal T." and "Bilal A."
@@ -3053,7 +3082,7 @@ Feature: NIETE (ICT) Teacher Training
     And a child's round turn that was served before the bot restarted and finished after it is stored as not counted
     And a child's own check that straddled the same restart is still its record
     # class-round.page.js renderRound (Urdu name isolate); web-quiz-challenge.js provenance + submit (the served row's mode); unit: class-round-paused-continue.test.js, challenge-counted-meta.test.js
-  @quiz @config-gated @wip @draft @P2 @T923
+  @e2e @quiz @config-gated @wip @draft @P2 @T923
   Scenario: A run that comes by the class link inside my class's open week is stored in the class-week sample
     Given app_settings "web_quiz_class_week", "web_quiz_class_round", "web_quiz_class_link", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And my class has this term's class week open now
@@ -3062,7 +3091,7 @@ Feature: NIETE (ICT) Teacher Training
     And a run outside the week, a run from another door, or any of those switches off is stored with no sample arm, exactly as today
     And a class round turn is still stored as "teacher_present" in the "class_round" sample
     # web-quiz-class-week.js openWindowFor → teacher-class-week.js openWeek; web-quiz-challenge-draw.js adminFields; unit: challenge-serve-v2.test.js, challenge-grade1.test.js
-  @quiz @config-gated @negative @wip @draft @P1 @T921
+  @e2e @quiz @config-gated @negative @wip @draft @P1 @T921
   Scenario: The term's class round draw is refused when the school break list is missing or a class week falls in a break
     Given app_settings "web_quiz_class_round" is true and the operator runs this term's draw with its plan and round window
     When app_settings "web_quiz_term_breaks" is absent or unreadable, or the round window or either order's class week overlaps a stored break, or an order's class week cannot be placed in the term
@@ -3070,7 +3099,7 @@ Feature: NIETE (ICT) Teacher Training
     And a draw whose window and both class weeks are clear of every break draws exactly as before
     # web-quiz-class-round-sampler.js runTermDraw/termBreaks; unit: class-round-draw-breaks.test.js
 
-  @quiz @config-gated @negative @wip @draft @P1 @T922
+  @e2e @quiz @config-gated @negative @wip @draft @P1 @T922
   Scenario: A drawn class's teacher invitation needs the operator's dated go for this term
     Given my class was drawn for this term's class round
     When app_settings "web_quiz_class_round_go" is absent, dated after today, for another term, or for another template or category
@@ -3080,7 +3109,7 @@ Feature: NIETE (ICT) Teacher Training
 
   # ── Events v2: the teacher's Undo of a saved place (app_settings web_quiz_events_v2, off by default) ──────
 
-  @quiz @config-gated @wip @draft @P3 @T937
+  @e2e @quiz @config-gated @wip @draft @P3 @T937
   Scenario: With web_quiz_events_v2 on, my Undo of a child's saved place is counted like the family's own undo
     Given web_quiz_hub and web_quiz_events_v2 are on and a child on my class list has a place saved on a phone
     When I tap "Undo" beside "Saved on WhatsApp ✓"
@@ -3088,7 +3117,7 @@ Feature: NIETE (ICT) Teacher Training
     But with web_quiz_events_v2 off the event is exactly today's
     # web-quiz-kid.js emit (one home for the v2 rule; the binder, the page and the hub door use it too); teacher-jugnu-internal.routes.js afterErase. Unit: web-quiz-kid-emit.test.js. @wip.
 
-  @quiz @config-gated @wip @draft @P1 @T870
+  @e2e @quiz @config-gated @wip @draft @P1 @T870
   Scenario: A child's round game ends with the phone handed back, and a resumed turn shows the game played done
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And I have opened the class round on my phone and called the next child
@@ -3101,7 +3130,7 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-challenge.js roundPayload round_turn/round_back, menu done from the turn's stored games; wq-trail.js endCard;
     # unit: class-round-endcard.test.js, dashboard class-round-endcard-page.service.test.js
 
-  @quiz @config-gated @wip @draft @P2 @T963
+  @e2e @quiz @config-gated @wip @draft @P2 @T963
   Scenario: A read that was not a reading earns no sticker on my card and nothing in my Book
     Given app_settings "web_quiz_challenge_v2" and "web_quiz_challenge_book" are true
     And my reading check this month heard no reading at all (a silent room, a tone or a fan), so it is scored with its record lost
@@ -3114,7 +3143,8 @@ Feature: NIETE (ICT) Teacher Training
     # unit: challenge-read-quality.test.js, web-quiz-book-noise.test.js, dashboard web-quiz-trail-noise-sticker.service.test.js
 
   # ── the class preview that plays (app_settings web_quiz_practice_play) ──
-  @web @quiz @config-gated @wip @draft @P1 @T1176 @no-mock-driver
+  # @T995 was @T1176 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @web @quiz @config-gated @wip @draft @P1 @T995 @no-mock-driver
   Scenario: With web_quiz_practice_play on, every teacher's quiz home offers "Try it as a student"
     Given app_settings "web_quiz_practice_play" is true
     When a teacher who is not a coach opens their quiz home
@@ -3124,7 +3154,8 @@ Feature: NIETE (ICT) Teacher Training
     # teacher-home.routes.js practiceUrl (the switch read beside the user read) and roleTag.
     # Unit: bot/tests/first-touch/teacher-home.routes.test.js ("Try it as a student" for every teacher). @wip.
 
-  @web @quiz @config-gated @wip @draft @P1 @T1177 @no-mock-driver
+  # @T996 was @T1177 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @web @quiz @config-gated @wip @draft @P1 @T996 @no-mock-driver
   Scenario: With web_quiz_practice_play on, a registered teacher who taps "I want to play" plays the class's grade
     Given app_settings "web_quiz_practice_play" is true
     And I am a registered teacher
@@ -3135,7 +3166,8 @@ Feature: NIETE (ICT) Teacher Training
     # go.routes.js teacherPlays: the maker prefill's grade (Grade 2 when none), one_door.practice{grade}.
     # Unit: bot/tests/first-touch/one-door-go-routes.test.js. @wip.
 
-  @web @quiz @config-gated @wip @draft @P1 @T1185 @no-mock-driver
+  # @T997 was @T1185 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @web @quiz @config-gated @wip @draft @P1 @T997 @no-mock-driver
   Scenario: With web_quiz_practice_your_turn on, a teacher trying it as a student reads a storybook page aloud
     Given app_settings "web_quiz_practice_play" and "web_quiz_practice_your_turn" are true, and live reading is on
     And I opened "Try it as a student" from my quiz home
@@ -3149,7 +3181,8 @@ Feature: NIETE (ICT) Teacher Training
     # (Redis wq:lr:pv:<day>:<teacher>, one Lua add-and-check); web-quiz-challenge.js countAlso adds the preview keys.
     # Unit: bot/tests/quiz/web-quiz/practice-your-turn.test.js. Web lane: web-quiz-child-page @WQ262.
 
-  @e2e @quiz @wip @draft @P2 @T1181
+  # @T998 was @T1181 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @wip @draft @P2 @T998
   Scenario: A child who sends the class quiz code again mid-quiz gets the same quiz back, not a new one
     Given a child on a known handset has joined a class quiz from its link and answered question 1
     When more than a minute later the child sends the same QUIZ code again
@@ -3159,7 +3192,8 @@ Feature: NIETE (ICT) Teacher Training
     # bd-l9fr2 (prod 5 Oct: 48 phones opened 84 sessions). video-quiz.service.js startSession reuses a share_link
     # run only when quiz, link and child all match (video-quiz-open-run.js). Unit: tests/quiz/video-quiz-reuse-open-run.test.js.
 
-  @e2e @draft @P1
+  # @T999 given 2026-11-27, bd-q8wt5e.6.4 (it had no id tag).
+  @e2e @draft @P1 @T999
   Scenario: A text I send while the exam checker is waiting always gets a reply
     Given I am part-way through checking students' exam papers
     When I type a message instead of sending a photo or tapping a button
@@ -3168,7 +3202,8 @@ Feature: NIETE (ICT) Teacher Training
     # bd-97daxo.8.12: button-bearing step replies went to the list sender and were dropped.
     # exam-checker.handler.js. Unit: bot/tests/handlers/exam-checker-text-reply.test.js.
 
-  @e2e @quiz @wip @draft @P1 @T1184
+  # @T942 was @T1184 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @wip @draft @P1 @T942
   Scenario: A class quiz is pitched at the grade the teacher saved on their profile
     Given the NIETE bot chat is open and my profile says I teach grade 5
     When I make a class quiz from one of my recorded lessons
@@ -3179,7 +3214,8 @@ Feature: NIETE (ICT) Teacher Training
     # Observable as meta.grade_source = 'profile' on the quiz row. Unit: bot/tests/quiz/transcript-quiz-digest-grade.test.js.
     # @wip: driving it needs a recorded lesson's transcript and digest call the mock cassettes do not hold.
 
-  @quiz @config-gated @wip @draft @P1 @T1190
+  # @T943 was @T1190 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @config-gated @wip @draft @P1 @T943
   Scenario: With the one-tap send on, the quiz I am handed carries one tap to my class group
     Given the NIETE bot chat is open and "quiz_forward_button" is on
     When my quiz PDF and the message to forward to my class arrive, or a library quiz's class message, or the six-hour "nobody has started" message
@@ -3192,7 +3228,8 @@ Feature: NIETE (ICT) Teacher Training
     # message. @config-gated: the switch is one app_settings row. Unit: bot/tests/qfix-forward/forward-messages.test.js,
     # forward-route.test.js.
 
-  @quiz @copy @wip @draft @P2 @T1191
+  # @T944 was @T1191 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @copy @wip @draft @P2 @T944
   Scenario: In Urdu, the message my class reads says کوئز, never a Latin word
     Given the NIETE bot chat is open and I make a quiz in Urdu, or send a library quiz in Urdu
     When the message to forward to my class arrives
@@ -3202,7 +3239,8 @@ Feature: NIETE (ICT) Teacher Training
     # ux-strings.js tqStudentMessage, tqStudentMessageWeb, vqClassMessage (ur). A quiz made earlier keeps the message
     # stored with it. Unit: bot/tests/qfix-forward/forward-urdu-words.test.js, forward-messages.test.js.
 
-  @quiz @copy @wip @draft @P2 @T1244
+  # @T945 was @T1244 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @e2e @quiz @copy @wip @draft @P2 @T945
   Scenario: The quiz message I send again from my quiz home is in one language, the quiz's
     Given the NIETE bot chat is open, my quiz home is in Urdu, and I made a quiz in English
     When I send that quiz again to my class from my quiz home, or tap its one-tap link from a WhatsApp message
@@ -3215,7 +3253,8 @@ Feature: NIETE (ICT) Teacher Training
 
   # @no-mock-driver: the day-3 retest is made by the quiz_retest sweep on a timer and authored by the model in the
   # worker; the mock lane drives inbound WhatsApp only. Executed in tests/quiz/quiz-anchors*.test.js.
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1248
+  # @T946 was @T1248 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T946
   Scenario: My class's day-3 quiz asks two questions from its first quiz again, word for word
     Given app_settings "quiz_anchor_items" is true
     And my class played the quiz I made from a lesson three days ago
@@ -3227,7 +3266,8 @@ Feature: NIETE (ICT) Teacher Training
     # quiz-anchors.carry appends the copies and records meta.anchor_items [{key, external_id, from_question_id}], so a
     # class's change on a skill is compared on the same item. Unit: tests/quiz/quiz-anchors*.test.js.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1249
+  # @T947 was @T1249 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T947
   Scenario: With the repeat-question switch off, the day-3 quiz is made exactly as before
     Given app_settings "quiz_anchor_items" is false, missing, or anything but JSON true
     When the day-3 follow-up quiz for my lesson is made
@@ -3238,7 +3278,8 @@ Feature: NIETE (ICT) Teacher Training
   # answers, score, the answer key and question set that marked it, and which quiz maker made
   # it. Behind app_settings web_quiz_keep_attempts (only JSON true is on). Nothing a child or
   # teacher sees changes; proven in bot/tests/quiz/web-quiz/quiz-attempt-log-finish.test.js.
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1250
+  # @T948 was @T1250 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T948
   Scenario: With keeping tries on, a child's second try is kept beside the first, and the result screen is unchanged
     Given app_settings "web_quiz_keep_attempts" is true for this environment
     And a child has finished a web quiz once
@@ -3247,7 +3288,8 @@ Feature: NIETE (ICT) Teacher Training
     And two tries are kept for that child and quiz, and the first try's answers and score are unchanged
     # web-quiz.service finishSessionTimed -> quiz-attempt-log keep (never awaited; a failed write is swallowed). @wip.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1251
+  # @T949 was @T1251 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T949
   Scenario: With keeping tries off, finishing a web quiz keeps nothing extra and replies the same
     Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
     When a child finishes a web quiz
@@ -3261,7 +3303,8 @@ Feature: NIETE (ICT) Teacher Training
   # No WhatsApp message is sent to anyone and nothing a teacher sees changes.
   # @no-mock-driver: the door lives on the child's web quiz page (/q/<code>); the mock lane
   # drives inbound WhatsApp only. Web runs: tests/features/web/web-quiz-child-page.feature WQ287-WQ290.
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1252
+  # @T950 was @T1252 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T950
   Scenario: With the practice door switch off, finishing a lesson quiz is exactly as before
     Given app_settings "ab_quiz_practice_door" is false, missing, or anything but JSON true or {"on":true}
     When a child finishes a grade 3 English lesson-plan quiz from a teacher's link
@@ -3270,7 +3313,8 @@ Feature: NIETE (ICT) Teacher Training
     # ADDED 2026-11-27 (bd-ek4vxb.1): finish response byte-identical with the switch off. Unit:
     # bot/tests/quiz/test-practice/practice-routes.test.js, dashboard/tests/web-quiz-practice-door-page.service.test.js.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1253
+  # @T951 was @T1253 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T951
   Scenario: With the switch on, a child in arm A sees no door
     Given app_settings "ab_quiz_practice_door" is true
     And the child's phone group is drawn into arm A of "ict-quiz-practice-door"
@@ -3279,7 +3323,8 @@ Feature: NIETE (ICT) Teacher Training
     And a maths or science quiz, a grade 6 quiz or a friend's challenge never shows the door either
     # ADDED 2026-11-27 (bd-ek4vxb.1). Unit: bot/tests/quiz/test-practice/arm.test.js, door.test.js.
 
-  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T1254
+  # @T952 was @T1254 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T952
   Scenario: With the switch on, a child in arm B practises five fresh questions for the test
     Given app_settings "ab_quiz_practice_door" is {"on":true,"force_b":["<the child's id>"]}
     When the child finishes a grade 3 English lesson-plan quiz from a teacher's link
@@ -3292,7 +3337,8 @@ Feature: NIETE (ICT) Teacher Training
     # ADDED 2026-11-27 (bd-ek4vxb.1): data — a quizzes row with meta.kind 'practice' (insert at start, update at
     # finish). Unit: bot/tests/quiz/test-practice/service.test.js, freshness-cap.test.js, round.test.js.
 
-  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T1255
+  # @T953 was @T1255 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T953
   Scenario: Two phones that share a child get the same practice arm
     Given app_settings "ab_quiz_practice_door" is true and "ict-quiz-practice-door" is in the A/B registry
     And a child plays on her mother's phone and on her father's phone, both bound to her
@@ -3303,7 +3349,8 @@ Feature: NIETE (ICT) Teacher Training
     # ADDED 2026-11-27 (bd-ek4vxb.1): phone_group unit (bd-d68a8k); data — one ab_assignment row per group.
     # Unit: bot/tests/quiz/test-practice/arm.test.js, door.test.js.
 
-  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1256
+  # @T954 was @T1256 (four-digit tag no reader accepts); renumbered 2026-11-27, bd-q8wt5e.6.4.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T954
   Scenario: A child's practice round never counts as a quiz the teacher gave
     Given a child in arm B has played two practice rounds
     When the teacher opens the quiz list, the class report or the app's home

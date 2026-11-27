@@ -83,7 +83,7 @@ describe('GET /config — the flag reads run together', () => {
     // bd-oe6r47 (queue #278): + upload-only recording (portal_observe_upload_only); bd-mcksos (queue #279): + its two
     // per-person rows (portal_observe_upload_only_on / _off), read at once with it.
     // bd-ma9jiy + bd-q261rec: + recording resume and upload pieces; bd-nr8mrm.4: + assessment_page_fit; bd-kijmb8: + portal_lesson_plan_open.
-    expect(started).toBe(41);
+    expect(started).toBe(42);
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,

@@ -13,5 +13,6 @@ const scenarios = [
 ];
 scenarios.push(...require("../flows/coach-disagreement.cjs"));
 scenarios.push(...require("../flows/coach-school-card.cjs"));
+scenarios.push(...require("../flows/coach-lesson-plans.cjs"));
 
 module.exports = { feature: "coach-portal", spec: 'tests/features/web/coach-portal.feature', scenarios };

@@ -729,6 +729,8 @@ export interface CoachingProgress {
   photoCount?: number;
   /** bd-aqotzx — why a stopped session stopped: 'not_a_class' | 'not_a_class_no_answer' | 'too_short' | … */
   stopReason?: string | null;
+  /** bd-8sr958 — a stopped lesson whose damaged file the team is recovering (app_settings.recording_repair on): no Send again. */
+  recovering?: boolean;
   /** bd-z3cadk — the same recording was sent before; the earlier report was reused. */
   duplicate?: boolean;
   createdAt?: string;
@@ -952,18 +954,35 @@ export interface TrainingBandSplit {
   total: number;
 }
 
+/** One level of the Teacher Development Programme (I-SAPS): its own Passed / In Progress / Not Started. */
+export interface TrainingIsapsLevel {
+  levelId: string | null;
+  levelOrder: number;
+  name: string;
+  passed: number;
+  inProgress: number;
+  notStarted: number;
+  teachers: number;
+  pctPassed: number | null;
+}
+
+/** The Teacher Development Programme (I-SAPS): over the teachers required to take it (HIGH), one status PER LEVEL, never one overall. */
+export interface TrainingIsaps {
+  teachers: number;
+  levels: TrainingIsapsLevel[];
+}
+
 export interface TrainingPartners {
   oxbridge: TrainingPartnerCard;
   beaconhouse: TrainingPartnerCard;
-  /** The Teacher Development Programme (I-SAPS): over the teachers assigned it; passed = its certificate. */
-  isaps: TrainingPartnerCard;
+  isaps: TrainingIsaps;
 }
 
 /** The overview's panels: her Oxbridge session funnel, her Beaconhouse per-subject table, and the I-SAPS module funnel. */
 export interface TrainingPartnersDetail {
   oxbridge: TrainingPartnerCard & { sessions: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
   beaconhouse: TrainingPartnerCard & { levels: Array<TrainingBandSplit & { name: string }> };
-  isaps: TrainingPartnerCard & { modules: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
+  isaps: TrainingIsaps;
 }
 
 export interface TrainingLevelsRegion extends TrainingLevelsBlock {

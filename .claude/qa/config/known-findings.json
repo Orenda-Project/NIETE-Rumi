@@ -10,5 +10,11 @@
   },
   "child-test": {
     "CT28": "/cancel with a child at presence/block answers 'Stopped the test for <child>' and keeps the list open (machine.js cancel(), two-stage since f962fbb42b); the spec expects 'Child test closed' — spec-or-bot decision pending (bd-q8wt5e.12)"
+  },
+  "fde-board-pattern": {
+    "FB20": "product defect bd-q8wt5e.24, found 2026-11-27 on the web lane: a reopened board-pattern wait page never says how long ago the paper was started; the status answer carries created_at (031a7cea89) but RequestPage.tsx:156 counts minutes only from this tab's own job.startedAt (sessionStorage), so a reopened link has none"
+  },
+  "leader-portal": {
+    "LP23": "With no signal after Get ready, the saved schools show without the 'No internet: these are the schools saved on this phone.' note: the page worker (portal/public/assess-sw.js, e67cdf8cf0) answers the schools read from its kept copy, so LeaderAssess.tsx's network-error branch that sets the note never runs (bd-q8wt5e.26)"
   }
 }

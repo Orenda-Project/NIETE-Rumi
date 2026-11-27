@@ -1,0 +1,56 @@
+{
+ "data": true,
+ "mutants": [
+  {
+   "id": "tk-enrol-also-another-class",
+   "lane": "web",
+   "features": [
+    "teacher-classes"
+   ],
+   "kind": "other-account",
+   "expect": "killed",
+   "why": "Add students also enrols each child on another class: her roster looks right, another teacher's register gains her children",
+   "edits": [
+    {
+     "file": "bot/shared/services/classes/class.service.js",
+     "find": "  if (insErr || !inserted) {\n    logToFile('⚠️ ClassService.enrollStudent: insert failed',",
+     "replace": "  { const { data: other } = await supabase.from('classes').select('id').neq('id', classId).limit(1);\n    if (other && other[0]) await supabase.from('class_enrollments').insert({ class_id: other[0].id, student_id: studentId, roll_number: null, enrolled_on: enrolledOn, is_active: true }); }\n  if (insErr || !inserted) {\n    logToFile('⚠️ ClassService.enrollStudent: insert failed',"
+    }
+   ]
+  },
+  {
+   "id": "tk-child-on-no-list",
+   "lane": "web",
+   "features": [
+    "teacher-classes"
+   ],
+   "kind": "wrong-value",
+   "expect": "killed",
+   "why": "each child is saved with no student list (list_id null): the roster shows them, attendance never sees them",
+   "edits": [
+    {
+     "file": "bot/shared/services/classes/class.service.js",
+     "find": "      list_id: listId,\n      is_active: true,\n    })",
+     "replace": "      list_id: null,\n      is_active: true,\n    })"
+    }
+   ]
+  },
+  {
+   "id": "tk-child-saved-inactive",
+   "lane": "web",
+   "features": [
+    "teacher-classes"
+   ],
+   "kind": "wrong-value",
+   "expect": "killed",
+   "why": "each child is saved inactive: the portal still lists them, every other read treats them as removed",
+   "edits": [
+    {
+     "file": "bot/shared/services/classes/class.service.js",
+     "find": "      list_id: listId,\n      is_active: true,\n    })",
+     "replace": "      list_id: listId,\n      is_active: false,\n    })"
+    }
+   ]
+  }
+ ]
+}

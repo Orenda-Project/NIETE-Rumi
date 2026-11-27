@@ -600,3 +600,51 @@ describe("a file the phone will not open (bd-bsc0ox)", () => {
     expect(screen.getByTestId("check-plan")).not.toHaveTextContent("my plan.pdf");
   }, 15_000);
 });
+
+/**
+ * bd-8sr958 (queue #320) — a picked recording is looked at (never decoded) when app_settings.recording_repair is on: an m4a
+ * with no moov gets "Damaged file" + "Auto repair" and Send stays on (the server rebuilds it); a 0-byte file is refused
+ * ("Empty file"). Flag OFF: the pick is exactly as it was (the tests above are the flag-off snapshot).
+ */
+describe("a damaged recording at the pick (recording_repair)", () => {
+  const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const box = (type: string, body: number[]) => [...u32(8 + body.length), ...Array.from(type).map((c) => c.charCodeAt(0)), ...body];
+  const ftyp = box("ftyp", [...Array.from("M4A ").map((c) => c.charCodeAt(0)), 0, 0, 0, 0]);
+  const noMoov = [...ftyp, ...box("free", [0, 0, 0, 0]), ...box("mdat", new Array(600).fill(5))];
+  const whole = [...noMoov, ...box("moov", new Array(40).fill(1))];
+  const real = (bytes: number[], name = "Period 3.m4a") => new File([Uint8Array.from(bytes)], name, { type: "audio/mp4" });
+  const pick = async (f: File, on: boolean) => {
+    api.getConfig.mockResolvedValue({ success: true, features: { selfObservation: true, newUi: true, recordingRepair: on } });
+    getUserMedia.mockRejectedValue(new Error("denied"));
+    renderPage({ start: "record" });
+    await screen.findByText("Microphone blocked");
+    fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [f] } });
+  };
+
+  it("on: a damaged m4a shows Damaged file + Auto repair, and Send stays on", async () => {
+    await pick(real(noMoov), true);
+    expect(await screen.findByRole("button", { name: "Send to Digital Coach" })).toBeEnabled();
+    const row = screen.getByTestId("check-recording");
+    expect(chipText(row)).toEqual(expect.arrayContaining(["Damaged file", "Auto repair"]));
+  });
+
+  it("on: a finished m4a has no damage chips", async () => {
+    await pick(real(whole), true);
+    await screen.findByRole("button", { name: "Send to Digital Coach" });
+    expect(chipText(screen.getByTestId("check-recording"))).not.toContain("Damaged file");
+  });
+
+  it("on: a 0-byte file is refused: Empty file, nothing attached", async () => {
+    await pick(real([]), true);
+    expect(await screen.findByText("Empty file")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send to Digital Coach" })).toBeNull();
+  });
+
+  it("OFF: the same damaged m4a is taken exactly as before, with no damage chips", async () => {
+    await pick(real(noMoov), false);
+    await screen.findByRole("button", { name: "Send to Digital Coach" });
+    const row = screen.getByTestId("check-recording");
+    expect(chipText(row)).not.toContain("Damaged file");
+    expect(chipText(row)).not.toContain("Auto repair");
+  });
+});

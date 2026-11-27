@@ -42,11 +42,12 @@ const CATALOGUE = [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({ partner: 'oxbridge', bit: n - 1, name: `SESSION#${n}` })),
   { partner: 'beaconhouse', bit: 1, name: 'English' },
   { partner: 'beaconhouse', bit: 2, name: 'Mathematics' },
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` })),
 ];
 
 /** One row of the members read: a programme member and her facts. Level ids arrive as strings (bigint). */
-const mem = (user_id, extra = {}) => ({
+/** bd-tsa15l: a member's level flags; a fixture that names only a cohort is banded by it (no programme fallback in FDE's view). */
+const withBands = (m) => ({ ...m, primary_band: m.primary_band ?? m.primary_cohort === true });
+const mem = (user_id, extra = {}) => withBands({
   user_id,
   school_id: null,
   primary_cohort: false,
@@ -71,7 +72,7 @@ const ids = (...n) => n.map(String);
 /** loadAnalyticsLists' answer (dashboard/lib/analytics-lists.js, the v8 shared contract). */
 function lists(extra = {}) {
   return {
-    fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3']),
+    fdeSchoolEmis: new Set(['E-s1', 'E-s2', 'E-s3', 'E-s4']),
     primary: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['b1', 'Sihala']]),
     midHigh: new Map([['m1', 'Urban-I'], ['m2', 'Urban-I'], ['m4', 'Urban-I'], ['b1', 'Tarnol']]),
     coaches: [],
@@ -96,6 +97,8 @@ function baseRows() {
     levels: LEVELS,
     schools: [
       school('s1', 'B.K'), school('s2', 'Urban-I'), school('s3', 'Sihala'), school('x9', 'B.K'),
+      // on the programme list but in none of the six sectors: her members are in noSector
+      school('s4', 'Pilot'),
       // v7's rule (used only when the school list is missing) does not count these
       school('t1', 'B.K', { is_probable_test: true }), school('t2', 'Durbeen'),
     ],
@@ -106,11 +109,11 @@ function baseRows() {
       mem('p1', { ...P, school_id: 's1', cert_levels: ids(1, 2, 3, 4) }),
       mem('p2', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(2) }),
       // her school is not on FDE's list: a "No school" row in her sector
-      mem('p3', { ...P, school_id: 'x9', cert_levels: ids(1, 2) }),
+      mem('p3', { ...P, school_id: 's1', cert_levels: ids(1, 2) }),
       mem('p4', { ...P, school_id: 's3', active_levels: ids(1) }),
       // a principal with no allocation sector, and someone with nothing at all and no school
-      mem('p5', { ...P, school_id: 's1', cert_levels: ids(1), active_levels: ids(1) }),
-      mem('p6', { ...P }),
+      mem('p5', { ...P, school_id: 's4', cert_levels: ids(1), active_levels: ids(1) }),
+      mem('p6', { ...P, school_id: 's4' }),
       // Mid/High
       mem('m1', {
         ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_mask: 127, ox_cert: true, ox_active: true,
@@ -120,7 +123,7 @@ function baseRows() {
         ...MH, high_band: true, school_id: 's2', cert_levels: ids(3), active_levels: ids(4), ox_mask: 7, ox_active: true,
         bh_active: true, isaps_assigned: true, isaps_mask: 3, isaps_active: true,
       }),
-      mem('m3', { ...MH, high_band: true, isaps_assigned: true }),
+      mem('m3', { ...MH, high_band: true, school_id: 's4', isaps_assigned: true }),
       // a migrated Oxbridge certificate with no session on record; not assigned I-SAPS
       mem('m4', { ...MH, middle_band: true, school_id: 's2', cert_levels: ids(3, 4), ox_cert: true }),
     ],
@@ -173,53 +176,11 @@ describe('Primary — the RDF primary-programme population, certificates passed,
     }
   });
 
-  it("schools are FDE's list: a member at a school off the list is her sector's 'No school' row (the shared no-school id)", () => {
+  it("schools are FDE's list: one row per programme school in the six sectors (bd-tsa15l: no 'No school' rows)", () => {
     expect(out.schools.map((s) => [s.region, s.schoolId, s.name, s.noSchool, s.teachers, s.passedAll])).toEqual([
-      ['B.K', 's1', 'School s1', false, 2, 1],
-      ['B.K', 'no-school:B.K', null, true, 1, 0],
+      ['B.K', 's1', 'School s1', false, 3, 1],
       ['Sihala', 's3', 'School s3', false, 1, 0],
     ]);
-    const none = out.schools.find((s) => s.noSchool);
-    expect(none).toMatchObject({ emis: null });
-    expect(none.levels.map((l) => [l.levelOrder, l.passed, l.teachers])).toEqual([[0, 1, 1], [1, 1, 1], [2, 0, 1], [3, 0, 1]]);
-  });
-
-  it("sectorByUser (every allocation-file user, any role) places a principal outside both teacher Maps in her RDF sector", () => {
-    const rows = baseRows();
-    // p5 is a principal: in neither teacher Map, on the allocation file in Nilore
-    rows.lists = lists({ sectorByUser: new Map([['p1', 'B.K'], ['p2', 'B.K'], ['p3', 'B.K'], ['p4', 'Sihala'], ['p5', 'Nilore']]) });
-    const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'Nilore')).toMatchObject({ teachers: 1 });
-    expect(lvl(out.regions.find((r) => r.region === 'Nilore'), 0).passed).toBe(1);
-    expect(out.noSector.teachers).toBe(1);
-    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toContainEqual(['Nilore', 's1', 1]);
-  });
-
-  it('sectorByUser wins over the teacher Maps (it is the RDF\'s uid2sect); null falls back to them', () => {
-    const rows = baseRows();
-    rows.members = [mem('b1', { ...P, cert_levels: ids(1) })];
-    rows.lists = lists({ sectorByUser: new Map([['b1', 'Urban-II']]) });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Urban-II').teachers).toBe(1);
-    rows.lists = lists({ sectorByUser: null });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-  });
-
-  it('sectorByUser stands even when a teacher Map is missing; with neither, v7\'s school sector', () => {
-    const rows = baseRows();
-    rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false },
-      sectorByUser: new Map([['p5', 'Tarnol']]) });
-    const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
-    // the rest are not on the allocation file: the RDF's "no sector"
-    expect(out.noSector.teachers).toBe(5);
-  });
-
-  it('the sector comes from the primary Map first, then midHigh', () => {
-    const rows = baseRows();
-    rows.members = [mem('b1', { ...P, mh_cohort: true, cert_levels: ids(1) })];
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-    rows.lists = lists({ primary: new Map() });
-    expect(summarizeTrainingLevels(rows, { band: 'primary' }).regions.find((r) => r.region === 'Tarnol').teachers).toBe(1);
   });
 });
 
@@ -228,18 +189,19 @@ describe('Mid/High — the RDF middle/high-programme population', () => {
   const { oxbridge, beaconhouse, isaps } = out.overview.partners;
 
   it('NIETE Skilled Practitioner and Teacher Leader over every middle/high member, certificates passed', () => {
-    expect(cells(out.overview)).toEqual([[2, 3, 0, 1, 4], [3, 2, 1, 1, 4]]);
+    // bd-tsa15l: only the members required to take NIETE 2-3 (not the High-only teachers)
+    expect(cells(out.overview)).toEqual([[2, 2, 0, 0, 2], [3, 2, 0, 0, 2]]);
   });
 
   it('GBTLA (Oxbridge) passed = its certificate, even with no session on record; sessions only move In Progress', () => {
-    expect(oxbridge).toMatchObject({ passed: 2, inProgress: 1, notStarted: 1, teachers: 4, pctPassed: 50 });
-    expect(oxbridge.sessions.map((s) => [s.name, s.middle, s.high, s.total])[0]).toEqual(['SESSION#1', 1, 1, 2]);
+    expect(oxbridge).toMatchObject({ passed: 2, inProgress: 0, notStarted: 0, teachers: 2, pctPassed: 100 });
+    expect(oxbridge.sessions.map((s) => [s.name, s.middle, s.high, s.total])[0]).toEqual(['SESSION#1', 1, 0, 1]);
     expect(oxbridge.sessions[6]).toMatchObject({ middle: 1, high: 0, total: 1 });
     expect(oxbridge.completedAll).toEqual({ middle: 1, high: 0, total: 1 });
   });
 
   it('AI-Powered Subject Pedagogy (Beaconhouse) passed = a certificate for any subject; per subject middle / high / total', () => {
-    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 1, notStarted: 2, teachers: 4 });
+    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 1, teachers: 2 });
     expect(beaconhouse.levels.map((l) => [l.name, l.middle, l.high, l.total])).toEqual([['English', 1, 0, 1], ['Mathematics', 0, 0, 0]]);
   });
 
@@ -253,9 +215,11 @@ describe('Mid/High — the RDF middle/high-programme population', () => {
   it('per sector, each partner with its own denominator; noSector carries partners too', () => {
     const ui = out.regions.find((r) => r.region === 'Urban-I');
     expect(ui.teachers).toBe(3);
-    expect(ui.partners.oxbridge).toMatchObject({ passed: 2, teachers: 3 });
-    expect(ui.partners.isaps).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
-    expect(out.noSector.partners.isaps).toMatchObject({ passed: 0, notStarted: 1, teachers: 1 });
+    expect(ui.partners.oxbridge).toMatchObject({ passed: 2, teachers: 2 });
+    // bd-tsa15l: the Teacher Development Programme has no overall status, only Level 1/2/3 (here no catalogue levels)
+    expect(ui.partners.isaps).toMatchObject({ teachers: 2, levels: [] });
+    expect(ui.partners.isaps.passed).toBeUndefined();
+    expect(out.noSector.partners.isaps).toMatchObject({ teachers: 1 });
     expect(ui.partners.isaps.modules).toBeUndefined();
   });
 
@@ -267,7 +231,7 @@ describe('Mid/High — the RDF middle/high-programme population', () => {
 
   it('a member of both programmes counts in both tabs', () => {
     const rows = baseRows();
-    rows.members = [mem('b1', { primary_cohort: true, mh_cohort: true, cert_levels: ids(1, 2, 3, 4) })];
+    rows.members = [mem('b1', { school_id: 's1', primary_cohort: true, mh_cohort: true, cert_levels: ids(1, 2, 3, 4) })];
     expect(summarizeTrainingLevels(rows, { band: 'primary' }).overview).toMatchObject({ teachers: 1, passedAll: 1 });
     expect(summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.teachers).toBe(1);
   });
@@ -298,43 +262,36 @@ describe('empty and odd input', () => {
     expect(out.noSector.teachers).toBe(0);
   });
 
-  it('lists not usable (null, FAIL-CLOSED): v7 rules — sector = her counted school\'s region, rows = counted schools; never zeros', () => {
+  it("lists not usable (null, FAIL-CLOSED): v7's school rule — a member counts at a counted school (active, not a test, in the six); never zeros", () => {
     for (const theLists of [MISSING, undefined]) {
       const rows = baseRows();
       rows.lists = theLists;
       rows.members = rows.members.concat([mem('p7', { ...P, school_id: 't1', cert_levels: ids(1) }), mem('p8', { ...P, school_id: 't2' })]);
       const out = summarizeTrainingLevels(rows, { band: 'primary' });
-      // the population and its numbers do not depend on the lists
-      expect(out.overview.teachers).toBe(8);
-      expect(lvl(out.overview, 0).passed).toBe(5);
-      expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
+      // a school outside the six (s4, t2), a probable-test school (t1) and no school (bd-tsa15l) count for nobody
+      expect(out.overview.teachers).toBe(4);
+      expect(lvl(out.overview, 0).passed).toBe(3);
+      expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
       expect(out.regions.find((r) => r.region === 'Sihala').teachers).toBe(1);
-      // no school (p6), a probable-test school (p7), a school outside the six (p8)
-      expect(out.noSector.teachers).toBe(3);
-      expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
-        ['B.K', 'School s1', 3], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
-      ]);
+      expect(out.noSector.teachers).toBe(0);
+      expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([['B.K', 'School s1', 3], ['Sihala', 'School s3', 1]]);
     }
   });
 
-  it('only the school list missing: the RDF sectors stand, every counted school is a row', () => {
+  it('only the school list missing: every counted school is a row', () => {
     const rows = baseRows();
     rows.lists = lists({ fdeSchoolEmis: null, missing: { schools: true, teachers: false, coaches: false } });
     const out = summarizeTrainingLevels(rows, { band: 'primary' });
     expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
-    expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([
-      ['B.K', 'School s1', 2], ['B.K', 'School x9', 1], ['Sihala', 'School s3', 1],
-    ]);
+    expect(out.schools.map((s) => [s.region, s.name, s.teachers])).toEqual([['B.K', 'School s1', 3], ['Sihala', 'School s3', 1]]);
   });
 
-  it('only the teacher lists missing: sectors from the counted school, FDE\'s list still decides the rows', () => {
+  it("the allocation lists no longer matter: sectors are the school's with or without them", () => {
     const rows = baseRows();
     rows.lists = lists({ primary: null, midHigh: null, missing: { schools: false, teachers: true, coaches: false } });
     const out = summarizeTrainingLevels(rows, { band: 'primary' });
-    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(4);
-    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toEqual([
-      ['B.K', 's1', 3], ['B.K', 'no-school:B.K', 1], ['Sihala', 's3', 1],
-    ]);
+    expect(out.regions.find((r) => r.region === 'B.K').teachers).toBe(3);
+    expect(out.schools.map((s) => [s.region, s.schoolId, s.teachers])).toEqual([['B.K', 's1', 3], ['Sihala', 's3', 1]]);
   });
 
   it('carries no member identity', () => {
@@ -346,15 +303,15 @@ describe('empty and odd input', () => {
 describe('the members read (set-based; one statement)', () => {
   const code = trainingStatesSql().replace(/--[^\n]*/g, '');
 
-  it('the population is the RDF\'s: an ACTIVE niete_primary / niete_middle_high assignment, live users, any role or school', () => {
+  it('the population is the RDF\'s: an ACTIVE niete_primary / niete_middle_high assignment, live teacher users, not test accounts', () => {
     expect(code).toMatch(/'niete_primary'/);
     expect(code).toMatch(/'niete_middle_high'/);
     expect(code).toMatch(/a\.is_active/);
     expect(code).toMatch(/u\.deleted_at IS NULL/);
     expect(code).toMatch(/NOT LIKE 'merged%'/);
-    expect(code).not.toMatch(/u\.role = 'teacher'/);
-    expect(code).not.toMatch(/is_test_user/);
-    expect(code).not.toMatch(/u\.school_id IS NOT NULL/);
+    // bd-tsa15l: and only teachers, not test accounts (the canonical ICT teacher)
+    expect(code).toMatch(/u\.role = 'teacher'/);
+    expect(code).toMatch(/u\.is_test_user IS NOT TRUE/);
   });
 
   it('Passed is the certificate: cert_levels from training_certificates; the rule\'s states only feed active_levels', () => {
@@ -388,10 +345,9 @@ describe('the members read (set-based; one statement)', () => {
     expect(code).toMatch(/v\.key = 'BEACONHOUSE'/);
     expect(code).toMatch(/v\.key = 'ISAPS'/);
     expect(code).not.toMatch(/Teacher Development Programme|'I-SAPS'/);
-    for (const col of ['ox_cert', 'ox_mask', 'bh_mask', 'bh_active', 'isaps_assigned', 'isaps_cert', 'isaps_mask', 'isaps_active']) {
+    for (const col of ['ox_cert', 'ox_mask', 'bh_mask', 'bh_active', 'isaps_assigned', 'isaps_cert', 'isaps_active']) {
       expect(code).toMatch(new RegExp(`AS ${col}`));
     }
-    expect(code).toMatch(/isaps_exams AS MATERIALIZED/);
     expect(code).toMatch(/training_program_scopes/);
   });
 });
@@ -541,96 +497,52 @@ describe('createSnapshot — at most every 30 minutes, never blocking on a refre
   });
 });
 
-// ── I-SAPS — #3065's tests (0720a8f67), adapted to the v8 rule ────────────────────────────────────────────────
-// v8 (operator, 2026-10-19: the RDF's numbers rule) changes two things from #3065, nothing else: Passed is the I-SAPS
-// level CERTIFICATE only (a teacher who passed all nine module exams but holds no certificate is In Progress), and the
-// card counts the Mid/High members ASSIGNED I-SAPS (not every Mid/High teacher). One member row per teacher now, in
-// place of #3065's grouped partner rows; the module breakdown (per module middle / high / total) is unchanged.
-describe('Mid/High partners — I-SAPS', () => {
-  const MODULES = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ partner: 'isaps', bit: n - 1, name: `Module ${n}` }));
-  const ALL9 = 0b111111111;
-  let n = 0;
-  /** `count` Mid/High members alike, at a sector (by sectorByUser), assigned I-SAPS unless said otherwise. */
-  const pr = (sector, {
-    middle = true, high = false, isaps = 0, active = false, cert = false, assigned = true, extra = {},
-  }, count) => Array.from({ length: count }, () => {
-    n += 1;
-    return mem(`i${n}`, {
-      mh_cohort: true, middle_band: middle, high_band: high, isaps_assigned: assigned, isaps_mask: isaps,
-      isaps_active: active || isaps !== 0 || cert, isaps_cert: cert, _sector: sector, ...extra,
-    });
-  });
-  function rows(extra = []) {
-    n = 0;
-    const r = baseRows();
-    const members = [
-      // B.K: 2 certified with all nine passed; 1 high teacher passed modules 1-3; 1 did a unit, no exam passed
-      ...pr('B.K', { isaps: ALL9, cert: true }, 2),
-      ...pr('B.K', { middle: false, high: true, isaps: 0b111 }, 1),
-      ...pr('B.K', { active: true }, 1),
-      // B.K: 1 middle+high teacher holds the certificate though module 9's pass is not on record; 3 nothing
-      ...pr('B.K', { middle: true, high: true, isaps: 0b011111111, cert: true }, 1),
-      ...pr('B.K', {}, 3),
-      // Sihala: 1 teacher passed all nine exams, no certificate minted yet — v8: In Progress (#3065 counted it Passed)
-      ...pr('Sihala', { isaps: ALL9 }, 1),
-      // not assigned I-SAPS: in no I-SAPS number, certificate or not (#3065: "an uncounted school")
-      ...pr('Tarnol', { isaps: ALL9, cert: true, assigned: false }, 40),
-      ...extra,
-    ];
-    return {
-      ...r,
-      partners: [{ partner: 'oxbridge', bit: 0, name: 'SESSION#1' }, { partner: 'beaconhouse', bit: 1, name: 'English' }, ...MODULES],
-      members,
-      lists: lists({ sectorByUser: new Map(members.map((m) => [m.user_id, m._sector])) }),
-    };
-  }
+// ── Teacher Development Programme (I-SAPS): Level 1/2/3, each its own status (Hashir, 27 Nov 2026) ────────────────
+describe('Mid/High partners — Teacher Development Programme levels', () => {
+  const T_LEVELS = [
+    { partner: 'isaps', bit: 0, name: 'Level 1: Novice', level_id: '27' },
+    { partner: 'isaps', bit: 1, name: 'Level 2: Intermediate', level_id: '31' },
+    { partner: 'isaps', bit: 2, name: 'Level 3: Advanced', level_id: '32' },
+  ];
+  const H = { mh_cohort: true, high_band: true, school_id: 's2' };
+  const rowsWith = (members) => ({ ...baseRows(), partners: [...CATALOGUE.filter((c) => c.partner !== 'isaps'), ...T_LEVELS], members });
+  const isaps = (members, opts = { band: 'midhigh' }) => summarizeTrainingLevels(rowsWith(members), opts).overview.partners.isaps;
 
-  it('passed = the certificate (all nine exams without it is In Progress); in progress = activity without it; of the members assigned it', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 3, inProgress: 3, notStarted: 3, teachers: 9, pctPassed: 33.3 });
+  it('three rows, one per level, each Passed / In Progress / Not Started over the members required to take it', () => {
+    const out = isaps([
+      mem('h1', { ...H, isaps_assigned: true, isaps_cert_levels: ids(27, 31), isaps_active_levels: ids(27, 31, 32) }),
+      mem('h2', { ...H, isaps_assigned: true, isaps_active_levels: ids(27) }),
+      mem('h3', { ...H, isaps_assigned: true }),
+    ]);
+    expect(out.teachers).toBe(3);
+    expect(out.levels.map((l) => [l.name, l.passed, l.inProgress, l.notStarted, l.teachers])).toEqual([
+      ['Level 1: Novice', 1, 1, 1, 3], ['Level 2: Intermediate', 1, 0, 2, 3], ['Level 3: Advanced', 0, 1, 2, 3],
+    ]);
   });
 
-  it('per module middle / high / total, named as the catalogue names them, then completed all (= the certificate)', () => {
-    const { modules, completedAll } = summarizeTrainingLevels(rows(), { band: 'midhigh' }).overview.partners.isaps;
-    expect(modules.map((m) => m.name)).toEqual(MODULES.map((m) => m.name));
-    // module 1: 2 (middle) + 1 (high) + 1 (middle and high) + 1 (middle, Sihala) — module exams counted as before
-    expect(modules[0]).toEqual({ name: 'Module 1', middle: 4, high: 2, total: 5 });
-    expect(modules[3]).toEqual({ name: 'Module 4', middle: 4, high: 1, total: 4 });
-    expect(modules[8]).toEqual({ name: 'Module 9', middle: 3, high: 0, total: 3 });
-    expect(completedAll).toEqual({ middle: 3, high: 1, total: 3 });
+  it('has no overall status of its own', () => {
+    const out = isaps([mem('h1', { ...H, isaps_assigned: true, isaps_cert_levels: ids(27) })]);
+    expect(out).not.toHaveProperty('passed');
+    expect(out).not.toHaveProperty('pctPassed');
+    expect(out).not.toHaveProperty('modules');
   });
 
-  it('per sector, without the module detail', () => {
-    const out = summarizeTrainingLevels(rows(), { band: 'midhigh' });
-    expect(out.regions.find((r) => r.region === 'B.K').partners.isaps)
-      .toEqual({ passed: 3, inProgress: 2, notStarted: 3, teachers: 8, pctPassed: 37.5 });
-    expect(out.regions.find((r) => r.region === 'Sihala').partners.isaps)
-      .toEqual({ passed: 0, inProgress: 1, notStarted: 0, teachers: 1, pctPassed: 0 });
+  it('is required of a HIGH teacher; a Middle-only teacher is in it only with earned work (isaps_assigned)', () => {
+    const out = isaps([
+      mem('m1', { mh_cohort: true, middle_band: true, school_id: 's2' }),
+      mem('h1', H),
+      mem('w1', { mh_cohort: true, middle_band: true, school_id: 's2', isaps_assigned: true, isaps_active_levels: ids(27) }),
+    ]);
+    expect(out.teachers).toBe(2);
   });
 
-  it('is not part of "passed all": the NIETE two + GBTLA + Beaconhouse still pass all with no I-SAPS at all', () => {
-    const extra = pr('B.K', { extra: { cert_levels: ids(3, 4), ox_cert: true, bh_mask: 0b10 } }, 1);
-    const out = summarizeTrainingLevels(rows(extra), { band: 'midhigh' });
-    expect(out.overview.passedAll).toBe(1);
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 3, notStarted: 4, teachers: 10 });
-  });
-
-  it('no I-SAPS modules in the catalogue: a certificate still passes, and there is no module row', () => {
-    const r = rows();
-    const out = summarizeTrainingLevels({ ...r, partners: r.partners.filter((p) => p.partner !== 'isaps') }, { band: 'midhigh' });
-    expect(out.overview.partners.isaps).toMatchObject({ passed: 3, inProgress: 3, teachers: 9 });
-    expect(out.overview.partners.isaps.modules).toEqual([]);
-  });
-
-  it('the region filter scopes it; Primary carries none', () => {
-    const sihala = summarizeTrainingLevels(rows(), { band: 'midhigh', region: 'Sihala' }).overview.partners.isaps;
-    expect(sihala).toMatchObject({ passed: 0, inProgress: 1, teachers: 1, pctPassed: 0 });
-    expect(sihala.modules.every((m) => m.total === 1)).toBe(true);
-    expect(summarizeTrainingLevels(rows(), { band: 'primary' }).overview.partners).toBeUndefined();
+  it('the sectors carry the levels too', () => {
+    const out = summarizeTrainingLevels(rowsWith([mem('h1', { ...H, isaps_assigned: true, isaps_cert_levels: ids(32) })]), { band: 'midhigh' });
+    expect(out.regions.find((r) => r.region === 'Urban-I').partners.isaps.levels[2]).toMatchObject({ passed: 1, teachers: 1 });
   });
 });
 
-describe('the states read — I-SAPS', () => {
+describe('the states read — Teacher Development Programme', () => {
   const code = trainingStatesSql().replace(/--[^\n]*/g, '');
 
   it('finds I-SAPS by its vendor KEY, never its display name (renamed 2026-10-13)', () => {
@@ -638,30 +550,21 @@ describe('the states read — I-SAPS', () => {
     expect(code).not.toMatch(/Teacher Development Programme|'I-SAPS'/);
   });
 
-  it('a module is a course titled "Module N"; a passed attempt on its ACTIVE grand quiz 900 + N passes it', () => {
-    expect(code).toMatch(/isaps_exams AS MATERIALIZED/);
-    expect(code).toMatch(/Module \(\\d\+\)/);
-    expect(code).toMatch(/900/);
-    expect(code).toMatch(/q\.is_active/);
-  });
-
-  it('carries the assignment, the certificate, the activity and the module mask on every member row', () => {
+  it('carries each level\'s certificate and activity on every member row, not a module mask', () => {
     const facts = code.slice(code.indexOf('member_facts AS MATERIALIZED'));
-    for (const [agg, col] of [['bool_or', 'isaps_assigned'], ['bool_or', 'isaps_cert'], ['bool_or', 'isaps_active'], ['bit_or', 'isaps_mask']]) {
-      expect(facts).toMatch(new RegExp(`${agg}\\(f\\.${col}\\) AS ${col}`));
-    }
-    // assigned = an active assignment whose programme scopes the I-SAPS vendor
+    expect(facts).toMatch(/array_agg\(DISTINCT f\.isaps_level\) FILTER \(WHERE f\.isaps_cert\) AS isaps_cert_levels/);
+    expect(facts).toMatch(/array_agg\(DISTINCT f\.isaps_level\) FILTER \(WHERE f\.isaps_active\) AS isaps_active_levels/);
+    expect(facts).not.toMatch(/isaps_mask/);
     expect(code).toMatch(/isaps_assigned AS MATERIALIZED/);
   });
 
-  it('the partner catalogue lists the I-SAPS modules with the same numbering', async () => {
+  it('the partner catalogue lists the three levels with their ids', async () => {
     let catalogue = '';
     await loadTrainingLevelRows(async (sql) => {
       if (/'oxbridge' AS partner/.test(sql)) catalogue = sql;
       return { rows: [] };
     });
-    expect(catalogue).toMatch(/'isaps'/);
+    expect(catalogue).toMatch(/'isaps' AS partner, l\.order_index AS bit, l\.name, l\.id AS level_id/);
     expect(catalogue).toMatch(/v\.key = 'ISAPS'/);
-    expect(catalogue).toMatch(/Module \(\\d\+\)/);
   });
 });
