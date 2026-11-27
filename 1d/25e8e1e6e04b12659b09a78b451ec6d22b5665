@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T08:51:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"1d25e8e1e6e0","branch":"HEAD","user":""}
 {"ts":"2026-11-27T08:53:38Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-nr8mrm-sandbox: fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"1d25e8e1e6e0","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T09:44:54Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"fde-board-pattern=none-needed (board papers unchanged; declared in d9a32786f7)","sha":"1d25e8e1e6e0","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T09:45:00Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login=none-needed (sign-in untouched; only Check and make changed)","sha":"1d25e8e1e6e0","branch":"bd-nr8mrm-65825","user":""}
