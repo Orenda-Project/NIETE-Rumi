@@ -52,6 +52,13 @@ function en(text) {
 }
 
 const COACHING_MESSAGES = {
+  // bd-8sr958 (queue #320): her recording file is damaged and could not be rebuilt. Said ONCE; never "try again" or
+  // "record again" (operator, 27 Nov: it is not reasonable to ask her to record a lesson again). Copy to the
+  // operator for a read before production.
+  damagedRecording: {
+    ...en("Your lesson recording file is damaged, so I couldn't open it. We're trying to recover it."),
+    ur: 'آپ کی ریکارڈنگ کی فائل خراب ہے، اس لیے میں اسے کھول نہیں سکی۔ ہم اسے بحال کرنے کی کوشش کر رہے ہیں۔',
+  },
   // Lesson-plan branch: teacher said NO lesson plan
   lessonPlan_skip: {
     ...en("No problem! I'll analyze your classroom audio without the lesson plan."),

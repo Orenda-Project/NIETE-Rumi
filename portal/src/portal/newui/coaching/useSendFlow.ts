@@ -11,6 +11,9 @@ import type { RecordingSession } from '../../lib/recordingSession';
 import { portal, type LiveMovesRecord } from '../../services/api';
 import { liveEligibleNow } from './liveEligible';
 import { withDuration } from '../../lib/webmDuration';
+import { inspectRecording } from '../../lib/inspectRecording';
+import { reportSendFailure } from '../../lib/dcUploadReport';
+import { useRecordingRepair } from '../../lib/recordingRepair';
 
 /**
  * bd-5rz1v.26 — the record-and-send flow behind the new UI's record page (RecordPage), the same
@@ -46,6 +49,8 @@ export type Audio = {
   size: number;
   /** When a recovered recording was started (ISO). */
   startedAt: string | null;
+  /** bd-8sr958 — a picked m4a with no moov (the recorder never finished): sent as is, the server rebuilds it. */
+  damaged?: boolean;
 };
 
 export type Plan =
@@ -53,7 +58,7 @@ export type Plan =
   | { kind: 'file'; file: File; asPhoto: boolean };
 
 /** bd-bsc0ox: 'wont_open' — the phone would not read the recording she picked (the page says "File will not open"). */
-export type FileProblem = 'not_audio' | 'too_large' | 'video' | 'wont_open' | null;
+export type FileProblem = 'not_audio' | 'too_large' | 'video' | 'wont_open' | 'empty' | null;
 export type PlanProblem = 'not_a_plan' | null;
 export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
 
@@ -94,6 +99,7 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
   const finishingHere = useRef(false);
 
   const [audio, setAudio] = useState<Audio | null>(null);
+  const repairOn = useRecordingRepair() === true; // app_settings.recording_repair; off = every pick as before
   const [fileProblem, setFileProblem] = useState<FileProblem>(null);
   const [plan, setPlan] = useState<Plan | null>(() => (options.pickBeforeRecord && session.active ? heldPlan : null));
   const [planProblem, setPlanProblem] = useState<PlanProblem>(null);
@@ -136,10 +142,24 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
       return false;
     }
     const file = out.file;
+    // bd-8sr958: look at the boxes, never decode. Empty = refused (choose another); damaged = chips, Send stays on.
+    let damaged = false;
+    if (repairOn) {
+      const looked = await inspectRecording(file);
+      if (looked.kind === 'empty' || looked.kind === 'damaged') {
+        reportSendFailure({
+          stage: 'pick', kind: 'audio', item: 1, items: 1, status: null, reason: looked.kind, sizeBytes: file.size,
+          type: String(file.type || '').split(';')[0].trim(), elapsedMs: 0, sentBytes: 0,
+          online: typeof navigator === 'undefined' || navigator.onLine !== false, sentAs: 'none', recorder: looked.signature,
+        });
+      }
+      if (looked.kind === 'empty') { setFileProblem('empty'); return false; }
+      damaged = looked.kind === 'damaged';
+    }
     const seconds = await readAudioDuration(file);
     setAudio({
       blob: file, filename: checked.filename || picked.name, durationMs: seconds != null ? seconds * 1000 : null,
-      recordingId: null, source: 'file', size: picked.size, startedAt: null,
+      recordingId: null, source: 'file', size: picked.size, startedAt: null, ...(damaged ? { damaged: true } : {}),
     });
     setStage('check');
     return true;

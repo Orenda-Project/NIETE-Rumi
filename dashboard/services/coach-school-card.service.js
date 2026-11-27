@@ -175,7 +175,7 @@ const SQL = Object.freeze({
   // DC and coach observations: ids, dates and flags only (analysis_data is read per session, memoised, below).
   sessions: `/* sc:sessions */
     SELECT c.id, c.user_id, c.created_at AS at, c.updated_at, c.status, c.observation_type, c.duplicate_of_session_id,
-           c.observer_user_id, ou.name AS observer_name, (ou.is_test_user IS TRUE) AS observer_test
+           c.failed_step, c.observer_user_id, ou.name AS observer_name, (ou.is_test_user IS TRUE) AS observer_test
       FROM coaching_sessions c LEFT JOIN users ou ON ou.id = c.observer_user_id
      WHERE c.user_id = ANY($1::uuid[])
        AND c.created_at >= $2::timestamptz AND c.created_at < $3::timestamptz
@@ -1342,6 +1342,18 @@ const teacherOut = (teacher) => ({
   isPrincipal: isPrincipalRole(teacher.role), levels: teacherLevelOf(teacher),
 });
 
+/**
+ * bd-8sr958 (queue #320) — her lessons whose recording was damaged and could not be rebuilt (failed_step 'damaged_audio'):
+ * listed on her card with no score, so her coach sees the lesson the team is recovering. A failed session is otherwise left
+ * out (isDcObservation needs 'completed'), which made a damaged lesson invisible to her coach.
+ */
+function damagedLessonsOf(sessions, inP) {
+  return sessions
+    .filter((s) => s.observation_type == null && s.failed_step === 'damaged_audio' && inP(s))
+    .sort((a, b) => atMs(b.at) - atMs(a.at))
+    .map((s) => ({ id: s.id, date: s.day, state: 'recovering', score: null }));
+}
+
 /** GET /teacher/:ext/card */
 async function getTeacherCard(query, coachId, ext, opts = {}) {
   const teacher = await teacherOf(query, coachId, ext);
@@ -1369,6 +1381,8 @@ async function getTeacherCard(query, coachId, ext, opts = {}) {
     // Her DC observations and coach visits are ONE Coaching card: this summary and this chart.
     summary: coachingSummaryOf(act, dc, visits, inP, inPrev),
     chart: coachingChartOf(act, dc, visits, inP),
+    // bd-8sr958: only with app_settings.recording_repair on; absent otherwise, so the card is as it was.
+    ...(opts.recordingRepair === true ? { damaged: damagedLessonsOf(act.sessions, inP) } : {}),
   };
 }
 
@@ -1569,6 +1583,7 @@ async function getSession(query, coachId, sessionId, opts = {}) {
 }
 
 module.exports = {
+  damagedLessonsOf,
   FEATURES,
   ITEM_FEATURES,
   SCORE_KINDS,
