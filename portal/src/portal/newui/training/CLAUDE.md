@@ -1,7 +1,7 @@
 # training — New-UI Training screens: providers, levels, parts, quizzes, exams, certificates
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/training kg=6139a0167178 gen=fc73ed39e266 overflow=52 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/training kg=430d46b77ad4 gen=c4f7db6b85d9 overflow=53 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `TrainingHome.tsx` — providers, Continue, certificates, My grades entries
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/newui/training/TrainingLevelExam.test.tsx`? (TrainingLevelExam.tsx, trainingApi.ts)
 - `portal/src/portal/newui/training/continue.test.ts` (continue.ts, trainingApi.ts)
-- … 15 more → `CLAUDE.index.md`
+- … 16 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - (none)

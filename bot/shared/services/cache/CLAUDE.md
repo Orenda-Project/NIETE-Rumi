@@ -1,7 +1,7 @@
 # cache — Railway Redis client: caching, rate limits, webhook dedup, distributed locks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/cache kg=9ac5e6932c0e gen=ca6a2ea3534d overflow=209 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/cache kg=795bee7310e7 gen=c1f86c40e31c overflow=210 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `railway-redis.service.js` — singleton used across handlers; mocked in `shared/services/__mocks__/cache/`
@@ -13,7 +13,7 @@ Full index: `CLAUDE.index.md`
 | `railway-redis.service.js` | Railway Redis client: caching, rate limiting, webhook dedup and distributed locks; singleton export |
 
 ## Who reads this (generated)
-- `railway-redis.service.js` ← imported by `bot/scripts/ab-tracker-cron.js:36:1804524f` · `bot/scripts/ops/flush-language-cache.js:88:dc72b764` (+118)
+- `railway-redis.service.js` ← imported by `bot/scripts/ab-tracker-cron.js:39:1804524f` · `bot/scripts/ops/flush-language-cache.js:88:dc72b764` (+119)
 - env read here: `NODE_ENV` · `REDIS_URL`
 
 ## Never (human)
@@ -38,7 +38,7 @@ _None found in code comments, tests or git log for this directory._
 - `bot/tests/menu/issue-57-lesson-plan-state.test.js` (railway-redis.service.js)
 - `bot/tests/observe/bd-2kxxa2-media-target.test.js` (railway-redis.service.js)
 - `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` (railway-redis.service.js)
-- … 209 more → `CLAUDE.index.md`
+- … 210 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `cross-agent-safety`?

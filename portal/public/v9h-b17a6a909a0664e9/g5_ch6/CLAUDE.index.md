@@ -27,6 +27,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g5_ch6_Maths_seg7.v9.html` | Hosted v9 lesson page G5 Math ch6 seg7 (en): Multiply decimals consolidation |
 | `g5_ch6_Maths_seg8.v9.html` | Hosted v9 lesson page G5 Math ch6 seg8 (en): Divide decimals (by whole numbers, by 1000) |
 | `g5_ch6_Maths_seg9.v9.html` | Hosted v9 lesson page G5 Math ch6 seg9 (en): Divide decimals consolidation |
+| `g5_ch6_Science_seg3.v9.html` | (unmapped) |
 | `g5_ch6_Urdu_seg1.v9.html` | Hosted v9 lesson page G5 Urdu ch6 seg1 (ur): نئے الفاظ اور لغت کی مدد سے معانی |
 | `g5_ch6_Urdu_seg2.v9.html` | Hosted v9 lesson page G5 Urdu ch6 seg2 (ur): حروف کا معمہ — ارکان سازی اور تلاشِ الفاظ |
 | `g5_ch6_Urdu_seg3.v9.html` | Hosted v9 lesson page G5 Urdu ch6 seg3 (ur): کہانی "امن کی فاختہ" کی بلند خوانی |

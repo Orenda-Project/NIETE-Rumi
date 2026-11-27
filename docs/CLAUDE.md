@@ -1,7 +1,7 @@
 # docs — Repo docs: architecture, E2E and QA system, migration history, ops guides
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=docs kg=f21074060100 gen=ffe07d4a9c09 overflow=14 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=docs kg=b4fda3c2c6f8 gen=ad0ca21be700 overflow=14 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `architecture.md` — start here for the system overview
@@ -35,5 +35,5 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `customizing`? · `niete-mock-e2e`? · `setup`?
-- docs: `.claude/CLAUDE.md`? · `.claude/commands/niete-e2e.md`? · `.claude/qa/README.md`? · `.claude/qa/SCHEDULE.md`? · `.githooks/README.md`? · `.github/CLAUDE.md`? (+80)
+- docs: `.claude/CLAUDE.md`? · `.claude/commands/niete-e2e.md`? · `.claude/qa/README.md`? · `.claude/qa/SCHEDULE.md`? · `.githooks/README.md`? · `.github/CLAUDE.md`? (+81)
 - … 1 more → `CLAUDE.index.md`

@@ -43,35 +43,35 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `weekday-hours.js` | Counts hours only on Pakistan weekdays so a ready lesson/paper stays on Home for 24 weekday hours; bd-fmf24g.15. |
 
 ## Who reads this (all, generated)
-- `analytics-account-name.js` ← imported by `dashboard/routes/portal.routes.js:150:4a8ca079` · `scripts/create-analytics-user.js:63:7dc5528c` · `dashboard/lib/auth-rate-limits.js:23:b56f3bed`
-- `analytics-areas.js` ← imported by `dashboard/routes/portal.routes.js:155:299bef2c`
-- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:154:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` · `dashboard/services/lp-engagement.service.js:67:9c155943` · `dashboard/services/observations-analytics.service.js:64:e6baeab1` (+5: `python3 kg/kg.py who-reads analytics-lists.js`)
-- `analytics-viewer.js` ← imported by `dashboard/routes/portal.routes.js:146:2b5d6287`
-- `assessment-rate-limit.js` ← imported by `dashboard/routes/portal.routes.js:3468:69f9223e`
+- `analytics-account-name.js` ← imported by `dashboard/routes/portal.routes.js:153:4a8ca079` · `scripts/create-analytics-user.js:63:7dc5528c` · `dashboard/lib/auth-rate-limits.js:23:b56f3bed`
+- `analytics-areas.js` ← imported by `dashboard/routes/portal.routes.js:158:299bef2c`
+- `analytics-lists.js` ← imported by `dashboard/routes/portal.routes.js:157:de843ac4` · `dashboard/services/coachip-scope.service.js:23:f5343854` · `dashboard/services/lp-engagement.service.js:67:9c155943` · `dashboard/services/observations-analytics.service.js:64:e6baeab1` (+5: `python3 kg/kg.py who-reads analytics-lists.js`)
+- `analytics-viewer.js` ← imported by `dashboard/routes/portal.routes.js:149:2b5d6287`
+- `assessment-rate-limit.js` ← imported by `dashboard/routes/portal.routes.js:3488:69f9223e`
 - `asset-links.js` ← imported by `dashboard/index.js:165:60938a24`
-- `auth-rate-limits.js` ← imported by `dashboard/routes/portal.routes.js:228:01462243`
+- `auth-rate-limits.js` ← imported by `dashboard/routes/portal.routes.js:231:01462243`
 - `closed-inline-switch.js` ← imported by `dashboard/routes/web-quiz.routes.js:49:13a7f7b2`
 - `closed-way-back-switch.js` ← imported by `dashboard/routes/quiz-go.routes.js:31:03c0d9ed` · `dashboard/routes/web-quiz.routes.js:48:03c0d9ed`
-- `edge-learn.js` ← imported by `dashboard/routes/web-quiz.routes.js:1355:75655047`
-- `edge-redis.js` ← imported by `dashboard/index.js:237:5bfd3abc` · `dashboard/routes/coach-handoff.routes.js:23:06c3e311` · `dashboard/routes/portal-role-switch.routes.js:25:06c3e311` · `dashboard/routes/web-quiz.routes.js:1986:d3c71ffc` (+2: `python3 kg/kg.py who-reads edge-redis.js`)
+- `edge-learn.js` ← imported by `dashboard/routes/web-quiz.routes.js:1364:75655047`
+- `edge-redis.js` ← imported by `dashboard/index.js:237:5bfd3abc` · `dashboard/routes/coach-handoff.routes.js:23:06c3e311` · `dashboard/routes/portal-role-switch.routes.js:25:06c3e311` · `dashboard/routes/web-quiz.routes.js:2006:d3c71ffc` (+2: `python3 kg/kg.py who-reads edge-redis.js`)
 - `feature-flags.js` ← imported by `dashboard/routes/app-login.routes.js:116:132c2e3b` · `dashboard/routes/coach-card.routes.js:36:2687a7b5` · `dashboard/routes/coach-handoff.routes.js:22:aced6703` · `dashboard/routes/portal-child-test.routes.js:55:fcf4ec1d` (+24: `python3 kg/kg.py who-reads feature-flags.js`)
 - `fetch-all-paged.js` ← imported by `dashboard/routes/portal.routes.js:48:f63ad678` · `dashboard/services/training-library.service.js:17:f63ad678` · `scripts/load-analytics-lists.js:232:c7f81231`
-- `final-error-handler.js` ← imported by `dashboard/index.js:3842:9a939a1b`
+- `final-error-handler.js` ← imported by `dashboard/index.js:3844:9a939a1b`
 - `fln-access.js` ← imported by `dashboard/routes/portal-fln-links.routes.js:19:9e499725` · `dashboard/routes/portal-fln-pdf.routes.js:10:6fe983f4` · `dashboard/routes/portal-fln-send.routes.js:76:06d869fe` · `dashboard/routes/portal-fln.routes.js:45:03f88d41`
-- `health.js` ← imported by `dashboard/index.js:3775:93291bde`
+- `health.js` ← imported by `dashboard/index.js:3777:93291bde`
 - `leader-role.js` ← imported by `dashboard/routes/hcp.routes.js:39:7f62b386` · `dashboard/routes/portal-child-test.routes.js:52:7f62b386` · `dashboard/routes/portal-coachip.routes.js:20:3b203e06` · `dashboard/routes/portal-principal.routes.js:20:0242d68b` (+7: `python3 kg/kg.py who-reads leader-role.js`)
 - `lesson-plan-file.js` ← imported by `dashboard/routes/portal-lp612-shelf.routes.js:25:9341eb55` · `dashboard/routes/portal.routes.js:50:9341eb55`
 - `local-dev.js` ← imported by `dashboard/config/database.js:15:2f21d74f` · `dashboard/index.js:10:8ee1c78d`
 - `lp-app-switches.js` ← imported by `dashboard/routes/portal-analytics-journey.routes.js:18:6b38c467` · `dashboard/routes/portal-lp-feedback.routes.js:23:a00bee7f` · `dashboard/routes/portal-share.routes.js:20:1f560e2c` · `dashboard/routes/portal-teacher-home.routes.js:51:1f560e2c` (+2: `python3 kg/kg.py who-reads lp-app-switches.js`)
-- `media-url.js` ← imported by `dashboard/routes/portal.routes.js:5468:4bdd2404` · `dashboard/routes/video-reco.routes.js:52:d0ee1aba` · `dashboard/services/training-library.service.js:18:e6d2fabe`
-- `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:28:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` · `dashboard/routes/portal.routes.js:65:150648cb` · `dashboard/services/lp-activity.service.js:139:0070d575` (+3: `python3 kg/kg.py who-reads pk-range.js`)
+- `media-url.js` ← imported by `dashboard/routes/portal.routes.js:5488:4bdd2404` · `dashboard/routes/video-reco.routes.js:52:d0ee1aba` · `dashboard/services/training-library.service.js:18:e6d2fabe`
+- `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:28:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` · `dashboard/routes/portal.routes.js:65:150648cb` · `dashboard/services/lp-activity.service.js:163:0070d575` (+3: `python3 kg/kg.py who-reads pk-range.js`)
 - `portal-auth.js` ← imported by `dashboard/routes/app-feedback.routes.js:58:7365b659` · `dashboard/routes/attendance.routes.js:57:7725a0c7` · `dashboard/routes/coach-handoff.routes.js:25:7725a0c7` · `dashboard/routes/hcp.routes.js:47:7725a0c7` (+24: `python3 kg/kg.py who-reads portal-auth.js`)
-- `portal-host.js` ← imported by `dashboard/index.js:3795:02854100`
-- `portal-static-cache.js` ← imported by `dashboard/index.js:3805:595624d3`
-- `school-card-period.js` ← imported by `dashboard/routes/coach-school-card.routes.js:26:99711cf0` · `dashboard/routes/portal-principal.routes.js:18:4b4661dd` · `dashboard/services/coach-school-card.service.js:56:fe0880b0` · `dashboard/services/where-to-coach.service.js:28:fe0880b0`
+- `portal-host.js` ← imported by `dashboard/index.js:3797:02854100`
+- `portal-static-cache.js` ← imported by `dashboard/index.js:3807:595624d3`
+- `school-card-period.js` ← imported by `dashboard/routes/coach-school-card.routes.js:26:99711cf0` · `dashboard/routes/portal-principal.routes.js:18:4b4661dd` · `dashboard/services/coach-school-card.service.js:56:fe0880b0` · `dashboard/services/where-to-coach.service.js:32:fe0880b0`
 - `teacher-app.js` ← imported by `dashboard/routes/app-login.routes.js:117:24ae2e7c` · `dashboard/routes/portal-help.routes.js:18:24ae2e7c` · `dashboard/routes/portal-lp-feedback.routes.js:22:24ae2e7c` · `dashboard/routes/portal-lp-own-unit.routes.js:27:24ae2e7c` (+12: `python3 kg/kg.py who-reads teacher-app.js`)
-- `teacher-observation.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:49:18c3fdef` · `dashboard/routes/portal.routes.js:159:18c3fdef` · `dashboard/services/progress.service.js:41:18c3fdef` · `dashboard/services/teacher-home-order.service.js:58:18c3fdef`
-- `user-school-name.js` ← imported by `dashboard/routes/portal.routes.js:157:fd6341ed`
+- `teacher-observation.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:49:18c3fdef` · `dashboard/routes/portal.routes.js:162:18c3fdef` · `dashboard/services/progress.service.js:41:18c3fdef` · `dashboard/services/teacher-home-order.service.js:58:18c3fdef`
+- `user-school-name.js` ← imported by `dashboard/routes/portal.routes.js:160:fd6341ed`
 - `visit-time.js` ← imported by `dashboard/routes/coach-school-card.routes.js:27:b13361c4` · `dashboard/services/coach-school-card.service.js:59:b13361c4` · `dashboard/services/coach-v2.service.js:32:b13361c4` · `dashboard/services/leader-assignment.service.js:67:78fa166f` (+3: `python3 kg/kg.py who-reads visit-time.js`)
 - `weekday-hours.js` ← imported by `dashboard/services/teacher-notices.service.js:52:2b07e944`
 - env `FLAG_CACHE_TTL_MS` read at `dashboard/lib/feature-flags.js:46:15f765ee`
@@ -89,7 +89,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `closed-inline-switch.js` ← `dashboard/tests/web-quiz-closed-inline.service.test.js`
 - `closed-way-back-switch.js` ← `dashboard/tests/closed-way-back-switch.service.test.js`
 - `edge-redis.js` ← `dashboard/tests/web-quiz-card-fast.service.test.js` · `tests/dashboard/portal-auth-rate-limit.test.js` · `tests/portal/bd-tacnwy-role-switch.test.js` · `tests/portal/teacher-activity-store.test.js`
-- `feature-flags.js` ← `dashboard/tests/login-intl-flag.service.test.js` · `tests/app-redirect/app-link-coach.test.js` · `tests/app-redirect/app-link-every-teacher.test.js` · `tests/coachip-rm/rm-sector-scope.test.js` · `tests/coachip/coachip-flags.test.js` · `tests/coachip/helpers/app.js` (+20: `python3 kg/kg.py who-reads dashboard/lib/feature-flags.js`)
+- `feature-flags.js` ← `dashboard/tests/login-intl-flag.service.test.js` · `tests/app-redirect/app-link-coach.test.js` · `tests/app-redirect/app-link-every-teacher.test.js` · `tests/coachip-rm/rm-sector-scope.test.js` · `tests/coachip/coachip-flags.test.js` · `tests/coachip/helpers/app.js` (+24: `python3 kg/kg.py who-reads dashboard/lib/feature-flags.js`)
 - `fetch-all-paged.js` ← `tests/portal/curriculum-grades-pagination.test.js`
 - `final-error-handler.js` ← `tests/hcp/hcp-malformed-json.test.js`
 - `fln-access.js` ← `tests/portal/fln-access-gb.test.js` · `tests/portal/fln-access.test.js` · `tests/portal/fln-links-mount.test.js` · `tests/portal/fln-routes.test.js` · `tests/portal/portal-auth-retired-user.test.js`

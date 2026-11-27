@@ -1,7 +1,7 @@
 # utils — Small shared helpers: language, logging, phone, SQS, rendering, text
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=aec12c64ac01 gen=acecb30a9f52 overflow=664 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=bec38110689c gen=891ab4f7e068 overflow=686 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `resolve-response-language.js` — which language a reply uses
@@ -17,13 +17,13 @@ Full index: `CLAUDE.index.md`
 | `structured-logger.js` | Pino structured logger with Axiom HTTP ingest and console override; required at the top of entry points |
 | `html-to-pdf.js` | Playwright/Chromium HTML to PDF/PNG renderer with lazy browser singleton and font loading |
 | `constants.js` | Central env-derived constants: Flow IDs, VOICE_MODELS routing table, presence-gated feature IDs |
-| … | 49 more → `CLAUDE.index.md` |
+| … | 50 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `logger.js` ← imported by `bot/scripts/ab-tracker-cron.js:12:ec72845d` · `bot/shared/calls/call-forwarder.js:18:9949d551` (+701)
-- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
-- `structured-logger.js` ← imported by `bot/scripts/ab-tracker-cron.js:24:034a322d` · `bot/shared/handlers/exam-checker.handler.js:14:6565d9d3` (+196)
-- … 120 more → `CLAUDE.index.md`
+- `logger.js` ← imported by `bot/scripts/ab-tracker-cron.js:13:ec72845d` · `bot/shared/calls/call-forwarder.js:18:9949d551` (+724)
+- table `users` (written by `language-cache.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+221)
+- `structured-logger.js` ← imported by `bot/scripts/ab-tracker-cron.js:25:034a322d` · `bot/shared/handlers/exam-checker.handler.js:14:6565d9d3` (+204)
+- … 122 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Media sends use private-temp.js paths, never clock-only names (private-temp.js:2, bd-c00np)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/quiz/transcript-quiz-flow-endpoint.test.js` (logger.js, structured-logger.js, text-format.js)
 - `bot/tests/quiz/web-quiz/teacher-report-library-send.test.js` (html-to-pdf.js, logger.js, structured-logger.js)
-- … 565 more → `CLAUDE.index.md`
+- … 585 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `debugging`? · `logging`? · `whatsapp-flows`?

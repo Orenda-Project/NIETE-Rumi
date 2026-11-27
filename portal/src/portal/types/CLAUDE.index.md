@@ -15,8 +15,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `childTest.ts` ← imported by `portal/src/portal/components/childTest/BlockRecorder.tsx:3:80210b47` · `portal/src/portal/components/childTest/CheckForm.tsx:3:067da7be` · `portal/src/portal/components/childTest/StimulusCard.tsx:1:10d3115f` · `portal/src/portal/lib/childTest/checkDraft.ts:13:b3550e6b` (+2: `python3 kg/kg.py who-reads childTest.ts`)
 - `childTestSa.ts` ← imported by `portal/src/portal/components/assess/AssessOfflineCard.tsx:5:cfeccff9` · `portal/src/portal/components/assess/offlineReady.ts:4:dc0245f2` · `portal/src/portal/lib/assess/cohortStats.ts:1:37372d88` · `portal/src/portal/lib/assess/exampleCohort.ts:1:871733d4` (+10: `python3 kg/kg.py who-reads childTestSa.ts`)
-- `portal.ts` ← imported by `portal/src/portal/analytics/BandToggle.tsx:2:9e2fef83` · `portal/src/portal/analytics/Filters.tsx:5:1b25621f` · `portal/src/portal/analytics/Numbers.tsx:2:3b502e49` · `portal/src/portal/analytics/SchoolsAnalytics.tsx:10:bf482b0d` (+59: `python3 kg/kg.py who-reads portal.ts`)
-- `readingAssessment.ts` ← imported by `portal/src/portal/services/api.ts:9:8f1c6e95` · `portal/src/portal/pages/PortalReadingAssessmentDetail.tsx:6:7a1053dd` · `portal/src/portal/pages/PortalReadingAssessments.tsx:6:cbc98559`
+- `portal.ts` ← imported by `portal/src/portal/analytics/BandToggle.tsx:2:9e2fef83` · `portal/src/portal/analytics/Filters.tsx:5:1b25621f` · `portal/src/portal/analytics/Numbers.tsx:2:3b502e49` · `portal/src/portal/analytics/SchoolsAnalytics.tsx:10:bf482b0d` (+60: `python3 kg/kg.py who-reads portal.ts`)
+- `readingAssessment.ts` ← imported by `portal/src/portal/services/api.ts:10:8f1c6e95` · `portal/src/portal/pages/PortalReadingAssessmentDetail.tsx:6:7a1053dd` · `portal/src/portal/pages/PortalReadingAssessments.tsx:6:cbc98559`
 
 ## Tests (all, generated)
 - `childTest.ts` ← `portal/src/portal/components/childTest/BlockRecorder.test.tsx` · `portal/src/portal/lib/childTest/checkDraft.test.ts`

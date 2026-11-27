@@ -1,7 +1,7 @@
 # push — Web quiz reminder push: VAPID subscriptions, routes and finish-response field
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/push kg=7c7ac2f5a365 gen=bb6a69e2c402 overflow=4 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/push kg=11b5b3edb200 gen=034e9bc354b8 overflow=7 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz-push.service.js` — table, sender and switches
@@ -31,12 +31,12 @@ Full index: `CLAUDE.index.md`
 - `bot/tests/push/web-quiz-push-qa.test.js` (web-quiz-push.service.js)
 - `bot/tests/push/web-quiz-push.service.test.js` (web-quiz-push.service.js)
 - `bot/tests/qfix-reminders/ask-src.test.js` (web-quiz-push.service.js)
+- `bot/tests/qfix-reminders/push-ask-v2.test.js` (web-quiz-push.service.js)
 - `bot/tests/qfix-reminders/push-canary-teacher.test.js` (web-quiz-push.service.js)
 - `bot/tests/qfix-reminders/push-canary.test.js` (web-quiz-push.service.js)
 - `bot/tests/qfix-reminders/push-copy-a.test.js` (web-quiz-push.service.js)
-- `bot/tests/qfix-reminders/push-jcode.test.js` (web-quiz-push.service.js)
-- `bot/tests/qfix-reminders/push-meters.test.js` (web-quiz-push.service.js)
-- … 4 more → `CLAUDE.index.md`
+- `bot/tests/qfix-reminders/push-install-android.test.js` (web-quiz-push.service.js)
+- … 7 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`?

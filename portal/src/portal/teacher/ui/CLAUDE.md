@@ -1,7 +1,7 @@
 # ui — Teacher UI kit: shared components, styles, bidi and copy defaults (see README.md)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=2d66372cbb19 gen=aad0e0f9aeb8 overflow=199 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/ui kg=0a918d05789b gen=be8230077a4b overflow=204 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — catalogue of every kit component, props and the rules; `index.ts` — barrel
@@ -15,12 +15,12 @@ Full index: `CLAUDE.index.md`
 | `styles.ts` | Shared class strings for the teacher kit (CHIP_TONE, CARD, CARD_SELECTED) in the v28 coach-v2 look |
 | `index.ts` | Barrel for the teacher UI kit behind portal_teacher_v2: every shared component, helper and style |
 | `useKitCopy.ts` | Hook returning the kit's default words in the page's language for components' copy props (bd-fmf24g.13) |
-| … | 104 more → `CLAUDE.index.md` |
+| … | 105 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` (+176)
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+137)
-- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` (+45)
+- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` (+179)
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` (+140)
+- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` (+49)
 - … 58 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/ui/checks.test.tsx` (ClassPicker.tsx, DateRangeBar.tsx, GradeSubjectButton.tsx, HistoryList.tsx, HistoryRow.tsx, ListRow.tsx, ProgressSteps.tsx, VoiceNote.tsx, copy.ts)
 - `portal/src/portal/teacher/ui/bidi.test.tsx` (GradeSubjectButton.tsx, HistoryRow.tsx, ListRow.tsx, StatusChip.tsx, bidi.ts)
-- … 56 more → `CLAUDE.index.md`
+- … 61 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/components/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/ui/README.md`?

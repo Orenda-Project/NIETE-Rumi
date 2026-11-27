@@ -33,6 +33,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-2700-stale-thresholds-configurable.test.js` | bd-2700: stale-session reminder (2h) and auto-complete (12h) thresholds are env-configurable with prod defaults |
 | `bd-2c1gj-lp-select-confirm.test.js` | bd-2c1gj: tapping a recent lesson plan asks Yes/Cancel first, nothing linked until confirmed; Urdu copy, 20-char buttons |
 | `bd-3ipd2-photo-capture-routing.test.js` | bd-3ipd2: pure routing helpers deciding when an image document counts as a classroom photo (photo-capture-routing) |
+| `bd-3itk00-analysis-survives-deploy.test.js` | (unmapped) |
 | `bd-47vud-caption-no-dangling-cut.test.js` | bd-47vud: over-cap (110 char) photo captions end on a whole phrase, not a dangling word (photo-note) |
 | `bd-4alcjx-own-plan-time.test.js` | (unmapped) |
 | `bd-59840-honest-wait-no-ack.test.js` | bd-59840: step 1/5 wait copy states minutes for long recordings; post-transcription acknowledgement removed |
@@ -72,6 +73,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-b3pop-telemetry-kept-from-prompts.test.js` | bd-b3pop: grading and photo telemetry never reaches voice-note or debrief-guide prompts (report-generator) |
 | `bd-b3pop-vision-options.test.js` | bd-b3pop.15: vision.service analyzeImage accepts prompt/temperature/token/format/timeout options; default unchanged |
 | `bd-bmc9a0.2-iab-save-and-24h.test.js` | bd-bmc9a0.2: IAB save-recording and a switch giving unreflected IAB lessons 24h (not 12h) before auto-complete |
+| `bd-brblff-unreadable-recording-permanent.test.js` | (unmapped) |
 | `bd-c5reix-portal-duplicate-quiet.test.js` | bd-c5reix D7: dedupe backstop on a portal recording reuses the prior score and sends nothing to WhatsApp |
 | `bd-c5reix-portal-start-and-routes.test.js` | bd-c5reix: portal submit with a WhatsApp-kept recording key starts a session; same key again is 409 already_sent |
 | `bd-c5reix-r2-metadata.test.js` | bd-c5reix: R2 uploadBuffer stores sha256 and length as object metadata and returns them on HEAD (shared/storage/r2) |
@@ -79,6 +81,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-c5reix-whatsapp-recording-kept.test.js` | bd-c5reix: keepRecording saves a 15+ minute WhatsApp lesson for the app under the portal audio tree, deduped |
 | `bd-c5zs1-editable-fidelity.test.js` | bd-c5zs1: coach edits measured fidelity in the v4 review Flow; composeEditableFidelity prefill, rescore from edits |
 | `bd-cbe2d-photo-scoring-fallback.test.js` | bd-cbe2d: a rejected image scoring call retries text-only so photos never fail a session; provenance kept |
+| `bd-chz35n.25-report-delivery.test.js` | (unmapped) |
 | `bd-di5ap-no-premature-praise.test.js` | bd-di5ap: removes the Long Lesson Detected warning and the model call between transcription and the photo prompt |
 | `bd-erpvf-hitl-duplicate-recording.test.js` | bd-erpvf: a coach's /observe recording is analysed once; prior leader observation lookup and en/ur refusal string |
 | `bd-fe35j9-urdu-pdf-vision-retry.test.js` | bd-fe35j9: extraction worker retries a rejected typed-Urdu LP PDF through the vision model (lesson-plan-extraction) |
@@ -107,10 +110,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-pv2tl-classroom-photo-vm.test.js` | bd-pv2tl: report photo strip builder caps at 2, returns base64 data URIs, skips a failed download (classroom-photo-vm) |
 | `bd-pw1ccr.11-recording-books-topic-nudge.test.js` | (unmapped) |
 | `bd-pzs9a-photo-add-another.test.js` | bd-pzs9a: Add another keeps the session on the photo step; a redelivered tap is not counted twice (add-another) |
+| `bd-q261rec-upload-pieces.test.js` | (unmapped) |
 | `bd-r2uzg1-18-10-voice-example-grounded.test.js` | (unmapped) |
 | `bd-r2uzg1-18-4-analysis-write-no-devanagari.test.js` | (unmapped) |
 | `bd-r2uzg1-18-4-no-devanagari-in-model-text.test.js` | (unmapped) |
 | `bd-r2uzg1-18-4-report-no-devanagari.test.js` | (unmapped) |
+| `bd-r2uzg1-23-11-section-percent.test.js` | (unmapped) |
+| `bd-r2uzg1-23-12-report-source.test.js` | (unmapped) |
 | `bd-r2uzg1.12-mismatch-soft-line.test.js` | (unmapped) |
 | `bd-r2uzg1.18.15-dc-in-flight-duplicate.test.js` | (unmapped) |
 | `bd-r2uzg1.18.6-confirmed-lp-not-lost.test.js` | (unmapped) |
@@ -119,6 +125,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `bd-r2uzg1.18.9-duplicate-at-analysis.test.js` | (unmapped) |
 | `bd-ra8xu.53-v6-linked-no-moves.test.js` | (unmapped) |
 | `bd-ra8xu.53-v9-lesson-id.test.js` | (unmapped) |
+| `bd-ra8xu.64.8-coach-in-doubt-v6.test.js` | (unmapped) |
 | `bd-s192t-fallback-copy.test.js` | bd-s192t.4: Section B fallback copy states the true cause per failure state (observe-draft.service) |
 | `bd-s192t-roles-threading.test.js` | bd-s192t.1: regression for the 44fe3ae roles ReferenceError; runs the real transcription chain (audio.service) |
 | `bd-s192t.12-processor-speaker-split.test.js` | Tests the unsplit-recording verdict and the FICO prompt's speaker-labels note (bd-s192t.12) |
@@ -188,6 +195,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `commitment-card-fallback.test.js` | Commitment card graceful-degrade ladder: missing or too-short Q3 falls to the rule-based card (commitment-card.service) |
 | `continue-coaching-tap.test.js` | Stale-session Continue coaching tap honours NUM_REFLECTIVE_QUESTIONS and queues the report when all are answered |
 | `corpus-time-anchor.test.js` | bd-gr4fy.5.13: reflective corpus time anchors are in the teacher's script and spelled right (corpus-prompt) |
+| `dc-v6-breakdown.test.js` | (unmapped) |
 | `devanagari-guard.test.js` | bd-bfy69: devanagari-guard detects Devanagari in real prod-derived strings and guarantees none is rendered |
 | `devanagari-transcribe-recovery.test.js` | bd-bfy69: source assertions on audio.service for the three layers: no Hindi hint, forced-Urdu retry, guard |
 | `document-audio-routing.test.js` | WhatsApp documents with an audio MIME route to the coaching audio pipeline; PDFs fall through; 100 MB cap |
@@ -220,6 +228,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fico17-v6-dc-evidence.test.js` | (unmapped) |
 | `fico17-v6-dc-report-enhance.test.js` | (unmapped) |
 | `fico17-v6-dc-report-on-v6.test.js` | (unmapped) |
+| `fico17-v6-dc11-keeps-set.test.js` | (unmapped) |
+| `fico17-v6-dc11-report-path.test.js` | (unmapped) |
+| `fico17-v6-dc11.test.js` | (unmapped) |
 | `fico17-v6-framework.test.js` | (unmapped) |
 | `fico17-v6-gate.test.js` | (unmapped) |
 | `fico17-v6-grade-gate.test.js` | (unmapped) |
@@ -335,6 +346,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `uptake-loop-core.test.js` | Uptake loop pure core: ladder, caps, chooseTarget, count bars for every C/D/F indicator; uptake is never a mark |
 | `uptake-loop-flag.test.js` | The uptake loop is inert unless UPTAKE_LOOP_ENABLED is set, read at call time (uptake-loop-flags) |
 | `urdu-tts-decimals.test.js` | Urdu TTS reads decimals as point and keeps sentence-ending full stops (urdu-tts-normalizer, elevenlabs.service) |
+| `visit-school-decides.test.js` | (unmapped) |
 | `voice-debrief-says-score.test.js` | bd-1r3k2h/bd-895yd: voice debrief prompt tells the coach to say the overall score as a number, in Urdu script too |
 
 ## Who reads this (all, generated)

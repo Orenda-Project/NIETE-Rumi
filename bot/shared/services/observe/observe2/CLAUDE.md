@@ -1,7 +1,7 @@
 # observe2 — /observe2: FICO ICT live field form, checked moments, brief and indicator levels
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=ac88851befa0 gen=9d1c533ad796 overflow=129 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=219bd2c876dd gen=0dbacabacd73 overflow=130 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `start.js` — command to live form
@@ -20,8 +20,8 @@ Full index: `CLAUDE.index.md`
 | … | 17 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `capture-link.js` (+1)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+99)
-- column `coaching_sessions.user_id` (written by `capture-link.js`) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+57)
+- table `coaching_sessions` (written by `capture-link.js` (+1)) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+104)
+- column `coaching_sessions.user_id` (written by `capture-link.js`) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+58)
 - column `coaching_sessions.status` (written by `moments.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:57:23fca46d` (+44)
 - … 39 more → `CLAUDE.index.md`
 
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/observe2/moments-v3.test.js` (field-form.store.js, label-check.js, moment-types.js, moments.js, quote-check.js, rules.js, strings.js)
 - `tests/observe2/thinking.test.js` (analysis.js, brief.js, evidence-check.flow.js, fico17.js, field-form.flow.js, field-form.store.js, rules.js)
-- … 77 more → `CLAUDE.index.md`
+- … 78 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/observe/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # wq — Browser code and assets for Jugnu's child web pages: quiz, hub, home, stories, challenge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=cd87c52a248d gen=bb66855ebd66 overflow=64 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=312f8dc01b32 gen=b180565a5a33 overflow=67 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `wq.js` — quiz page /q/<code>; wq.css is the base stylesheet all child pages share
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 | `wq.js` | Web child quiz page /q/<code>: WQI item renderer, offline answer queue, /api/wq/* calls, results and scorecard |
 | `wq-digits.js` | urDigits helper: ASCII digits to Urdu digits U+06F0-06F9; shared by the edge (web-quiz.routes.js) and pages as WQDigits |
 | `hub.js` | Kid hub /h/<token>: picks this phone's child, lists teacher quiz, replays, recommended videos, library, challenge |
-| … | 58 more → `CLAUDE.index.md` |
+| … | 60 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `wq-digits.js` ← imported by `dashboard/routes/web-quiz.routes.js:42:35273fa4`
@@ -34,7 +34,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `dashboard/tests/qfix-voice/web-quiz-letters-capitals.service.test.js` (wq.js)
 - `dashboard/tests/qfix-voice/web-quiz-read-self.service.test.js` (wq.js)
-- … 12 more → `CLAUDE.index.md`
+- … 13 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/public/CLAUDE.md`?

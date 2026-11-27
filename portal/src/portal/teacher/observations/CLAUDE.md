@@ -1,7 +1,7 @@
 # observations — Teacher Observations: next coach visit, visits in progress, visit reports
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/observations kg=f7c6e94c9452 gen=0f5d7e6290e4 overflow=7 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/observations kg=0276e125407e gen=a28582ba253c overflow=7 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `ObservationsHome.tsx` — page; `api.ts` — GET /teacher/visits and coach-visit sessions
@@ -19,7 +19,7 @@ Full index: `CLAUDE.index.md`
 | … | 4 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `paths.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:20:614029b8` · `portal/src/portal/teacher/home/chips.ts:4:614029b8` (+9)
+- `paths.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:21:614029b8` · `portal/src/portal/teacher/home/chips.ts:4:614029b8` (+9)
 - `copy.ts` ← imported by `portal/src/portal/teacher/principal/NewVisit.tsx:13:b4a946db` · `portal/src/portal/teacher/principal/PickTeacher.tsx:9:b4a946db` (+2)
 - `ObservationsHome.tsx` ← imported by `portal/src/portal/teacher/principal/PrincipalObservations.tsx:17:bc14f843` · `portal/src/portal/teacher/observations/routes.tsx:6:af920adc`
 - `api.ts` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:18:f775a727`

@@ -1,7 +1,7 @@
 # notices — Shell notices: Being made strip, ready banner, Home Ready for you, evening reminder card
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/notices kg=0d47c1fe9a5c gen=ff41a4bc6240 overflow=60 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/notices kg=aaadf81579b8 gen=50f50c4435a6 overflow=61 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `tracker.ts` — app-wide job tracker; `NoticeHost.tsx` — strip and banners mounted by PortalLayout
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 20 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `tracker.ts` ← imported by `portal/src/portal/coach/observe/ObservePage.tsx:5:72d45190` · `portal/src/portal/coach/observe/sender.ts:7:240a3291` (+6)
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachSending.tsx:4:c0782935` · `portal/src/portal/coach/reports/Debrief.tsx:18:c0782935` (+5)
-- `model.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:6:ed644ba8` · `portal/src/portal/teacher/assessment/useJobs.ts:5:a8cb86da` (+5)
+- `tracker.ts` ← imported by `portal/src/portal/coach/observe/ObservePage.tsx:5:72d45190` · `portal/src/portal/coach/observe/sender.ts:8:240a3291` (+6)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachSending.tsx:6:c0782935` · `portal/src/portal/coach/reports/Debrief.tsx:20:c0782935` (+5)
+- `model.ts` ← imported by `portal/src/portal/coach/observe/sender.ts:7:ed644ba8` · `portal/src/portal/teacher/assessment/useJobs.ts:5:a8cb86da` (+5)
 - … 8 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/teacher/assessment/fde.r8.banner.test.tsx` (NoticeHost.tsx, model.ts, tracker.ts)
 - `portal/src/portal/teacher/notices/NoticeHost.test.tsx` (NoticeHost.tsx, model.ts, tracker.ts)
-- … 36 more → `CLAUDE.index.md`
+- … 37 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/remind/CLAUDE.md`?

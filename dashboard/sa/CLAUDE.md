@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=afe6ee5c8c29 gen=ac3e4cf536c0 overflow=136 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=cd06c1256d27 gen=e102f624e6bf overflow=139 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `v2/` | → (no door; 1378 files) |
 | `v3/` | → (no door; 27 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
-| `v5/` | → (no door; 113 files) |
+| `v5/` | → (no door; 112 files) |
 | `sa*` | 12 files; most used `sa-core.js`: Pure runner: one child through a timed EGRA/EGMA battery; normalize() battery JSON, ordered events, no DOM/timers |
 | `sw.js` | Battery service worker (scope /sa/): network-first engine files, cache-first battery and clips; offline prepare |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |
@@ -37,7 +37,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `dashboard/tests/sa-r28-mic-unknown.service.test.js` (sa-core.js, sa-engine.js, sa-mic.js, sa-rec.js, sa-store.js, sa-ui.js, sink-coach.js)
 - `dashboard/tests/sa-r13-whole-stop.service.test.js` (sa-core.js, sa-engine.js, sa-page.js, sa-store.js, sa-ui.js)
-- … 130 more → `CLAUDE.index.md`
+- … 133 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`?
