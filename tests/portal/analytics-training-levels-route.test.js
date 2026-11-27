@@ -254,10 +254,11 @@ describe('GET /analytics/training-levels — the answer', () => {
     expect(statusCode).toBe(200);
     expect(payload.band).toBe('midhigh');
     expect(payload.overview.levels.map((l) => [l.name, l.passed, l.inProgress, l.notStarted, l.teachers])).toEqual([
-      ['Skilled Practitioner', 1, 0, 1, 2],
-      ['Teacher Leader', 1, 0, 1, 2],
+      // bd-tsa15l: m2 teaches High only, so NIETE 2-3 is not hers to take
+      ['Skilled Practitioner', 1, 0, 0, 1],
+      ['Teacher Leader', 1, 0, 0, 1],
     ]);
-    expect(payload.overview.partners.isaps).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
+    expect(payload.overview.partners.isaps).toMatchObject({ teachers: 2 });
   });
 
   it('Mid/High carries her partner panels: Oxbridge (sessions) and Beaconhouse (levels), and passed all = all four', async () => {
@@ -268,13 +269,12 @@ describe('GET /analytics/training-levels — the answer', () => {
     expect(Object.keys(oxbridge).sort()).toEqual(['completedAll', 'inProgress', 'notStarted', 'passed', 'pctPassed', 'sessions', 'teachers']);
     expect(Object.keys(beaconhouse).sort()).toEqual(['inProgress', 'levels', 'notStarted', 'passed', 'pctPassed', 'teachers']);
     // m1 holds every certificate; m2 has three sessions and I-SAPS activity
-    expect(oxbridge).toMatchObject({ passed: 1, inProgress: 1, notStarted: 0, teachers: 2 });
+    expect(oxbridge).toMatchObject({ passed: 1, inProgress: 0, notStarted: 0, teachers: 1 });
     expect(oxbridge.sessions).toHaveLength(7);
-    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 1, teachers: 2 });
+    expect(beaconhouse).toMatchObject({ passed: 1, inProgress: 0, notStarted: 0, teachers: 1 });
     expect(payload.overview).toMatchObject({ passedAll: 1, teachers: 2 });
     // I-SAPS (operator, 2026-10-19): a fourth panel, laid out like Oxbridge, not part of passed all
-    expect(Object.keys(payload.overview.partners.isaps).sort())
-      .toEqual(['completedAll', 'inProgress', 'modules', 'notStarted', 'passed', 'pctPassed', 'teachers']);
+    expect(Object.keys(payload.overview.partners.isaps).sort()).toEqual(['levels', 'teachers']);
     for (const r of payload.regions) expect(Object.keys(r.partners).sort()).toEqual(['beaconhouse', 'isaps', 'oxbridge']);
   });
 

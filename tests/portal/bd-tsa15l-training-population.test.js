@@ -53,3 +53,54 @@ describe('I-SAPS "assigned" follows the portal/bot band gate (Grades 9-12 only)'
     expect(code).toMatch(/a\.user_id IN \(SELECT user_id FROM isaps_work\)/);
   });
 });
+
+describe("Hashir's seven combinations on the dashboard cards", () => {
+  const L4 = [0, 1, 2, 3].map((i) => ({ id: String(i + 1), name: `L${i}`, order_index: i }));
+  const CAT = [
+    { partner: 'oxbridge', bit: 0, name: 'SESSION#1' }, { partner: 'beaconhouse', bit: 1, name: 'English' },
+    { partner: 'isaps', bit: 0, name: 'Level 1', level_id: '27' },
+  ];
+  const band = (p, m, h) => ({ primary_band: p, middle_band: m, high_band: h, primary_cohort: p, mh_cohort: m || h });
+  const COMBOS = {
+    P: band(true, false, false), PM: band(true, true, false), PMH: band(true, true, true), PH: band(true, false, true),
+    MH: band(false, true, true), M: band(false, true, false), H: band(false, false, true),
+  };
+  const members = Object.entries(COMBOS).map(([k, b]) => mem(k, 's1', { ...b }));
+  const run = (bandKey) => summarizeTrainingLevels({
+    levels: L4, schools: [school('s1', 'B.K')], lists: lists(), partners: CAT, members,
+  }, { band: bandKey }).overview;
+
+  it('Primary section = every PRIMARY teacher (P, PM, PMH, PH), NIETE 0-3', () => {
+    const o = run('primary');
+    expect(o.teachers).toBe(4);
+    expect(o.levels.map((l) => l.teachers)).toEqual([4, 4, 4, 4]);
+  });
+
+  it('Middle/High section = every MIDDLE or HIGH teacher (PM, PMH, PH, MH, M, H)', () => {
+    expect(run('midhigh').teachers).toBe(6);
+  });
+
+  it('NIETE 2-3 on the Mid/High tab: everyone required to take it, not High-only', () => {
+    const o = run('midhigh');
+    expect(o.levels.map((l) => l.teachers)).toEqual([5, 5]);
+  });
+
+  it('GBTLA and AI-Powered Subject Pedagogy: MIDDLE teachers only (PM, PMH, MH, M)', () => {
+    const p = run('midhigh').partners;
+    expect(p.oxbridge.teachers).toBe(4);
+    expect(p.beaconhouse.teachers).toBe(4);
+  });
+
+  it('Teacher Development Programme: HIGH teachers only (PMH, PH, MH, H)', () => {
+    const p = run('midhigh').partners;
+    expect(p.isaps.teachers).toBe(4);
+    expect(p.isaps.levels).toHaveLength(1);
+  });
+
+  it('AI-Powered Subject Pedagogy is Completed when any one subject is', () => {
+    const rows = { levels: L4, schools: [school('s1', 'B.K')], lists: lists(), partners: CAT,
+      members: [mem('a', 's1', { ...COMBOS.M, bh_mask: 2 }), mem('b', 's1', { ...COMBOS.M, bh_active: true }), mem('c', 's1', { ...COMBOS.M })] };
+    const bh = summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.partners.beaconhouse;
+    expect([bh.passed, bh.inProgress, bh.notStarted]).toEqual([1, 1, 1]);
+  });
+});

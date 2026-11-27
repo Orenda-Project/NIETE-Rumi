@@ -93,7 +93,8 @@ async function gateTeacherScopes(supabase, userId, scopes) {
     if (uErr) return rows;
     const bands = teacherLevelOf(user);
 
-    const unmet = uniq(gated.filter(g => !bands.includes(g.band)).map(g => g.vendorId));
+    const mineSet = new Set(bands.map(b => String(b).trim().toUpperCase()));
+    const unmet = uniq(gated.filter(g => !Rules.met(g, mineSet)).map(g => g.vendorId));
     if (unmet.length === 0) return rows;
 
     const work = await vendorIdsWithWork(supabase, userId, unmet);

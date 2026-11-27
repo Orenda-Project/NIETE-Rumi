@@ -66,7 +66,6 @@
 
 const { REGION_BUCKETS, bucketOf } = require('./schools-analytics.service');
 const { onFdeList, noSchoolId } = require('../lib/analytics-lists');
-const { PER_MODULE_SOURCE_BASE } = require('../../bot/shared/services/training/isaps-module-exam.rules');
 
 /** The RDF's two certificate cards, by programme key (render.py CERT_PROGRAMMES). */
 const PROGRAMME_KEYS = Object.freeze({ primary: 'niete_primary', midhigh: 'niete_middle_high' });
@@ -109,7 +108,7 @@ const levelSet = (v) => new Set((Array.isArray(v) ? v : []).map(String));
 function readCatalogue(rows) {
   const of = (partner) => (rows || [])
     .filter((r) => r && r.partner === partner && Number.isInteger(Number(r.bit)))
-    .map((r) => ({ bit: Number(r.bit), name: r.name }))
+    .map((r) => ({ bit: Number(r.bit), name: r.name, levelId: r.level_id == null ? null : String(r.level_id) }))
     .sort((a, b) => a.bit - b.bit);
   return { oxbridge: of('oxbridge'), beaconhouse: of('beaconhouse'), isaps: of('isaps') };
 }
@@ -120,7 +119,7 @@ function emptyPartners(catalogue) {
   return {
     ox: { passed: 0, inProgress: 0, teachers: 0, sessions: catalogue.oxbridge.map(split), completedAll: split() },
     bh: { passed: 0, inProgress: 0, teachers: 0, levels: catalogue.beaconhouse.map(split) },
-    isaps: { passed: 0, inProgress: 0, teachers: 0, modules: catalogue.isaps.map(split), completedAll: split() },
+    isaps: { teachers: 0, levels: catalogue.isaps.map(() => ({ passed: 0, inProgress: 0, notStarted: 0 })) },
   };
 }
 
@@ -140,47 +139,76 @@ function countedBucket(s, regions = REGION_BUCKETS) {
   return bucketOf(s.region, regions);
 }
 
-/** Did this member pass all levels on this tab (see the header)? */
+/**
+ * The trainings a member is required to take (Hashir's list, 27 Nov 2026), from her teaching levels. A member with no
+ * level recorded (another organization's, matched by programme) is required to take everything her tab shows.
+ */
+function requiredOf(m) {
+  const banded = m.primary_band === true || m.middle_band === true || m.high_band === true;
+  if (!banded) return { niete: true, gbtla: true, ai: true, tdp: m.isaps_assigned === true };
+  return {
+    niete: m.primary_band === true || m.middle_band === true,
+    gbtla: m.middle_band === true,
+    ai: m.middle_band === true,
+    tdp: m.high_band === true || m.isaps_assigned === true,
+  };
+}
+
+/** Did this member pass all the levels she is required to take on this tab (the Teacher Development Programme apart)? */
 function passedAllLevels(m, ladder, certs, bandKey) {
   if (ladder.length === 0) return false;
+  const need = requiredOf(m);
   if (bandKey === 'midhigh') {
-    return ladder.every((l) => certs.has(l.key)) && m.ox_cert === true && (Number(m.bh_mask) || 0) !== 0;
+    if (!need.niete && !need.gbtla && !need.ai) return false;
+    return (!need.niete || ladder.every((l) => certs.has(l.key)))
+      && (!need.gbtla || m.ox_cert === true)
+      && (!need.ai || (Number(m.bh_mask) || 0) !== 0);
   }
   return certs.has(ladder[ladder.length - 1].key);
 }
 
 function addPartnerFacts(p, m, catalogue) {
   const into = (s) => { if (m.middle_band === true) s.middle += 1; if (m.high_band === true) s.high += 1; s.total += 1; };
+  const need = requiredOf(m);
 
-  p.ox.teachers += 1;
-  const sessions = catalogue.oxbridge.map((s) => hasBit(m.ox_mask, s.bit));
-  if (m.ox_cert === true) p.ox.passed += 1;
-  else if (m.ox_active === true || sessions.some(Boolean)) p.ox.inProgress += 1;
-  sessions.forEach((on, i) => { if (on) into(p.ox.sessions[i]); });
-  if (sessions.length > 0 && sessions.every(Boolean)) into(p.ox.completedAll);
-
-  p.bh.teachers += 1;
-  if ((Number(m.bh_mask) || 0) !== 0) p.bh.passed += 1;
-  else if (m.bh_active === true) p.bh.inProgress += 1;
-  catalogue.beaconhouse.forEach((l, i) => { if (hasBit(m.bh_mask, l.bit)) into(p.bh.levels[i]); });
-
-  if (m.isaps_assigned !== true) return;
-  p.isaps.teachers += 1;
-  const modules = catalogue.isaps.map((x) => hasBit(m.isaps_mask, x.bit));
-  if (m.isaps_cert === true) {
-    p.isaps.passed += 1;
-    into(p.isaps.completedAll);
-  } else if (m.isaps_active === true || modules.some(Boolean)) {
-    p.isaps.inProgress += 1;
+  if (need.gbtla) {
+    p.ox.teachers += 1;
+    const sessions = catalogue.oxbridge.map((s) => hasBit(m.ox_mask, s.bit));
+    if (m.ox_cert === true) p.ox.passed += 1;
+    else if (m.ox_active === true || sessions.some(Boolean)) p.ox.inProgress += 1;
+    sessions.forEach((on, i) => { if (on) into(p.ox.sessions[i]); });
+    if (sessions.length > 0 && sessions.every(Boolean)) into(p.ox.completedAll);
   }
-  modules.forEach((on, i) => { if (on) into(p.isaps.modules[i]); });
+
+  // AI-Powered Subject Pedagogy: Completed when ANY ONE subject is (a certificate for one is enough; Hashir's rule).
+  if (need.ai) {
+    p.bh.teachers += 1;
+    if ((Number(m.bh_mask) || 0) !== 0) p.bh.passed += 1;
+    else if (m.bh_active === true) p.bh.inProgress += 1;
+    catalogue.beaconhouse.forEach((l, i) => { if (hasBit(m.bh_mask, l.bit)) into(p.bh.levels[i]); });
+  }
+
+  // Teacher Development Programme: its own status per level (Level 1, 2, 3), never one overall status.
+  if (need.tdp) {
+    p.isaps.teachers += 1;
+    const certs = levelSet(m.isaps_cert_levels);
+    const active = levelSet(m.isaps_active_levels);
+    catalogue.isaps.forEach((l, i) => {
+      const cell = p.isaps.levels[i];
+      if (l.levelId != null && certs.has(l.levelId)) cell.passed += 1;
+      else if (l.levelId != null && active.has(l.levelId)) cell.inProgress += 1;
+      else cell.notStarted += 1;
+    });
+  }
 }
 
 function addMember(acc, m, ladder, catalogue, bandKey) {
   const certs = levelSet(m.cert_levels);
   const active = levelSet(m.active_levels);
   acc.teachers += 1;
-  for (const l of ladder) {
+  // bd-tsa15l: the NIETE ladder counts the members required to take it (not a High-only teacher on the Mid/High tab)
+  const takesNiete = bandKey !== 'midhigh' || requiredOf(m).niete;
+  for (const l of takesNiete ? ladder : []) {
     const cell = acc.levels.get(l.key);
     if (certs.has(l.key)) cell.passed += 1;
     else if (active.has(l.key)) cell.inProgress += 1;
@@ -205,13 +233,18 @@ function partnerCard(p) {
 function partnersBlock(p, catalogue, detailed) {
   const oxbridge = partnerCard(p.ox);
   const beaconhouse = partnerCard(p.bh);
-  const isaps = partnerCard(p.isaps);
+  const isaps = {
+    teachers: p.isaps.teachers,
+    levels: catalogue.isaps.map((l, i) => {
+      const c = p.isaps.levels[i];
+      const teachers = c.passed + c.inProgress + c.notStarted;
+      return { levelId: l.levelId, levelOrder: l.bit, name: l.name, ...c, teachers, pctPassed: pct(c.passed, teachers) };
+    }),
+  };
   if (detailed) {
     oxbridge.sessions = catalogue.oxbridge.map((s, i) => ({ name: s.name, ...p.ox.sessions[i] }));
     oxbridge.completedAll = { ...p.ox.completedAll };
     beaconhouse.levels = catalogue.beaconhouse.map((l, i) => ({ name: l.name, ...p.bh.levels[i] }));
-    isaps.modules = catalogue.isaps.map((x, i) => ({ name: x.name, ...p.isaps.modules[i] }));
-    isaps.completedAll = { ...p.isaps.completedAll };
   }
   return { oxbridge, beaconhouse, isaps };
 }
@@ -242,7 +275,7 @@ function block(ladder, acc, catalogue, { withName = false, detailed = false } = 
  *   schools?: Array<{id, name, emis}>,
  *   partners?: Array<{partner: 'oxbridge'|'beaconhouse'|'isaps', bit, name}>,
  *   members?: Array<{user_id, school_id, primary_cohort, mh_cohort, middle_band, high_band, cert_levels, active_levels,
- *                    ox_mask, ox_cert, ox_active, bh_mask, bh_active, isaps_assigned, isaps_cert, isaps_mask,
+ *                    ox_mask, ox_cert, ox_active, bh_mask, bh_active, isaps_assigned, isaps_cert_levels, isaps_active_levels,
  *                    isaps_active}>,
  *   lists?: {fdeSchoolEmis: Set<string>|null, primary: Map|null, midHigh: Map|null, missing: object}|null
  * }} rows  one members row per programme member (the RDF population), and loadAnalyticsLists' answer
@@ -374,24 +407,8 @@ const PARTNER_LEVEL_IDS = (vendor) => `SELECT pl.id FROM (${PARTNER_LEVELS(vendo
 /** GBTLA's sessions in order: the active modules of its active course(s); bit = position (0-based). */
 const OX_SESSION_ORDER = 'row_number() OVER (ORDER BY c.order_index, m.order_index, m.id) - 1';
 
-/** N of an I-SAPS course titled "Module N", the bot's own reading (quiz-delivery: /Module (\d+)/). bit = N - 1. */
-const ISAPS_MODULE_NO = "substring(c.title from 'Module (\\d+)')::int";
-
 /**
- * Each I-SAPS module that can be passed: an active course "Module N" of an active I-SAPS level whose exam, the active
- * grand quiz 900 + N, exists. `levels` is the SQL for the I-SAPS level ids.
- */
-const ISAPS_MODULES = (levels) => `
-      SELECT c.id AS course_id, c.title, q.id AS quiz_id, (${ISAPS_MODULE_NO} - 1) AS bit
-        FROM training_courses c
-        JOIN training_grand_quizzes q
-          ON q.level_id = c.level_id AND q.is_active
-         AND q.source_quiz_id = ${PER_MODULE_SOURCE_BASE} + ${ISAPS_MODULE_NO}
-       WHERE c.is_active AND c.title ~ 'Module \\d+'
-         AND c.level_id IN (${levels})`;
-
-/**
- * The partner catalogue, one row per GBTLA session, Beaconhouse subject and I-SAPS module, with the bit each has in the
+ * The partner catalogue, one row per GBTLA session, Beaconhouse subject and Teacher Development Programme level (bd-tsa15l), with the bit each has in the
  * members read's masks — written with the same ordering as that read, so the two always agree.
  */
 const PARTNERS_SQL = `
@@ -406,18 +423,21 @@ const PARTNERS_SQL = `
     JOIN training_vendors v ON v.id = l.vendor_id
    WHERE v.key = '${BEACONHOUSE_KEY}' AND l.is_active
   UNION ALL
-  SELECT 'isaps' AS partner, im.bit, im.title
-    FROM (${ISAPS_MODULES(PARTNER_LEVEL_IDS(ISAPS_KEY))}) im
+  SELECT 'isaps' AS partner, l.order_index AS bit, l.name, l.id AS level_id
+    FROM training_levels l
+    JOIN training_vendors v ON v.id = l.vendor_id
+   WHERE v.key = '${ISAPS_KEY}' AND l.is_active
    ORDER BY 1, 2`;
 
 /** The columns every branch of the per-member fold carries, with the value a branch that does not set one gives. */
 const FOLD = [
   ['school_id', 'NULL'], ['region', 'NULL::text'], ['mine', 'false'],
-  ['primary_cohort', 'false'], ['mh_cohort', 'false'], ['middle_band', 'false'], ['high_band', 'false'],
+  ['primary_cohort', 'false'], ['mh_cohort', 'false'], ['primary_band', 'false'], ['middle_band', 'false'], ['high_band', 'false'],
   ['level_id', 'NULL::bigint'], ['cert', 'false'], ['active', 'false'],
   ['ox_mask', '0'], ['ox_cert', 'false'], ['ox_active', 'false'],
   ['bh_mask', '0'], ['bh_active', 'false'],
-  ['isaps_assigned', 'false'], ['isaps_cert', 'false'], ['isaps_mask', '0'], ['isaps_active', 'false'],
+  ['isaps_assigned', 'false'], ['isaps_cert', 'false'], ['isaps_active', 'false'],
+  ['isaps_level', 'NULL::bigint'],
 ];
 const fold = (userId, set, from) => `
         SELECT ${userId} AS user_id, ${FOLD.map(([col, dflt]) => `${set[col] || dflt} AS ${col}`).join(', ')}
@@ -448,14 +468,23 @@ function trainingStatesSql() {
      WHERE v.key = '${NIETE_VENDOR_KEY}' AND l.is_active
   ),
   members AS MATERIALIZED (
-    -- the canonical ICT teacher: an ACTIVE assignment on the primary or middle/high programme, the user row live (no
+    -- the canonical ICT teacher (RDF live roster v45; data server teacher_headcount 1e): the user row live (no
     -- deleted_at, the phone not a merged: tombstone), role teacher, not a test account (FDE's view then needs a
-    -- programme school: the summariser; Moawin's areas keep their schoolless members). Middle / high from teacher_level.
+    -- programme school: the summariser; Moawin's areas keep their schoolless members).
+    -- bd-tsa15l (Hashir, 27 Nov): her section follows her TEACHING LEVELS, not the programme she was assigned:
+    -- Primary = PRIMARY in teacher_level; Middle/High = MIDDLE or HIGH. A teacher with no level recorded falls back
+    -- to her programmes (the old rule), so another organization's members are not lost. A member of both counts in both.
     -- users.region rides along: whose member she is when no school places her (bd-97daxo.3).
-    SELECT u.id AS user_id, u.school_id, u.region, pm.primary_cohort, pm.mh_cohort,
+    SELECT u.id AS user_id, u.school_id, u.region,
+           ${band("= 'PRIMARY'")} AS primary_band,
            ${band("= 'MIDDLE'")} AS middle_band,
-           ${band("= 'HIGH'")} AS high_band
-      FROM (
+           ${band("= 'HIGH'")} AS high_band,
+           CASE WHEN ${band("IN ('PRIMARY', 'MIDDLE', 'HIGH')")} THEN ${band("= 'PRIMARY'")}
+                ELSE COALESCE(pm.primary_cohort, false) END AS primary_cohort,
+           CASE WHEN ${band("IN ('PRIMARY', 'MIDDLE', 'HIGH')")} THEN (${band("IN ('MIDDLE', 'HIGH')")})
+                ELSE COALESCE(pm.mh_cohort, false) END AS mh_cohort
+      FROM users u
+      LEFT JOIN (
         SELECT a.user_id,
                bool_or(p.key = '${PROGRAMME_KEYS.primary}') AS primary_cohort,
                bool_or(p.key = '${PROGRAMME_KEYS.midhigh}') AS mh_cohort
@@ -463,13 +492,12 @@ function trainingStatesSql() {
           JOIN training_programs p ON p.id = a.program_id
          WHERE a.is_active AND p.key IN ('${PROGRAMME_KEYS.primary}', '${PROGRAMME_KEYS.midhigh}')
          GROUP BY a.user_id
-      ) pm
-      JOIN users u ON u.id = pm.user_id
+      ) pm ON pm.user_id = u.id
      WHERE u.deleted_at IS NULL
        AND COALESCE(u.phone_number, '') NOT LIKE 'merged%'
-       -- bd-tsa15l: the canonical ICT teacher (RDF live roster v45; data server teacher_headcount 1e)
        AND u.role = 'teacher'
        AND u.is_test_user IS NOT TRUE
+       AND (pm.user_id IS NOT NULL OR ${band("IN ('PRIMARY', 'MIDDLE', 'HIGH')")})
   ),
   visible AS MATERIALIZED (
     -- the (member, level) pairs her programmes show: active assignments → scopes; NULL / empty level_ids = all
@@ -579,10 +607,6 @@ function trainingStatesSql() {
   ),
   isaps_levels AS MATERIALIZED (${PARTNER_LEVELS(ISAPS_KEY)}
   ),
-  isaps_exams AS MATERIALIZED (
-    -- each I-SAPS module's exam (the active grand quiz 900 + N of course "Module N"), its bit N - 1 (9 on prod)
-    SELECT im.quiz_id, im.bit FROM (${ISAPS_MODULES('SELECT id FROM isaps_levels')}) im
-  ),
   isaps_work AS MATERIALIZED (
     -- earned I-SAPS work is never taken away (vendor-band-gate.rules.js): a certificate, an attempt or a unit done
     SELECT c.user_id FROM training_certificates c WHERE c.level_id IN (SELECT id FROM isaps_levels)
@@ -613,6 +637,7 @@ function trainingStatesSql() {
            (array_agg(f.region) FILTER (WHERE f.mine))[1] AS region,
            bool_or(f.primary_cohort) AS primary_cohort,
            bool_or(f.mh_cohort) AS mh_cohort,
+           bool_or(f.primary_band) AS primary_band,
            bool_or(f.middle_band) AS middle_band,
            bool_or(f.high_band) AS high_band,
            array_agg(DISTINCT f.level_id) FILTER (WHERE f.cert) AS cert_levels,
@@ -622,15 +647,16 @@ function trainingStatesSql() {
            bool_or(f.ox_active) AS ox_active,
            bit_or(f.bh_mask) AS bh_mask,
            bool_or(f.bh_active) AS bh_active,
+           array_agg(DISTINCT f.isaps_level) FILTER (WHERE f.isaps_cert) AS isaps_cert_levels,
+           array_agg(DISTINCT f.isaps_level) FILTER (WHERE f.isaps_active) AS isaps_active_levels,
            bool_or(f.isaps_assigned) AS isaps_assigned,
            bool_or(f.isaps_cert) AS isaps_cert,
-           bit_or(f.isaps_mask) AS isaps_mask,
            bool_or(f.isaps_active) AS isaps_active
       FROM (
         -- the member herself
         ${fold('m.user_id', {
     school_id: 'm.school_id', region: 'm.region::text', mine: 'true', primary_cohort: 'm.primary_cohort', mh_cohort: 'm.mh_cohort',
-    middle_band: 'm.middle_band', high_band: 'm.high_band',
+    primary_band: 'm.primary_band', middle_band: 'm.middle_band', high_band: 'm.high_band',
   }, 'FROM members m')}
         UNION ALL
         -- a NIETE level's certificate (Passed)
@@ -672,20 +698,19 @@ function trainingStatesSql() {
         UNION ALL
         -- any I-SAPS attempt is activity; a passed attempt on a module's active exam passes that module
         ${fold('a.user_id', {
-    isaps_mask: 'CASE WHEN a.is_passed IS TRUE THEN COALESCE(1 << e.bit, 0) ELSE 0 END', isaps_active: 'true',
+    isaps_level: 'a.level_id', isaps_active: 'true',
   }, `FROM training_assessment_attempts a
-          LEFT JOIN isaps_exams e ON e.quiz_id = a.grand_quiz_id
          WHERE a.level_id IN (SELECT id FROM isaps_levels)`)}
         UNION ALL
         -- an I-SAPS unit done is activity
-        ${fold('p.user_id', { isaps_active: 'true' },
+        ${fold('p.user_id', { isaps_active: 'true', isaps_level: 'tc.level_id' },
     `FROM teacher_training_progress p
           JOIN training_modules tm ON tm.id = p.module_id
           JOIN training_courses tc ON tc.id = tm.course_id
          WHERE tc.level_id IN (SELECT id FROM isaps_levels)`)}
         UNION ALL
         -- the I-SAPS level certificate (Passed)
-        ${fold('c.user_id', { isaps_cert: 'true', isaps_active: 'true' },
+        ${fold('c.user_id', { isaps_cert: 'true', isaps_active: 'true', isaps_level: 'c.level_id' },
     'FROM training_certificates c WHERE c.level_id IN (SELECT id FROM isaps_levels)')}
       ) f
      GROUP BY f.user_id
