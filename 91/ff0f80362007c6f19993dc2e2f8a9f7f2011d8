@@ -2,3 +2,4 @@
 {"ts":"2026-11-27T15:23:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
 {"ts":"2026-11-27T15:23:56Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"quiz-funnel-watch=none-needed (cherry-pick of #6200 via #6205: operator-only Slack monitor; no teacher- or child-facing change)","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
 {"ts":"2026-11-27T15:23:56Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-91ff0f803620","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
+{"ts":"2026-11-27T15:23:59Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py data_writes.py tenants_lite.py check-scenario-coverage.py","sha":"91ff0f803620","branch":"bd-nmtlgs-main","user":""}
