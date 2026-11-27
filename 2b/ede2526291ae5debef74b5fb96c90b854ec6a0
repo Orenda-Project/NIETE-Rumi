@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T08:39:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"2bede2526291","branch":"HEAD","user":""}
 {"ts":"2026-11-27T08:39:35Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"2bede2526291","branch":"HEAD","user":""}
 {"ts":"2026-11-27T08:41:43Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-nr8mrm-65825: fde-board-pattern web lane spec: NOT UPDATED e2e: missing","sha":"2bede2526291","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T08:41:43Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"2bede2526291","branch":"bd-nr8mrm-65825","user":""}
