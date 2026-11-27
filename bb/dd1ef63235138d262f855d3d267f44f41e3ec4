@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T06:12:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-59790","user":""}
 {"ts":"2026-11-27T06:12:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-59790","user":""}
 {"ts":"2026-11-27T06:27:26Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"ab-switch=none-needed (the A/B switch from #6108, already on sandbox; tracker cron + arm assignment only; with ab_switch_auto off no winner is written, so every teacher keeps their hashed arm; covered by tests/ab-tracker/ab-switch.test.js)","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-sq","user":""}
+{"ts":"2026-11-27T06:27:26Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-bbdd1ef63235","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-sq","user":""}
