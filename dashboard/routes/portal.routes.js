@@ -108,6 +108,8 @@ const {
   isObserveUploadOnlyFor,
   isUploadPiecesFor,
   PORTAL_RECORDING_RESUME_KEY,
+  isFlagEnabled,
+  ASSESSMENT_PAGE_FIT_KEY,
   COACH_REPORTS_APP_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
@@ -3629,6 +3631,9 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // door it came through (bd-pw1ccr.1). Absent the same way, so a plain request is unchanged.
       topicIds: body.topicIds ?? undefined,
       origin: body.origin ?? undefined,
+      // Save paper (bd-ipoxhx.5) and the page count (bd-nr8mrm.3): absent the same way.
+      compact: body.compact === true ? true : undefined,
+      pageCount: body.pageCount ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {
@@ -9685,6 +9690,7 @@ router.get('/config', async (req, res) => {
       lpOwnUnitRaw,
       observeUploadOnly,
       recordingResumeRaw,
+      assessmentPageFit,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -9760,6 +9766,8 @@ router.get('/config', async (req, res) => {
       // (Resume / Stop). Fail-closed: no row, false or a failed read = off; true = every teacher; a users.id list = those;
       // "teachers" = every teacher. Coaches' and principals' observation and debrief have it on by default (no switch).
       isFlagEnabledForUser(supabase, PORTAL_RECORDING_RESUME_KEY, userId),
+      // bd-nr8mrm.4 — the Pages box on a new paper; the same app-wide switch the bot's build reads.
+      isFlagEnabled(supabase, ASSESSMENT_PAGE_FIT_KEY),
     ]);
     // bd-w0zbbe (production 16 Nov): a principal saw "Record your Teacher's Lesson" (portal_coach_observation and
     // portal_coach_v2 are true for everyone) while the API admits a principal only on the principal app, so every
@@ -9829,6 +9837,8 @@ router.get('/config', async (req, res) => {
         observeUploadOnly,
         // bd-ma9jiy — the teacher's kept DC recording reopens paused (portal_recording_resume, fail-closed).
         recordingResume: recordingResumeRaw === true,
+        // bd-nr8mrm.4 — the Pages box (1-5) under Save paper (assessment_page_fit, fail-closed).
+        assessmentPageFit,
         // bd-q261rec (queue #261) — the recording is sent in pieces that resume after a drop (portal_upload_pieces).
         uploadPieces,
       },
@@ -9881,6 +9891,7 @@ router.get('/config', async (req, res) => {
         observeUploadOnly: false,
         recordingResume: false,
         uploadPieces: false,
+        assessmentPageFit: false,
       },
       roleSwitchRoles: [],
     });
