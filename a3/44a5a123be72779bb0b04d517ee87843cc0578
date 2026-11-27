@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T08:07:50Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,portal-smoke spec_sync=true","sha":"a344a5a123be","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T08:07:54Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: lesson-plan,language,portal-login,portal-smoke owe their Gherkin","sha":"a344a5a123be","branch":"bd-nr8mrm-65825","user":""}
