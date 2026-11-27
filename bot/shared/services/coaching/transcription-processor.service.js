@@ -590,6 +590,10 @@ class TranscriptionProcessorService {
         fs.unlinkSync(tempAudioPath);
       }
 
+      // bd-brblff — bytes no transcriber can decode fail the same way on every delivery: say so, and the
+      // worker removes the message instead of letting SQS send it round again (27 Nov: 3 uploads, 8 runs).
+      require('./unreadable-audio').markPermanentIfUnreadable(error);
+
       await this.handleTranscriptionError(coachingSessionId, error, payload.from);
       throw error;
     }
