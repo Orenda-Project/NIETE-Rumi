@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T14:26:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"df40cc7ee3f0","branch":"bd-nmtlgs-88725","user":""}
+{"ts":"2026-11-27T14:27:28Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"df40cc7ee3f0","branch":"bd-nmtlgs-88725","user":""}
+{"ts":"2026-11-27T14:27:45Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features= spec_sync=true","sha":"df40cc7ee3f0","branch":"bd-nmtlgs-88725","user":""}
