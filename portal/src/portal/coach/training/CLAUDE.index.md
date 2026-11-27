@@ -30,8 +30,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `LibraryPages.tsx` ← imported by `portal/src/App.tsx:168:5c536921`
 - `appReady.ts` ← imported by `portal/src/portal/coach/insights/InsightsGate.tsx:6:f4172066` · `portal/src/portal/coach/insights/paths.ts:1:72012f5c` · `portal/src/portal/coach/pages/CoachPeople.tsx:12:b015a408` · `portal/src/portal/components/PortalNavigation.tsx:13:22bceb08` (+4: `python3 kg/kg.py who-reads appReady.ts`)
 - `copy.ts` ← imported by `portal/src/portal/teacher/copyRegistry.ts:9:3ff9d825` · `portal/src/portal/coach/training/LibraryPages.tsx:21:f965f797`
-- `libraryApi.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:11:fd553941` · `portal/src/portal/coach/training/LibraryPages.tsx:27:592b21d3`
-- `useCoachFullApp.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:16:ffe3ac05` · `portal/src/portal/coach/card/harness.testdata.tsx:102:e33dd03d` · `portal/src/portal/coach/pages/CoachSchool.tsx:12:ffe3ac05` · `portal/src/portal/coach/pages/CoachTeacher.tsx:10:ffe3ac05` (+3: `python3 kg/kg.py who-reads useCoachFullApp.ts`)
+- `libraryApi.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:12:fd553941` · `portal/src/portal/coach/training/LibraryPages.tsx:27:592b21d3`
+- `useCoachFullApp.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:17:ffe3ac05` · `portal/src/portal/coach/card/harness.testdata.tsx:102:e33dd03d` · `portal/src/portal/coach/pages/CoachSchool.tsx:12:ffe3ac05` · `portal/src/portal/coach/pages/CoachTeacher.tsx:10:ffe3ac05` (+3: `python3 kg/kg.py who-reads useCoachFullApp.ts`)
 
 ## Tests (all, generated)
 - `CoachAppGuard.tsx` ← `portal/src/portal/coach/insights/tests/routing.flagOff.test.tsx` · `portal/src/portal/coach/people/schoolsReady.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.dual.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.loop.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.rm.test.tsx` · `portal/src/portal/coach/training/CoachAppGuard.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/coach/training/CoachAppGuard.tsx`)

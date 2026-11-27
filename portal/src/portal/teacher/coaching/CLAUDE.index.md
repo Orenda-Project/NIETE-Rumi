@@ -6,6 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
+| `dcGuide/` | (no description yet) → `dcGuide/CLAUDE.md` |
 | `CoachingAll.range.test.tsx` | (unmapped) |
 | `CoachingAll.test.tsx` | Pins All DC observations: date range, server-counted KPI tiles vs prior period, lessons by day as bands (bd-fmf24g.4) |
 | `CoachingAll.tsx` | All DC observations page (See all from Recent): DateRangeBar, KPI tiles from /teacher/coaching/history, lessons by day |
@@ -34,6 +35,9 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `draft.ts` | In-memory draft of recording, lesson plan, class and photos so pages can be left and returned to (holdDraft) |
 | `duplicateInFlight.test.ts` | (unmapped) |
 | `headings.test.tsx` | Pins renamed DC headings (Class recording, Lesson analysis, Reflection question) in English and Urdu (bd-dpen4t) |
+| `keptCard.tsx` | (unmapped) |
+| `keptLink.test.tsx` | (unmapped) |
+| `latestBand.test.ts` | (unmapped) |
 | `libraryPick.test.tsx` | Pins From the library for the picked class: chapters, a tap attaches the plan, returns to one screen (bd-fgj73x.5) |
 | `libraryPick.ts` | pick=dc mode for the Lesson Plans pages: choosing a plan attaches it to the DC draft and steps back to the one screen |
 | `micBlocked.test.ts` | Tests micBlockedLine variants (first refusal, browser blocked, refused again) in both languages (bd-qccbrv) |
@@ -49,51 +53,55 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `picker.ur.test.tsx` | Renders the lesson-plan picker sheet and library steps in Urdu on DC pages via COACHING picker words (bd-fmf24g.13) |
 | `planLabel.test.tsx` | Pins an uploaded plan labelled 'Lesson plan' with its filename, not 'Plan photo', in both languages (bd-hsgah5) |
 | `reflectionChip.test.ts` | (unmapped) |
+| `reflectionPaused.test.tsx` | (unmapped) |
 | `report.ts` | Report data layer: GET /coaching-session/:id and /teacher/coaching/:id/journey shaped for the kit's ReportBody |
 | `reportLive.tsx` | Reflection question and answer (text or voice) and class-check notice shared by the report and one screen |
+| `resumePaused.test.tsx` | (unmapped) |
 | `routes.tsx` | Registers lazy Digital Coaching pages (home, new, send, all, report) under /portal/teacher/coaching via TeacherGate |
 | `saveRecording.test.tsx` | Pins the Save recording button and its confirmation line in both languages on the one screen (bd-bmc9a0.2) |
 | `submitFailure.test.tsx` | Pins Submit failures naming the failed part (Recording, Lesson plan, Photo N); 'No internet' only offline (bd-bmc9a0.1) |
 | `unsentRecording.test.tsx` | (unmapped) |
 | `useDcReport.ts` | Hook polling one DC observation (5s then 15s) to ready, loading its session and journey, and sending the answer |
+| `weakLine.test.tsx` | (unmapped) |
 
 ## Who reads this (all, generated)
 - `CoachingAll.tsx` ← imported by `portal/src/portal/teacher/coaching/routes.tsx:6:f9a7506b`
 - `CoachingHome.tsx` ← imported by `portal/src/portal/teacher/coaching/routes.tsx:7:a6d2f841`
 - `NewObservation.tsx` ← imported by `portal/src/portal/teacher/coaching/routes.tsx:8:a8febbe1`
-- `ReportPage.tsx` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:17:9c304788` · `portal/src/portal/teacher/coaching/NewObservation.tsx:43:60fa3514` · `portal/src/portal/teacher/coaching/routes.tsx:9:a22ba7e2`
+- `ReportPage.tsx` ← imported by `portal/src/portal/teacher/observations/ObservationsHome.tsx:17:9c304788` · `portal/src/portal/teacher/coaching/NewObservation.tsx:50:60fa3514` · `portal/src/portal/teacher/coaching/routes.tsx:9:a22ba7e2`
 - `SendPage.tsx` ← imported by `portal/src/portal/teacher/coaching/routes.tsx:10:06580ebf`
 - `VideoRecoCard.tsx` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:26:f1294e79`
 - `api.ts` ← imported by `portal/src/portal/teacher/principal/ObserveV6.tsx:18:a5c64108` · `portal/src/portal/teacher/principal/PrincipalObservations.tsx:13:345f000e` · `portal/src/portal/teacher/coaching/CoachingAll.tsx:12:1d1a68ee` · `portal/src/portal/teacher/coaching/CoachingHome.tsx:13:09857597` (+2: `python3 kg/kg.py who-reads api.ts`)
-- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:4:dd128a06` · `portal/src/portal/coach/pages/CoachObservation.tsx:10:2fd26284` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:15:9162b8db` (+17: `python3 kg/kg.py who-reads copy.ts`)
-- `draft.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:15:280453e1` · `portal/src/portal/teacher/coaching/NewObservation.tsx:33:dce23d54` · `portal/src/portal/teacher/coaching/SendPage.tsx:22:ea7b2d37` · `portal/src/portal/teacher/coaching/libraryPick.ts:3:f6eddd6f` (+1: `python3 kg/kg.py who-reads draft.ts`)
+- `copy.ts` ← imported by `portal/src/portal/coach/insights/player/FullRecordingLink.tsx:4:dd128a06` · `portal/src/portal/coach/insights/player/MomentPlayer.tsx:4:dd128a06` · `portal/src/portal/coach/pages/CoachObservation.tsx:10:2fd26284` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:15:9162b8db` (+18: `python3 kg/kg.py who-reads copy.ts`)
+- `draft.ts` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:15:280453e1` · `portal/src/portal/teacher/coaching/NewObservation.tsx:40:dce23d54` · `portal/src/portal/teacher/coaching/SendPage.tsx:22:ea7b2d37` · `portal/src/portal/teacher/coaching/libraryPick.ts:3:f6eddd6f` (+1: `python3 kg/kg.py who-reads draft.ts`)
+- `keptCard.tsx` ← imported by `portal/src/portal/teacher/coaching/CoachingHome.tsx:18:4d43fdc6` · `portal/src/portal/teacher/coaching/NewObservation.tsx:18:ab836050`
 - `libraryPick.ts` ← imported by `portal/src/portal/teacher/lessons/ChaptersPage.tsx:13:26410b36` · `portal/src/portal/teacher/lessons/LessonsPage.tsx:24:ee32a9b1` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:20:526ee5ca` · `portal/src/portal/teacher/lessons/useOpenLesson.ts:9:b9946829` (+1: `python3 kg/kg.py who-reads libraryPick.ts`)
-- `micBlocked.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:38:8e26a7fb` · `portal/src/portal/teacher/coaching/SendPage.tsx:24:8e26a7fb`
+- `micBlocked.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:45:8e26a7fb` · `portal/src/portal/teacher/coaching/SendPage.tsx:24:8e26a7fb`
 - `navigate.ts` ← imported by `portal/src/portal/teacher/coaching/ReportPage.tsx:20:6497f9ad`
-- `notSent.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:32:47893878` · `portal/src/portal/teacher/coaching/SendPage.tsx:21:47893878`
+- `notSent.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:39:47893878` · `portal/src/portal/teacher/coaching/SendPage.tsx:21:47893878`
 - `parts.tsx` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:5:1e0daade` · `portal/src/portal/teacher/observations/ObservationsHome.tsx:16:25443756` · `portal/src/portal/teacher/principal/PrincipalObservations.tsx:14:67c1fd8f` · `portal/src/portal/teacher/coaching/CoachingHome.tsx:17:76009a49` (+4: `python3 kg/kg.py who-reads parts.tsx`)
 - `paths.ts` ← imported by `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:26:d1a155d5` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:16:98e26fb0` · `portal/src/portal/teacher/home/chips.ts:3:87d7f35f` · `portal/src/portal/teacher/home/look/cardWords.ts:3:bf1a9029` (+13: `python3 kg/kg.py who-reads paths.ts`)
-- `report.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:41:f788ba17` · `portal/src/portal/teacher/coaching/ReportPage.tsx:23:37dc5b07` · `portal/src/portal/teacher/coaching/useDcReport.ts:8:ea899991`
-- `reportLive.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:42:553171dd` · `portal/src/portal/teacher/coaching/ReportPage.tsx:24:553171dd`
-- `useDcReport.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:44:306bf5d4` · `portal/src/portal/teacher/coaching/ReportPage.tsx:25:306bf5d4` · `portal/src/portal/teacher/coaching/reportLive.tsx:12:1673f6ed`
+- `report.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:48:f788ba17` · `portal/src/portal/teacher/coaching/ReportPage.tsx:23:37dc5b07` · `portal/src/portal/teacher/coaching/useDcReport.ts:8:ea899991`
+- `reportLive.tsx` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:49:553171dd` · `portal/src/portal/teacher/coaching/ReportPage.tsx:24:553171dd`
+- `useDcReport.ts` ← imported by `portal/src/portal/teacher/coaching/NewObservation.tsx:51:306bf5d4` · `portal/src/portal/teacher/coaching/ReportPage.tsx:25:306bf5d4` · `portal/src/portal/teacher/coaching/reportLive.tsx:12:1673f6ed`
 
 ## Tests (all, generated)
 - `CoachingAll.tsx` ← `portal/src/portal/teacher/coaching/CoachingAll.range.test.tsx` · `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx`
 - `CoachingHome.tsx` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/libraryPick.test.tsx`
-- `NewObservation.tsx` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/libraryPick.test.tsx` · `portal/src/portal/teacher/coaching/picker.ur.test.tsx`
-- `ReportPage.tsx` ← `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.obs612.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.quiz.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.videoReco.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx`
+- `NewObservation.tsx` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/libraryPick.test.tsx` · `portal/src/portal/teacher/coaching/picker.ur.test.tsx` (+1: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/NewObservation.tsx`)
+- `ReportPage.tsx` ← `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.obs612.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.quiz.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.videoReco.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/ReportPage.tsx`)
 - `SendPage.tsx` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/SendPage.live.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx`
 - `VideoRecoCard.tsx` ← `portal/src/portal/teacher/coaching/VideoRecoCard.test.tsx`
-- `api.ts` ← `portal/src/portal/teacher/coaching/classCheck.test.ts` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/reflectionChip.test.ts`
-- `copy.ts` ← `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.videoReco.test.tsx` (+22: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/copy.ts`)
-- `draft.ts` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/SendPage.live.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` (+8: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/draft.ts`)
+- `api.ts` ← `portal/src/portal/teacher/coaching/classCheck.test.ts` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/latestBand.test.ts` · `portal/src/portal/teacher/coaching/reflectionChip.test.ts`
+- `copy.ts` ← `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.videoReco.test.tsx` (+28: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/copy.ts`)
+- `draft.ts` ← `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/SendPage.live.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/backFlow.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` (+11: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/draft.ts`)
 - `libraryPick.ts` ← `portal/src/portal/teacher/coaching/libraryPick.test.tsx`?
 - `micBlocked.ts` ← `portal/src/portal/teacher/coaching/micBlocked.test.ts`
 - `parts.tsx` ← `portal/src/portal/teacher/coaching/checks.test.tsx` · `portal/src/portal/teacher/coaching/photoCamera.test.tsx` · `portal/src/portal/teacher/coaching/photoHold.test.tsx` · `portal/src/portal/teacher/coaching/planLabel.test.tsx`
-- `paths.ts` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/coaching/CoachingAll.range.test.tsx` · `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` (+19: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/paths.ts`)
+- `paths.ts` ← `portal/src/portal/teacher/analytics/AnalyticsPage.test.tsx` · `portal/src/portal/teacher/coaching/CoachingAll.range.test.tsx` · `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/NewObservation.live.test.tsx` · `portal/src/portal/teacher/coaching/ReportPage.iabRows.test.tsx` (+24: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/paths.ts`)
 - `report.ts` ← `portal/src/portal/teacher/coaching/ReportPage.test.tsx` · `portal/src/portal/teacher/coaching/coaching.ur.test.tsx` · `portal/src/portal/teacher/coaching/headings.test.tsx` · `portal/src/portal/teacher/ui/ReportBody.rubric.test.tsx`
 - `reportLive.tsx` ← `portal/src/portal/teacher/coaching/duplicateInFlight.test.ts`
-- `routes.tsx` ← `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/oneScreen.test.tsx` · `portal/src/portal/teacher/coaching/pendingRecording.test.tsx` · `portal/src/portal/teacher/coaching/saveRecording.test.tsx` (+2: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/routes.tsx`)
+- `routes.tsx` ← `portal/src/portal/teacher/coaching/CoachingAll.test.tsx` · `portal/src/portal/teacher/coaching/CoachingPages.test.tsx` · `portal/src/portal/teacher/coaching/androidFiles.test.tsx` · `portal/src/portal/teacher/coaching/keptLink.test.tsx` · `portal/src/portal/teacher/coaching/oneScreen.test.tsx` · `portal/src/portal/teacher/coaching/pendingRecording.test.tsx` (+4: `python3 kg/kg.py who-reads portal/src/portal/teacher/coaching/routes.tsx`)
 
 ## Related (all, generated)
 - docs: `portal/src/portal/newui/checks/CLAUDE.md`? · `portal/src/portal/newui/coaching/CLAUDE.md`? · `portal/src/portal/teacher/CLAUDE.md`? · `portal/src/portal/teacher/share/CLAUDE.md`?

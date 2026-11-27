@@ -1,6 +1,6 @@
 # pictures — Colour picture bank (Fluent Emoji glyphs) the web quiz draws nouns with
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/pictures kg=9c019bc58388 gen=b75d8e85bd95 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/pictures kg=3b3e5aafc3bd gen=df5db132487a overflow=0 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — colorInner(noun) and emojiNoun(emoji) lookups used by web-quiz figures
@@ -17,7 +17,7 @@
 | `LICENSE-fluentui-emoji.txt` | MIT licence text for the Microsoft Fluent Emoji glyphs bundled in the picture bank |
 
 ## Who reads this (generated)
-- `index.js` ← imported by `bot/shared/services/quiz/web-quiz-figure.js:32:7e5af4f3` · `bot/shared/services/quiz/web-quiz.service.js:37:7e5af4f3`
+- `index.js` ← imported by `bot/shared/services/quiz/web-quiz-figure.js:32:7e5af4f3` · `bot/shared/services/quiz/web-quiz.service.js:38:7e5af4f3`
 - `color_glyphs.json` ← imported by `bot/shared/services/quiz/pictures/index.js:19:a291fa48`
 
 ## Never (human)

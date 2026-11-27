@@ -84,6 +84,8 @@ describe('Seen types on Questions', () => {
     fireEvent.click(await screen.findByTestId('add-seen-type'));
     const tray = await screen.findByTestId('seen-types-tray');
     fireEvent.click(await within(tray).findByRole('checkbox', { name: 'MCQs' }));
+    // bd-q8wt5e.15: Done is under the scrolling body, never scrolled away with the list
+    expect(within(tray).getByTestId('tray-body').contains(within(tray).getByRole('button', { name: C.done }))).toBe(false);
     expect((await seenBox('MCQs')).value).toBe('5');
     expect(screen.queryByTestId('count-seen')).toBeNull();
     expect(screen.getByTestId('questions-total').textContent).toContain(C.questionsCount(9));

@@ -41,7 +41,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `add-child-switch.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:62:2739d149`
 - `all-grades-switch.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:59:c470a703`
 - `any-school-switch.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:65:5dfe29a5`
-- `app-api.service.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:76:83955dcf` · `bot/shared/services/child-test/app/sa-review.service.js:19:6a7c12b1`
+- `app-api.service.js` ← imported by `bot/shared/handlers/jugnu-command.js:126:4324bdc8` · `bot/shared/services/child-test/app/sa-api.service.js:76:83955dcf` · `bot/shared/services/child-test/app/sa-review.service.js:19:6a7c12b1`
 - `block-history.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:55:b5dfe4f9`
 - `ceiling-switch.js` ← imported by `bot/shared/services/child-test/sa/score.js:118:eaf3bd9a`
 - `child-only-answer-switch.js` ← imported by `bot/shared/services/child-test/sa/score.js:117:e861eeac`
@@ -54,7 +54,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `level-switch.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:71:c5a4dba5`
 - `mcq-switch.js` ← imported by `bot/shared/services/child-test/sa-store.js:221:a7228eb8` · `bot/shared/services/child-test/sa/score.js:119:55ca8896` · `bot/shared/services/child-test/app/sa-api.service.js:72:a40d0d62`
 - `no-echo-ur-switch.js` ← imported by `bot/shared/services/child-test/sa/score.js:116:29bc353b`
-- `per-visit-switch.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:250:c74394e6` · `bot/shared/services/child-test/app/sa-api.service.js:60:7ef79205`
+- `per-visit-switch.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:307:c74394e6` · `bot/shared/services/child-test/app/sa-api.service.js:60:7ef79205`
 - `practice-first-switch.js` ← imported by `bot/shared/services/child-test/conversation/context.js:14:53582a8a` · `bot/shared/services/child-test/app/sa-api.service.js:69:c91ae99c`
 - `practice-only-switch.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:83:0b89114b` · `bot/shared/services/child-test/app/sa-api.service.js:64:38022a6f`
 - `rdf-switch.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:56:52e3beeb`
@@ -69,8 +69,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `CHILD_TEST_COACH_IDS` read at `bot/shared/services/child-test/app/app-api.service.js:81:7c1feadb`
 - env `CHILD_TEST_ENABLED` read at `bot/shared/services/child-test/app/app-api.service.js:53:b63ce370`
 - env `CHILD_TEST_R2_ENV` read at `bot/shared/services/child-test/app/app-api.service.js:58:882dfd55`
-- env `CHILD_TEST_SA_LINK_ONE_PHONE` read at `bot/shared/services/child-test/app/sa-api.service.js:1186:b78d313b`
-- env `CHILD_TEST_SA_SCORE_LATER` read at `bot/shared/services/child-test/app/sa-api.service.js:536:db6cf7d8`
+- env `CHILD_TEST_SA_LINK_ONE_PHONE` read at `bot/shared/services/child-test/app/sa-api.service.js:1214:b78d313b`
+- env `CHILD_TEST_SA_SCORE_LATER` read at `bot/shared/services/child-test/app/sa-api.service.js:564:db6cf7d8`
 - env `RAILWAY_ENVIRONMENT` read at `bot/shared/services/child-test/app/app-api.service.js:58:882dfd55`
 
 ## Tests (all, generated)
@@ -84,7 +84,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `per-visit-switch.js` ← `bot/tests/child-test/sa-per-visit.test.js`
 - `practice-first-switch.js` ← `bot/tests/child-test/sa-practice-first.test.js`
 - `practice-only-switch.js` ← `bot/tests/child-test/sa-practice-only.test.js`
-- `sa-api.service.js` ← `bot/tests/child-test/sa-add-child.test.js` · `bot/tests/child-test/sa-all-grade-forms.test.js` · `bot/tests/child-test/sa-all-grades.test.js` · `bot/tests/child-test/sa-any-school.test.js` · `bot/tests/child-test/sa-block-history.test.js` · `bot/tests/child-test/sa-device-bundle.test.js` (+37: `python3 kg/kg.py who-reads bot/shared/services/child-test/app/sa-api.service.js`)
+- `sa-api.service.js` ← `bot/tests/child-test/sa-add-child.test.js` · `bot/tests/child-test/sa-all-grade-forms.test.js` · `bot/tests/child-test/sa-all-grades.test.js` · `bot/tests/child-test/sa-any-school.test.js` · `bot/tests/child-test/sa-block-history.test.js` · `bot/tests/child-test/sa-device-bundle.test.js` (+38: `python3 kg/kg.py who-reads bot/shared/services/child-test/app/sa-api.service.js`)
 - `sa-review.service.js` ← `bot/tests/child-test/sa-review.test.js`
 - `story-minute-switch.js` ← `bot/tests/child-test/sa-r28-story-minute.test.js`
 - `voice-help-switch.js` ← `bot/tests/child-test/sa-score-voice-help.test.js`

@@ -1,6 +1,6 @@
 # share — Client for sharing a paper or plan to WhatsApp from the teacher app
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=e5f00b84d3ec gen=42d5eedbd70e overflow=0 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher/share kg=47e720fdde57 gen=35f8c480213a overflow=0 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `api.ts` — shareToWhatsApp and useShareAvailable against /api/portal/share; used by ../ui/ShareActions.tsx
@@ -25,7 +25,10 @@
 - `portal/src/portal/teacher/coaching/ReportPage.quiz.test.tsx` (api.ts)
 - `portal/src/portal/teacher/coaching/ReportPage.test.tsx` (api.ts)
 - `portal/src/portal/teacher/coaching/ReportPage.videoReco.test.tsx` (api.ts)
+- `portal/src/portal/teacher/coaching/dcGuide/ReportPage.dcGuide.test.tsx` (api.ts)
 - `portal/src/portal/teacher/lessons/LessonPages.test.tsx` (api.ts)
+- `portal/src/portal/teacher/lessons/ViewerPage.download.test.tsx` (api.ts)
+- `portal/src/portal/teacher/lessons/ViewerPage.print.test.tsx` (api.ts)
 - `portal/src/portal/teacher/lessons/ViewerPage.slim.test.tsx` (api.ts)
 - `portal/src/portal/teacher/lessons/leaders.test.tsx` (api.ts)
 - `portal/src/portal/teacher/principal/PrincipalScores.test.tsx` (api.ts)

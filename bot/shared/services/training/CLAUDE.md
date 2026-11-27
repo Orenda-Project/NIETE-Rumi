@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=b2a01968dce9 gen=7f7cace9887d overflow=182 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=a414d9e57047 gen=f3543b30216a overflow=183 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | … | 33 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+219)
+- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+221)
 - … 78 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -29,7 +29,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/training/bd-arghnv-3-blank-stem-never-served.test.js` (capstone-delivery.service.js, isaps-crq-paper.rules.js, progress.service.js, question-stem.rules.js, quiz-delivery.service.js, quiz-serving.service.js)
 - `tests/fixtures/delegate-training-to-bot.js` (capstone-delivery.service.js, certificate.service.js, paper-marking.service.js, quiz-delivery.service.js, quiz-serving.service.js)
-- … 90 more → `CLAUDE.index.md`
+- … 91 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?

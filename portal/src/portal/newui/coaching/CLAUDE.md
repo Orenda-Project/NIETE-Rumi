@@ -1,7 +1,7 @@
 # coaching — New-UI teacher Coaching: record page, lesson view, live moves, send flow
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/coaching kg=1022c87e81a9 gen=3daa1c3d8c9d overflow=55 rendered=2026-11-20 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/newui/coaching kg=2d17f9d268c8 gen=e53461d0d01c overflow=55 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `RecordPage.tsx` — record or upload a lesson, then check and send
@@ -17,9 +17,9 @@ Full index: `CLAUDE.index.md`
 | … | 25 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `useSendFlow.ts` ← imported by `portal/src/portal/pages/legacyLive.ts:2:0faa2c0f` · `portal/src/portal/teacher/coaching/NewObservation.tsx:21:27d04c12` (+4)
+- `useSendFlow.ts` ← imported by `portal/src/portal/pages/legacyLive.ts:2:0faa2c0f` · `portal/src/portal/teacher/coaching/NewObservation.tsx:28:27d04c12` (+4)
 - `pickerWords.ts` ← imported by `portal/src/portal/teacher/coaching/copy.ts:19:6c7e6daa` · `portal/src/portal/newui/coaching/LibraryStep.tsx:11:1d044371` (+3)
-- `useLiveMoves.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:27:21db6050` · `portal/src/portal/teacher/coaching/NewObservation.tsx:20:0c3ada55` (+3)
+- `useLiveMoves.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:27:21db6050` · `portal/src/portal/teacher/coaching/NewObservation.tsx:27:0c3ada55` (+3)
 - … 15 more → `CLAUDE.index.md`
 
 ## Never (human)

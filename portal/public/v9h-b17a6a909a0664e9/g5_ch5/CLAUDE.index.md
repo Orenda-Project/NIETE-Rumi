@@ -22,6 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `g5_ch5_Maths_seg7.v9.html` | Hosted v9 lesson page G5 Math ch5 seg7 (en): Fraction word problems (CUBES method) |
 | `g5_ch5_Maths_seg8.v9.html` | Hosted v9 lesson page G5 Math ch5 seg8 (en): Fraction word problems consolidation |
 | `g5_ch5_Maths_seg9.v9.html` | Hosted v9 lesson page G5 Math ch5 seg9 (en): Connect & Create: Create Your Own Fraction Story |
+| `g5_ch5_Science_seg1.v9.html` | (unmapped) |
 | `g5_ch5_Urdu_seg1.v9.html` | Hosted v9 lesson page G5 Urdu ch5 seg1 (ur): حکایت کا تعارف + نئے الفاظ |
 | `g5_ch5_Urdu_seg10.v9.html` | Hosted v9 lesson page G5 Urdu ch5 seg10 (ur): جانیں اور تخلیق کریں — معاشرتی اقدار کی پزیرائی |
 | `g5_ch5_Urdu_seg2.v9.html` | Hosted v9 lesson page G5 Urdu ch5 seg2 (ur): ارکان سازی — حکایت کے الفاظ کے اجزا |

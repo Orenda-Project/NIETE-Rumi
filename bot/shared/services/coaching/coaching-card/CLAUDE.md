@@ -1,7 +1,7 @@
 # coaching-card — Commitment card: content, HTML template and PNG render, button replies
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=e91570718107 gen=f08b1856963a overflow=25 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=8f274c103641 gen=ba0e01048a50 overflow=27 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `commitment-card.service.js` — builds the card content from the reflective answer
@@ -16,11 +16,10 @@ Full index: `CLAUDE.index.md`
 | `prioritized-action.service.js` | Extracts indicators from an analysis and picks one focus tip, the weakest askable indicator, for the coaching card |
 
 ## Who reads this (generated)
-- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/shared/calls/call-context.repo.js:63:5911672a`? (+98)
+- table `coaching_sessions` (written by `card-response.service.js`) ← read by `bot/scripts/fico17-v6-replay.js:87:0a1853f5`? · `bot/scripts/quiz/backfill-quiz-lesson-links.js:76:0b673d4d`? (+103)
 - table `coaching_sessions` whole row (`*`) (written by `card-response.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1983:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:770:d2b02c3e`? (+10)
-- column `coaching_sessions.prioritized_action` (written by `card-response.service.js`) ← read by `bot/shared/services/coaching/coaching-trend.service.js:140:1f9a2623` · `bot/shared/services/coaching/report-generator.service.js:399:cfc5016d` (+5)
-- `prioritized-action.service.js` ← imported by `bot/shared/services/coaching/next-step.js:16:c9dacf38` · `bot/shared/services/coaching/coaching-card/commitment-card.service.js:22:e5cd3ca1`
-- … 3 more → `CLAUDE.index.md`
+- column `coaching_sessions.prioritized_action` (written by `card-response.service.js`) ← read by `bot/shared/services/coaching/coaching-trend.service.js:140:1f9a2623` · `bot/shared/services/coaching/report-generator.service.js:420:cfc5016d` (+6)
+- … 4 more → `CLAUDE.index.md`
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._
@@ -29,7 +28,7 @@ _None found in code comments, tests or git log for this directory._
 ## Tests (generated)
 - `tests/coaching/coaching-card.test.js` (card-image.service.js, card-response.service.js, prioritized-action.service.js)
 - `tests/coaching/coaching-flow-integration.test.js` (card-image.service.js, card-response.service.js, prioritized-action.service.js)
-- … 22 more → `CLAUDE.index.md`
+- … 23 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/customization.md`?

@@ -21,7 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `CancelVisitTray.tsx` ← imported by `portal/src/portal/coach/pages/CoachObserveToday.tsx:18:9cb7ca41` · `portal/src/portal/coach/pages/CoachVisit.tsx:13:9cb7ca41`
 - `ScheduleTile.tsx` ← imported by `portal/src/portal/coach/pages/CoachScheduling.tsx:7:c88c3aa1`
 - `VisitCard.tsx` ← imported by `portal/src/portal/coach/flow/BookedRow.tsx:10:0c922937` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:18:1e33cc90`
-- `copy.ts` ← imported by `portal/src/portal/coach/flow/BookedRow.tsx:8:7d7e157d` · `portal/src/portal/coach/flow/FocusCard.tsx:12:7d7e157d` · `portal/src/portal/coach/flow/routes.tsx:9:7d7e157d` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:19:7d7e157d` (+12: `python3 kg/kg.py who-reads copy.ts`)
+- `copy.ts` ← imported by `portal/src/portal/coach/flow/BookedRow.tsx:8:7d7e157d` · `portal/src/portal/coach/flow/FocusCard.tsx:12:7d7e157d` · `portal/src/portal/coach/flow/routes.tsx:9:7d7e157d` · `portal/src/portal/coach/observe/KeptRows.tsx:17:7d7e157d` (+13: `python3 kg/kg.py who-reads copy.ts`)
 - `model.ts` ← imported by `portal/src/portal/coach/flow/BookedRow.tsx:9:4d6c2348` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:21:8078f905` · `portal/src/portal/coach/pages/CoachSchedule.tsx:10:4d6c2348` · `portal/src/portal/coach/pages/CoachTeam.tsx:11:91fdc6ae` (+1: `python3 kg/kg.py who-reads model.ts`)
 
 ## Tests (all, generated)

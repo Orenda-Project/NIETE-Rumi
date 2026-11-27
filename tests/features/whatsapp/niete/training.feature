@@ -3252,3 +3252,62 @@ Feature: NIETE (ICT) Teacher Training
     Given app_settings "web_quiz_keep_attempts" is false, missing, or anything but JSON true
     When a child finishes a web quiz
     Then the result screen is exactly as before and no try is kept
+
+  # ── practice for the child's test (A/B test ict-quiz-practice-door, arm B) ─────────────
+  # After a G1-5 English lesson-plan quiz from a teacher's link, arm B's finish screen offers
+  # "Practise for your test": rounds of 5 fresh questions, missed skills first, then topics the
+  # child picks, worked answers from the lesson plan only. Behind app_settings
+  # ab_quiz_practice_door (JSON true or {"on":true,"force_b":[student ids]}); OFF by default.
+  # No WhatsApp message is sent to anyone and nothing a teacher sees changes.
+  # @no-mock-driver: the door lives on the child's web quiz page (/q/<code>); the mock lane
+  # drives inbound WhatsApp only. Web runs: tests/features/web/web-quiz-child-page.feature WQ287-WQ290.
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1252
+  Scenario: With the practice door switch off, finishing a lesson quiz is exactly as before
+    Given app_settings "ab_quiz_practice_door" is false, missing, or anything but JSON true or {"on":true}
+    When a child finishes a grade 3 English lesson-plan quiz from a teacher's link
+    Then the result screen is exactly today's, with no "Practise for your test" door
+    And asking the page for a practice round gets "not found"
+    # ADDED 2026-11-27 (bd-ek4vxb.1): finish response byte-identical with the switch off. Unit:
+    # bot/tests/quiz/test-practice/practice-routes.test.js, dashboard/tests/web-quiz-practice-door-page.service.test.js.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1253
+  Scenario: With the switch on, a child in arm A sees no door
+    Given app_settings "ab_quiz_practice_door" is true
+    And the child's phone group is drawn into arm A of "ict-quiz-practice-door"
+    When the child finishes a grade 3 English lesson-plan quiz from a teacher's link
+    Then the result screen is today's, with no "Practise for your test" door
+    And a maths or science quiz, a grade 6 quiz or a friend's challenge never shows the door either
+    # ADDED 2026-11-27 (bd-ek4vxb.1). Unit: bot/tests/quiz/test-practice/arm.test.js, door.test.js.
+
+  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T1254
+  Scenario: With the switch on, a child in arm B practises five fresh questions for the test
+    Given app_settings "ab_quiz_practice_door" is {"on":true,"force_b":["<the child's id>"]}
+    When the child finishes a grade 3 English lesson-plan quiz from a teacher's link
+    Then the result screen shows "Practise for your test" and how many practice rounds are left today
+    When the child taps it, picks up to 3 topics and starts
+    Then 5 questions come, skills the child missed first, none of them a past paper's or the textbook's own exercise
+    And after the fifth answer the round's result shows the score and the lesson plan's worked answer for each miss
+    And the round is saved as a quiz for that child marked as a practice round, with the child's answers and score
+    And after 3 rounds that day the door says there are no rounds left
+    # ADDED 2026-11-27 (bd-ek4vxb.1): data — a quizzes row with meta.kind 'practice' (insert at start, update at
+    # finish). Unit: bot/tests/quiz/test-practice/service.test.js, freshness-cap.test.js, round.test.js.
+
+  @quiz @config-gated @no-mock-driver @data @wip @draft @P2 @T1255
+  Scenario: Two phones that share a child get the same practice arm
+    Given app_settings "ab_quiz_practice_door" is true and "ict-quiz-practice-door" is in the A/B registry
+    And a child plays on her mother's phone and on her father's phone, both bound to her
+    When she finishes a lesson quiz on either phone
+    Then both phones show the same arm, because the arm is drawn for the phone group, not the phone
+    And the arm is recorded once for that phone group
+    But until the test is in the registry, only children named in force_b get arm B and nothing is recorded
+    # ADDED 2026-11-27 (bd-ek4vxb.1): phone_group unit (bd-d68a8k); data — one ab_assignment row per group.
+    # Unit: bot/tests/quiz/test-practice/arm.test.js, door.test.js.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1256
+  Scenario: A child's practice round never counts as a quiz the teacher gave
+    Given a child in arm B has played two practice rounds
+    When the teacher opens the quiz list, the class report or the app's home
+    Then neither practice round appears and no score in them moves
+    And no day-3 follow-up quiz is made from a practice round
+    # ADDED 2026-11-27 (bd-ek4vxb.1): practice rows carry status 'skipped', which every teacher view and the
+    # retest sweep filter out. Unit: bot/tests/quiz/test-practice/pool-ledger.test.js.

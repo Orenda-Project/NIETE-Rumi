@@ -1,7 +1,7 @@
 # lib — Runtime helpers: app target, Android links/back key, lazy chunks, Urdu text, WhatsApp
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=38f1e509909e gen=42e40a7b799c overflow=79 rendered=2026-11-24 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=3d4fdf210225 gen=f503240b6f06 overflow=82 rendered=2026-11-27 kg.py=1.1.0 -->
 
 ## Entry points
 - `runtime.ts` — reads Capacitor/env and applies the pure rules in app-target.cjs
@@ -18,8 +18,8 @@ Full index: `CLAUDE.index.md`
 | … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `utils.ts` ← imported by `portal/src/components/ui/alert-dialog.tsx:4:a05a987a` · `portal/src/components/ui/badge.tsx:4:a05a987a` (+268)
-- `runtime.ts` ← imported by `portal/src/App.tsx:6:84711a37` · `portal/src/portal/coach/flow/track.ts:1:2abaa55e` (+24)
+- `utils.ts` ← imported by `portal/src/components/ui/alert-dialog.tsx:4:a05a987a` · `portal/src/components/ui/badge.tsx:4:a05a987a` (+271)
+- `runtime.ts` ← imported by `portal/src/App.tsx:6:84711a37` · `portal/src/portal/coach/flow/track.ts:1:2abaa55e` (+26)
 - `lazyPage.ts` ← imported by `portal/src/App.tsx:32:f8a16879` · `portal/src/portal/components/PortalLayout.tsx:2:52e3f833` (+14)
 - `whatsapp.ts` ← imported by `portal/src/components/FinalCTA.tsx:2:eff5b19a` · `portal/src/components/Hero.tsx:2:eff5b19a` (+10)
 - … 13 more → `CLAUDE.index.md`
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `portal/src/portal/coach/observe/ContinueOnWhatsApp.test.tsx` (runtime.ts, whatsapp.ts)
 - `dashboard/tests/portal-host.service.test.js` (app-target.cjs)
-- … 51 more → `CLAUDE.index.md`
+- … 54 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `portal/ANDROID.md`? · `portal/src/CLAUDE.md`? · `portal/src/components/CLAUDE.md`? · `portal/src/pages/CLAUDE.md`? · `portal/src/portal/auth/CLAUDE.md`?

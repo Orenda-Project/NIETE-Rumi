@@ -81,8 +81,14 @@ export function BookPicker({ p, set, first }: { p: Picks; set: typeof setPicks; 
         </button>
       )}
 
-      <Tray open={tray} tall title={C.bookQuestionsTitle} onClose={() => setTray(false)} closeLabel={C.close} testId="book-picker-tray">
-        <div className="-mx-3.5 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3.5 pb-1 [&>*]:shrink-0">
+      <Tray open={tray} tall title={C.bookQuestionsTitle} onClose={() => setTray(false)} closeLabel={C.close} testId="book-picker-tray"
+        foot={(
+          <div className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
+            <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.picked(draft.length)}</p>
+            <button type="button" onClick={done} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
+          </div>
+        )}>
+        <div className="flex flex-col">
           {list.status !== 'ok' || empty
             ? <LoadState status={list.status} empty={empty} onRetry={retry} emptyLabel={C.noBookQuestions} />
             : loaded.map((chapter) => (
@@ -110,10 +116,6 @@ export function BookPicker({ p, set, first }: { p: Picks; set: typeof setPicks; 
                 ))}
               </div>
             ))}
-        </div>
-        <div className="-mx-3.5 flex shrink-0 items-center gap-3 border-t border-[#e5e7eb] px-3.5 pt-2.5">
-          <p className="whitespace-nowrap px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.picked(draft.length)}</p>
-          <button type="button" onClick={done} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
         </div>
       </Tray>
     </>

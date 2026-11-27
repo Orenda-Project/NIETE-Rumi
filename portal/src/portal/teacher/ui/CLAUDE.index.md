@@ -62,6 +62,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ReadyTray.tsx` | Strip docked above the bottom menu listing items being made on every screen; exports trayHeight and row sizes |
 | `RecordUploadPair.tsx` | Side-by-side Record and Upload choices in one box with a beating recording mark (coach and teacher) |
 | `ReportBody.rubric.test.tsx` | (unmapped) |
+| `ReportBody.sectionPercent.test.tsx` | (unmapped) |
 | `ReportBody.test.tsx` | Pins ReportBody order matching the bot's hero-report image: headline, moments, strengths, try next |
 | `ReportBody.tsx` | Finished report layout shared by Digital Coach lessons and coach visits (COMPONENTS.md section 8) |
 | `ScoreRing.tsx` | Score drawn as a ring filled to its percentage with the number inside, for coach and DC scores |
@@ -156,30 +157,30 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `Tabs.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:52:2d737a8a`
 - `TextLine.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:62:fb073f40`
 - `TimePicker.tsx` ← imported by `portal/src/portal/teacher/ui/index.ts:47:333af850`
-- `TimeStamp.tsx` ← imported by `portal/src/portal/coach/pages/CoachAttach.tsx:6:abeb960d` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:11:abeb960d` · `portal/src/portal/coach/pages/CoachRecord.tsx:8:abeb960d` · `portal/src/portal/coach/pages/CoachVisit.tsx:7:abeb960d` (+5: `python3 kg/kg.py who-reads TimeStamp.tsx`)
-- `Tray.tsx` ← imported by `portal/src/portal/coach/pages/CoachAttach.tsx:7:c67de01b` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:10:c67de01b` · `portal/src/portal/coach/schedule/CancelVisitTray.tsx:2:c67de01b` · `portal/src/portal/teacher/assessment/BookPicker.tsx:6:15225517` (+13: `python3 kg/kg.py who-reads Tray.tsx`)
+- `TimeStamp.tsx` ← imported by `portal/src/portal/coach/observe/PhoneRecord.tsx:5:abeb960d` · `portal/src/portal/coach/pages/CoachAttach.tsx:6:abeb960d` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:11:abeb960d` · `portal/src/portal/coach/pages/CoachRecord.tsx:8:abeb960d` (+6: `python3 kg/kg.py who-reads TimeStamp.tsx`)
+- `Tray.tsx` ← imported by `portal/src/portal/coach/pages/CoachAttach.tsx:7:c67de01b` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:10:c67de01b` · `portal/src/portal/coach/schedule/CancelVisitTray.tsx:2:c67de01b` · `portal/src/portal/teacher/assessment/BookPicker.tsx:6:15225517` (+14: `python3 kg/kg.py who-reads Tray.tsx`)
 - `TrendChart.tsx` ← imported by `portal/src/portal/teacher/analytics/BandChart.tsx:1:ccec3648` · `portal/src/portal/teacher/ui/index.ts:56:7d30043f`
 - `VoiceNote.tsx` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:9:059eeecb` · `portal/src/portal/teacher/ui/index.ts:38:46c079f2`
-- `bidi.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:16:aa536fe5` · `portal/src/portal/teacher/assessment/FdeCheck.tsx:8:8a762185` · `portal/src/portal/teacher/assessment/RequestPage.tsx:21:8a762185` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:13:036627cc` (+20: `python3 kg/kg.py who-reads bidi.ts`)
+- `bidi.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:17:aa536fe5` · `portal/src/portal/teacher/assessment/FdeCheck.tsx:8:8a762185` · `portal/src/portal/teacher/assessment/RequestPage.tsx:21:8a762185` · `portal/src/portal/teacher/home/activity/HomeActivity.tsx:13:036627cc` (+20: `python3 kg/kg.py who-reads bidi.ts`)
 - `catalogue.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:7:829a71c8` · `portal/src/portal/teacher/ui/index.ts:29:ccb1985a`
-- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:31:382a4a45` · `portal/src/portal/teacher/principal/ObserveV6.tsx:10:cb1fe36b` · `portal/src/portal/teacher/ui/AudioCard.tsx:5:5a1954c8` · `portal/src/portal/teacher/ui/ChosenSoFar.tsx:6:5a1954c8` (+25: `python3 kg/kg.py who-reads copy.ts`)
+- `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachCheckSend.tsx:33:382a4a45` · `portal/src/portal/teacher/principal/ObserveV6.tsx:10:cb1fe36b` · `portal/src/portal/teacher/ui/AudioCard.tsx:5:5a1954c8` · `portal/src/portal/teacher/ui/ChosenSoFar.tsx:6:5a1954c8` (+25: `python3 kg/kg.py who-reads copy.ts`)
 - `dates.ts` ← imported by `portal/src/portal/teacher/journey/weeks.ts:6:130bc599` · `portal/src/portal/teacher/ui/DayStrip.tsx:6:b96b95f3` · `portal/src/portal/teacher/ui/index.ts:45:9c93134e`
 - `digits.ts` ← imported by `portal/src/portal/teacher/assessment/model.ts:283:b13b993e` · `portal/src/portal/teacher/ui/NumberField.tsx:3:f9559031` · `portal/src/portal/teacher/ui/index.ts:64:e8c7a783`
 - `gradeColours.ts` ← imported by `portal/src/portal/teacher/ui/ClassPicker.tsx:12:986b0bd1` · `portal/src/portal/teacher/ui/HistoryRow.tsx:10:986b0bd1` · `portal/src/portal/teacher/ui/index.ts:14:08870d86`
-- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` · `portal/src/portal/coach/card/HerItemsPage.tsx:2:eb562094` · `portal/src/portal/coach/card/SessionReportPage.tsx:4:2e0926c1` (+135: `python3 kg/kg.py who-reads index.ts`)
+- `index.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:5:537d2327` · `portal/src/portal/coach/analytics/model.ts:2:0fe353a8` · `portal/src/portal/coach/card/HerItemsPage.tsx:2:eb562094` · `portal/src/portal/coach/card/SessionReportPage.tsx:4:2e0926c1` (+138: `python3 kg/kg.py who-reads index.ts`)
 - `initials.ts` ← imported by `portal/src/portal/teacher/ui/HistoryRow.tsx:14:5e47464c` · `portal/src/portal/teacher/ui/SlotGroup.tsx:11:5e47464c`
 - `range.ts` ← imported by `portal/src/portal/coach/reports/CoachReportsAll.tsx:4:3610659c` · `portal/src/portal/teacher/analytics/AnalyticsPage.tsx:23:8ffffdf7` · `portal/src/portal/teacher/analytics/SchoolView.tsx:11:8ffffdf7` · `portal/src/portal/teacher/coaching/CoachingAll.tsx:11:8ffffdf7` (+3: `python3 kg/kg.py who-reads range.ts`)
 - `recordPair.css` ← imported by `portal/src/portal/teacher/ui/RecordUploadPair.tsx:9:450896da`
 - `signedLink.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:10:e7d96530`
 - `sounding.ts` ← imported by `portal/src/portal/teacher/ui/AudioCard.tsx:6:d17991ae` · `portal/src/portal/teacher/ui/VoiceNote.tsx:7:d17991ae`
-- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` · `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` (+174: `python3 kg/kg.py who-reads styles.ts`)
-- `subjects.ts` ← imported by `portal/src/portal/coach/card/WhereToCoachPage.tsx:5:ea579406` · `portal/src/portal/coach/card/scores.tsx:5:ea579406` · `portal/src/portal/teacher/journey/steps.ts:12:32ab3c52` · `portal/src/portal/teacher/lessons/own/Check.tsx:9:864d8ad9` (+6: `python3 kg/kg.py who-reads subjects.ts`)
-- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:30:98653aa9` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:12:98653aa9` (+43: `python3 kg/kg.py who-reads useKitCopy.ts`)
-- `useOpenTarget.ts` ← imported by `portal/src/portal/teacher/lessons/ViewerPage.tsx:14:1758e6b1` · `portal/src/portal/teacher/notices/ClassLinkCard.tsx:8:98a8d469` · `portal/src/portal/teacher/ui/ShareActions.tsx:8:94d6ed46` · `portal/src/portal/teacher/ui/index.ts:66:a03d730d`
+- `styles.ts` ← imported by `portal/src/portal/analytics/journey/JourneyDrill.tsx:5:4632c169` · `portal/src/portal/coach/card/training.tsx:6:55bdb8b8` · `portal/src/portal/coach/disagreements/CoachingBox.tsx:4:d8e874ab` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:6:cbd9177e` (+177: `python3 kg/kg.py who-reads styles.ts`)
+- `subjects.ts` ← imported by `portal/src/portal/coach/card/WhereToCoachPage.tsx:5:ea579406` · `portal/src/portal/coach/card/scores.tsx:5:ea579406` · `portal/src/portal/lib/saveRecording.ts:25:e149e2a6` · `portal/src/portal/teacher/journey/steps.ts:12:32ab3c52` (+7: `python3 kg/kg.py who-reads subjects.ts`)
+- `useKitCopy.ts` ← imported by `portal/src/portal/coach/card/SessionReportPage.tsx:6:98653aa9` · `portal/src/portal/coach/feedback/FeedbackPage.tsx:9:98653aa9` · `portal/src/portal/coach/pages/CoachCheckSend.tsx:32:98653aa9` · `portal/src/portal/coach/pages/CoachNewVisit.tsx:12:98653aa9` (+47: `python3 kg/kg.py who-reads useKitCopy.ts`)
+- `useOpenTarget.ts` ← imported by `portal/src/portal/lib/saveRecording.ts:24:b667a8ef` · `portal/src/portal/teacher/lessons/ViewerPage.tsx:14:1758e6b1` · `portal/src/portal/teacher/notices/ClassLinkCard.tsx:8:98a8d469` · `portal/src/portal/teacher/ui/ShareActions.tsx:8:94d6ed46` (+1: `python3 kg/kg.py who-reads useOpenTarget.ts`)
 
 ## Tests (all, generated)
 - `ActionStrip.tsx` ← `portal/src/portal/teacher/ui/ActionStrip.test.tsx`
-- `AudioCard.tsx` ← `portal/src/portal/teacher/ui/AudioCard.controls39.test.tsx` · `portal/src/portal/teacher/ui/AudioCard.seek239.test.tsx`
+- `AudioCard.tsx` ← `portal/src/portal/lib/saveRecording.test.tsx` · `portal/src/portal/teacher/ui/AudioCard.controls39.test.tsx` · `portal/src/portal/teacher/ui/AudioCard.seek239.test.tsx`
 - `ClassPicker.tsx` ← `portal/src/portal/teacher/ui/ClassPicker.colours.test.tsx` · `portal/src/portal/teacher/ui/ClassPicker.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx`
 - `ConfirmTray.tsx` ← `portal/src/portal/teacher/ui/ConfirmTray.test.tsx`
 - `DateRangeBar.tsx` ← `portal/src/portal/teacher/ui/DateRangeBar.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
@@ -187,7 +188,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `GradeSubjectButton.tsx` ← `portal/src/portal/teacher/ui/GradeSubjectButton.test.tsx` · `portal/src/portal/teacher/ui/bidi.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx`
 - `HistoryList.tsx` ← `portal/src/portal/teacher/ui/HistoryList.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.coach.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
 - `HistoryRow.tsx` ← `portal/src/lib/urduLatin.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.coach.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.glyph.test.tsx` · `portal/src/portal/teacher/ui/HistoryRow.test.tsx` · `portal/src/portal/teacher/ui/bidi.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx`
-- `HomeGreeting.tsx` ← `portal/src/portal/teacher/ui/HomeGreeting.test.tsx`
+- `HomeGreeting.tsx` ← `portal/src/portal/teacher/help/howToPill.test.tsx` · `portal/src/portal/teacher/ui/HomeGreeting.test.tsx`
 - `KpiTiles.tsx` ← `portal/src/portal/teacher/ui/KpiTiles.dense.test.tsx` · `portal/src/portal/teacher/ui/KpiTiles.test.tsx`
 - `LeaveNote.tsx` ← `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/ui/LeaveNote.test.tsx` · `portal/src/portal/teacher/ui/observationKit.test.tsx`
 - `ListRow.tsx` ← `portal/src/lib/urduLatin.test.tsx` · `portal/src/portal/teacher/help/help.test.tsx` · `portal/src/portal/teacher/ui/ListRow.test.tsx` · `portal/src/portal/teacher/ui/bidi.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
@@ -195,7 +196,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `ReadyBanner.tsx` ← `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/ui/ReadyBanner.test.tsx` · `portal/src/portal/teacher/ui/observationKit.test.tsx`
 - `ReadyCard.tsx` ← `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/ui/ReadyCard.test.tsx`
 - `ReadyTray.tsx` ← `portal/src/portal/teacher/notices/checks.test.tsx` · `portal/src/portal/teacher/ui/ReadyTray.test.tsx` · `portal/src/portal/teacher/ui/observationKit.test.tsx`
-- `ReportBody.tsx` ← `portal/src/portal/teacher/ui/ReportBody.rubric.test.tsx` · `portal/src/portal/teacher/ui/ReportBody.test.tsx`
+- `ReportBody.tsx` ← `portal/src/portal/teacher/ui/ReportBody.rubric.test.tsx` · `portal/src/portal/teacher/ui/ReportBody.sectionPercent.test.tsx` · `portal/src/portal/teacher/ui/ReportBody.test.tsx`
 - `SelectField.tsx` ← `portal/src/portal/teacher/ui/Tray.scroll40.test.tsx`
 - `ShareActions.tsx` ← `portal/src/portal/teacher/ui/ShareActions.test.tsx`
 - `StatusChip.tsx` ← `portal/src/portal/teacher/ui/bidi.test.tsx`
@@ -208,7 +209,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `catalogue.ts` ← `portal/src/portal/teacher/ui/Tray.test.tsx`
 - `copy.ts` ← `portal/src/portal/coach/observe/madeWhen.test.ts` · `portal/src/portal/coach/schedule/model.test.ts` · `portal/src/portal/teacher/ui/ClassPicker.test.tsx` · `portal/src/portal/teacher/ui/checks.test.tsx` · `portal/src/portal/teacher/ui/copy.ur.test.tsx`
 - `gradeColours.ts` ← `portal/src/portal/teacher/ui/gradeColours.test.ts`
-- `index.ts` ← `portal/src/portal/coach/flow/concept1.test.tsx` · `portal/src/portal/coach/flow/flowV2.test.tsx` · `portal/src/portal/coach/flow/inProgress45.test.tsx` · `portal/src/portal/coach/flow/v6.test.tsx` · `portal/src/portal/coach/time.test.ts` · `portal/src/portal/teacher/assessment/checks.test.tsx` (+10: `python3 kg/kg.py who-reads portal/src/portal/teacher/ui/index.ts`)
+- `index.ts` ← `portal/src/portal/coach/flow/concept1.test.tsx` · `portal/src/portal/coach/flow/flowV2.test.tsx` · `portal/src/portal/coach/flow/inProgress45.test.tsx` · `portal/src/portal/coach/flow/v6.test.tsx` · `portal/src/portal/coach/observe/keptLink.test.tsx` · `portal/src/portal/coach/observe/keptNeedsYou.test.tsx` (+12: `python3 kg/kg.py who-reads portal/src/portal/teacher/ui/index.ts`)
 - `initials.ts` ← `portal/src/portal/coach/flow/inProgress45.test.tsx`
 - `range.ts` ← `portal/src/portal/teacher/ui/DateRangeBar.test.tsx`
 - `signedLink.ts` ← `portal/src/portal/teacher/ui/AudioCard.seek239.test.tsx`
