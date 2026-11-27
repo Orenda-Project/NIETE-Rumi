@@ -1,0 +1,1 @@
+{"ts":"2026-11-27T15:03:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks engine=2.4.0","sha":"59b0eef7c0e3","branch":"qfix-stg-qfk1","user":"Haroon Yasin"}
