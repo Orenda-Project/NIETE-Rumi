@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T04:43:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"7e4dd0a493d8","branch":"bd-m8zwt1.23.2-53264","user":""}
 {"ts":"2026-11-27T04:43:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-lessons spec_sync=true","sha":"7e4dd0a493d8","branch":"bd-m8zwt1.23.2-53264","user":""}
 {"ts":"2026-11-27T04:43:33Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-m8zwt1.23.2-print-paper: portal-login web lane spec: NOT UPDATED e2e: missing","sha":"7e4dd0a493d8","branch":"bd-m8zwt1.23.2-53264","user":""}
+{"ts":"2026-11-27T04:43:33Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"7e4dd0a493d8","branch":"bd-m8zwt1.23.2-53264","user":""}
