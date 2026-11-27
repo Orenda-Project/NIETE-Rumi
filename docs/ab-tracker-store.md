@@ -12,7 +12,7 @@ One job a night, on its own Railway cron service, reads the app's rows on the **
 
 | Table | One row per | Written by |
 |---|---|---|
-| `ab_card_lock` | launched test: frozen card hash, `unit_kind` (school/teacher), `metric_ids`, `start_on`, `read_on`, `ended_at` | the launch step (a reviewed SQL insert; production needs a go) |
+| `ab_card_lock` | test, from the moment its card is frozen: frozen card hash, `unit_kind` (school/teacher), `metric_ids`, `start_on`, `read_on`, `ended_at`; **the ledger** (V1.10.12): `description`, `status` planned → running → concluded, `default_arm`, `winner`, `switch_key`, `owner`, `feature`, `arm_a`, `arm_b`, `launch_date`, `planned_n`, `current_n`, `call`, `called_at` | the workspace's `card.py freeze` (`ab_ledger_upsert`, planned), `decide.py` (`ab_ledger_call`, once), the cron (`ab_ledger_advance`); the two pre-ledger ICT tests by `infrastructure/scripts/ab-ledger-backfill.sql` (production needs a go) |
 | `ab_assignment` | unit of a test: `arm`, `block` (hash split or seeded draw, written at launch) | the launch step |
 | `ab_refresh_log` | nightly run: status, counts, timings (`detail`) | the job |
 | `ab_rollup_unit_period` | test × unit × measure × day/week: `n`, `s`, `ss` | the job |
@@ -52,6 +52,10 @@ No foreign key, trigger or write reaches an app table. After a launch inserts as
 - **Writes (primary, 15 s each, one at a time):** `ab_tracker_refresh_open`, `ab_tracker_upsert_rollup` (≤ 1,000 rows a
   call; the function refuses > 2,000), `ab_tracker_refresh_close`. A failed read → `partial`, no marker; the next tick
   runs the slot again (and a full re-read stays owed).
+- **Ledger (V1.10.12, bd-9nb6s0.2):** after a run that ended `ran`, the cron calls `ab_ledger_advance()` once on the
+  primary: it counts each test's units (`current_n`), moves `planned` → `running` at the first unit and `running` →
+  `concluded` once a call is written. It never changes the exit code; a database without V1.10.12 logs
+  `not_installed`. `ab_ledger_past_tests(feature, metric)` is what `find.py` reads before a new test.
 - **Logs:** `ab_tracker.rollup.<ran|partial>` with counts and timings, a correlation id, never a unit id.
 
 ## Switching off
