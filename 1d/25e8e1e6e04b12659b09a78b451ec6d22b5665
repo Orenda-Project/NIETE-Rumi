@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T08:51:49Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"1d25e8e1e6e0","branch":"HEAD","user":""}
+{"ts":"2026-11-27T08:51:54Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-login,teacher-assessment,fde-board-pattern,portal-smoke spec_sync=true","sha":"1d25e8e1e6e0","branch":"HEAD","user":""}
