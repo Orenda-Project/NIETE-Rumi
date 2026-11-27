@@ -177,7 +177,8 @@ describe('GET /config — features.newUi', () => {
   test('the existing fields are unchanged in shape', async () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
-      'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
+      // bd-nr8mrm.4 — the Pages box on a new paper (assessment_page_fit, fail-closed).
+      'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'assessmentPageFit', 'childTest', 'childTestSa', 'coachDisagreements',
       // bd-o15qnr.26 — the coach visit flow v2, a real false unless portal_coach_flow_v2 (with v2 and the full app) names her.
       'coachFlowV2', 'coachFullApp', 'coachObservation', 'coachReportsApp', 'coachV2', 'coachip', 'coachipDecode', 'coachipRm', 'helpVideos', 'loginIntlNumbers',
       // bd-snkn32 — Make my own lesson plan, a real false unless portal_lp_make_own (and the teacher app) are on for her.

@@ -12,6 +12,7 @@
  * 30 days are donors, so an engine fix reaches teachers within a month. Every read fails open.
  */
 const crypto = require('crypto');
+const { pageTarget } = require('./page-fit');
 
 const MAX_AGE_DAYS = 30;
 const MAX_DONORS = 10;
@@ -38,11 +39,15 @@ function reuseKey({ grade, subject, pattern, scope, pageRanges, chapterNumber, r
  */
 function plainReuseKey({
   grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks,
-  seenCount, seenTypes, scope, compact, curriculum,
+  seenCount, seenTypes, scope, compact, curriculum, pages,
 }) {
+  // A fitted paper is stamped with its fit step, so a page target is part of the key (bd-nr8mrm.3);
+  // with none, the key is exactly what it was, so every existing donor still matches.
+  const target = pageTarget(pages);
   return _hash({
     kind: 'plain', grade, subject, chapterNumber, pageRanges, questionTypes: questionTypes || [], contentSource,
     questionCount, totalMarks, seenCount, seenTypes, scope, compact: Boolean(compact), curriculum,
+    ...(target ? { pages: target } : {}),
   });
 }
 
@@ -98,4 +103,4 @@ async function findDonor({ db, key, userId, now = new Date() }) {
   }
 }
 
-module.exports = { reuseKey, plainReuseKey, stamp, findDonor, MAX_AGE_DAYS };
+module.exports = { reuseKey, plainReuseKey, stamp, findDonor, clean: _clean, MAX_AGE_DAYS };

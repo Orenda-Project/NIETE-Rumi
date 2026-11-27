@@ -59,6 +59,8 @@ const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
 const RepeatGuard = require('./repeat-guard');
 const PaperReuse = require('./paper-reuse');
+const Fit = require('./page-fit');
+const PaperFixedSet = require('./paper-fixed-set');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -287,8 +289,13 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // paper another teacher already had on that key is used instead of writing one. The stamp rides on
   // the stored row only, never on the paper handed on. See paper-reuse.js.
   const reuseKey = PaperReuse.reuseKey({ grade, subject, pattern, scope, pageRanges, chapterNumber, readerPass, splitRetry, stemCheck });
-  const donor = (await isFlagEnabled('assessment_paper_reuse'))
-    ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
+  // A full-book request on a pattern with a fixed, checked set is served from the set first; an
+  // empty set or a failed read falls through to the donor path. See paper-fixed-set.js.
+  const set = PaperFixedSet.setFor({ pattern, scope, subject });
+  const setPaper = (set && await isFlagEnabled('assessment_paper_fixed_set'))
+    ? await PaperFixedSet.findSetPaper({ db: supabase, set, subject, userId }) : null;
+  const donor = setPaper || ((await isFlagEnabled('assessment_paper_reuse'))
+    ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null);
   let generated;
   if (donor) {
     generated = {
@@ -297,7 +304,7 @@ async function _buildPatternPaper({ job, user, paperId }) {
       tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 },
       pageReference: donor.pageReference,
     };
-    logToFile('[assessment] paper reused', { requestId, paperId, donorId: donor.id, pattern });
+    logToFile('[assessment] paper reused', { requestId, paperId, donorId: donor.id, pattern, ...(setPaper ? { set } : {}) });
   } else {
     // A paper that came back short is made once more, from nothing, in the same row: a fresh run
     // draws different questions and usually fills the slot. Only a short slot, only once, and only
@@ -601,6 +608,7 @@ async function buildPaper(job, user = {}) {
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null, seenTypes = null,
     seenPicked = null, // AG row 21: the book questions she ticked; new jobs only
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
+    pages = null, // bd-nr8mrm: the page count she asked for, 1-5; fitted only behind assessment_page_fit
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -658,7 +666,7 @@ async function buildPaper(job, user = {}) {
       : isTopic ? (a) => require('./topics/topic-exam').writeTopicExam(a, Generation.generateExam)
         : Generation.generateExam;
     // Re-serving (bd-h8zy3q), behind the same setting as board papers: a donor's paper and oral part, or null.
-    const reuseKey = PaperReuse.plainReuseKey({ grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks, seenCount, seenTypes, scope, compact, curriculum });
+    const reuseKey = PaperReuse.plainReuseKey({ grade, subject, chapterNumber, pageRanges, questionTypes, contentSource, questionCount, totalMarks, seenCount, seenTypes, scope, compact, curriculum, pages });
     // Not when she has earlier questions to avoid: the writer runs with that list, as with the setting off.
     const donor = (!avoid.length && await isFlagEnabled('assessment_paper_reuse_plain')) ? await PaperReuse.findDonor({ db: supabase, key: reuseKey, userId }) : null;
     const [generated, oral] = donor ? [{ examJson: donor.examJson, questionCount: donor.questionCount, tokenData: { model: donor.model, inputTokens: 0, outputTokens: 0 } }, null] : await Promise.all([writeExam({
@@ -697,7 +705,7 @@ async function buildPaper(job, user = {}) {
 
     // The paper never carries the answers; the key is a second document built
     // after it.
-    const html = Renderer.renderPaper({
+    const htmlNow = () => Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
       schoolName: user.school_name || null,
@@ -708,9 +716,31 @@ async function buildPaper(job, user = {}) {
     });
 
     const renderer = rendererFor(outputFormat);
+    // a page target on a PDF is printed, counted and tightened until it fits (page-fit.js).
+    const target = renderer.ext === 'pdf' ? Fit.pageTarget(pages) : null;
+    const fitting = target !== null && await isFlagEnabled('assessment_page_fit');
     let buffer;
+    let pageFit;
     try {
-      buffer = await renderer.render(html);
+      if (fitting) {
+        const out = await Fit.fitToPages({
+          target,
+          start: Fit.firstStep({ compact }),
+          render: async (step) => {
+            const { compact: c, twoCol, trimLines } = Fit.FIT_STEPS[step];
+            generated.examJson._print = { compact: c, fit: { twoCol, trimLines } };
+            const b = await renderer.render(htmlNow());
+            return { buffer: b, pages: pdfPageCount(b) };
+          },
+        });
+        // The last step tried is the one printed; it rides on the paper so every re-render matches.
+        generated.examJson._print = { ...generated.examJson._print, pages: target };
+        buffer = out.buffer;
+        pageFit = { target, pages: out.pages, fits: out.fits, needs: out.needs };
+        logToFile('[assessment] page fit', { requestId, paperId, ...pageFit, step: out.step });
+      } else {
+        buffer = await renderer.render(htmlNow());
+      }
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
@@ -741,6 +771,8 @@ async function buildPaper(job, user = {}) {
       file_r2_key: key,
       total_marks: Number.isFinite(marks) ? marks : null,
       ready_at: new Date().toISOString(),
+      ...(pageFit ? { exam_json: { ...stored, _print: generated.examJson._print } } : {}),
+      ...(pageFit && !versioned ? { original_exam_json: { ...stored, _print: generated.examJson._print } } : {}),
     });
 
     return {
@@ -756,6 +788,7 @@ async function buildPaper(job, user = {}) {
       pageReference: source.pageReference,
       versioned,
       ...(topics && topics.length ? { topics } : {}),
+      ...(pageFit ? { pageFit } : {}),
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';

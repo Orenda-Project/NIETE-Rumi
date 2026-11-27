@@ -12,5 +12,6 @@ const scenarios = [
   pagesScenario("PS04", "Leader portal: every main page opens healthy", "principal", "classic", [{ path: "/portal/leader", heading: /\S/ }, { path: "/portal/leader/teachers", heading: /\S/ }, { path: "/portal/leader/observations", heading: /\S/ }, { path: "/portal/leader/school-analytics", heading: /\S/ }, { path: "/portal/leader/lessons", heading: /\S/ }, { path: "/portal/leader/child-test", heading: /\S/ }]),
   pagesScenario("PS05", "Signed out: login, password reset, privacy and delete-account open healthy", null, null, [{ path: "/portal/login", heading: /\S/ }, { path: "/portal/reset-password", heading: /\S/ }, { path: "/portal/privacy", heading: /\S/ }, { path: "/portal/delete-account", heading: /\S/ }]),
 ];
+scenarios.push(...require("../flows/portal-smoke-leader-lessons.cjs"));
 
 module.exports = { feature: "portal-smoke", spec: 'tests/features/web/portal-smoke.feature', scenarios };
