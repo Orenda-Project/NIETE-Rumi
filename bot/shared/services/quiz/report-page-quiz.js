@@ -25,6 +25,10 @@
  *
  * THE SWITCH. `app_settings.quiz_offer_closed_window`, the same row as the trace:
  *   { "trace": true, "report_page": true, "quiz_page_template": "share_dc_report_open_v2" }
+ * or, named per language (Meta files the Urdu URL-button version as marketing, so Urdu names none):
+ *   { "trace": true, "report_page": true, "quiz_page_template": { "en": "share_dc_report_open_v4" } }
+ * The teacher's language is the one the share template goes in (share-send: preferred_language, else en). A language
+ * with no name, or a failed read of it, = today's plain report.
  * Absent, false, or unreadable = off: no page block, the internal route 404s, today's report.
  *
  * The portal requires this file for its switch read (parseSwitch, fetchFrom), so it loads nothing of the bot's at
@@ -44,6 +48,15 @@ const OFF = Object.freeze({ reportPage: false, pageTemplate: null });
 /** Meta template names: lowercase letters, digits and underscores. */
 const NAME_RE = /^[a-z0-9_]{1,512}$/;
 
+/** A name, or a frozen { en?, ur? } map of good names; anything else (a bad name, an empty map) = null. */
+function templateOf(t) {
+  if (typeof t === 'string') return NAME_RE.test(t.trim()) ? t.trim() : null;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+  const map = {};
+  for (const l of LANGS) if (typeof t[l] === 'string' && NAME_RE.test(t[l].trim())) map[l] = t[l].trim();
+  return Object.keys(map).length ? Object.freeze(map) : null;
+}
+
 /** { reportPage, pageTemplate } from the row's value. Pure; anything unexpected is off; no report_page = all off. */
 function parseParts(value) {
   let v = value;
@@ -51,8 +64,7 @@ function parseParts(value) {
     try { v = JSON.parse(v); } catch (_) { return { ...OFF }; }
   }
   if (!v || typeof v !== 'object' || Array.isArray(v) || v.report_page !== true) return { ...OFF };
-  const name = typeof v.quiz_page_template === 'string' ? v.quiz_page_template.trim() : '';
-  return { reportPage: true, pageTemplate: NAME_RE.test(name) ? name : null };
+  return { reportPage: true, pageTemplate: templateOf(v.quiz_page_template) };
 }
 
 /** report_page alone (the portal's question). */
@@ -84,6 +96,19 @@ const botSwitchOn = async (now) => {
   try { return (await botParts(now)).reportPage === true; } catch (_) { return false; }
 };
 
+/** The template name for this teacher: a plain name as is; a map by the share template's language. Never throws. */
+async function templateFor(pageTemplate, userId) {
+  if (!pageTemplate || typeof pageTemplate === 'string') return pageTemplate || null;
+  try {
+    const { data, error } = await require('../../config/supabase').from('users') // eslint-disable-line global-require
+      .select('preferred_language').eq('id', userId).maybeSingle();
+    if (error || !data) return null;
+    return pageTemplate[LANGS.includes(data.preferred_language) ? data.preferred_language : 'en'] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /**
  * Asked by coaching/report-window-send.js when the window is closed: the session (when it can take a quiz) and the
  * quiz-page template's name (null = C/D's link template only), or null when report_page is off. Never throws.
@@ -93,7 +118,8 @@ async function pageOffer({ coachingSessionId, userId }) {
     const parts = await botParts();
     if (!parts.reportPage) return null;
     const session = await require('./transcript-quiz-offer.service').quizEligibleSession({ coachingSessionId, userId }); // eslint-disable-line global-require
-    return session ? { session, pageTemplate: parts.pageTemplate } : null;
+    if (!session) return null;
+    return { session, pageTemplate: await templateFor(parts.pageTemplate, userId) };
   } catch (_) {
     return null;
   }

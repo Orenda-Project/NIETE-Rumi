@@ -3,7 +3,8 @@
  * The closed-window coaching report when quiz_offer_closed_window.report_page is on (report-window-send.js
  * sendQuizPage, quiz/report-page-quiz.js pageOffer): still ONE utility message, and it opens a page with "Make a quiz".
  *   C/D (new report)   the link template (report-link-button.js), once; its /cr page carries the block
- *   A/B, undrawn       quiz_page_template (URL button → /cq/<token>) when named; else today's plain template
+ *   A/B, undrawn       quiz_page_template (URL button → /cq/<token>) when named; else today's plain template.
+ *                      Named per language ({ "en": "…" }): a language with no name = today's plain template
  *   either went        the session's quiz row is written as held, held_path 'template', at send time
  *   switch off         exactly today's chain
  * Real modules end to end; only the network boundary is stubbed: Supabase (in-memory tables), the Meta send
@@ -33,7 +34,7 @@ const PHONE = '923330000011';
 const ENV = { ...process.env };
 const LONG = 'x'.repeat(2000);
 
-function setup({ page, link = 'share_dc_report_link_v1', group = 'C', transcript = LONG } = {}) {
+function setup({ page, link = 'share_dc_report_link_v1', group = 'C', transcript = LONG, lang = 'en' } = {}) {
   const settings = [];
   if (page !== undefined) settings.push({ key: 'quiz_offer_closed_window', value: page });
   if (link) settings.push({ key: 'report_delivery_fixes', value: { template_link: link } });
@@ -41,6 +42,7 @@ function setup({ page, link = 'share_dc_report_link_v1', group = 'C', transcript
     app_settings: settings,
     coaching_sessions: [{ id: SID, user_id: UID, observation_type: null, transcript_text: transcript, analysis_data: { topic: 'Adding tens', subject: 'Maths' } }],
     quizzes: [],
+    users: [{ id: UID, phone_number: PHONE, preferred_language: lang }],
   });
   groupFor.mockResolvedValue(group ? { group, plan: 'v9', report: group === 'C' || group === 'D' ? 'new' : 'today' } : null);
 }
@@ -131,4 +133,70 @@ test.each([
   await run(s);
   expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_v1']);
   expect(held()).toHaveLength(0);
+});
+
+describe('quiz_page_template per language (en → share_dc_report_open_v4, ur → none)', () => {
+  const PER_LANG = { trace: true, report_page: true, quiz_page_template: { en: 'share_dc_report_open_v4' } };
+
+  test('an en A/B teacher: one message, v4 with the /cr token; held at send time', async () => {
+    setup({ page: PER_LANG, group: 'A', lang: 'en' });
+    const s = sender();
+    expect(await run(s)).toBe('template');
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_open_v4']);
+    expect(s.calls[0].token).toEqual(expect.any(String));
+    expect(held()).toHaveLength(1);
+    expect(held()[0].meta.held_path).toBe('template');
+  });
+
+  test('an ur A/B teacher: today\'s plain report (share_dc_report_v1), nothing held, the quiz-page template never tried', async () => {
+    setup({ page: PER_LANG, group: 'B', lang: 'ur' });
+    const s = sender();
+    expect(await run(s)).toBe('template');
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_v1']);
+    expect(held()).toHaveLength(0);
+    expect(logEvent).not.toHaveBeenCalledWith('coaching.report.quiz_page_template_not_sent', expect.anything());
+  });
+
+  test('no language on the teacher: the language the share template is sent in (en), so v4', async () => {
+    setup({ page: PER_LANG, group: 'A', lang: null });
+    const s = sender();
+    await run(s);
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_open_v4']);
+  });
+
+  test('an ur C/D teacher: the link template, as before (the map is never asked)', async () => {
+    setup({ page: PER_LANG, group: 'C', lang: 'ur' });
+    const s = sender();
+    await run(s);
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_link_v1']);
+    expect(held()).toHaveLength(1);
+  });
+
+  test.each([
+    ['a bad name', { en: 'Share Dc!' }],
+    ['a list', ['share_dc_report_open_v4']],
+    ['an empty map', {}],
+  ])('a malformed map (%s): today\'s plain report for everyone', async (_n, tpl) => {
+    setup({ page: { trace: true, report_page: true, quiz_page_template: tpl }, group: 'A', lang: 'en' });
+    const s = sender();
+    await run(s);
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_v1']);
+    expect(held()).toHaveLength(0);
+  });
+
+  test('the teacher read fails: today\'s plain report (never a template the teacher\'s language may not have)', async () => {
+    setup({ page: PER_LANG, group: 'A', lang: 'en' });
+    const from = mockDb.from;
+    mockDb.from = (t) => (t === 'users' ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: 'down' } }) }) }) } : from(t));
+    const s = sender();
+    await run(s);
+    expect(s.calls.map((c) => c.name)).toEqual(['share_dc_report_v1']);
+  });
+
+  test('parseParts: the string form keeps its meaning; the map keeps only en/ur with good names', () => {
+    expect(PageQuiz.parseParts({ report_page: true, quiz_page_template: 'share_dc_report_open_v2' }).pageTemplate).toBe('share_dc_report_open_v2');
+    expect(PageQuiz.parseParts({ report_page: true, quiz_page_template: { en: 'share_dc_report_open_v4', ur: 'BAD NAME', fr: 'x_v1' } }).pageTemplate)
+      .toEqual({ en: 'share_dc_report_open_v4' });
+    expect(PageQuiz.parseParts({ report_page: false, quiz_page_template: { en: 'share_dc_report_open_v4' } }).reportPage).toBe(false);
+  });
 });
