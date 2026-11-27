@@ -185,6 +185,13 @@ export default function LessonView({ sessionId }: { sessionId: string }) {
   if (missing) return page(<Hero title={COACHING_COPY.notFound} icon={SearchX} />);
   if (!progress) return page(<Hero title={COACHING_COPY.loading} icon={Loader2} spinning live />);
 
+  if (progress.stage === 'stopped' && progress.recovering) {
+    // bd-8sr958: her file is damaged and the team is recovering it. Nothing for her to do: no Send again.
+    return page(
+      <Hero title={COACHING_COPY.recovering} icon={Loader2} tone="waiting" spinning live chips={<Chip tone="waiting" icon={Clock}>{COACHING_COPY.withTeam}</Chip>} />,
+    );
+  }
+
   if (progress.stage === 'stopped') {
     return page(
       <>
