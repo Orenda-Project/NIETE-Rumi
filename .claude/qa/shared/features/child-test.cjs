@@ -98,8 +98,8 @@ const SCENARIOS = [
   ['CT62', 'Without an observation, "Send to <name>" offers the drawn class\'s class teacher', 'L4'],
   ['CT63', 'A count typed in the check is accepted, in Latin or Urdu digits', 'L6'],
   // L26 (bd-s1oo0.46.2): the coach journey v2, the default since CONTRACT v0.14.
-  ['CT80', 'v2 list — one message by classroom with Start and Send to teachers', 'L4'],
-  ['CT81', 'v2 Send to teachers — each class teacher gets only their own room, in their own language', 'L4'],
+  ['CT80', 'v2 list — one message by classroom with Start and Send to the teachers', 'L4'],
+  ['CT81', 'v2 Send to the teachers — each class teacher gets only their own room, in their own language', 'L4'],
   ['CT82', 'v2 before the first child — the setup picture, once per visit', 'L4'],
   ['CT83', 'v2 presence — "Child n of 5 · <name · class · teacher>" with the greeting to say', 'L4'],
   ['CT84', 'v2 steps — three plain-text messages, no buttons, the words to say in «quotes»', 'L4'],
@@ -139,6 +139,23 @@ const SCENARIOS = [
   // (blockRest); driven in a browser on sandbox/staging, unit-tested in bot/tests/child-test/sa-any-school.test.js.
   ['CT98', 'A user on sa_any_school sees every live school with its EMIS and sector, and opens today\'s list at one they are not linked to', 'L4'],
   ['CT99', 'Without sa_any_school, or at a test or closed school, nothing changes', 'L4'],
+  // Round 7b (27 Oct tester list): the coach app's assessment page and its results dashboard — browser pages, never
+  // WhatsApp, so the mock lane records them BLOCKED (APP_ONLY below). CT108–CT114 were second copies of
+  // CT101–CT104 until bd-q8wt5e.2 gave each its own id.
+  ['CT100', 'Every skip and stop is one event record on the session', 'L4'],
+  ['CT101', 'With sa_dash_filters on, the results dashboard\'s read carries each session\'s mode, coach and stops', 'L4'],
+  ['CT102', 'With sa_dash_filters on, each session says whether its child came from the random draw or was added', 'L4'],
+  ['CT108', 'Back on the item screens, in RDF auto and RDF manual, replaces the answer', 'L4'],
+  ['CT110', 'Next waits until Jugnu has finished the instructions', 'L4'],
+  ['CT103', 'The instructions say "say it, then press Next" (or Done), in Urdu and English', 'L4'],
+  ['CT104', 'The story shows a down arrow while more of it is below', 'L4'],
+  ['CT105', 'Missing number (typed): the instructions say to press the tick', 'L4'],
+  ['CT106', 'The English letter sound of T is "ta"', 'L4'],
+  ['CT109', 'The coach\'s End test is a tap and a question, and the ended child can be restarted', 'L4'],
+  ['CT111', 'Coach-led End this section skips to the next section', 'L4'],
+  ['CT112', 'RDF auto, no voice heard on a read-aloud part: a reminder and one repeat', 'L4'],
+  ['CT113', 'RDF auto, a part the child does not finish: move on to the next subject', 'L4'],
+  ['CT114', 'RDF auto, a finished part, a coach\'s stop, or the switch off: no move-on', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -164,6 +181,11 @@ function missingFor(lane, present) { return NEEDS[lane].filter((l) => !present[l
 const RX = {
   denyRole: /for coaches and school leaders|کوچ/i,
   list: /picked by the server|cannot be changed|آج کے بچے|Today's children/i,
+  // v2 default list (L25 list.buildListMessage): one buttons message, rooms with their class teacher, alternates last.
+  listV2Head: /Grade\s*[35]\s*·\s*5 children/,
+  listV2Room: /\*Grade\s*[35][^*]*\*\s*·\s*(?:Teacher:|ask the head teacher)/,
+  listV2Alt: /Only if someone is absent:/,
+  roll: /\bRoll\b|رول/,
   listHeader: /Grade\s*[35]|جماعت\s*[35]/,
   presence: /Is the child here|موجود/i,
   urduScript: /Child 1 of \d+ · .+ · Urdu 1\/3|بچہ 1 از \d+/,   // L19: the child's name sits between
@@ -219,6 +241,14 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     const miss = missingFor(lane, present);
     if (miss.length) record(id, ...B(`pending ${miss.join('+')}: child-test code for ${miss.join(', ')} is not on the commit under test (${miss.map((l) => LANE_FILES[l][0]).join(', ')})`));
   }
+  // The coach app's assessment page and results dashboard (any-school picker, Round 7b): browser pages the mock lane
+  // never opens — it drives the bot over WhatsApp. Recorded BLOCKED by name so each stays visible in every run.
+  const APP_ONLY = 'the coach app\'s Learning assessment page / results dashboard, not WhatsApp: the mock lane never opens it — drive it in a browser on sandbox; unit-tested under dashboard/tests (sa-*)';
+  record('CT98', ...B(APP_ONLY)); record('CT99', ...B(APP_ONLY));
+  record('CT100', ...B(APP_ONLY)); record('CT101', ...B(APP_ONLY)); record('CT102', ...B(APP_ONLY));
+  record('CT103', ...B(APP_ONLY)); record('CT104', ...B(APP_ONLY)); record('CT105', ...B(APP_ONLY)); record('CT106', ...B(APP_ONLY));
+  record('CT108', ...B(APP_ONLY)); record('CT109', ...B(APP_ONLY)); record('CT110', ...B(APP_ONLY)); record('CT111', ...B(APP_ONLY));
+  record('CT112', ...B(APP_ONLY)); record('CT113', ...B(APP_ONLY)); record('CT114', ...B(APP_ONLY));
   if (done.size === SCENARIOS.length) return;
 
   // 2. Stack + data preconditions. Anything missing blocks the remaining ids with the reason.
@@ -302,12 +332,30 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     // selected none of it, stop here; the finally still unassigns the SIM school and restores the driver.
     if (!want(SCENARIOS.map(([id]) => id).filter((id) => !['CT20', 'CT21', 'CT22', 'CT30'].includes(id)))) return;
     await api.setRole('coach'); await unassignSim(); await assignSim();
+
+    // ── the default list (v2, CT80/CT09) ── v2 is the default journey since bd-s1oo0.46.2 (switches.js journeyV2):
+    // /egra answers with ONE buttons message by classroom, never list rows. Driven first, on the stack's defaults.
+    s = t();
+    const L0 = await turn(() => api.sendWait('/egra'));
+    const v2msg = L0.all.find((m) => RX.listV2Head.test(m.txt || '')) || null;
+    const v2btns = (v2msg && v2msg.btns) || [];
+    record('CT09', ...V(!!v2msg && RX.listV2Room.test(v2msg.txt) && !/Which school/i.test(L0.txt), { reply: L0.txt.slice(0, 120) }), t() - s);
+    record('CT80', ...V(!!v2msg && RX.listV2Room.test(v2msg.txt) && RX.listV2Alt.test(v2msg.txt)
+      && v2btns.length === 2 && v2btns[0] === 'Start' && /^Send to (?:the )?teachers$/.test(v2btns[1])
+      && !rowsOf(L0.list).length && !RX.roll.test(L0.txt), { header: v2msg && v2msg.txt.split('\n')[0], buttons: v2btns, listRows: rowsOf(L0.list).length }), t() - s);
+
+    // ── today's list, v1 ── every scenario from here on (CT03…CT30) is the v1 conversation: list rows, one-line
+    // prompts, the strip photo. The spec brings it back with CHILD_TEST_BATTERY=v1 + CHILD_TEST_MATHS_MODE=strip
+    // (child-test.feature, L26 header). The draw is never redrawn, so the v1 list shows the same children.
+    const V1 = { CHILD_TEST_ENABLED: 'true', CHILD_TEST_DRAW_SECRET: env.CHILD_TEST_DRAW_SECRET || 'e2e-mock-lane-only', CHILD_TEST_BATTERY: 'v1', CHILD_TEST_MATHS_MODE: 'strip' };
+    const v1 = await stack.restart('bot', V1);
+    if (!v1 || !v1.ok) return blockRest('could not restart the bot with the v1 switches (CHILD_TEST_BATTERY=v1, CHILD_TEST_MATHS_MODE=strip): ' + JSON.stringify(v1).slice(0, 120));
+    await stack.restart('worker', V1);   // the scorer reads the same switches; a worker that cannot restart is caught by CT05/CT16
     s = t();
     const L1 = await turn(() => api.sendWait('/egra'));
     const rows1 = rowsOf(L1.list);
     const main1 = rows1.filter((r) => /^ctst_child:/.test(r.id)), alt1 = rows1.filter((r) => /^ctst_alt:/.test(r.id));
-    record('CT09', ...V(!!L1.list && main1.length > 0 && !/Which school/i.test(L1.txt), { rows: rows1.length }), t() - s);
-    if (!L1.list) return blockRest('no list arrived for /egra — every list-dependent scenario needs it (reply: ' + L1.txt.slice(0, 120) + ')');
+    if (!L1.list) return blockRest('no v1 list arrived for /egra with CHILD_TEST_BATTERY=v1 + CHILD_TEST_MATHS_MODE=strip — every v1 list scenario needs it (reply: ' + L1.txt.slice(0, 120) + ')');
     const drawIds = main1.map((r) => r.id.split(':')[1]);
     const draws = drawIds.length ? await get(`child_test_draws?select=id,list_slot,last_listed_visit_id,draw_rank,status,form,sample_role&id=in.(${drawIds.join(',')})`) : [];
     record('CT03', ...V(main1.length === 5 && alt1.length === 2 && RX.list.test(L1.txt)
@@ -482,8 +530,8 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     // bd-s1oo0.43: proven by tests/child-test/L0/check-count-inputs.test.js; the client-side check needs a real WhatsApp client.
     record('CT63', ...B('client-side Flow validation only runs in a real WhatsApp client (Chrome lane); the endpoint half is jest-proven'));
     // L26 (bd-s1oo0.46.2): v2 is proven by tests/child-test/L26 (journey-v2 + integration-l3-v2). The v1
-    // scenarios above are driven with CHILD_TEST_BATTERY=v1 on the stack; a v2 drive is not written yet.
-    record('CT80', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
+    // scenarios above are driven with CHILD_TEST_BATTERY=v1 + CHILD_TEST_MATHS_MODE=strip on the stack; of v2 only
+    // the list (CT80, with CT09) is driven, on the defaults, before the switch.
     record('CT81', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
     record('CT82', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));
     record('CT83', ...B('v2 drive not written yet: proven by tests/child-test/L26 (journey-v2, integration-l3-v2)'));

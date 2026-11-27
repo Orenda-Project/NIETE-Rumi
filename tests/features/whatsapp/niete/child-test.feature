@@ -555,17 +555,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
   # Jest-proven in tests/child-test/L26 (journey-v2 + integration-l3-v2); the mock-lane drive is not written yet.
 
   @e2e @wip @draft @config-gated @P0 @CT80
-  Scenario: v2 list — one message by classroom with Start and Send to teachers
+  Scenario: v2 list — one message by classroom with Start and Send to the teachers
     Given CHILD_TEST_ENABLED is true and the v2 switches are at their defaults
     When I send "/egra"
     Then one buttons message arrives: "Grade <g> · 5 children", the children grouped by classroom with each room's teacher, the alternates last
-    And its buttons are "Start" and "Send to teachers"
+    And its buttons are "Start" and "Send to the teachers"
     And no child is shown with a roll number, and no list rows are sent
+    # The button reads "Send to the teachers" since L25 (eb72d791b7): the v2 list is list.buildListMessage
+    # (ux-strings childTestListV2SendTeachers), as CT70 says. Mock lane: driven before the v1 switch (bd-q8wt5e.2).
 
   @e2e @wip @draft @config-gated @P1 @CT81
-  Scenario: v2 Send to teachers — each class teacher gets only their own room, in their own language
+  Scenario: v2 Send to the teachers — each class teacher gets only their own room, in their own language
     Given today's list spans two classrooms with a reachable class teacher each
-    When I tap "Send to teachers"
+    When I tap "Send to the teachers"
     Then each teacher receives one message with only their room's children still to test, in order
     And I get "Sent to <teacher>, <teacher>."
 
@@ -898,7 +900,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the draw ids never leave the bot
 
   # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
-  @e2e @wip @draft @config-gated @P1 @CT101
+  @e2e @wip @draft @config-gated @P1 @CT108
   Scenario: Back on the item screens, in RDF auto and RDF manual, replaces the answer
     Given sa_back_button is on and a child is on the second letter of a part shown one at a time
     When the child presses Back
@@ -906,7 +908,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the session keeps one back event with its subtask, who pressed it, and from and to
     And there is no Back on the first letter, on the story, or into another part
 
-  @e2e @wip @draft @config-gated @P1 @CT102
+  @e2e @wip @draft @config-gated @P1 @CT110
   Scenario: Next waits until Jugnu has finished the instructions
     Given sa_audio_gated_next is on and a part's instructions are playing in RDF auto
     Then Next (and Go on the Ready screen) cannot be pressed until Jugnu stops
@@ -949,7 +951,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
 
   # ── Round 7b · B · the coach's controls and the auto stop-checks ─────────────────────────────────────────
-  @e2e @wip @draft @config-gated @P1 @CT101
+  @e2e @wip @draft @config-gated @P1 @CT109
   Scenario: The coach's End test is a tap and a question, and the ended child can be restarted
     Given sa_end_test_restart is on and a child is taking the Learning assessment (RDF auto or RDF manual)
     When the coach taps "End test (coach)" in the corner
@@ -959,7 +961,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     When the coach taps "Restart test" and starts again
     Then a new attempt opens for the same child with a new phone id, the ended attempt is set aside (never scored, never on Results), and one restart event is kept
 
-  @e2e @wip @draft @config-gated @P1 @CT102
+  @e2e @wip @draft @config-gated @P1 @CT111
   Scenario: Coach-led End this section skips to the next section
     Given sa_end_section is on and a child is taking RDF manual
     When the coach taps "End this section" and confirms
@@ -967,7 +969,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And one end_section event is kept
     And that session's Results say, under "How it ended", "Ended by the coach" for the part ended and "Skipped" for the parts after it, never the code
 
-  @e2e @wip @draft @config-gated @P1 @CT103
+  @e2e @wip @draft @config-gated @P1 @CT112
   Scenario: RDF auto, no voice heard on a read-aloud part: a reminder and one repeat
     Given sa_silence_repeat is on and a child is taking RDF auto with a working microphone
     When a read-aloud part ends with no voice heard
@@ -975,7 +977,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And the part runs once more from its start; the silent recording is never uploaded; one silence_repeat event is kept
     And a second silent attempt ends as before
 
-  @e2e @wip @draft @config-gated @P1 @CT104
+  @e2e @wip @draft @config-gated @P1 @CT113
   Scenario Outline: RDF auto, a part the child does not finish: move on to the next subject
     Given sa_incomplete_move_on is on and a child is taking RDF auto
     When the child leaves "<part>" unfinished because <why>
@@ -992,7 +994,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
       | number identification      | EGMA's stop rule ended it                           | stop_rule       |
       | maths spoken questions     | a question ran out of time with no answer           | time_up         |
 
-  @e2e @wip @draft @negative @config-gated @P1 @CT104
+  @e2e @wip @draft @negative @config-gated @P1 @CT114
   Scenario: RDF auto, a finished part, a coach's stop, or the switch off: no move-on
     Given a child is taking RDF auto
     When a part is finished (every item reached, right or wrong; or "I'm done" on the story with no last-word step)
@@ -1085,7 +1087,7 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then no microphone is open while he speaks
     And the microphone opens when a recording starts and closes when it ends
 
-  @e2e @wip @draft @config-gated @P1 @CT150 @no-mock-driver
+  @e2e @wip @draft @config-gated @P1 @CT151 @no-mock-driver
   # No mock driver: the switch-off recorder is asserted in dashboard/tests/sa-r9-audio.service.test.js.
   Scenario: With sa_r9_audio off, the microphone stays open for the whole battery as today
     Given sa_r9_audio is off

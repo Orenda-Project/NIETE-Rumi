@@ -401,6 +401,48 @@ def git_differ(repo_dir, committed=False, rev_range=""):
     return differ
 
 
+def stale_range(committed, rev_range):
+    """(base, head) the stale-text check judges, or None. A commit is judged against its FIRST parent, so a merge is
+    judged as everything it brings in: LP07 went stale at a merge, quoting text the other side had reworded."""
+    if committed:
+        return ("HEAD^1", "HEAD")
+    for sep in ("...", ".."):
+        if sep in (rev_range or ""):
+            a, b = rev_range.split(sep, 1)
+            return (a, b or "HEAD")
+    return None
+
+
+def attach_stale(brief, findings):
+    """Scenarios quoting text the bot's source removed (stale_text.py) are work for this same sync, even when the
+    selection picked no feature: the string that changed may live in a file the map gives to another feature."""
+    if findings:
+        brief["stale_text"] = findings
+        brief["sync_needed"] = True
+    return brief
+
+
+def attach_data_writes(brief, findings):
+    """Database writes the commit touched (data_writes.py) are work for this sync: the scenario that covers each one
+    gets a plain-word data step, and an unwatched table goes into data-keys.json (gherkin-spec-sync §1). Each finding
+    names the features whose changed files hold it, so the sync knows which spec to look in (bd-5b3u70.11)."""
+    if findings:
+        for f in findings:
+            owners, shared = [], False
+            for x in brief.get("features", []):
+                for c in x.get("changed_files", []):
+                    path, is_shared = (c.get("path"), bool(c.get("shared"))) if isinstance(c, dict) else (c, False)
+                    if path == f["file"]:
+                        if is_shared:
+                            shared = True   # a fan-out file every feature's map pulls in: naming them all guides nobody
+                        else:
+                            owners.append(x["feature"])
+            f["features"], f["shared"] = owners, shared and not owners
+        brief["data_writes"] = findings
+        brief["sync_needed"] = True
+    return brief
+
+
 def render(brief):
     """Human-readable summary. The JSON is what the hook writes; this is for eyes."""
     if not brief["sync_needed"]:
@@ -422,6 +464,20 @@ def render(brief):
                                              "  [diff truncated]" if g["diff_truncated"] else ""))
         if brief.get("existing_features"):
             lines.append("    existing specs: " + ", ".join(brief["existing_features"]))
+    if brief.get("stale_text"):
+        lines.append("  STALE TEXT — these scenarios quote text the bot's source no longer has; update each to what the "
+                     "bot says now (gherkin-spec-sync §1):")
+        for f in brief["stale_text"]:
+            lines.append("    %s/%s  %r  (removed by %s)" % (f["feature"], f["id"] or f["scenario"], f["text"],
+                                                             f["removed_by"]))
+    if brief.get("data_writes"):
+        lines.append("  DATA WRITES — this change alters what the bot saves; the scenario covering each gets a data step, and "
+                     "an unwatched table goes into data-keys.json (gherkin-spec-sync §1):")
+        for f in brief["data_writes"]:
+            lines.append("    %s:%d  %s %s%s%s" % (f["file"], f["line"], f["op"], f["table"],
+                                                 "" if f["watched"] else "  (not in data-keys.json)",
+                                                 ("  [" + ", ".join(f["features"]) + "]") if f.get("features")
+                                                 else ("  [shared file — find the feature this write belongs to]" if f.get("shared") else "")))
     return "\n".join(lines)
 
 
@@ -497,6 +553,23 @@ def main(argv):
                         max_diff_lines=a.max_diff_lines,
                         repo=os.path.basename(os.path.abspath(a.repo)) if a.repo else "",
                         rev_range=rev_range)
+
+    # Advisory, like the rest of the brief: a failure here never costs the commit its brief. E2E_STALE_TEXT_OFF=1 skips it.
+    rng = stale_range(a.committed, rev_range)
+    if rng and a.repo and os.environ.get("E2E_STALE_TEXT_OFF") != "1":
+        try:
+            import stale_text
+            attach_stale(brief, stale_text.check(root, rng[1], rng[0])[0])
+        except Exception as e:  # noqa: BLE001
+            brief["stale_text_error"] = str(e)[:300]
+
+    # Same footing: E2E_DATA_WRITES_OFF=1 skips it; a failure costs the commit nothing but this finding.
+    if rng and a.repo and os.environ.get("E2E_DATA_WRITES_OFF") != "1":
+        try:
+            import data_writes
+            attach_data_writes(brief, data_writes.check(root, rng[1], rng[0]))
+        except Exception as e:  # noqa: BLE001
+            brief["data_writes_error"] = str(e)[:300]
 
     print(json.dumps(brief, indent=2) if a.json else render(brief))
     return 0
