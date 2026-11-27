@@ -45,7 +45,9 @@ const CATALOGUE = [
 ];
 
 /** One row of the members read: a programme member and her facts. Level ids arrive as strings (bigint). */
-const mem = (user_id, extra = {}) => ({
+/** bd-tsa15l: a member's level flags; a fixture that names only a cohort is banded by it (no programme fallback in FDE's view). */
+const withBands = (m) => ({ ...m, primary_band: m.primary_band ?? m.primary_cohort === true });
+const mem = (user_id, extra = {}) => withBands({
   user_id,
   school_id: null,
   primary_cohort: false,
