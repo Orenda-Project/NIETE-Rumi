@@ -1,1 +1,2 @@
 {"ts":"2026-11-27T08:51:23Z","hook":"post-commit","event":"armed","switch":"","detail":"features=attendance spec_sync=true","sha":"888ed63764c6","branch":"bd-q8wt5e.5.1-67821","user":"Mah Noor"}
+{"ts":"2026-11-27T08:51:34Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.6.0 in: spec_sync.py stale_text.py data_writes.py check-scenario-coverage.py","sha":"888ed63764c6","branch":"bd-q8wt5e.5.1-67821","user":"Mah Noor"}
