@@ -14,3 +14,4 @@
 {"ts":"2026-11-27T09:43:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-assessment=none-needed (comment-only; Pages box specced in the earlier commit)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T09:43:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"fde-board-pattern=none-needed (board papers unchanged)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T09:43:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-smoke=none-needed (no route or page change)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T09:46:33Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e73fb571-116e-4b3e-89d7-6561c47dde5e","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
