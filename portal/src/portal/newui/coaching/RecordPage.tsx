@@ -70,6 +70,7 @@ function fileProblemWord(p: NonNullable<FileProblem>): string {
   if (p === 'too_large') return COACHING_COPY.tooLarge;
   if (p === 'video') return COACHING_COPY.notVideo;
   if (p === 'wont_open') return COACHING_COPY.fileWontOpen;
+  if (p === 'empty') return COACHING_COPY.emptyFile;
   return COACHING_COPY.notAudio;
 }
 
@@ -413,6 +414,8 @@ function RecordingChips({ audio }: { audio: Audio }) {
       {audio.source === 'recorded' ? <Chip>{COACHING_COPY.justNow}</Chip> : null}
       {audio.source === 'resumed' && day ? <Chip>{`${day.day} ${day.month}`}</Chip> : null}
       {audio.source === 'file' ? <Chip>{formatSize(audio.size)}</Chip> : null}
+      {audio.damaged ? <Chip tone="waiting" icon={TriangleAlert}>{COACHING_COPY.damagedFile}</Chip> : null}
+      {audio.damaged ? <Chip>{COACHING_COPY.autoRepair}</Chip> : null}
       {short ? <Chip tone="waiting" icon={TriangleAlert}>{COACHING_COPY.shortLesson}</Chip> : null}
     </>
   );

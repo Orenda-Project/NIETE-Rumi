@@ -71,7 +71,9 @@ class TranscriptionProcessorService {
    * @returns {Promise<void>}
    */
   static async processTranscription(coachingSessionId, payload) {
-    const tempAudioPath = path.join(TEMP_DIR, `classroom_${coachingSessionId}_${Date.now()}.ogg`);
+    let tempAudioPath = path.join(TEMP_DIR, `classroom_${coachingSessionId}_${Date.now()}.ogg`);
+    // bd-8sr958: what the catch needs to report a damaged recording (the bytes the transcribers refused).
+    const damageContext = { audioData: null };
 
     try {
       // Ensure temp directory exists
@@ -107,8 +109,18 @@ class TranscriptionProcessorService {
       // row is downloaded early; a WhatsApp recording and a coach's observation never enter this branch.
       const ShortGate = require('./portal-short-recording');
       let audioData = null;
+      let repairRan = false;
       if (ShortGate.isPortalDc(session)) {
         audioData = await this.fetchAudioForSession(session, payload);
+        // bd-8sr958: a damaged recording is rebuilt BEFORE the gate (which lets a file through when its duration probe
+        // fails) and before the duplicate check; a hopeless one throws DamagedAudioError (one message, one alert).
+        damageContext.audioData = audioData;
+        const step = await require('./recording-repair/damaged-audio').repairBeforeTranscription({
+          session, coachingSessionId, audioData, payload,
+        });
+        audioData = step.audioData;
+        if (step.repaired) tempAudioPath = tempAudioPath.replace(/\.ogg$/, '.m4a');
+        repairRan = true;
         const gate = await ShortGate.refuseShortPortalRecording({ session, coachingSessionId, from, audioData });
         if (gate.refused) return;
       }
@@ -157,6 +169,16 @@ class TranscriptionProcessorService {
       // bd-78i2k: the bytes may come from WhatsApp (a media id) or from R2 (a
       // portal upload). Everything below this line is identical either way.
       if (!audioData) audioData = await this.fetchAudioForSession(session, payload);
+      if (!repairRan) {
+        damageContext.audioData = audioData;
+        const step = await require('./recording-repair/damaged-audio').repairBeforeTranscription({
+          session, coachingSessionId, audioData, payload,
+        });
+        audioData = step.audioData;
+        // repaired bytes are an m4a: name (and so upload) them as one
+        if (step.repaired) tempAudioPath = tempAudioPath.replace(/\.ogg$/, '.m4a');
+      }
+      damageContext.audioData = audioData;
       fs.writeFileSync(tempAudioPath, audioData);
 
       logToFile('Audio downloaded', {
@@ -593,6 +615,15 @@ class TranscriptionProcessorService {
       // bd-brblff — bytes no transcriber can decode fail the same way on every delivery: say so, and the
       // worker removes the message instead of letting SQS send it round again (27 Nov: 3 uploads, 8 runs).
       require('./unreadable-audio').markPermanentIfUnreadable(error);
+      // bd-8sr958: the three transcribers refusing the bytes AFTER the repair step passed them is the same situation.
+      const Damaged = require('./recording-repair/damaged-audio');
+      if (Damaged.asDamaged(error) && !error.details && damageContext.audioData) {
+        const { computeAudioHash } = require('./audio-hash-cache');
+        error.details = {
+          audioHash: computeAudioHash(damageContext.audioData), bytes: damageContext.audioData.length,
+          original: damageContext.audioData, kind: 'unreadable_by_all_transcribers',
+        };
+      }
 
       await this.handleTranscriptionError(coachingSessionId, error, payload.from);
       throw error;
@@ -868,6 +899,14 @@ class TranscriptionProcessorService {
         } catch (e) {
           logToFile('⚠️  Could not get user phone for error notification', { error: e.message });
         }
+      }
+
+      // bd-8sr958: a damaged recording is failed as 'damaged_audio', said ONCE (catalog copy, never "try again") and
+      // told to the team once; everything else below is unchanged.
+      const Damaged = require('./recording-repair/damaged-audio');
+      if (Damaged.asDamaged(error)) {
+        await Damaged.handleDamagedFailure({ coachingSessionId, error, phoneNumber: from });
+        return;
       }
 
       // Update session with error

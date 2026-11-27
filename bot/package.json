@@ -59,6 +59,7 @@
     "katex": "^0.16.11",
     "mammoth": "^1.8.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.40.0",
+    "node-av": "7.1.0",
     "openai": "^6.7.0",
     "openchemlib": "^9.7.0",
     "p-limit": "^3.1.0",
