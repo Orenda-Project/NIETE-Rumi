@@ -1814,6 +1814,13 @@ Feature: Web child quiz page on the portal
     When the hub page loads
     Then it links the web manifest, the browser's own prompt is counted as door_shown install and an accepted install as door_tap install
     But no install card is drawn until its copy exists, and with the switch "off" there is no manifest link
+
+  Scenario: One Jugnu app on a phone, whichever door installed it
+    Given web_quiz_install_prompt and web_quiz_install_android are "on"
+    When the hub manifest and the quiz finish manifest are fetched
+    Then both carry the manifest id "/wq/jugnu", and each keeps its own start_url with scope "/"
+    And once the phone has the app (installed from either door, or a page opened as the app), neither the hub nor the finish screen draws an install card when the browser offers again
+    And each logs one install_prompt step "had_app" instead, and with storage that cannot be read the finish card shows as before
   @WQ236 @T775
   Scenario: Jugnu's Book lamps come only from the child's rung rows
     Given web_quiz_challenge_book and its parents are "on"
