@@ -99,7 +99,9 @@ const SCHOOLS = [
   { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false },
 ];
 /** One programme member of the members read (the RDF population), with her facts. */
-const mem = (user_id, extra = {}) => ({
+/** bd-tsa15l: a member's level flags; a fixture that names only a cohort is banded by it (no programme fallback in FDE's view). */
+const withBands = (m) => ({ ...m, primary_band: m.primary_band ?? m.primary_cohort === true });
+const mem = (user_id, extra = {}) => withBands({
   user_id, school_id: null, primary_cohort: false, mh_cohort: false, middle_band: false, high_band: false,
   cert_levels: null, active_levels: null, ox_mask: 0, ox_cert: false, ox_active: false, bh_mask: 0, bh_active: false,
   isaps_assigned: false, isaps_cert: false, isaps_mask: 0, isaps_active: false, ...extra,
