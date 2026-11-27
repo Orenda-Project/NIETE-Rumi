@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""test_feature_map_portal_saves.py — a portal flow that saves through the bot selects its portal scenarios
+"""test_niete_feature_map_portal_saves.py — a portal flow that saves through the bot selects its portal scenarios
 (bd-5b3u70.18, data E2E).
 
-Run: python3 .claude/qa/shared/test_feature_map_portal_saves.py
+Run: python3 .claude/qa/shared/test_niete_feature_map_portal_saves.py
 
 The teacher app's class screens save through the bot: the portal route calls the bot's internal API, and the bot's
 ClassService writes students and class_enrollments. When a commit changes that service, the commit-time sync must be
