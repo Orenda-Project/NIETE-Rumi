@@ -20,6 +20,7 @@ import { StemChips } from './StemChips';
 import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { PagesBox, pagesWhy, usePageFitSwitch } from './PagesBox';
+import { estimatePages } from './pageEstimate';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { readLink, readTopicLink, reportPicks, topicPicks } from './linkPicks';
@@ -673,7 +674,7 @@ function PlainCheck() {
       <SwitchRow on={!!p.compact} onFlip={() => set({ compact: !p.compact })}
         icon={<Printer className="h-6 w-6" aria-hidden="true" />} name={C.savePaper} />
       {/* bd-nr8mrm (FEAT-209) — fit the paper to 1–5 pages; empty = no limit. Behind assessment_page_fit. */}
-      {pageFit && <PagesBox value={p.pageCount} onChange={(n) => set({ pageCount: n })} C={C} />}
+      {pageFit && <PagesBox value={p.pageCount} onChange={(n) => set({ pageCount: n })} C={C} need={estimatePages(p)} />}
     </StepFrame>
   );
 }

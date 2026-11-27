@@ -28,12 +28,24 @@ export function pagesWhy(pageCount: number | null | undefined, C: AssessmentV2Co
   return isPageCount(pageCount) ? null : C.pagesLimitError;
 }
 
-export function PagesBox({ value, onChange, C }: {
+/**
+ * bd-nr8mrm.8 — her questions need more pages than she set (pageEstimate.ts): say so before the paper is made. A
+ * warning, not a block: Make still sends, and the bot still fits it as tight as it can.
+ */
+export function pagesOver(pageCount: number | null | undefined, need: number | null | undefined, C: AssessmentV2Copy): string | null {
+  if (!isPageCount(pageCount ?? NaN) || !need || need <= (pageCount as number)) return null;
+  return C.pagesNeed(need);
+}
+
+export function PagesBox({ value, onChange, C, need }: {
   value: number | null | undefined;
   onChange: (n: number | null) => void;
   C: AssessmentV2Copy;
+  /** Pages her questions need (pageEstimate.ts); null = no estimate. */
+  need?: number | null;
 }) {
   const why = pagesWhy(value, C);
+  const over = why ? null : pagesOver(value, need, C);
   return (
     <div className="rounded-2xl bg-white p-3.5">
       <NumberField
@@ -45,8 +57,9 @@ export function PagesBox({ value, onChange, C }: {
         maxLength={2}
         testId="pages-limit"
       />
-      <p id="pages-limit-note" role="status" className={why ? 'mt-2 text-[15px] text-[#c8331f]' : 'mt-2 text-[13px] text-[#6b7280]'}>
-        {why ?? C.pagesLimitHint}
+      <p id="pages-limit-note" role="status"
+        className={why ? 'mt-2 text-[15px] text-[#c8331f]' : over ? 'mt-2 text-[15px] text-[#8a5a00]' : 'mt-2 text-[13px] text-[#6b7280]'}>
+        {why ?? over ?? C.pagesLimitHint}
       </p>
     </div>
   );
