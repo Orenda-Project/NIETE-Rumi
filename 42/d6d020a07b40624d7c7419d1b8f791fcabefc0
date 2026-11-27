@@ -10,3 +10,4 @@
 {"ts":"2026-11-27T09:43:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (shared file only; comment edits, no training code touched)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T09:43:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (shared file only; comment edits, no lesson-plan code touched)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T09:43:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"language=none-needed (no teacher-facing string changed)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T09:43:19Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"portal-login=none-needed (comment-only edits; /config gains one boolean already specced)","sha":"42d6d020a07b","branch":"bd-nr8mrm-65825","user":""}
