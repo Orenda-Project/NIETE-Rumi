@@ -679,7 +679,7 @@ export function NewObservationPage() {
           {cls && phase !== 'recording' ? (
             <>
               {/* Her recent plans, the library, a photo or a file are all in the Lesson plan tray (operator, 16 Oct). */}
-              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} onView={viewPlan} />
+              <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} onView={openPlanView} />
               {planProblem === 'wont_open' ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.fileWontOpen}</p> : null}
             </>
           ) : null}

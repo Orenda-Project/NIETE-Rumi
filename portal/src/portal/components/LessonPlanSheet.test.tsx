@@ -54,10 +54,10 @@ describe("LessonPlanSheet", () => {
   it("the ‹ button closes it the same way and leaves no history entry behind", async () => {
     render(<Page />);
     fireEvent.click(screen.getByText("Lesson plan"));
-    expect((window.history.state as any)?.lessonPlanSheet).toBe(true);
+    expect((window.history.state as any)?.overlayLayer).toBe(true);
     fireEvent.click(screen.getByText("‹"));
     await waitFor(() => expect(screen.queryByTestId("lesson-plan-sheet")).toBeNull());
-    expect((window.history.state as any)?.lessonPlanSheet).not.toBe(true);
+    expect((window.history.state as any)?.overlayLayer).not.toBe(true);
   });
 
   it("while recording it says so", () => {
