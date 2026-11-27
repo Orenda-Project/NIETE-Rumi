@@ -1,0 +1,1 @@
+{"ts":"2026-11-27T15:03:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"1896b21e028c","branch":"qfix-main-quizmake-edit","user":"Haroon Yasin"}
