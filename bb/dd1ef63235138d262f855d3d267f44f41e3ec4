@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T06:12:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-59790","user":""}
+{"ts":"2026-11-27T06:12:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"bbdd1ef63235","branch":"bd-9nb6s0.16-59790","user":""}
