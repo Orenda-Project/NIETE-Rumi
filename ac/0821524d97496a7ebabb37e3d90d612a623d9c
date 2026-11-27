@@ -1,0 +1,3 @@
+{"ts":"2026-11-27T11:34:40Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"ac0821524d97","branch":"bd-q8wt5e.6.4-73856","user":"Mah Noor"}
+{"ts":"2026-11-27T11:34:50Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"ac0821524d97","branch":"bd-q8wt5e.6.4-73856","user":"Mah Noor"}
+{"ts":"2026-11-27T11:35:06Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (driver-only change: ids, @e2e enrolment and driver code for existing scenarios; no bot behaviour changed, the spec edits are in this commit)","sha":"ac0821524d97","branch":"bd-q8wt5e.6.4-73856","user":"Mah Noor"}
