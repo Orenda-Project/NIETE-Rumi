@@ -42,4 +42,4 @@ async function regionsFor(client, answer) {
   return org ? Registry.regionsForOrganization(client, org) : [];
 }
 
-module.exports = { regionForUser, regionOfValue, regionsFor, ORGANIZATION };
+module.exports = { regionForUser, regionOfValue, regionsFor, ORGANIZATION, GB_SOURCES };
