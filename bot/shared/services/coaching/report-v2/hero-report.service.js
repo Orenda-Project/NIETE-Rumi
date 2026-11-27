@@ -23,7 +23,7 @@ const { loadTrendData } = require('../coaching-trend.service');
 const { buildPartialNote } = require('../report-transformers/_shared');
 const { isV6Scored } = require('../frameworks/fico17-v6/stamp');
 const { isObs612Scored } = require('../frameworks/own-rubric');
-const { buildReportTitle, loadTitleFacts, rubricChip } = require('./report-title');
+const { buildReportTitle, loadTitleFacts, rubricChip, reportSource } = require('./report-title');
 
 /**
  * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
@@ -303,6 +303,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   // on what rubric), not the affirmation sentence; the affirmation follows the hero as its lead line.
   // Only for an observer the HITL v6/v7 switch names (loadTitleFacts .hitl); every other report is as before.
   const facts = await loadTitleFacts(session);
+  // bd-r2uzg1.23.12 (queue #274, call 27A): every report says whose it is, under the name (a title block already says
+  // "Observed by …") and in the caption: her own recording, or her coach's / principal's visit.
+  vm.source = reportSource(session, facts, lang);
   if (facts.hitl) vm.title = buildReportTitle({
     teacher: (opts.teacherName && opts.teacherName !== 'Teacher' ? opts.teacherName : null) || facts.teacherName,
     school: facts.school,
@@ -341,7 +344,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
       const own = lang === 'en' ? n.strength_note || n.strength_name : null;
       const card = {
         language: lang,
-        header: cardHeader(session, analysis, teacherName, lang),
+        header: { ...cardHeader(session, analysis, teacherName, lang), source: vm.source },
         wells: well.length ? well : (own ? [own] : []),
         thing: { text: opts.slim.tryNext || vm.tryNext, step: opts.slim.step || null, why: practiceWhy(opts.slim.tag, lang) },
         ...(opts.videoStrip ? { videoStrip: opts.videoStrip } : {}),

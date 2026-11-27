@@ -64,7 +64,8 @@ const image = async (analysis, opts = {}) => {
   return html.slice(html.indexOf('</head>'));
 };
 // The scorecard rows the image draws a bar for, by section name (template: one .pbar per scored row).
-const barred = (html) => [...html.matchAll(/<span class="sc-n">([^<]*)<\/span><span class="sc-s">\d+\/\d+<\/span><\/div>\s*<div class="pbar">/g)].map((m) => m[1]);
+// bd-r2uzg1.23.11 (23A): a section's score is its percentage over its points ("56%" / "27/48"), nested spans.
+const barred = (html) => [...html.matchAll(/<span class="sc-n">([^<]*)<\/span><span class="sc-s">(?:<span class="sc-p">\d+%<\/span><span class="sc-f">)?\d+\/\d+(?:<\/span>)+<\/div>\s*<div class="pbar">/g)].map((m) => m[1]);
 const sectionName = (key) => require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants().domains[key].displayName;
 
 describe('T4.3 IE and NA in the teacher\'s image', () => {

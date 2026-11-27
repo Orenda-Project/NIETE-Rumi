@@ -1207,10 +1207,8 @@ async function processTeacherReport(sessionId, payload = {}) {
     const companionText = notes ? buildCompanionText(notes, { foName }, teacherS) : null;
     // bd-pni007: an FDE visit's report is captioned as FDE's, with no debrief conversation promised.
     // bd-31ziu8: a FICO 6-12 (FICO-S v1.1) visit is also a grade 6-12 form score, but its caption names FICO 6-12.
-    const ownRubric = require('../coaching/frameworks/own-rubric');
-    const captionKey = (ownRubric.isFicoSScored(session.analysis_data) && 'report_caption_teacher_ficos')
-      || (ownRubric.isObs612Scored(session.analysis_data) && 'report_caption_teacher_obs612');
-    const teacherCaption = ((captionKey && teacherS[captionKey]) || teacherS.report_caption_teacher).replace('{fo}', foName);
+    // bd-r2uzg1.23.12 (call 27A): the caption names the observer as coach or principal ("your coach Ayesha Khan").
+    const teacherCaption = require('./observe-teacher-caption').teacherReportCaption(teacherS, session.analysis_data, coach, teacherLang);
 
     const reportKey = await uploadImageBuffer(png, `observe-reports/${sessionId}.png`);
     await mergeTeacherDelivery(sessionId, {
