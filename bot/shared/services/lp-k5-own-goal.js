@@ -99,4 +99,17 @@ function k5GoalLines(goal) {
   ];
 }
 
-module.exports = { MATRIX_SUBJECTS, matrixSubject, dayFor, dayForGoal, k5GoalRows, k5GoalLines };
+/**
+ * bd-snkn32.58.17 (bd-snkn32.58.14) — the day handed to the writer for a goal start carries HER goal as its outcome.
+ * The writer is told never to change the outcome (`goal`, `sloFull`, `sloCode`, `meta`); with the book's outcome there
+ * (G3 EN ch3_seg1: "the 3-step dictionary method") a vowel-sounds goal kept the dictionary method in every section.
+ * A new script; the day given is never changed. The book's SLO code is dropped: it names the book's outcome, not hers.
+ */
+function goalLabelsK5(script, goal) {
+  if (!script || typeof script !== 'object' || !goal || !goal.text) return script;
+  const text = String(goal.text).trim();
+  const { sloCode, ...rest } = script; // eslint-disable-line no-unused-vars
+  return { ...rest, goal: text, sloFull: text, meta: { ...(script.meta || {}), topic: text, sloDescriptions: [text] } };
+}
+
+module.exports = { MATRIX_SUBJECTS, matrixSubject, dayFor, dayForGoal, k5GoalRows, k5GoalLines, goalLabelsK5 };

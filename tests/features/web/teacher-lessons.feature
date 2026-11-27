@@ -480,6 +480,24 @@ Feature: Teacher lesson plans
     And it does not teach a haiku
     And she does not see "We could not make a plan we are sure of for this goal."
 
+  # bd-snkn32.58.17 (queue #381): a goal over a book day teaching another skill (G3 English vowels over a dictionary
+  # day) kept the book day's skill, and the checker refused an accurate subtraction plan over one tip. Pinned by
+  # tests/lp612/own-goal-still-refused.test.js; phone runs in the bd-snkn32.58.9 work folder (outputs/q381-phone).
+  @GOAL18 @draft @config-gated
+  Scenario: A Grade 3 English vowel-sounds goal gets a plan about vowel sounds, not the dictionary day it sits on
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from the Grade 3 English goal about the five major vowels
+    Then the plan opens with her goal at the top and teaches vowel sounds and their letters
+    And it does not teach the 3-step dictionary method
+    And she does not see "We could not make a plan we are sure of for this goal."
+
+  @GOAL19 @draft @config-gated
+  Scenario: A Grade 3 Maths subtraction goal is not refused over a small tip
+    Given the teacher app v2, "portal_lp_make_own" and "portal_lp_own_goal_start" are on for her
+    When she makes a plan from the Grade 3 Maths goal "Subtract up to 4-digit numbers with and without regrouping in written form."
+    Then the plan opens with her goal at the top and teaches subtraction
+    And she does not see "We could not make a plan we are sure of for this goal."
+
   # bd-m8zwt1.2: the check screen printed the subject KEY from the class picker ("Grade 3 · math").
   @GOAL14 @draft @config-gated
   Scenario: Make my own's check screen names the subject, not its key
