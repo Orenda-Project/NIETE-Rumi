@@ -173,7 +173,7 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null, book
  * ("not rendered yet"), which the caller renders rather than treating as an
  * error. Unknown lesson ids also return null; the portal never invents one.
  */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { reader = null, download = false } = {}) {
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { reader = null, download = false, paper = false } = {}) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) return null;
 
@@ -191,6 +191,11 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { rea
     : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'app', reader })) || asset;
 
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
+  // bd-m8zwt1.23.2 — the app's Print: the plan's A4 copy beside it (paperKey) when there is one, else the plan itself.
+  if (paper) {
+    const key = await paperCopyOr(sent.r2_key);
+    return { url: await getPresignedUrl(buildR2PublicUrl(key)), asset_kind: assetKind, version_stamp: asset.version_stamp || null };
+  }
   // bd-zrdvmi.70 — the app's Download PDF: signed as an attachment, so the phone SAVES the plan and she can open it
   // with no internet (sheet rows 986, 984). Every other caller: today's bare signing.
   const url = download
@@ -201,6 +206,26 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { rea
     asset_kind: assetKind,
     version_stamp: asset.version_stamp || null,
   };
+}
+
+/**
+ * bd-m8zwt1.23.2 — where a plan's PAPER copy lives: the same R2 key, `.paper.pdf` for `.pdf`. The plan the app shows
+ * is cut for a phone (narrow pages, a narrow column on paper); its A4 copy is uploaded beside it, by key, so no table
+ * changes and a superseded version keeps its own copy.
+ */
+function paperKey(r2Key) {
+  return String(r2Key).replace(/\.pdf$/i, '') + '.paper.pdf';
+}
+
+/** The paper copy's key when it is in R2; the plan's own key when it is not, or when R2 cannot be asked. */
+async function paperCopyOr(r2Key) {
+  try {
+    const { headObject } = require('../storage/r2');
+    const head = await headObject(paperKey(r2Key));
+    return head && head.exists ? paperKey(r2Key) : r2Key;
+  } catch (_) {
+    return r2Key;
+  }
 }
 
 /** bd-zrdvmi.70 — the saved file's name: the lesson id (ASCII, unique), the answer key marked as such. */
@@ -218,4 +243,4 @@ function countAvailable(book, available) {
   return n;
 }
 
-module.exports = { listGrades, listSubjects, listChapters, listLessons, lessonPdfUrl };
+module.exports = { listGrades, listSubjects, listChapters, listLessons, lessonPdfUrl, paperKey };
