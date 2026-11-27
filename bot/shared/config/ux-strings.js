@@ -5010,18 +5010,24 @@ const UX_STRINGS = {
     ur: 'اس مضمون کے کوئز ابھی نہیں بنتے۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
   // a model or provider fault on a page-made quiz: the same make once more, at most twice (bd-pdwwk4.2.8)
+  // the button below retries at once, so the line says what to tap now (bd-kjpdq1)
   qfix_offers_cq_failed_retry: {
-    en: 'We could not make it just now. Try again in a few minutes.',
-    ur: 'یہ کوئز ابھی نہیں بن سکا۔ چند منٹ بعد دوبارہ کوشش کریں۔',
+    en: 'We could not make it this time. Tap Try again to make it once more.',
+    ur: 'یہ کوئز اس بار نہیں بن سکا۔ اسے ایک بار پھر بنانے کے لیے «دوبارہ کوشش کریں» دبائیں۔',
+  },
+  // after the first retry also failed: the second and last one
+  qfix_offers_cq_failed_retry_last: {
+    en: 'That try did not work either. Tap Try again once more, for the last time.',
+    ur: 'یہ کوشش بھی کامیاب نہیں ہوئی۔ آخری بار کوشش کے لیے «دوبارہ کوشش کریں» دبائیں۔',
   },
   qfix_offers_cq_retry: {
     en: 'Try again',
     ur: 'دوبارہ کوشش کریں',
   },
-  // after the second retry also failed: what happened, and no promise of another way
+  // after the second retry also failed: what happened, and the /quiz door for another lesson (bd-kjpdq1)
   qfix_offers_cq_failed_capped: {
-    en: 'We tried a few times and could not make a quiz from this lesson.',
-    ur: 'ہم نے کئی بار کوشش کی، مگر اس سبق سے کوئز نہیں بن سکا۔',
+    en: 'We tried a few times and could not make a quiz from this lesson. You can make one for another lesson on WhatsApp: send /quiz.',
+    ur: 'ہم نے کئی بار کوشش کی، مگر اس سبق سے کوئز نہیں بن سکا۔ کسی اور سبق کا کوئز واٹس ایپ پر بنایا جا سکتا ہے: ہمیں \u2066/quiz\u2069 بھیجیں۔',
   },
   // a made quiz whose children's code no longer opens: no Copy, Send or Try
   qfix_offers_cq_closed: {

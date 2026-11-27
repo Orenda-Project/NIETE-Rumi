@@ -1718,11 +1718,13 @@ Feature: NIETE (ICT) Teacher Training
     Given I tapped "Make a quiz" in the page my coaching report opens
     And making it failed because the model or a check on its answers failed
     When I open the page again
-    Then it says the quiz could not be made just now and to try again in a few minutes, with a "Try again" button
+    Then it says the quiz could not be made this time and to tap "Try again" to make it once more, with a "Try again" button
     When I tap "Try again"
     Then the page says the quiz is being made, and no WhatsApp message comes
     And the quiz is saved as being made again, with this try counted
     And two quick taps make it once
+    When that try fails too and I open the page again
+    Then it says that try did not work either and to tap "Try again" once more, for the last time
     # report-page-quiz stateOf: failed + reason in RETRY_REASONS + meta.page_remakes < 2 -> retry; retryFromPage
     # moves the row back to held only while its status is unchanged, queues quiz_offer {page, remakes}, and
     # processOffer carries page_remakes onto the revived row. Event transcript_quiz.page_make_tap {retry: true}.
@@ -1732,10 +1734,11 @@ Feature: NIETE (ICT) Teacher Training
     Given I made my quiz in the page and it failed for a fault on our side after I had already tried again twice
     When I open the page
     Then it says it tried a few times and could not make a quiz from this lesson
+    And it points me to /quiz on WhatsApp for another lesson, with the same "Open WhatsApp" button
     And it has no "Try again" button
     When instead making it failed because of the lesson, such as a subject we do not make quizzes for
     Then the page says so and points me to /quiz on WhatsApp for another lesson, with no "Try again"
-    # capped: meta.page_remakes >= 2. Lesson causes (subject_not_allowed, transcript too short, ...) keep
+    # capped: meta.page_remakes >= 2, the /quiz door as for a lesson cause (bd-kjpdq1). Lesson causes (subject_not_allowed, transcript too short, ...) keep
     # qfix_offers_cq_failed_subject / qfix_offers_cq_failed and the /quiz door.
 
   @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @P2 @T115

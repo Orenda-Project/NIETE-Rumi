@@ -227,8 +227,9 @@ async function stateOf(d, q) {
   if (page && (q.status === 'failed' || q.status === 'skipped')) {
     const reason = q.status === 'failed' ? failureReasonOf(meta) : (meta.skip_reason || 'generate_failed');
     if (!RETRY_REASONS.has(reason)) return { state: 'failed', page, reason };
-    return (Number(meta.page_remakes) || 0) < MAX_PAGE_RETRIES
-      ? { state: 'failed', page, reason, retry: true } : { state: 'failed', page, reason, capped: true };
+    const remakes = Number(meta.page_remakes) || 0;
+    return remakes < MAX_PAGE_RETRIES
+      ? { state: 'failed', page, reason, retry: true, remakes } : { state: 'failed', page, reason, capped: true };
   }
   return { state: 'none', page };
 }

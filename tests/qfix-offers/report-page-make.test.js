@@ -503,7 +503,9 @@ describe('failure words: the page names the cause, and a model fault can be trie
     expect((await quizRow()).meta.skip_reason).toBe('model_failed');
 
     const failed = await req('GET', `/cq/${t}`);
-    expect(failed.body).toContain('We could not make it just now. Try again in a few minutes.');
+    // the line says what to do NOW (the button retries at once), not "in a few minutes" (qa-design 202739 b)
+    expect(failed.body).toContain('We could not make it this time. Tap Try again to make it once more.');
+    expect(failed.body).not.toContain('few minutes');
     expect(failed.body).toMatch(retryForm(t));
     expect(failed.body).not.toContain('send /quiz');
 
@@ -538,16 +540,36 @@ describe('failure words: the page names the cause, and a model fault can be trie
     expect(r.body).toMatch(retryForm(token()));
   });
 
-  test('after 2 retries: a true line, no Try again, no /quiz promise, and a posted make queues nothing', async () => {
+  test('after the first retry also failed: the line changes and says this is the last try; the button stays', async () => {
+    seed({ quizzes: [FAILED({ error: 'model_failed', page_remakes: 1 })] });
+    const { token, req } = await start();
+    const t = token();
+    const r = await req('GET', `/cq/${t}`);
+    expect(r.body).toContain('That try did not work either. Tap Try again once more, for the last time.');
+    expect(r.body).not.toContain('We could not make it this time.');
+    expect(r.body).toMatch(retryForm(t));
+  });
+
+  test('after 2 retries: a true line, no Try again, the /quiz door for another lesson, and a posted make queues nothing', async () => {
     seed({ quizzes: [FAILED({ error: 'model_failed', page_remakes: 2 })] });
     const { token, req } = await start();
     const t = token();
     const r = await req('GET', `/cq/${t}`);
-    expect(r.body).toContain('We tried a few times and could not make a quiz from this lesson.');
+    expect(r.body).toContain('We tried a few times and could not make a quiz from this lesson. You can make one for another lesson on WhatsApp: send /quiz.');
     expect(r.body).not.toContain('>Try again<');
-    expect(r.body).not.toContain('/quiz');
+    // the same door as the lesson cause (qa-design 202739 a)
+    expect(r.body).toContain(`href="https://wa.me/923206281951?text=%2Fquiz"`);
     await req('POST', `/cq/${t}/make`, { body: { surface: 'cq' } });
     expect(jobs('quiz_offer')).toHaveLength(0);
+  });
+
+  test('/cr: the capped block carries the same /quiz door', async () => {
+    seed({ quizzes: [FAILED({ error: 'model_failed', page_remakes: 2 })] });
+    const { token, req } = await start();
+    const r = await req('GET', `/cr/${token()}`);
+    expect(r.body).toContain('send /quiz.');
+    expect(r.body).toContain(`href="https://wa.me/923206281951?text=%2Fquiz"`);
+    expect(r.body).not.toContain('>Try again<');
   });
 
   test('a lesson cause (too few learning points) keeps today\'s line and the /quiz door; a posted make queues nothing', async () => {
@@ -571,6 +593,24 @@ describe('failure words: the page names the cause, and a model fault can be trie
     expect(r.body).toContain(button);
     expect(r.body).toContain(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' }));
     expect(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' })).not.toMatch(/[0-9]/);
+    // "in a few minutes" is gone from the Urdu line too, and it names the button it sits above
+    expect(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' })).not.toContain('چند منٹ');
+    expect(resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' })).toContain(button);
+  });
+
+  test('Urdu: the last-try line differs from the first; the capped line carries the isolated /quiz and the door', async () => {
+    const { resolveUx } = require('../../bot/shared/config/ux-strings');
+    const first = resolveUx('qfix_offers_cq_failed_retry', { language: 'ur' });
+    const last = resolveUx('qfix_offers_cq_failed_retry_last', { language: 'ur' });
+    expect(last).not.toBe(first);
+    expect(last).not.toBe(resolveUx('qfix_offers_cq_failed_retry_last', { language: 'en' }));
+    seed({ quizzes: [FAILED({ error: 'model_failed', page_remakes: 2 })], language: 'ur' });
+    const { token, req } = await start();
+    const r = await req('GET', `/cq/${token()}`);
+    const capped = resolveUx('qfix_offers_cq_failed_capped', { language: 'ur' });
+    expect(capped).toContain('\u2066/quiz\u2069');
+    expect(r.body).toContain(capped);
+    expect(r.body).toContain(resolveUx('qfix_offers_cq_open_wa', { language: 'ur' }));
   });
 });
 
