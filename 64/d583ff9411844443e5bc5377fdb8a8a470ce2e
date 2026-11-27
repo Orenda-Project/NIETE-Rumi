@@ -1,2 +1,5 @@
 {"ts":"2026-11-27T07:57:43Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"64d583ff9411","branch":"bd-nr8mrm-65825","user":""}
 {"ts":"2026-11-27T07:57:48Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"64d583ff9411","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T07:57:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"64d583ff9411","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T07:57:52Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"64d583ff9411","branch":"bd-nr8mrm-65825","user":""}
+{"ts":"2026-11-27T07:58:13Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e73fb571-116e-4b3e-89d7-6561c47dde5e","sha":"64d583ff9411","branch":"bd-nr8mrm-65825","user":""}
