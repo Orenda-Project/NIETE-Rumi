@@ -332,6 +332,9 @@ function summarizeTrainingLevels(rows = {}, opts = {}) {
     if (keepsUnplaced) {
       const own = schoolsById.get(m.school_id);
       if (!own || !listed(own)) continue;
+      // bd-tsa15l (operator, 27 Nov): no programme fallback in FDE's view. A teacher with no teaching level recorded is
+      // in no section (Hashir counts her apart: "no level recorded"), even when a programme was assigned to her.
+      if (m.primary_band !== true && m.middle_band !== true && m.high_band !== true) continue;
     }
     const sector = sectorOf(m);
     if (!counts(m, sector)) continue;
