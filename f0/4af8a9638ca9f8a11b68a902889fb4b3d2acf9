@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T10:25:06Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,teacher-home,teacher-lessons,teacher-coaching,teacher-training,web-quiz-child-page,coach-portal,portal-smoke spec_sync=true","sha":"f04af8a9638c","branch":"sandbox","user":"Mah Noor"}
+{"ts":"2026-11-27T10:25:46Z","hook":"e2e-autorun","event":"force-cleared","switch":"","detail":"a467cdad-ee1f-461b-a476-d7dc0fae6751","sha":"f04af8a9638c","branch":"sandbox","user":"Mah Noor"}
