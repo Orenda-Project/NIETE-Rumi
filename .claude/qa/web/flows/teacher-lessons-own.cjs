@@ -373,6 +373,7 @@ const scenarios = [
     { id: 'GOAL17', a: ['A Grade 5 English writing goal gets a plan about that goal, not the book day beside it', 5, 'english'] },
     { id: 'GOAL18', a: ['A Grade 3 English vowel-sounds goal gets a plan about vowel sounds, not the dictionary day it sits on', 3, 'english'] },
     { id: 'GOAL19', a: ['A Grade 3 Maths subtraction goal is not refused over a small tip'] },
+    { id: 'GOAL20', a: ['A Grade 4 Urdu goal plan that says the board is not there is not refused for using a board', 4, 'urdu'] },
     { id: 'GOAL14', a: ['Make my own\'s check screen names the subject, not its key'] },
   ].map(({ id, a: [title, g, s] }) => ({ id, title, run: asTeacher({ portal_lp_own_goal_start: 'me' }, async (page, ctx) =>
     (await outcomesOr(page, ctx, g || 3, s || 'math', '')) || { blocked: 'outcomes are listed on this stack, but ' + id + ' has no further driver code yet' }) })),

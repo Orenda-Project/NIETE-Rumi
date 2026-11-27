@@ -106,10 +106,15 @@ grep -q 'PORTAL_URL=http://localhost:\$port' "$ROOT/scripts/dev-portal.sh" \
 for drv in "$ROOT"/.claude/qa/web/features/*.cjs; do
   f=$(basename "$drv" .cjs); spec="$ROOT/tests/features/web/$f.feature"
   if [ ! -f "$spec" ]; then no "W10 $f has tests/features/web/$f.feature"; continue; fi
-  s_ids=$(grep -oE '^\s*@[A-Z]{2}[0-9]+' "$spec" | tr -d ' @' | sort -u | tr '\n' ' ')
+  # every @ID (letters then digits: TL01, LDR07, GOAL20) of the spec (bd-q8wt5e.6.6). The driver must drive every one that is
+  # not @obsolete, and may drive an @obsolete one (it is still reported), but nothing the spec does not name.
+  s_ids=$(grep -oE '^\s*@[A-Z]+[0-9]+' "$spec" | tr -d ' @' | LC_ALL=C sort -u | tr '\n' ' ')
+  live_ids=$(grep -E '^\s*@[A-Z]+[0-9]+' "$spec" | grep -v '@obsolete' | grep -oE '^\s*@[A-Z]+[0-9]+' | tr -d ' @' | LC_ALL=C sort -u | tr '\n' ' ')
   c_ids=$(node -e "console.log(require('$drv').scenarios.map(s=>s.id).sort().join(' ')+' ')" 2>/dev/null)
-  [ -n "$s_ids" ] && [ "$s_ids" = "$c_ids" ] && ok "W10 $f: spec and driver name the same scenarios" \
-    || no "W10 $f: spec and driver name the same scenarios" "spec [$s_ids] code [$c_ids]"
+  extra=$(comm -13 <(tr ' ' '\n' <<<"$s_ids" | LC_ALL=C sort -u) <(tr ' ' '\n' <<<"$c_ids" | LC_ALL=C sort -u) | tr '\n' ' ' | xargs)
+  missing=$(comm -23 <(tr ' ' '\n' <<<"$live_ids" | LC_ALL=C sort -u) <(tr ' ' '\n' <<<"$c_ids" | LC_ALL=C sort -u) | tr '\n' ' ' | xargs)
+  [ -n "$s_ids" ] && [ -z "$extra" ] && [ -z "$missing" ] && ok "W10 $f: spec and driver name the same scenarios" \
+    || no "W10 $f: spec and driver name the same scenarios" "driver runs, spec lacks [$extra] · spec has, driver lacks [$missing]"
 done
 # W11 — the portal is covered area by area: at least these drivers exist.
 for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account web-quiz-child-page; do
