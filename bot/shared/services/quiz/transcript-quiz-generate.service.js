@@ -21,7 +21,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const { resolveUx } = require('../../config/ux-strings');
+const { resolveUx, digitsFor } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const {
@@ -587,14 +587,17 @@ const { teacherLabel } = require('./quiz-teacher-label');
 function studentMessage({ teacherName, topic, date, link, language, web = false }) {
   // The message a teacher forwards to the class is text: a topic carrying TeX
   // maths reads "1/2", never "$\frac{1}{2}$" (quiz-math.js). The web page asks
-  // only the child's name, so a web link gets its own last line.
+  // only the child's name, so a web link gets its own last line. A child reads
+  // the Urdu one, so its {date} takes Urdu digits ("۲۵ نومبر", next to "۵ منٹ");
+  // formatLessonDate keeps Western digits for its teacher callers.
   const { mathForChat } = require('./quiz-math');
   return resolveUx(web ? 'tqStudentMessageWeb' : 'tqStudentMessage', {
     language,
     params: {
       teacher: teacherLabel(teacherName, language),
       topic: mathForChat(topic) || resolveUx('tqTodaysLesson', { language }),
-      date, link,
+      date: language === 'ur' && date ? digitsFor(date, 'ur') : date,
+      link,
     },
   });
 }
