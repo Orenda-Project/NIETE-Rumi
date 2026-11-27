@@ -706,6 +706,10 @@ const STILL_STUCK = {
   report_owed: (s) => s !== 'report_sent',
 };
 
+// A class's evening round (web-quiz-evening-round) is made into the lesson-plan stream but sends the teacher nothing
+// and has no class report: children play it behind the class's standing link, and its row stays 'ready'. Owed neither.
+const NEVER_OWED_SOURCES = new Set(['evening_round']);
+
 /**
  * Confirm stall candidates against quizzes.status — bounded: the first
  * cfg.confirmMax ids across all stall incidents, ONE read, only when there is a
@@ -720,9 +724,11 @@ async function confirmStalls(incidents, confirm, cfg) {
   if (!confirm) return incidents.map((i) => (STILL_STUCK[i.kind] ? { ...i, unconfirmed: true } : i));
   const checked = candidates.slice(0, cfg.confirmMax);
   let status;
+  let neverOwed;
   try {
     const rows = await confirm(checked);
     status = new Map((rows || []).map((r) => [r.id, r.status]));
+    neverOwed = new Set((rows || []).filter((r) => NEVER_OWED_SOURCES.has(r.source)).map((r) => r.id));
   } catch (err) {
     logToFile('⚠️ quiz funnel watch: stall confirmation read failed — alerting unconfirmed', { error: err.message }, 'error');
     return incidents.map((i) => (STILL_STUCK[i.kind] ? { ...i, unconfirmed: true } : i));
@@ -730,7 +736,8 @@ async function confirmStalls(incidents, confirm, cfg) {
   const out = [];
   for (const i of incidents) {
     if (!STILL_STUCK[i.kind]) { out.push(i); continue; }
-    const keep = i.ids.filter((id) => !status.has(id) ? !checked.includes(id) : STILL_STUCK[i.kind](status.get(id)));
+    const keep = i.ids.filter((id) => !neverOwed.has(id)
+      && (!status.has(id) ? !checked.includes(id) : STILL_STUCK[i.kind](status.get(id))));
     const unchecked = keep.some((id) => !checked.includes(id));
     if (keep.length) out.push({ ...i, ids: keep, ...(unchecked ? { unconfirmed: true } : {}) });
   }
@@ -885,7 +892,7 @@ async function axiomQuery(name, apl, startIso, endIso, env = process.env) {
 /** The bounded stall confirmation: one primary-key read, narrow columns. */
 async function confirmFromDb(ids) {
   const supabase = require('../../config/supabase');
-  const { data, error } = await supabase.from('quizzes').select('id, status').in('id', ids);
+  const { data, error } = await supabase.from('quizzes').select('id, status, source:meta->>source').in('id', ids);
   if (error) throw new Error(error.message);
   return data || [];
 }
