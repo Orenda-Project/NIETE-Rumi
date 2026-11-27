@@ -1,3 +1,4 @@
 {"ts":"2026-11-27T14:57:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
 {"ts":"2026-11-27T14:57:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
 {"ts":"2026-11-27T15:02:01Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"quiz-funnel-watch=none-needed (cherry-pick of #6200: operator-only Slack monitor drops evening rounds from two alerts; no teacher- or child-facing message, screen or flow changes)","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
+{"ts":"2026-11-27T15:02:01Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-de6afa1c9e36","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
