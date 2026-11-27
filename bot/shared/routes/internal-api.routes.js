@@ -3474,6 +3474,10 @@ router.post('/coaching/observe/report/preview', requireInternalKey, portalObserv
 
 /** POST /api/internal/coaching/observe/report/send — deliver it to the teacher (on her WhatsApp). */
 router.post('/coaching/observe/report/send', requireInternalKey, portalObserveRoute('observe-report-send',
-  (Svc, b) => Svc.sendReport({ userId: b.userId, coachingSessionId: b.coachingSessionId })));
+  // bd-r2uzg1.23.12 (call 28): her note under the report as she left it, and why she changed it (both optional).
+  (Svc, b) => Svc.sendReport({
+    userId: b.userId, coachingSessionId: b.coachingSessionId,
+    ...(typeof b.note === 'string' ? { note: b.note } : {}), ...(typeof b.noteReason === 'string' ? { noteReason: b.noteReason } : {}),
+  })));
 
 module.exports = router;

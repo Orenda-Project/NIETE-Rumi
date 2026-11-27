@@ -633,7 +633,8 @@ const STRINGS = {
     btn_regenerate_report: 'رپورٹ دوبارہ بنائیں',
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
-    report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
+    // bd-r2uzg1.23.12 (DRAFT for native review): it names whose visit the report is from ({fo}: آپ کے کوچ / پرنسپل …).
+    report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی {fo} کے دورے کی رپورٹ۔',
     // bd-pni007 (DRAFT for native review): an FDE visit's report, scored by the coach on FDE's own tool.
     report_caption_teacher_obs612: '🌱 آپ کے سبق کی رپورٹ: {fo} کے وزٹ سے، ایف ڈی ای کے مشاہداتی ٹول پر۔',
     // bd-31ziu8 (DRAFT for native review): a FICO 6-12 visit's report; it keeps its debrief (HITL).

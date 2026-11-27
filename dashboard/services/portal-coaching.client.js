@@ -171,7 +171,13 @@ function retryObservationTalk({ userId, coachingSessionId }) { return post('obse
 function previewObservationReport({ userId, coachingSessionId }) {
   return post('observe/report/preview', { userId, coachingSessionId });
 }
-function sendObservationReport({ userId, coachingSessionId }) { return post('observe/report/send', { userId, coachingSessionId }); }
+// bd-r2uzg1.23.12 (call 28): note / noteReason only when she sent them (an older app sends neither).
+function sendObservationReport({ userId, coachingSessionId, note, noteReason }) {
+  return post('observe/report/send', {
+    userId, coachingSessionId,
+    ...(typeof note === 'string' ? { note } : {}), ...(typeof noteReason === 'string' ? { noteReason } : {}),
+  });
+}
 
 // ── bd-v0toag.31: live moves while she records. Same rules: `userId` from the SESSION. ──
 function liveEligible({ userId }) { return post('live/eligible', { userId }); }
