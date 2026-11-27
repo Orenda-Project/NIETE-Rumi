@@ -1,0 +1,4 @@
+{"ts":"2026-11-27T10:34:33Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"1433bc79b89d","branch":"bd-l30sfz-fixedset-main","user":""}
+{"ts":"2026-11-27T10:34:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"1433bc79b89d","branch":"bd-l30sfz-fixedset-main","user":""}
+{"ts":"2026-11-27T10:34:42Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training spec_sync=true","sha":"1433bc79b89d","branch":"bd-l30sfz-fixedset-main","user":""}
+{"ts":"2026-11-27T10:34:45Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (serves whole-book G5 board papers from a checked set behind the off-by-default assessment_paper_fixed_set setting; no training screen or message changes)","sha":"1433bc79b89d","branch":"bd-l30sfz-fixedset-main","user":""}
