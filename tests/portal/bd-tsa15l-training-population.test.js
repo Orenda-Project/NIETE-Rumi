@@ -7,7 +7,9 @@ const { summarizeTrainingLevels, trainingStatesSql } = require('../../dashboard/
 
 const LEVELS = [0, 1, 2, 3].map((i) => ({ id: String(i + 1), name: `L${i}`, order_index: i }));
 const school = (id, region, extra = {}) => ({ id, name: id, emis: `E-${id}`, region, is_active: true, is_probable_test: false, ...extra });
-const mem = (user_id, school_id, extra = {}) => ({
+/** bd-tsa15l: a member's level flags; a fixture that names only a cohort is banded by it (no programme fallback in FDE's view). */
+const withBands = (m) => ({ ...m, primary_band: m.primary_band ?? m.primary_cohort === true });
+const mem = (user_id, school_id, extra = {}) => withBands({
   user_id, school_id, primary_cohort: true, mh_cohort: false, middle_band: false, high_band: false,
   cert_levels: null, active_levels: null, ox_mask: 0, ox_cert: false, ox_active: false, bh_mask: 0, bh_active: false,
   isaps_assigned: false, isaps_cert: false, isaps_mask: 0, isaps_active: false, ...extra,
@@ -102,5 +104,17 @@ describe("Hashir's seven combinations on the dashboard cards", () => {
       members: [mem('a', 's1', { ...COMBOS.M, bh_mask: 2 }), mem('b', 's1', { ...COMBOS.M, bh_active: true }), mem('c', 's1', { ...COMBOS.M })] };
     const bh = summarizeTrainingLevels(rows, { band: 'midhigh' }).overview.partners.beaconhouse;
     expect([bh.passed, bh.inProgress, bh.notStarted]).toEqual([1, 1, 1]);
+  });
+});
+
+describe('no programme fallback in FDE view (operator, 27 Nov 2026)', () => {
+  const L = [0, 1, 2, 3].map((i) => ({ id: String(i + 1), name: `L${i}`, order_index: i }));
+  it('a programme member with no teaching level recorded is in no section', () => {
+    const rows = { levels: L, schools: [school('s1', 'B.K')], lists: lists(), members: [mem('a', 's1', { primary_cohort: true, primary_band: false }), mem('b', 's1', { primary_band: true, primary_cohort: true })] };
+    expect(summarizeTrainingLevels(rows, { band: 'primary' }).overview.teachers).toBe(1);
+  });
+  it("another organization's areas keep their programme fallback", () => {
+    const rows = { levels: L, schools: [school('g1', 'Gilgit')], lists: null, members: [mem('a', 'g1', { primary_cohort: true, primary_band: false })] };
+    expect(summarizeTrainingLevels(rows, { band: 'primary', regions: ['Gilgit'], keepsUnplaced: false }).overview.teachers).toBe(1);
   });
 });
