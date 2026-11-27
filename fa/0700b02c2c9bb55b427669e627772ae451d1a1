@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T08:39:14Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,portal-smoke spec_sync=true","sha":"fa0700b02c2c","branch":"HEAD","user":""}
+{"ts":"2026-11-27T08:39:22Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,lesson-plan,language,portal-login,portal-smoke spec_sync=true","sha":"fa0700b02c2c","branch":"HEAD","user":""}
