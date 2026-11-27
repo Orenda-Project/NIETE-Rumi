@@ -39,6 +39,10 @@ function relay(line, change) {
   return changed ? out : line;
 }
 
+/** Round 28's switched practice (practice_r28 { r28, practice }) framed like the task's own practice. */
+const withSwitchedPractice = (t, framed) => (t && t.practice_r28 && Array.isArray(t.practice_r28.practice)
+  ? { ...t, practice_r28: { ...t.practice_r28, practice: t.practice_r28.practice.map(framed) } } : t);
+
 const isFrame = (m) => m && typeof m.en === 'string' && typeof m.ur === 'string' && m.audio && !/^\d+$/.test(m.en.trim());
 
 function relayTask(task, script, own) {
@@ -53,10 +57,12 @@ function relayTask(task, script, own) {
   if (touched) t = { ...t, script: sc };
   const frame = own && own.practice_frame;
   if (frame) {
+    const framed = (p) => (Array.isArray(p.model) ? { ...p, model: p.model.map((m) => (isFrame(m) ? relay(m, frame) : m)) } : p);
     for (const field of ['practice', 'practice_v2']) {
       if (!Array.isArray(t[field])) continue;
-      t = { ...t, [field]: t[field].map((p) => (Array.isArray(p.model) ? { ...p, model: p.model.map((m) => (isFrame(m) ? relay(m, frame) : m)) } : p)) };
+      t = { ...t, [field]: t[field].map(framed) };
     }
+    t = withSwitchedPractice(t, framed);
   }
   return t;
 }
@@ -75,11 +81,12 @@ function replaceSpoken(bank, list) {
   for (const [id, t] of Object.entries(bank.tasks || {})) {
     const script = t.script && Object.fromEntries(Object.entries(t.script).map(([k, v]) => [k, Array.isArray(v) ? v.map(one) : one(v)]));
     let u = script ? { ...t, script } : t;
+    const framed = (p) => (Array.isArray(p.model) ? { ...p, model: p.model.map((m) => (isFrame(m) ? one(m) : m)) } : p);
     for (const field of ['practice', 'practice_v2']) {
       if (!Array.isArray(u[field])) continue;
-      u = { ...u, [field]: u[field].map((p) => (Array.isArray(p.model) ? { ...p, model: p.model.map((m) => (isFrame(m) ? one(m) : m)) } : p)) };
+      u = { ...u, [field]: u[field].map(framed) };
     }
-    tasks[id] = u;
+    tasks[id] = withSwitchedPractice(u, framed);
   }
   return { ...bank, lines, tasks };
 }
