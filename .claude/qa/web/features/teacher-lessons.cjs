@@ -9,5 +9,9 @@ const scenarios = [
   pagesScenario("TL01", "Teacher app v2: Lesson Plans lists her recent lesson plans", "teacher", "teacherV2", [{ path: "/portal/teacher/lessons", heading: /^Recent Lesson Plans\s+[1-9]/ }]),
   pagesScenario("TL02", "Classic portal: the curriculum opens, and the old /portal/lesson-plans link lands there", "teacher", "classic", [{ path: "/portal/curriculum", heading: /^Lesson Plans$/ }, { path: "/portal/lesson-plans", heading: /^Lesson Plans$/, settle: "/portal/curriculum" }]),
 ];
+scenarios.push(...require("../flows/teacher-lessons-fln.cjs"));
+scenarios.push(...require("../flows/teacher-lessons-leaders.cjs"));
+scenarios.push(...require("../flows/teacher-lessons-own.cjs"));
+scenarios.push(...require("../flows/teacher-lessons-viewer.cjs"));
 
 module.exports = { feature: "teacher-lessons", spec: 'tests/features/web/teacher-lessons.feature', scenarios };
