@@ -8,6 +8,9 @@
 // window_closed, context.classes[].lessons[]). The switch, the row and the saved language are put back afterwards.
 // The card's switch has its own 30 s cache in dashboard/services/teacher-notices.service.js (not feature-flags.js, so
 // FLAG_CACHE_TTL_MS=0 does not reach it): every scenario polls Home until the server agrees with the switch.
+// The card opens the quiz home, so it is drawn only once GET /me/home gives one (ReadyForYou.tsx): that read 404s unless
+// portal_teacher_home_card is on, and its quizHome comes from the bot's quiz home (quiz_teacher_home). Both are switched on
+// here for the scenario and put back (bd-q8wt5e.9).
 // WEB_SHOTS_DIR set → each scenario also saves its 360 px screen there.
 'use strict';
 const path = require('path');
@@ -19,6 +22,8 @@ const SWITCH = 'quiz_offer_closed_window';
 const TOPIC = 'Comparing fractions';
 const LESSON = 'qa-k5-quiz-card-1';
 const SWITCH_WAIT_MS = 40000;
+/** What the card needs to have somewhere to open: the Home card (GET /me/home) and the bot's quiz home. */
+const HOME_KEYS = ['portal_teacher_home_card', 'quiz_teacher_home'];
 
 /** Today in Pakistan (no daylight saving), as the bot's sweeper dates the row. */
 function pktDate(now = Date.now()) {
@@ -34,12 +39,18 @@ async function withQuizOffer(ctx, { on, row, lang }, body) {
   const where = 'user_id = ' + q(id) + ' and nudge_date = ' + q(date) + "::date and kind = 'lp_quiz_offer'";
   const prevSwitch = await ctx.sql('select value::text from app_settings where key = ' + q(SWITCH));
   const prevRow = await ctx.sql('select row_to_json(t)::text from teacher_nudges t where ' + where);
+  const prevHome = {};
+  for (const k of HOME_KEYS) prevHome[k] = await ctx.sql('select value::text from app_settings where key = ' + q(k));
   const context = { skip_reason: 'window_closed', held_path: 'none',
     classes: [{ key: 'g4', grade: 4, subject: 'Maths', lessons: [{ lesson_id: LESSON, topic: TOPIC }] }] };
   try {
     await ctx.sql('insert into app_settings (key, value) values (' + q(SWITCH) + ', '
       + q(on ? JSON.stringify({ app_card: true }) : JSON.stringify({ trace: true })) + '::jsonb) '
       + 'on conflict (key) do update set value = excluded.value, updated_at = now()');
+    for (const k of HOME_KEYS) {
+      await ctx.sql('insert into app_settings (key, value) values (' + q(k) + ", 'true'::jsonb) "
+        + 'on conflict (key) do update set value = excluded.value, updated_at = now()');
+    }
     await ctx.sql('delete from teacher_nudges where ' + where);
     let nudgeId = null;
     if (row) {
@@ -56,6 +67,10 @@ async function withQuizOffer(ctx, { on, row, lang }, body) {
     if (prevSwitch) {
       await ctx.sql('update app_settings set value = ' + q(prevSwitch) + '::jsonb, updated_at = now() where key = ' + q(SWITCH));
     } else await ctx.sql('delete from app_settings where key = ' + q(SWITCH));
+    for (const k of HOME_KEYS) {
+      if (prevHome[k]) await ctx.sql('update app_settings set value = ' + q(prevHome[k]) + '::jsonb, updated_at = now() where key = ' + q(k));
+      else await ctx.sql('delete from app_settings where key = ' + q(k));
+    }
     await ctx.sql('update users set preferred_language = ' + q(prevLang || null) + ' where id = ' + q(id));
   }
 }

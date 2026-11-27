@@ -73,14 +73,15 @@ Feature: Coach app
 
   # The School card, with its switch (portal_coach_school_card) on and off. The driver waits for /config to agree
   # with the switch (the dashboard caches it 30 s) and puts it back OFF after every scenario.
-  # bd-rlxkkt.2 (3 Nov 2026): Coach Training joined the slim Home's tiles (card/switchOn.test.tsx).
+  # bd-rlxkkt.2 (3 Nov 2026): Coach Training joined the slim Home's tiles (card/switchOn.test.tsx). bd-39qx8x (operator,
+  # 18 Nov 2026): the tiles are in her order, My schools, Coach Training, then Training Library (SlimHome.tsx).
   @CP07
   Scenario: Coach app v2 with the School card on: her home is the slim Coach Home, the menu is Home, Lesson Plans and More, and the hidden pages land on Home
     Given the teacher app v2 is off and the coach app v2 is on
     And the School card is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach
-    Then it is the slim Coach Home with exactly three tiles, Training Library, My schools and Coach Training
+    Then it is the slim Coach Home with exactly three tiles, in order My schools, Coach Training and Training Library
     And the menu is Home, Lesson Plans and More
     When she opens Schedule, My schedule, Team schedule, New visit, Observe, Reports, Analytics or Insights
     Then each settles on /portal/coach
