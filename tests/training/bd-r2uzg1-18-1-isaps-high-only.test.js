@@ -188,9 +188,36 @@ describe('bd-r2uzg1.18.1 — a Middle-only teacher is not shown I-SAPS', () => {
   });
 });
 
+describe('bd-tsa15l — High only sees the Teacher Development Programme only (Hashir, 27 Nov)', () => {
+  it('portal and WhatsApp: I-SAPS only; Primary + High: NIETE and I-SAPS, no Beacon House or Oxbridge', async () => {
+    seed({ teacherLevel: ['HIGH'] });
+    expect(await vendorsOf()).toEqual(['ISAPS']);
+    expect(await catalogVendors()).toEqual(['ISAPS']);
+    expect(await levelIdsOf()).toEqual([27, 31]);
+    seed({ teacherLevel: ['PRIMARY', 'HIGH'], programs: ['p-prim', 'p-mh'] });
+    expect(await vendorsOf()).toEqual(['ISAPS', 'TALEEMABAD']);
+  });
+
+  it('a teacher with no band keeps what her programmes give her (principals and coaches)', async () => {
+    seed({ teacherLevel: null, programs: ['p-prim'] });
+    expect(await vendorsOf()).toEqual(['TALEEMABAD']);
+  });
+
+  it('the seven combinations of Hashir\'s list', () => {
+    const { requirementsFor } = require('../../bot/shared/services/training/vendor-band-gate.rules');
+    const r = (b) => { const x = requirementsFor(b); return [x.niete.join(''), x.gbtla, x.aiPowered, x.tdp]; };
+    expect(r(['PRIMARY'])).toEqual(['0123', false, false, false]);
+    expect(r(['PRIMARY', 'MIDDLE'])).toEqual(['0123', true, true, false]);
+    expect(r(['PRIMARY', 'MIDDLE', 'HIGH'])).toEqual(['0123', true, true, true]);
+    expect(r(['PRIMARY', 'HIGH'])).toEqual(['0123', false, false, true]);
+    expect(r(['MIDDLE', 'HIGH'])).toEqual(['23', true, true, true]);
+    expect(r(['MIDDLE'])).toEqual(['23', true, true, false]);
+    expect(r(['HIGH'])).toEqual(['', false, false, true]);
+  });
+});
+
 describe('bd-r2uzg1.18.1 — who keeps I-SAPS', () => {
   it.each([
-    ['High', ['HIGH']],
     ['Middle + High', ['MIDDLE', 'HIGH']],
     ['High stored lower-case', ['middle', 'high']],
   ])('%s: I-SAPS is shown on the portal and on WhatsApp', async (_label, level) => {
@@ -285,7 +312,7 @@ describe('bd-r2uzg1.18.1 — the coach card lists the trainings she sees', () =>
 
   it('no gated teacher on the list: no extra read; a failed work read keeps the rows', async () => {
     const Card = require('../../dashboard/services/coach-school-card.service');
-    const high = cardQuery([{ id: 'u-high', teacher_level: ['HIGH'] }]);
+    const high = cardQuery([{ id: 'u-high', teacher_level: ['MIDDLE', 'HIGH'] }]);
     await Card.internals.trainingsOf(high.query, ['u-high']);
     expect(high.calls).not.toContain('training-band-work');
 

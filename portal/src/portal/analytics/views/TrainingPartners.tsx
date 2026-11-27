@@ -45,7 +45,8 @@ export function TrainingPartners({ c, data, active, onActive, nieteOrders }: {
     oxbridge: p ? t.partners.summary(count(p.oxbridge.passed, c), count(p.oxbridge.inProgress, c)) : '',
     niete: t.partners.nieteSummary,
     beaconhouse: p ? t.partners.summary(count(p.beaconhouse.passed, c), count(p.beaconhouse.inProgress, c)) : '',
-    isaps: p ? t.partners.summary(count(p.isaps.passed, c), count(p.isaps.inProgress, c)) : '',
+    // no overall status: one short line per level (Hashir, 27 Nov 2026)
+    isaps: p ? p.isaps.levels.map((l) => `${l.name.split(':')[0]} ${t.partners.summary(count(l.passed, c), count(l.inProgress, c))}`).join(' · ') : '',
   };
 
   return (
@@ -135,24 +136,19 @@ function BeaconhousePanel({ c, data }: { c: AnalyticsWords; data: TrainingLevels
 function IsapsPanel({ c, data }: { c: AnalyticsWords; data: TrainingLevelsResponse }) {
   const t = c.trainingLevels;
   const is = data.overview.partners!.isaps;
+  // Level 1, 2 and 3 each have their own card: the programme has no one overall status.
   return (
     <div data-testid="partner-panel-isaps" className="mt-4 rounded-xl bg-white p-4 sm:p-5" style={{ border: `2px solid ${ISAPS_LOOK.color}`, boxShadow: `0 1px 4px ${ISAPS_LOOK.color}18` }}>
-      <div className="mb-5">
-        <TrainingLevelCard
-          c={c} testId="partner-card-isaps" look={ISAPS_LOOK} label={null} name={t.partners.isaps}
-          passed={is.passed} inProgress={is.inProgress} notStarted={is.notStarted}
-          definition={t.partners.isapsDefinition}
-        />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {is.levels.map((l) => (
+          <TrainingLevelCard
+            key={l.levelOrder}
+            c={c} testId={`partner-card-isaps-${l.levelOrder + 1}`} look={ISAPS_LOOK} label={null} name={l.name}
+            passed={l.passed} inProgress={l.inProgress} notStarted={l.notStarted}
+            definition={t.partners.isapsDefinition}
+          />
+        ))}
       </div>
-      <Funnel
-        c={c}
-        testId="isaps"
-        chartTitle={t.partners.perModule}
-        tableTitle={t.partners.byModule}
-        firstColumn={t.partners.columns.module}
-        rows={is.modules}
-        last={{ name: t.partners.completedAll, ...is.completedAll }}
-      />
     </div>
   );
 }
