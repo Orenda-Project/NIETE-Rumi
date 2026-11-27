@@ -182,6 +182,32 @@ describe('Back to the previous question (nav.back)', () => {
     expect(p.moment()).toBe('M6-review');
   });
 
+  // bd-q8wt5e.18 (WQ209): a child's first tap is on the landing, not on a question, so the history was armed with ONE
+  // spare entry and the second Back during play popped the page's own entry: WhatsApp's browser closed the quiz.
+  // A tap during play adds the second spare entry when it is not there yet. (The harness's back() still fires popstate
+  // at the page's own entry, i = 0, so the test reads the history itself: the page never stands on its own entry.)
+  test('first tap before play, a tap on question 3: two Backs show questions 2 and 1 and never reach the page\'s own entry', () => {
+    const p = page({ lang: 'en', questions: QS, store: playing({ q1: { slot: 'A', ok: true }, q2: { slot: 'B', ok: true } }), bootExtra: NAV });
+    p.tap();                     // on the "Go on" screen: not a question
+    p.wq.question(2, false);
+    p.tap();                     // a tap while playing question 3
+    p.back();
+    expect(p.html()).toContain('question 2 again');
+    expect(p.hist.i).toBeGreaterThan(0);
+    p.back();
+    expect(p.html()).toContain('question 1 again');
+    expect(p.hist.i).toBeGreaterThanOrEqual(0);
+    expect(p.hist.backs).toBe(0);
+  });
+
+  test('switch on, but no tap during play: one spare entry only, as before (nothing is added without a tap)', () => {
+    const p = page({ lang: 'en', questions: QS, store: playing({ q1: { slot: 'A', ok: true }, q2: { slot: 'B', ok: true } }), bootExtra: NAV });
+    p.tap();
+    const len = p.hist.stack.length;
+    p.wq.question(2, false);
+    expect(p.hist.stack.length).toBe(len);
+  });
+
   test('on the results card the phone\'s Back offers Home instead of closing the page', () => {
     const p = page({ lang: 'en', questions: QS, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [], result: RESULT } }, bootExtra: NAV });
     p.tap();
