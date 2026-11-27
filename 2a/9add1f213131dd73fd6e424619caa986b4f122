@@ -3,3 +3,5 @@
 {"ts":"2026-11-27T01:58:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"2a9add1f2131","branch":"HEAD","user":""}
 {"ts":"2026-11-27T01:58:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"2a9add1f2131","branch":"HEAD","user":""}
 {"ts":"2026-11-27T01:58:04Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"2a9add1f2131","branch":"HEAD","user":""}
+{"ts":"2026-11-27T01:58:04Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"2a9add1f2131","branch":"HEAD","user":""}
+{"ts":"2026-11-27T01:58:05Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"2a9add1f2131","branch":"HEAD","user":""}
