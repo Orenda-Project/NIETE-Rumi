@@ -1704,6 +1704,23 @@ Feature: NIETE (ICT) Teacher Training
     # reviveHeld moves only a row still skipped for that reason (atomic filter). Events transcript_quiz.skipped
     # {held_path}, transcript_quiz.held_revived. @wip.
 
+  # ── The quiz-page template, named per language (ADDED 2026-11-27, bd-4i9es6) ──
+  # "quiz_offer_closed_window".quiz_page_template is a name or a map {en?, ur?}. The teacher's language is the one
+  # the share template goes in (users.preferred_language, else en). Meta filed the Urdu URL-button versions as
+  # MARKETING, so the production map names en only. Executed with Meta mocked in
+  # tests/qfix-offers/report-page-send.test.js (describe 'quiz_page_template per language').
+  @e2e @quiz @config-gated @wip @draft @no-mock-driver @P1 @T112
+  Scenario: With my window closed, the report that opens the quiz page comes only in a language that has its template
+    Given app_settings "quiz_offer_closed_window" has "report_page" on and names the quiz-page template for English only
+    And I recorded a lesson long enough for a quiz and have not written to the bot for more than 24 hours
+    When my coaching report reaches me and my language is English, or I have none set
+    Then I get one report message whose button opens my report page, where "Make a quiz" is
+    When my language is Urdu instead
+    Then I get today's report template, once, with no quiz-page button, and no quiz row is held for it
+    And if my language cannot be read, I get today's report template, never a template my language may not have
+    # report-page-quiz templateFor(pageTemplate, userId); a plain string keeps its meaning (every language).
+    # The C/D link template (share_dc_report_link_v1) never reads the map. @wip.
+
   # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
   # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
   # (x-api-key). These scenarios are the API contract the page relies on; @no-mock-driver until the
