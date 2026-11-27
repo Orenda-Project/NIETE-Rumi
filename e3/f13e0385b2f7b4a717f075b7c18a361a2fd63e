@@ -1,3 +1,4 @@
 {"ts":"2026-11-23T13:30:01Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"e3f13e0385b2","branch":"bd-vqqa7o-staging","user":""}
 {"ts":"2026-11-23T13:30:02Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: training owe their Gherkin","sha":"e3f13e0385b2","branch":"bd-vqqa7o-staging","user":""}
 {"ts":"2026-11-23T13:30:31Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.2.1 in: check-scenario-coverage.py","sha":"e3f13e0385b2","branch":"bd-vqqa7o-staging","user":""}
+{"ts":"2026-11-27T13:17:30Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-e3f13e0385b2","sha":"e3f13e0385b2","branch":"bd-vqqa7o-main","user":""}
