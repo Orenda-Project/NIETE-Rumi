@@ -135,13 +135,36 @@ describe('switch ON', () => {
     expect(home.reports).toEqual({ rows: [], rounds: null });
   });
 
-  test('the evening rounds line: only when class-link\'s reader says a class has a live round', async () => {
+  test('the evening rounds line: only when the class tab has a round to show (teacherHasLiveRound true)', async () => {
     seed();
     const has = jest.fn(async () => true);
-    await boot(listDeps({ ClassLink: { teacherHasLiveRound: has } }));
+    await boot(listDeps({ RoundLine: { teacherHasLiveRound: has } }));
     const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
     expect(has).toHaveBeenCalledWith(TEACHER.id);
     expect(home.reports.rounds).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?tab=class&from=home&lang=en$/);
+  });
+
+  test.each([
+    ['false', async () => false],
+    ['a truthy value that is not true', async () => 'yes'],
+    ['a section-shaped array (the old reader\'s answer)', async () => [{ round_day: '2026-11-23', finishers: [] }]],
+  ])('the predicate answers %s: no line', async (_, answer) => {
+    seed();
+    await boot(listDeps({ RoundLine: { teacherHasLiveRound: jest.fn(answer) } }));
+    const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
+    expect(home.reports.rounds).toBeNull();
+  });
+
+  test('the predicate throws: no line, logged, the rest of the section still served', async () => {
+    seed();
+    const Logger = require('../../shared/utils/logger');
+    await boot(listDeps({ RoundLine: { teacherHasLiveRound: jest.fn(async () => { throw new Error('socket hang up'); }) } }));
+    const res = await get(`/api/th/home?t=${tokenFor()}`);
+    expect(res.status).toBe(200);
+    const home = await res.json();
+    expect(home.reports.rounds).toBeNull();
+    expect(Array.isArray(home.reports.rows)).toBe(true);
+    expect(Logger.logToFile.mock.calls.map((c) => c[0])).toContain('⚠️ teacher home: evening rounds check failed — no line');
   });
 
   test('the shell carries the section, its heading and its More', async () => {
@@ -180,5 +203,61 @@ describe('switch OFF', () => {
     expect(home).not.toHaveProperty('reports');
     const html = await (await get(`/quiz/teacher/${tokenFor()}`)).text();
     expect(html).not.toContain('th-rp');
+  });
+});
+
+/**
+ * QF-R4c: the "Evening rounds" line and the class tab's section read ONE source. A live standing link alone (the evening
+ * after a link is minted, before the first round is drawn; a class with no children) shows no line, because the tab it
+ * opens would have no section; a round in the last week shows the line and the tab carries #evening-rounds. Real
+ * class-link and evening-round readers over the same in-memory Supabase (no reader injected).
+ */
+describe('the rounds line and the class tab\'s section agree', () => {
+  const CLASS = 'c1a55000-0000-4000-8000-0000000000f1';
+  const ROUND_QUIZ = 'c0000000-0000-4000-8000-0000000000f1';
+  const ROUND_CODE = 'f0000000-0000-4000-8000-0000000000f1';
+  const ER = () => require('../../shared/services/quiz/web-quiz-evening-round');
+  function seedRounds({ round }) {
+    seed({ settings: ['web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_class_link', 'web_quiz_evening_round'].map((key) => ({ key, value: true })) });
+    fake.db.class_teachers = [{ id: 'ctf1', class_id: CLASS, teacher_user_id: TEACHER.id, is_active: true }];
+    fake.db.class_links = [{ code: 'QFXTESTAB1', class_id: CLASS, teacher_id: TEACHER.id, term_code: '2026-27b', expires_at: soon, revoked_at: null, created_at: ago(2) }];
+    fake.db.classes = [{ id: CLASS, grade_code: '3', section: 'A' }];
+    fake.db.students = [{ id: kid(9), student_name: 'Sana Testwala' }];
+    if (round) {
+      fake.db.quizzes.push({ id: ROUND_QUIZ, teacher_id: TEACHER.id, quiz_source: 'transcript', status: 'sent', topic: 'Fractions', subject: 'Maths', grade: '3', language: 'en', list_id: null, created_at: ago(20), meta: { source: 'evening_round' } });
+      fake.db.quiz_share_codes.push({ id: ROUND_CODE, code: 'RNDF01', quiz_id: ROUND_QUIZ, class_id: CLASS, teacher_user_id: TEACHER.id, active: true, expires_at: soon, created_at: ago(20), invited_by_student_id: null, parent_share_code_id: null, report_sent_at: null });
+      fake.db.quiz_sessions.push(sess('r1', ROUND_CODE, ROUND_QUIZ, kid(9), 18));
+    }
+    require('../../shared/services/quiz/web-quiz-class-link-flags')._resetCache();
+    require('../../shared/services/quiz/web-quiz-evening-round-flags')._resetCache();
+  }
+
+  test('a live link and no round yet: no line (the tab would have no section to land on)', async () => {
+    seedRounds({ round: false });
+    await boot(listDeps());
+    const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
+    await expect(ER().reportSection(TEACHER.id)).resolves.toBe('');
+    expect(home.reports.rounds).toBeNull();
+  });
+
+  test('the line is decided by the two-read predicate: the class tab\'s section is not built for it', async () => {
+    seedRounds({ round: true });
+    const build = jest.spyOn(ER(), 'forTeacherReport');
+    const line = jest.spyOn(require('../../shared/services/quiz/web-quiz-evening-round-phone'), 'teacherHasLiveRound');
+    try {
+      await boot(listDeps());
+      const home = await (await get(`/api/th/home?t=${tokenFor()}`)).json();
+      expect(home.reports.rounds).toMatch(/\?tab=class&from=home&lang=en$/);
+      expect(line).toHaveBeenCalledWith(TEACHER.id);
+      expect(build).not.toHaveBeenCalled();
+    } finally { build.mockRestore(); line.mockRestore(); }
+  });
+
+  test('a round this week: the line, and the tab it opens carries #evening-rounds', async () => {
+    seedRounds({ round: true });
+    await boot(listDeps());
+    const home = await (await get(`/api/th/home?t=${tokenFor({ lang: 'ur' })}`)).json();
+    expect(home.reports.rounds).toMatch(/^https:\/\/portal\.example\/r\/[^?]+\?tab=class&from=home&lang=ur$/);
+    expect(await ER().reportSection(TEACHER.id, { lang: 'ur' })).toContain('id="evening-rounds"');
   });
 });

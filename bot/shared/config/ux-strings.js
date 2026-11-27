@@ -4613,9 +4613,11 @@ const UX_STRINGS = {
     ur: 'رپورٹ ابھی نہیں بھیجی گئی',
   },
   // the section's foot: the class tab's evening rounds (only while a class has a live round)
+  // the line opens the class tab's "Evening rounds" section, so it carries that section's own title
+  // (web-quiz-evening-round.js REPORT_WORDS): one noun on both screens
   qfix_report_home_rounds: {
     en: 'Evening rounds',
-    ur: 'شام کے کوئز',
+    ur: 'شام کے راؤنڈ',
   },
   // the live report's quiz tab, under the title ({late} ≥ 1)
   qfix_report_page_line: {
