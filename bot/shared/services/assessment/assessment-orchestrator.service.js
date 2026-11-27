@@ -59,6 +59,7 @@ const { READER_SUBJECTS } = require('./fde-reader');
 const Patterns = require('./patterns');
 const RepeatGuard = require('./repeat-guard');
 const PaperReuse = require('./paper-reuse');
+const Fit = require('./page-fit');
 
 /**
  * What she is told, per failure. Each one names the thing she can change; a
@@ -601,6 +602,7 @@ async function buildPaper(job, user = {}) {
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null, seenTypes = null,
     seenPicked = null, // AG row 21: the book questions she ticked; new jobs only
     outputFormat = 'pdf', answerLines = true, pattern = null, scope = null, compact = false,
+    pages = null, // FEAT-209 (bd-nr8mrm): the page count she asked for, 1-5; fitted only behind assessment_page_fit
     // The teacher's curriculum (bd-97daxo.4): set by the request only when it is not ICT, so an ICT
     // job reads its ICT book exactly as before.
     curriculum = undefined,
@@ -697,7 +699,7 @@ async function buildPaper(job, user = {}) {
 
     // The paper never carries the answers; the key is a second document built
     // after it.
-    const html = Renderer.renderPaper({
+    const htmlNow = () => Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
       schoolName: user.school_name || null,
@@ -708,9 +710,31 @@ async function buildPaper(job, user = {}) {
     });
 
     const renderer = rendererFor(outputFormat);
+    // FEAT-209: a page target on a PDF is printed, counted and tightened until it fits (page-fit.js).
+    const target = renderer.ext === 'pdf' ? Fit.pageTarget(pages) : null;
+    const fitting = target !== null && await isFlagEnabled('assessment_page_fit');
     let buffer;
+    let pageFit;
     try {
-      buffer = await renderer.render(html);
+      if (fitting) {
+        const out = await Fit.fitToPages({
+          target,
+          start: Fit.firstStep({ compact }),
+          render: async (step) => {
+            const { compact: c, twoCol, trimLines } = Fit.FIT_STEPS[step];
+            generated.examJson._print = { compact: c, fit: { twoCol, trimLines } };
+            const b = await renderer.render(htmlNow());
+            return { buffer: b, pages: pdfPageCount(b) };
+          },
+        });
+        // The last step tried is the one printed; it rides on the paper so every re-render matches.
+        generated.examJson._print = { ...generated.examJson._print, pages: target };
+        buffer = out.buffer;
+        pageFit = { target, pages: out.pages, fits: out.fits, needs: out.needs };
+        logToFile('[assessment] page fit', { userId, requestId, paperId, ...pageFit, step: out.step });
+      } else {
+        buffer = await renderer.render(htmlNow());
+      }
     } catch (err) {
       throw Object.assign(err, { code: 'RENDER_FAILED' });
     }
@@ -741,6 +765,8 @@ async function buildPaper(job, user = {}) {
       file_r2_key: key,
       total_marks: Number.isFinite(marks) ? marks : null,
       ready_at: new Date().toISOString(),
+      ...(pageFit ? { exam_json: { ...stored, _print: generated.examJson._print } } : {}),
+      ...(pageFit && !versioned ? { original_exam_json: { ...stored, _print: generated.examJson._print } } : {}),
     });
 
     return {
@@ -756,6 +782,7 @@ async function buildPaper(job, user = {}) {
       pageReference: source.pageReference,
       versioned,
       ...(topics && topics.length ? { topics } : {}),
+      ...(pageFit ? { pageFit } : {}),
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
