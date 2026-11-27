@@ -183,6 +183,9 @@ export const COACHING_V2_COPY = {
   openInTab: 'Open in another tab',
   close: 'Close',
   sessionComplete: 'Your DC coaching session is now complete.',
+  /* bd-kcv8s5 — the quiz block at the foot of a ready DC report: the framed quiz maker's title, and the button to it. */
+  quizFrameTitle: 'Make a quiz for this lesson',
+  quizMake: 'Make a quiz',
   /* bd-gzfdu9 (VIDREC, SPEC §4.2/§4.7) — the recommended clip's card under "Try next class"; the /cr card's words. */
   videoRecoCardTitle: '🎬 Watch this next',
   videoRecoCardButton: (n: number) => `Watch (${n} min)`,
@@ -386,6 +389,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   openInTab: 'دوسرے ٹیب میں کھولیں',
   close: 'بند کریں',
   sessionComplete: 'آپ کا ڈیجیٹل کوچنگ سیشن مکمل ہو گیا ہے۔',
+  quizFrameTitle: 'اس سبق کا کوئز بنائیں',
+  quizMake: 'کوئز بنائیں',
   videoRecoCardTitle: '🎬 اگلا یہ دیکھیں',
   videoRecoCardButton: (n: number) => `دیکھیں (${n} منٹ)`,
   videoRecoCardButtonPlain: 'دیکھیں',
@@ -494,7 +499,9 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-bmc9a0.1: "not sent" is three Urdu words (نہیں بھیجا گیا) after the part's own name.
     'planNotSent', 'photoNotSent',
     // bd-bmc9a0.2: ICT's "recording saved, come back later" confirmation (row 31).
-    'recordingSaved'],
+    'recordingSaved',
+    // bd-kcv8s5: the quiz frame's title is read out by a screen reader, not shown; it names the lesson it is for.
+    'quizFrameTitle'],
 };
 
 /**

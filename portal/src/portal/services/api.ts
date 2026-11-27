@@ -405,6 +405,25 @@ export const portal = {
     return response.data?.url || null;
   },
 
+  /**
+   * bd-kcv8s5 — what the foot of the teacher's ready DC report draws for the quiz: the quiz maker in a frame ('inline'), a button
+   * to it as its own page ('page'), or null (switch off, not the teacher's, any error): the screen then keeps today's button.
+   * Only a known mode and a same-site '/cq/' path are accepted.
+   */
+  getReportQuizBlock: async (id: string): Promise<{ mode: 'inline' | 'page'; url: string } | null> => {
+    try {
+      const response = await api.get(`/teacher/coaching/${encodeURIComponent(id)}/quiz-block`);
+      if (response.status !== 200) return null;
+      const d = response.data as { success?: unknown; mode?: unknown; url?: unknown } | undefined;
+      if (!d || d.success !== true) return null;
+      if (d.mode !== 'inline' && d.mode !== 'page') return null;
+      if (typeof d.url !== 'string' || !d.url.startsWith('/cq/')) return null;
+      return { mode: d.mode, url: d.url };
+    } catch {
+      return null;
+    }
+  },
+
   submitCoachingVoiceReflection: async (id: string, audioKey: string): Promise<{
     done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {
