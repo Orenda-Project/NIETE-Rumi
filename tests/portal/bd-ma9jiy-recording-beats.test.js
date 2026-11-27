@@ -116,6 +116,17 @@ describe('POST /funnel/recording — the recorder heartbeat', () => {
     expect(ev[0].d).toEqual(expect.objectContaining({ ageS: 5400, finished: true }));
   });
 
+  // bd-q261rec (queue #261) — how the screen was held when the recording started: native / wakelock / wakelock_refused / none.
+  test('keep_awake is a recording.event row with its mode', async () => {
+    await post(await app(), {
+      v: 1, rid: 'a3f1c2d4-1111-4222-8333-944455556666', kind: 'obs', t0: Date.now(), cols: COLS, rows: [],
+      ev: [{ k: 'keep_awake', dt: 0, mode: 'wakelock_refused' }],
+    });
+    const ev = emitted.filter((x) => x.e === 'recording.event');
+    expect(ev.map((x) => x.d.recEvent)).toEqual(['keep_awake']);
+    expect(ev[0].d.mode).toBe('wakelock_refused');
+  });
+
   test('no session: 401, nothing logged; a bad kind or a malformed id: 400, nothing logged', async () => {
     expect((await post(await app({}), { v: 1, rid: 'x', kind: 'dc', cols: COLS, rows: [] })).status).toBe(401);
     const srv = await app();

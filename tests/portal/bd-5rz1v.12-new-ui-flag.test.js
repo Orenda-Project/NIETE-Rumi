@@ -203,6 +203,9 @@ describe('GET /config — features.newUi', () => {
       'roleSwitch', 'schoolCard', 'selfObservation',
       // The activity Home and My journey: real false unless portal_teacher_home_activity / portal_teacher_journey name her.
       'teacherHomeActivity', 'teacherHomeCard', 'teacherHomeLook', 'teacherHomeOrder', 'teacherJourney', 'teacherV2',
+      // bd-q261rec (queue #261) — the recording sent in pieces that resume: coaches/principals on their flow v2, teachers on
+      // portal_upload_pieces; a real false otherwise.
+      'uploadPieces',
     ]);
   });
 });

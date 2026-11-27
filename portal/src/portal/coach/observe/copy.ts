@@ -161,6 +161,11 @@ export const OBSERVE_COPY = {
 
   /* sending, in the background */
   sending: 'Sending',
+  /** bd-q261rec (queue #261): the line dropped; the pieces already sent are safe and it goes on by itself. */
+  weakLine: 'Weak internet',
+  piecesSent: (sent: number, all: number) => `${sent} of ${all} sent`,
+  retryIn: (clock: string) => `Trying again ${clock}`,
+  tryNow: 'Try now',
   leaveSub: 'The observation keeps sending in the background.',
   goToReports: 'Go to My observations',
   sent: 'Observation sent',
@@ -340,6 +345,10 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   },
 
   sending: 'بھیجا جا رہا ہے',
+  weakLine: 'انٹرنیٹ کمزور ہے',
+  piecesSent: (sent: number, all: number) => `${sent} از ${all}`,
+  retryIn: (clock: string) => `دوبارہ کوشش ${clock}`,
+  tryNow: 'ابھی بھیجیں',
   leaveSub: 'مشاہدہ پس منظر میں بھیجا جاتا رہے گا۔',
   goToReports: 'میرے مشاہدات پر جائیں',
   sent: 'مشاہدہ بھیجا گیا',
