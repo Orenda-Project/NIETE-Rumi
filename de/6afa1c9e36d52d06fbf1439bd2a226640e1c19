@@ -1,0 +1,2 @@
+{"ts":"2026-11-27T14:57:04Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
+{"ts":"2026-11-27T14:57:11Z","hook":"post-commit","event":"armed","switch":"","detail":"features= spec_sync=true","sha":"de6afa1c9e36","branch":"bd-nmtlgs-staging","user":""}
