@@ -193,6 +193,11 @@ class Manifest(object):
         # mock-lane tuning the repo owns (bd-9157r.3): `shards` / `shard_order` for run-suite --parallel. Optional.
         self.mock_lane = dict(self.raw.get("mock_lane") or {})
         self.comment_marker = self.raw.get("comment_marker") or "<!-- %s-qa-impact -->" % self.spec_suite
+        # strict: every runtime file belongs to a feature, and `not_covered:` no longer excuses one (bd-8x4vmn.1).
+        # lenient (the default): `not_covered:` is a documented skip, unclaimed code a warning.
+        self.coverage = str(self.raw.get("coverage") or "lenient")
+        if self.coverage not in ("lenient", "strict"):
+            raise ManifestError("tenants.yaml: `coverage:` must be lenient or strict, not %r" % self.coverage)
         # The web lane's specs and drivers (bd-9157r.3). Defaults are NIETE's layout; a repo whose portal tests
         # live elsewhere says so here. A repo with no web lane simply has neither directory.
         w = dict(self.raw.get("web") or {})
