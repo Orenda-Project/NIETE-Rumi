@@ -1760,6 +1760,18 @@ Feature: NIETE (ICT) Teacher Training
     # report-quiz-page renderQuizBlock: lang="ur" on .qmsg and details.qq when the quiz is ur and the page is not;
     # label.qeopt wraps the radio; textarea.qopttext auto-height.
 
+  # ── The same block on the teacher's coaching report screen in the portal / app (ADDED 2026-11-28, bd-kcv8s5) ──
+  # Behind app_settings quiz_portal_report_block (off) and the report page switch. Executed with the portal route, the
+  # bot route and the offer service wired together in tests/qfix-offers/report-portal-block.test.js.
+  @e2e @quiz @web @config-gated @wip @draft @no-mock-driver @P1 @T117
+  Scenario: One quiz per lesson, whether I make it on my report screen or answer the WhatsApp offer
+    Given the quiz block is on and my lesson has a ready report and no quiz yet
+    When I tap "Make a quiz" on my report screen
+    Then the quiz is made with no WhatsApp message, and the screen shows each step
+    And when the WhatsApp offer for the same lesson comes due, no second quiz is made
+    # report-page-quiz freshForPortal: no row + quizEligibleSession -> held on the portal surface only; the make is
+    # the accepted page offer job; a second offer job meets the claim (23505) and makes nothing.
+
   # ─────────────────────── The web child quiz: the bot API (ADDED 2026-10-05) ───────────────────────
   # Children play the class quiz on a web page; the portal forwards to the bot's /api/internal/wq/*
   # (x-api-key). These scenarios are the API contract the page relies on; @no-mock-driver until the
