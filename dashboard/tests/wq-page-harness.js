@@ -112,6 +112,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
       return Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     },
     URLSearchParams,
+    // a browser's base64 decoder (the page reads its own session token's expiry)
+    atob: (b) => Buffer.from(String(b), 'base64').toString('binary'),
     Image: function Image() { const im = {}; images.push(im); return im; },
     // Timers are recorded, never run by themselves: a test runs them with runTimers().
     setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout(id) { if (timers[id - 1]) timers[id - 1].fn = null; },
