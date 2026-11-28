@@ -1,1 +1,2 @@
 {"ts":"2026-11-27T01:57:03Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"e942ee2ba68b","branch":"bd-9xnyql-sandbox","user":""}
+{"ts":"2026-11-28T00:43:18Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.7.0","sha":"e942ee2ba68b","branch":"bd-9xnyql-sandbox","user":""}
