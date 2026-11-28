@@ -1,2 +1,3 @@
 {"ts":"2026-11-28T07:08:38Z","hook":"post-commit","event":"skip","switch":"cherry-pick","detail":"","sha":"9fabc52e67e0","branch":"q408-niete-staging","user":""}
 {"ts":"2026-11-28T07:08:38Z","hook":"post-commit","event":"skip","switch":"cherry-pick","detail":"","sha":"9fabc52e67e0","branch":"q408-niete-staging","user":""}
+{"ts":"2026-11-28T07:09:01Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"q408-niete-staging: training spec: NOT UPDATED e2e: missing (the author's hooks ran on these commits but never set up a run for training)","sha":"9fabc52e67e0","branch":"q408-niete-staging","user":""}
