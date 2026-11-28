@@ -1,0 +1,2 @@
+{"ts":"2026-11-28T15:42:31Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"7619b753b08a","branch":"bd-snkn32.58.18-80019","user":""}
+{"ts":"2026-11-28T15:43:13Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.7.0","sha":"7619b753b08a","branch":"bd-snkn32.58.18-80019","user":""}
