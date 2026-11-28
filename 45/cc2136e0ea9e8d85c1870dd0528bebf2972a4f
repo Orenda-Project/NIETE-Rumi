@@ -1,1 +1,3 @@
 {"ts":"2026-11-28T13:14:57Z","hook":"post-commit","event":"armed","switch":"","detail":"features=portal-smoke spec_sync=true","sha":"45cc2136e0ea","branch":"bd-q8wt5e.5.2-67931","user":"Mah Noor"}
+{"ts":"2026-11-28T13:15:22Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-smoke spec_sync=true","sha":"45cc2136e0ea","branch":"bd-q8wt5e.5.2-67931","user":"Mah Noor"}
+{"ts":"2026-11-28T13:15:35Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"efeccaaf-eb60-49c6-aa20-91b1c93ca8bb","sha":"45cc2136e0ea","branch":"bd-q8wt5e.5.2-67931","user":"Mah Noor"}
