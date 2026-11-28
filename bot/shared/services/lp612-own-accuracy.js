@@ -78,6 +78,9 @@ const lines = (v) => (Array.isArray(v) ? v : []).filter((e) => typeof e === 'str
 // "which is stated, so this is fine"), and any listed line refused the plan. A line that says so is not an error.
 // bd-snkn32.58.17 — and "-> this is correct, but could confuse" (q367 phonics re-run).
 const DISMISSED = /\bnot an? (?:factual )?error\b|\bno error\b|\bso this is fine\b|\bthis is fine\b|\bacceptable rounding\b|->\s*this is correct\b|\bnot factually wrong\b|\bnot listing (?:it |this )?as an? (?:factual )?error\b/i;
+// bd-snkn32.58.18 (queue #412) — two re-runs still refused: a line the checker withdrew ("… this is acceptable - RETRACT"),
+// and a fixed plan refused only for "never taught … before this point", which the prompt already says is not an error.
+const NOT_AN_ERROR = /\bRETRACT(?:ED)?\b|\bthis is acceptable\b|\b(?:never|not)\s+(?:been\s+)?(?:taught|modell?ed)\b|(?:پڑھایا|سکھایا)\s+(?:ہی\s+)?نہیں\s+گیا/i;
 
 /** { accurate, errors, onGoal, offGoal } from the reply, or null when it cannot be read. */
 function parseGoalCheck(content) {
@@ -90,7 +93,7 @@ function parseGoalCheck(content) {
   }
   if (!obj || typeof obj.accurate !== 'boolean' || typeof obj.on_goal !== 'boolean') return null;
   const listed = lines(obj.errors);
-  const errors = listed.filter((e) => !DISMISSED.test(e));
+  const errors = listed.filter((e) => !DISMISSED.test(e) && !NOT_AN_ERROR.test(e));
   const offGoal = lines(obj.off_goal);
   const allDismissed = listed.length > 0 && !errors.length;
   return { accurate: (obj.accurate || allDismissed) && !errors.length, errors, onGoal: obj.on_goal && !offGoal.length, offGoal };
