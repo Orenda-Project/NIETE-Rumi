@@ -35,6 +35,7 @@ const { checkMcqAnswers, MSQ, OPTION_LABEL, _norm, _splitOption, _resolveOption 
 
 // The English-medium GK/SST prompts (bd-uam6dh) sit in their own file: ict-prompts.json is pinned key by key.
 const PROMPTS = { ...require('./ict-prompts.json'), ...require('./gk-sst-en-prompts.json') };
+const { sanitizePaper } = require('./paper-sanitize'); // bd-firpy.5
 
 /** One question, one answer: what this family should run right now. */
 function familyModel(family) {
@@ -731,6 +732,9 @@ async function generateExam(args) {
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // bd-firpy.5 — a Bloom's label, a (Based on …) tag or a pasted recipe never prints on the child's paper.
+  const sanitized = sanitizePaper(examJson, _walkQuestions);
+  if (sanitized > 0) logToFile('[assessment] removed teacher-facing text from questions', { sanitized });
   // bd-rzjnjp.1.1 — an option question's answer is one of its options, and no unasked MSQs.
   const mcqCheck = checkMcqAnswers(examJson, { askedTypes: [...(plan.questionTypes.length ? plan.questionTypes : (questionTypes || [])), ...(plan.seenTypes || [])] });
   if (Object.values(mcqCheck).some((n) => n > 0)) logToFile('[assessment] option answers checked', mcqCheck);
