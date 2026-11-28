@@ -1,1 +1,2 @@
 {"ts":"2026-11-28T14:57:10Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.7.0","sha":"c2348491a52f","branch":"bd-zrdvmi.77.3-76933","user":""}
+{"ts":"2026-11-28T15:43:31Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.7.0","sha":"c2348491a52f","branch":"HEAD","user":""}
