@@ -344,3 +344,14 @@ Feature: Teacher assessment
     And every question she asked for is on the paper
     When the page-fit setting is switched off
     Then Check shows no "Pages" box and the paper prints as before
+
+  @TA31
+  # bd-nr8mrm.10 — FEAT-209 follow-up: when the question writer is busy (MODEL_UNAVAILABLE) the same choices will work in
+  # a minute, so the not-made page says so and does not send her back to change them. Other reasons keep Change choices.
+  Scenario: A paper not made because the question writer is busy says try again in a minute, with no Change choices
+    Given a teacher makes a Grade 4 Science paper from Check and make
+    When the paper comes back not made because the question writer is busy
+    Then the page shows "Busy now" and "Try again in a minute"
+    And it offers Try again and Dismiss, and no Change choices
+    When a paper comes back not made because the chapter has no text
+    Then the page shows "No chapter text" with Change choices, and no "Try again in a minute"
