@@ -6,3 +6,4 @@
 {"ts":"2026-11-27T16:19:48Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"quiz-funnel-watch=none-needed (operator Slack alert counting only; nothing a teacher sees; covered by tests/quiz/quiz-funnel-watch.test.js)","sha":"cd3953cc0d0a","branch":"bd-8bf9la-main","user":""}
 {"ts":"2026-11-27T16:19:49Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-cd3953cc0d0a","sha":"cd3953cc0d0a","branch":"bd-8bf9la-main","user":""}
 {"ts":"2026-11-27T16:25:53Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=session-hooks,ci-copy engine=2.7.0","sha":"cd3953cc0d0a","branch":"bd-8bf9la-main","user":""}
+{"ts":"2026-11-28T00:43:13Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.7.0","sha":"cd3953cc0d0a","branch":"bd-8bf9la-main","user":""}
