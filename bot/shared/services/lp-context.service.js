@@ -430,6 +430,12 @@ const REFERRING_BACK_TOKENS = [
   // Maths plan got a summary of an older English lesson. A summary ask is about what she was just
   // sent; 'summar' covers summary / summarise / summarize.
   'summar', 'khulasa', 'khulaasa', 'خلاصہ', 'سمری',
+  // bd-zrdvmi.77.3 (ICT sheet rows 936, 937, 942, 951): teachers call the plan "the LP" / "the given
+  // LP" — "improve the lp", "a simple version of the LP", "change in the given LP". Pointer + lp only
+  // ("New lp" / "L/p" stay out: those are NEW requests, decided by the classifier).
+  'this lp', 'the lp', 'given lp', 'that lp', 'same lp', 'previous lp', 'is lp', 'yeh lp', 'ye lp',
+  'this lesson plan', 'the lesson plan you', 'given lesson', 'previous lesson',
+  'اس پلان', 'یہ پلان', 'اسی پلان',
 ];
 
 const TERM_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'day']);
