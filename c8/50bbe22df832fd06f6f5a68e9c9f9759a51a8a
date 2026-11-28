@@ -3,3 +3,4 @@
 {"ts":"2026-11-26T01:39:33Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"c850bbe22df8","branch":"bd-5jmnfj.38.43-67742","user":""}
 {"ts":"2026-11-26T01:39:33Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=no-run fail=git-hooks warn=ci-copy engine=2.2.6","sha":"c850bbe22df8","branch":"bd-5jmnfj.38.43-67742","user":""}
 {"ts":"2026-11-27T01:56:47Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"c850bbe22df8","branch":"bd-5jmnfj.38.43-67742","user":""}
+{"ts":"2026-11-28T00:43:09Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.7.0","sha":"c850bbe22df8","branch":"bd-5jmnfj.38.43-67742","user":""}
