@@ -1,2 +1,5 @@
 {"ts":"2026-11-28T18:39:29Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"48214a729f32","branch":"bd-zrdvmi.77.3.3-89859","user":""}
 {"ts":"2026-11-28T18:39:44Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"48214a729f32","branch":"bd-zrdvmi.77.3.3-89859","user":""}
+{"ts":"2026-11-28T18:39:44Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"48214a729f32","branch":"bd-zrdvmi.77.3.3-89859","user":""}
+{"ts":"2026-11-28T18:39:57Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"48214a729f32","branch":"bd-zrdvmi.77.3.3-89859","user":""}
+{"ts":"2026-11-28T18:40:26Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi-77-3-3-history-since: E-DUPID:lesson-plan","sha":"48214a729f32","branch":"bd-zrdvmi.77.3.3-89859","user":""}
