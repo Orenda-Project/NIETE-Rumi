@@ -2826,7 +2826,19 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // bd-xw56ed — the choices are the rows /menu would draw for her, so the classifier can open a
   // feature exactly when her menu offers it.
   const menuChoices = user ? await liveMenuChoices(user) : [];
-  const intent = await OpenAIService.detectIntent(messageBody, '', menuChoices);
+  // bd-wpupy (ported to staging, bd-zrdvmi.77.3): the classifier judged the message in a vacuum, so
+  // "give me this in text form" 35s after a delivery never got lp_ref. Behind LP_CONTEXT_V2_ENABLED,
+  // tell it what just landed; the built context is reused below (one build per message).
+  let intentHint = '';
+  let lpCtx;
+  try {
+    if (user?.id && process.env.LP_CONTEXT_V2_ENABLED === 'true') {
+      const { buildLpContext, deliveryHint } = require('../services/lp-context.service');
+      lpCtx = await buildLpContext(user.id);
+      intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
+    }
+  } catch (_) { /* the hint is an optimisation; classification must never break on it */ }
+  const intent = await OpenAIService.detectIntent(messageBody, intentHint, menuChoices);
   logToFile('Intent detected', { intent: intent.type, ...(intent.rowId ? { rowId: intent.rowId } : {}) });
 
   // Update session type based on intent — only ever with the value it has always held.
@@ -2880,7 +2892,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   } else {
     // intent rides along so the LP-context tier gate can reuse the classifier's
     // lp_reference output instead of paying for a second LLM call (bd-njn7u).
-    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent);
+    await handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent, lpCtx);
   }
   } finally {
     // CRITICAL: Always stop typing indicator, even if function exits early or throws
@@ -3088,7 +3100,7 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
  * @param {Object} typingController - Typing indicator controller
  * @returns {Promise<void>}
  */
-async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null) {
+async function handleGeneralConversation(from, messageBody, user, sessionId, responseLanguage, typingController, intent = null, prebuiltLpCtx = undefined) {
   // The first word of users.name — the prompt says "use their name naturally",
   // and a whole name there is how a teacher gets called "Muhammad Asif Khan".
   const firstName = firstNameOf(user);
@@ -3169,6 +3181,8 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
       message: messageBody,
       intent,
       existingContext: featureContext,
+      // Built once above for the classifier hint (bd-wpupy) — reuse it.
+      prebuiltCtx: prebuiltLpCtx,
     });
   }
 

@@ -34,6 +34,7 @@ const Lifecycle = require('./lesson-plan-lifecycle.service');
 const { isLpV8VoicenoteEnabled } = require('../config/lp-v8-voicenote');
 const AppOpens = require('./quiz/lp-app-opens.store');
 const { pdfOffLink } = require('./lp-pdf-off');
+const { recordDeliveryMarker } = require('./lp-delivery-marker.service');
 
 const LP_VARIANT = 'niete_v8_segment';
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
@@ -449,6 +450,20 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     error_text: errorText,
     ...linkedTo(requestId),
   });
+
+  // bd-wpupy F5 (ported to staging, bd-zrdvmi.77.3): leave a trace of the hand-over in the
+  // dialogue itself, so a later "give me this in text form" has a correct antecedent.
+  // Grade/chapter only — no title or content (see the service header). Only on success.
+  if (ok) {
+    await recordDeliveryMarker({
+      userId,
+      lessonId,
+      grade: book && book.grade,
+      subject: book && (book.subject || book.subject_key),
+      chapterNumber: chapter && chapter.number,
+      segmentLabel: lesson && (lesson.day_label || null),
+    });
+  }
 
   // ── The coaching ask ──────────────────────────────────────────
   //

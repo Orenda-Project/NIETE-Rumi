@@ -515,14 +515,31 @@ ${WHATSAPP_TEXT_SHAPE}`;
       // Create a temporary conversation history with format-specific system prompt
       let systemPrompt = this._getFormatAwareSystemPrompt(format, language, firstName, opts);
 
-      // Phase 2: Inject feature context if provided (conditional injection)
-      if (featureContext) {
+      // bd-wpupy (ported to staging, bd-zrdvmi.77.3), behind LP_CONTEXT_V2_ENABLED: appended to the
+      // system prompt, featureContext sits ~10 turns away from her message and loses to recency — "give
+      // this to me in text form" bound to the previous ASSISTANT reply instead of the lesson plan. With
+      // the switch on, the context rides as its own system message IMMEDIATELY BEFORE her turn, with the
+      // reply language stated inside it (bd-eb1ec: a 4,000-char Urdu lesson block otherwise sets the reply
+      // language). Switch off = exactly the old behaviour. Built fresh per turn, so the stale-system-
+      // message filter below does not apply to it.
+      const adjacentOn = process.env.LP_CONTEXT_V2_ENABLED === 'true';
+      if (featureContext && !adjacentOn) {
         systemPrompt = systemPrompt + '\n\n' + featureContext;
         logToFile('Feature context injected into system prompt', {
           userId,
           contextLength: featureContext.length
         });
+      } else if (featureContext) {
+        logToFile('Feature context injected adjacent to the user turn', {
+          userId,
+          contextLength: featureContext.length
+        });
       }
+      const adjacentContext = featureContext && adjacentOn
+        ? `REPLY LANGUAGE: ${this._languageName(language)}. Write the whole reply in ${this._languageName(language)}, `
+          + 'even if the reference material below is in another language — translate as you rewrite.\n\n'
+          + featureContext
+        : null;
 
       // Get existing conversation history (without system message)
       // No .slice(1): getConversationHistory no longer seeds a system message, so
@@ -549,6 +566,7 @@ ${WHATSAPP_TEXT_SHAPE}`;
       const messages = [
         { role: 'system', content: systemPrompt },
         ...existingHistory,
+        ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
         ...(studentLanguageNote ? [{ role: 'system', content: studentLanguageNote }] : []),
         { role: 'user', content: userMessage }
       ];
@@ -564,7 +582,9 @@ ${WHATSAPP_TEXT_SHAPE}`;
         model: modelFor('chat.respond'),
         job: 'chat.respond',
         messages: messages,
-        max_tokens: format === 'voice' ? voiceMaxTokens : 500,
+        // bd-f9hmw: a lesson written out ran past the 500 cap and stopped mid-step; room to finish it
+        // when an adjacent lesson block rides (switch on). Voice keeps its 60-second cap.
+        max_tokens: format === 'voice' ? voiceMaxTokens : (adjacentContext ? 1200 : 500),
         temperature: 0.7,
       });
 

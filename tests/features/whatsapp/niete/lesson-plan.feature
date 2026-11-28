@@ -1341,3 +1341,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And a teacher whose school is in the coaching test gets what her group gets, switch on or off
     # bd-zrdvmi.71, queue #343: 82+ "plan too long" rows on the ICT feedback sheet (decision bd-jrarr).
     # Off by default. Unit: tests/lp-v8/lp-card-for-all.test.js.
+
+  # ADDED 2026-11-28 (bd-zrdvmi.77.3, ICT feedback sheet Lesson Plan rows 936, 937, 942, 951).
+  @e2e @L67 @no-mock-driver @config-gated @P1
+  Scenario: Right after a lesson plan, "give me this in text form" or "improve the lp" is answered from that plan
+    Given "LP_CONTEXT_V2_ENABLED" is on
+    And I have just been sent a Grades 1-5 lesson plan PDF
+    When I type "Give me this lesson plan in text form"
+    Then the reply writes that lesson's steps out as plain text, in my reply language
+    And it does not answer from older chat, ask which lesson, or open the lesson-plan menu
+    When I type "Can you improve the lp", or send a voice note "change something in the given LP"
+    Then the reply is about the plan I was just sent
+    When I type "New lp"
+    Then the lesson-plan menu opens, as before
+    # @no-mock-driver: the mock lane does not render or deliver plans, so there is no delivered plan to refer to.
+    # Unit: tests/lp-v8/bd-zrdvmi77-sheet-rows.test.js, bd-wpupy-followup-context.test.js, bd-wpupy-context-position.test.js.
