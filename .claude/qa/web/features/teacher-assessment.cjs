@@ -230,5 +230,6 @@ scenarios.push(...require("../flows/teacher-assessment-questions.cjs"));
 scenarios.push(...require("../flows/teacher-assessment-papers.cjs"));
 scenarios.push(...require("../flows/teacher-assessment-sandbox.cjs"));
 scenarios.push(...require("../flows/teacher-assessment-pagefit.cjs"));
+scenarios.push(...require("../flows/teacher-assessment-busy.cjs"));
 
 module.exports = { feature: "teacher-assessment", spec: 'tests/features/web/teacher-assessment.feature', scenarios };

@@ -315,6 +315,8 @@ export const ASSESSMENT_V2_COPY = {
     UPLOAD_FAILED: 'Not saved',
   } as Record<string, string>,
   failureFallback: 'Something went wrong',
+  // A second line under the reason, on the not-made page only, when changing her choices will not help (bd-nr8mrm.10).
+  failureHints: { MODEL_UNAVAILABLE: 'Try again in a minute' } as Record<string, string>,
   /* the FDE board pattern (copy deck §A). The pattern's own lines (holds, sections, scope, files, You add) are DATA
      from /assessment/options, never typed here. */
   fdeDoor: 'FDE pattern papers',
@@ -661,6 +663,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
     UPLOAD_FAILED: 'محفوظ نہیں ہوا',
   },
   failureFallback: 'کچھ مسئلہ ہو گیا',
+  failureHints: { MODEL_UNAVAILABLE: 'ایک منٹ بعد دوبارہ کوشش کریں' } as Record<string, string>,
   // The FDE board pattern: MACHINE-DRAFTED (copy deck §A), needs fluent-Urdu review. "FDE" stays Latin (the kit isolates it).
   fdeDoor: 'FDE pattern کے پرچے',
   fdeDoorChips: (grades: number[]) => (grades.length === 1 && grades[0] === 5
@@ -747,7 +750,7 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['join', 'fdeListChip', 'fdeChip', 'fbiseListChip', 'fbiseChip'],
   // The reasons beside a disabled button are a short line each, not a label (bd-fmf24g.34).
   // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
-  longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
+  longOk: ['why', 'failureHints', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
     'chaptersOff', 'fbiseNotOfficial', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
     'styleFdeSub', 'styleOwnSub', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'patternFixedMarks', 'seePaperBeingMade',
     // Questions: the one line that says what is asked, in the operator's own words (20 Oct), not a label.

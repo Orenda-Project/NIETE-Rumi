@@ -194,6 +194,20 @@ describe('Assessment in Urdu', () => {
     for (const en of ['Paper not made', 'No chapter text', 'Try again', 'Dismiss']) expect(screen.queryByText(en)).toBeNull();
   });
 
+  it('a paper the question writer could not make (busy): try again in a minute, no Change choices (bd-nr8mrm.10)', async () => {
+    sessionStorage.setItem(JOBS_KEY, JSON.stringify([
+      { requestId: 'req-3', label: 'Inside The Animal World', startedAt: Date.now(), status: 'failed', errorCode: 'MODEL_UNAVAILABLE', spec: { grade: 4, subject: 'science', questionCount: 15 } },
+    ]));
+    at(requestPath('req-3'), `${B}/request/:requestId`, <RequestPage />);
+    const alert = plain(screen.getByRole('alert').textContent);
+    expect(alert).toContain(U.failures.MODEL_UNAVAILABLE);
+    expect(alert).toContain(U.failureHints.MODEL_UNAVAILABLE);
+    expect(screen.getByRole('button', { name: new RegExp(U.tryAgain) })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: U.changeChoices })).toBeNull();
+    expect(screen.getByRole('button', { name: U.dismiss })).toBeTruthy();
+    expect(pageText()).not.toMatch(/minute/i);
+  });
+
   it('the paper page: its class, chips, Download, Answer key, Edit and Versions', async () => {
     at(paperPath('p-1'), `${B}/paper/:paperId`, <PaperPage />);
     expect(await screen.findByRole('button', { name: new RegExp(U.download) })).toBeTruthy();
