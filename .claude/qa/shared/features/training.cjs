@@ -1867,29 +1867,29 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true, lang = 'en' }) 
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T499', 'A child who has just joined from a class quiz link gets the child\'s /quiz, not the teacher\'s', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'driver code not written yet (bd-q8wt5e.30): needs a never-seen second phone (api.as) to join a class quiz from its QUIZ-<code> link, give a name and class, finish the chat quiz, then send /quiz within ten minutes' }, 0);
 
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T596', 'An old quiz link, with the redirect on, opens the web quiz with one button and starts nothing in chat', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'driver code not written yet (bd-q8wt5e.30): needs a class quiz code minted with the web quiz off (seeded in the run database), web_quiz_old_link_redirect=true in that DB, and a second phone (api.as) sending the QUIZ-<code> text; the page tap and class report need the web lane' }, 0);
 
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T597', 'An old quiz link with the redirect off, or for a teacher whose web quiz is off, starts the chat quiz as before', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'driver code not written yet (bd-q8wt5e.30): needs a class quiz code minted with the web quiz off (seeded in the run database), web_quiz_old_link_redirect absent/false, and a second phone (api.as) sending the QUIZ-<code> text' }, 0);
 
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T690', 'A child who types after the old link\'s button gets the same button once, not a chat reply', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'driver code not written yet (bd-q8wt5e.30): needs the T596 set-up (old code, redirect on, second phone) and then two typed texts within ten minutes with the page never opened' }, 0);
 
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T691', 'No second button after ten minutes, mid chat quiz, once the page has opened, or for a slash command', 'BLOCKED',
-      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+      { reason: 'driver code not written yet (bd-q8wt5e.30): needs the T596 set-up plus a clock moved past ten minutes, a chat quiz running on the phone, and a page-open recorded on the code' }, 0);
 
 
   // ══ T692–T695 — a child's /quiz opens their home page; a teacher's /quiz never does ══════════════
