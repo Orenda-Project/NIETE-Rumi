@@ -1,0 +1,3 @@
+{"ts":"2026-11-28T06:33:23Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"9a09152f180c","branch":"bd-nr8mrm.10-47154","user":""}
+{"ts":"2026-11-28T06:33:27Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment,fde-board-pattern spec_sync=true","sha":"9a09152f180c","branch":"bd-nr8mrm.10-47154","user":""}
+{"ts":"2026-11-28T06:35:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.7.0","sha":"9a09152f180c","branch":"bd-nr8mrm.10-47154","user":""}
