@@ -203,8 +203,9 @@ async function handleImageMessage(message, from, user = null) {
           typingController,
         });
         if (handled) {
-          // Tag idempotency so repeat sends don't fall through to vision analysis
-          await redisService.set(
+          // Tag idempotency so repeat sends don't fall through to vision analysis.
+          // SET NX (bd-zrdvmi.87): never overwrite an earlier result for this photo.
+          await redisService.setNX(
             `image:${user.id}:${imageId}`,
             JSON.stringify({ status: 'pic_lp_handled', timestamp: Date.now() }),
             IDEMPOTENCY_TTL_SECONDS
@@ -276,7 +277,7 @@ async function handleImageMessage(message, from, user = null) {
  * localized generic error message (gated by idempotencyAcquired). Returns
  * `{ idempotencyAcquired }` so the caller can update its own flag for that guard.
  */
-async function runImageAnalysis({ user, from, imageId, mimeType, caption, typingController, correlationId, startTime }) {
+async function runImageAnalysis({ user, from, imageId, mimeType, caption, typingController, correlationId, startTime, fromPicLpFallback = false }) {
   // bd-onxyu — an image no session is waiting for is an open message: the
   // general-chat switch decides. Asked HERE, not at the call site, because the
   // pic-LP coalescer's not-a-book-page fallback lands here too.
@@ -292,11 +293,28 @@ async function runImageAnalysis({ user, from, imageId, mimeType, caption, typing
 
   // Atomic idempotency check — SET NX ensures only one handler proceeds
   const idempotencyKey = `image:${user.id}:${imageId}`;
-  const idempotencyAcquired = await redisService.setNX(
+  let idempotencyAcquired = await redisService.setNX(
     idempotencyKey,
     JSON.stringify({ status: 'processing', startedAt: Date.now() }),
     IDEMPOTENCY_TTL_SECONDS
   );
+
+  // bd-zrdvmi.87 — the pic-LP coalescer sends a non-textbook photo back here. The key then holds
+  // the handler's own 'pic_lp_handled' tag, so SET NX fails and the photo was skipped as a
+  // duplicate with no reply (~890 photos in 14 days on live). Only that fallback may take over its
+  // own tag; anything else (processing, a cached reply) is still a real duplicate.
+  if (!idempotencyAcquired && fromPicLpFallback) {
+    let tag = null;
+    try { tag = JSON.parse(await redisService.get(idempotencyKey) || 'null'); } catch (e) { tag = null; }
+    if (tag && tag.status === 'pic_lp_handled') {
+      await redisService.set(
+        idempotencyKey,
+        JSON.stringify({ status: 'processing', startedAt: Date.now() }),
+        IDEMPOTENCY_TTL_SECONDS
+      );
+      idempotencyAcquired = true;
+    }
+  }
 
   if (!idempotencyAcquired) {
     // Another handler already has this image — check for cached result
@@ -683,6 +701,7 @@ async function handleCoalescedBatch({ user, from, batch }) {
         typingController: primaryTypingController,
         correlationId,
         startTime,
+        fromPicLpFallback: true,
       });
     } catch (visionErr) {
       logToFile('⚠️ runImageAnalysis from coalescer threw', {
