@@ -3,3 +3,4 @@
 {"ts":"2026-11-28T17:13:15Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=web-quiz-child-page spec_sync=true","sha":"6296ba70a2b2","branch":"bd-j1pje0-85406","user":""}
 {"ts":"2026-11-28T17:13:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (web child quiz token checks only: videos/start + from_st; teacher training quizzes untouched)","sha":"6296ba70a2b2","branch":"bd-j1pje0-85406","user":""}
 {"ts":"2026-11-28T17:17:37Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"5f42a935-aac1-46a2-97fc-5058a25c75df","sha":"6296ba70a2b2","branch":"bd-j1pje0-85406","user":""}
+{"ts":"2026-11-28T17:21:09Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current engine=2.7.0","sha":"6296ba70a2b2","branch":"bd-j1pje0-85406","user":""}
