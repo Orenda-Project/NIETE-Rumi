@@ -3,3 +3,4 @@
 {"ts":"2026-11-27T10:41:38Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of sandbox #6136, which carries the test steps)","sha":"9ceebb9f1a62","branch":"bd-ek4vxb.1-staging","user":""}
 {"ts":"2026-11-27T10:41:38Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-9ceebb9f1a62","sha":"9ceebb9f1a62","branch":"bd-ek4vxb.1-staging","user":""}
 {"ts":"2026-11-27T11:53:24Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.6.0","sha":"9ceebb9f1a62","branch":"bd-ek4vxb.1-staging","user":""}
+{"ts":"2026-11-28T00:43:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.7.0","sha":"9ceebb9f1a62","branch":"bd-ek4vxb.1-staging","user":""}
