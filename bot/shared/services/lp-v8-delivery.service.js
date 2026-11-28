@@ -357,7 +357,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
 
   // lp_whatsapp_pdf_off: her programme gets the plan in the app, so a tap already in flight gets the app link, not
   // the PDF (no download row, no survey). Not ok when the link could not go, so the Flow lets her next tap through.
-  const pdfOff = await pdfOffLink({ userId, phone, language: (user && user.preferred_language) || 'en', reason: 'lp_v8_tap', plan: `k5:${lessonId}` });
+  const pdfOff = await pdfOffLink({ userId, phone, language: (user && user.preferred_language) || null, reason: 'lp_v8_tap', plan: `k5:${lessonId}` });
   if (pdfOff.off) return { ok: pdfOff.linked, reason: 'pdf off', appLink: pdfOff.linked };
 
   // The lifecycle row of this ask, written once it has reached its outcome (soft-fail; null when

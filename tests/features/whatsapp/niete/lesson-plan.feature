@@ -1514,3 +1514,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # is dropped, never an unknown one, so the schema gate still catches real drift.
     # @coverage, not a live WhatsApp drive: no driver on this lane can make the model misspell a key.
     # Executed by tests/lp612/key-repair.test.js ("the 27 Nov live case", "any stray near-miss").
+
+  # ADDED 2026-11-28 (bd-zrdvmi.77.3, ICT feedback sheet Lesson Plan rows 936, 937, 942, 951).
+  @e2e @L154 @no-mock-driver @config-gated @P1
+  Scenario: Right after a lesson plan, "give me this in text form" or "improve the lp" is answered from that plan
+    Given "LP_CONTEXT_V2_ENABLED" is on
+    And I have just been sent a Grades 1-5 lesson plan PDF
+    When I type "Give me this lesson plan in text form"
+    Then the reply writes that lesson's steps out as plain text, in my reply language
+    And it does not answer from older chat, ask which lesson, or open the lesson-plan menu
+    When I type "Can you improve the lp", or send a voice note "change something in the given LP"
+    Then the reply is about the plan I was just sent
+    When I type "New lp"
+    Then the lesson-plan menu opens, as before
+    # @no-mock-driver: the mock lane does not render or deliver plans, so there is no delivered plan to refer to.
+    # Unit: tests/lp-v8/bd-zrdvmi77-sheet-rows.test.js, bd-wpupy-followup-context.test.js, bd-wpupy-context-position.test.js.
