@@ -2,3 +2,4 @@
 {"ts":"2026-11-28T06:47:03Z","hook":"post-commit","event":"armed","switch":"","detail":"features=teacher-assessment spec_sync=true","sha":"65bcfdc30f97","branch":"bd-nr8mrm.10-47154","user":""}
 {"ts":"2026-11-28T06:47:08Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-assessment spec_sync=true","sha":"65bcfdc30f97","branch":"bd-nr8mrm.10-47154","user":""}
 {"ts":"2026-11-28T07:02:39Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"fde-board-pattern=none-needed (shared failure-screen file only; FDE behaviour unchanged; web run 13/26, FB20 fails as it did on 27 Nov before this change)","sha":"65bcfdc30f97","branch":"bd-nr8mrm.10-47154","user":""}
+{"ts":"2026-11-28T07:05:41Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"e73fb571-116e-4b3e-89d7-6561c47dde5e","sha":"65bcfdc30f97","branch":"bd-nr8mrm.10-47154","user":""}
