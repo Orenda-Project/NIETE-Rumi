@@ -7,3 +7,4 @@
 {"ts":"2026-11-27T01:57:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"80e9106d44c6","branch":"bd-qyi45h.18-tomain","user":""}
 {"ts":"2026-11-27T01:57:26Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"80e9106d44c6","branch":"bd-qyi45h.18-tomain","user":""}
 {"ts":"2026-11-27T13:17:27Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-80e9106d44c6","sha":"80e9106d44c6","branch":"bd-qyi45h.18-tomain","user":""}
+{"ts":"2026-11-28T00:43:44Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.7.0","sha":"80e9106d44c6","branch":"bd-qyi45h.18-tomain","user":""}
