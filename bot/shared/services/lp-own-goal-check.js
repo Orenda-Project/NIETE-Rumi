@@ -24,6 +24,8 @@ function fixInstruction(r, goal) {
     ...found,
     'Correct every wrong statement and make every listed section work towards the goal. Keep every section and the same '
       + 'layout; change only what is needed. End each section with one short line on how it serves the goal.',
+    // bd-snkn32.58.18 — a wrong example word ("bazaar" for short a) was re-labelled, not swapped, and still wrong.
+    'Where an example word, sentence or answer is wrong, do not explain it again: replace it with a simple one that clearly fits.',
   ].join('\n');
 }
 
