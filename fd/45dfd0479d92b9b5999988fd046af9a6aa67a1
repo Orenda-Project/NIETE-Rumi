@@ -4,3 +4,4 @@
 {"ts":"2026-11-27T01:58:00Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"fd45dfd0479d","branch":"bd-zrdvmi.71-sandbox","user":""}
 {"ts":"2026-11-27T01:58:00Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"fd45dfd0479d","branch":"bd-zrdvmi.71-sandbox","user":""}
 {"ts":"2026-11-27T01:58:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"fd45dfd0479d","branch":"bd-zrdvmi.71-sandbox","user":""}
+{"ts":"2026-11-28T00:44:02Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.7.0","sha":"fd45dfd0479d","branch":"bd-zrdvmi.71-sandbox","user":""}
