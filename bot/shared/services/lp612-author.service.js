@@ -1844,9 +1844,13 @@ async function runGates(doc, renderCheck, meta = {}) {
   });
 
   let render = [];
+  // bd-xkkw9.5: true only when the render gate ran to an answer, so `fitsPageCap` never reads an
+  // unchecked document's empty list as "fits".
+  let renderChecked = false;
   if (typeof renderCheck === 'function') {
     try {
       render = (await renderCheck(doc)) || [];
+      renderChecked = true;
     } catch (e) {
       logToFile('lp612 author: render gate threw, continuing on lint alone', { error: e.message }, 'warn');
       render = [];
@@ -1859,6 +1863,7 @@ async function runGates(doc, renderCheck, meta = {}) {
     // bd-zrdvmi.44.1: a poem reading lesson must paraphrase the poem in class (sheet row 728).
     lint: [...r.fails, ...readingStepDefects(doc, meta.skillType), ...poemParaphraseDefects(doc, meta.skillType, meta.subtopic)],
     render,
+    renderChecked,
     warns: r.warns.slice(),
   };
 }
@@ -2023,9 +2028,21 @@ const notWorseVisual = (a, b, aDoc, bDoc) => {
     const bMeets = meetsSubjectMinimum(bDoc);
     // Never take a candidate that gave up a minimum the document we already hold was meeting.
     if (aMeets !== bMeets) return aMeets;
+    // bd-xkkw9.5 — nor one that gave up a page-cap fit the held document has. Below the figure
+    // tier (a figure is never traded for a page) and above the count: 4 of the 24 over-cap
+    // lessons of 19-28 Nov held a draft at 4 TEACH pages and swapped it for one at 5 on a tied
+    // or lower lint count, though the held draft's lint findings would have shipped either way.
+    if (fitsPageCap(b) && overPageCap(a)) return false;
   }
   return notWorse(a, b);
 };
+
+/** The renderer's hard cap breach (`PAGE TARGET:`, the soft target, is not a breach). */
+const isPageCapBreach = (d) => /^PAGE COUNT:/.test(String(d));
+const overPageCap = (g) => gateFails(g).some(isPageCapBreach);
+/** A fit the render gate VERIFIED: it ran to an answer, and that answer was not an infra failure. */
+const fitsPageCap = (g) => g.renderChecked === true && !overPageCap(g)
+  && !gateFails(g).some((d) => String(d).startsWith('RENDER_INFRA:'));
 
 /**
  * How many consecutive rounds may reduce no blocking defect before the ladder gives up.

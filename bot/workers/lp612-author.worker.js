@@ -1030,7 +1030,21 @@ async function process(payload) {
         Array.isArray(res && res.warnings) ? res.warnings.filter((w) => String(w).startsWith('PAGE TARGET:')) : []
       );
 
+      // bd-xkkw9.5 — THE GATE MEASURES THE PAGE THE TEACHER GETS. The book crops used to be
+      // staged only before the final render, so every gate render printed each book figure as
+      // its words-only card and the final printed the picture: 5 of the 24 over-cap lessons of
+      // 19-28 Nov passed the gate at 4 TEACH pages and shipped at 5. Staging is best-effort here
+      // exactly as it is below — a crop that fails to arrive degrades to the card in both renders.
+      const stageForGate = async (candidate) => {
+        const refs = refsFromDoc(candidate);
+        if (!refs.length) return;
+        try {
+          await stageFigures({ refs, outDir: tmpDir, correlationId, segmentId, renderId });
+        } catch (_) { /* the render below still measures the draft */ }
+      };
+
       const attemptRenderCheck = async (candidate) => {
+        await stageForGate(candidate);
         try {
           const res = await renderLessonPlan({
             lpDoc: candidate,
