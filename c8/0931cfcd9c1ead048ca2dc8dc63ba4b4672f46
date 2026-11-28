@@ -2,3 +2,4 @@
 {"ts":"2026-11-28T15:09:48Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"c80931cfcd9c","branch":"bd-zrdvmi.77.3-76933","user":""}
 {"ts":"2026-11-28T15:09:54Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=lesson-plan spec_sync=true","sha":"c80931cfcd9c","branch":"bd-zrdvmi.77.3-76933","user":""}
 {"ts":"2026-11-28T16:32:41Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"lesson-plan=none-needed (spec already synced: L154 committed in ee0e4d9bd8, merged as staging 44cee9ee70; c80931c was superseded and never merged; L154 is @no-mock-driver)","sha":"c80931cfcd9c","branch":"bd-zrdvmi.77.3-76933","user":""}
+{"ts":"2026-11-28T16:32:42Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"c779d9ff-f899-4b12-ac5d-cd10c994e4f1","sha":"c80931cfcd9c","branch":"bd-zrdvmi.77.3-76933","user":""}
