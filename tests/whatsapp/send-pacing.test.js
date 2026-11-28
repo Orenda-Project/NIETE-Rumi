@@ -155,14 +155,54 @@ describe('a Meta rate-limit refusal is retried, not dropped', () => {
   });
 
   test('the retry budget is bounded: three attempts, then an error-level give-up and false', async () => {
-    global.fetch.mockResolvedValue(refused(131056));
+    global.fetch.mockResolvedValue(refused(130429));
 
     await expect(WhatsAppService.sendMessage(PHONE_A, 'hi')).resolves.toBe(false);
 
     expect(global.fetch).toHaveBeenCalledTimes(3);
     const events = eventsNamed('whatsapp.rate_limited');
     expect(events.map((e) => e[2])).toEqual(['warn', 'warn', 'error']);
-    expect(events[2][1]).toMatchObject({ code: 131056, attempt: 3, gaveUp: true });
+    expect(events[2][1]).toMatchObject({ code: 130429, attempt: 3, gaveUp: true });
+  });
+
+  // Production, 30 days to 27 Nov 2026: every real message lost to 131056 gave up at attempt 3,
+  // ~25 s after the first refusal — the pair penalty outlasted the three-try cap while the
+  // phone's own 120 s wait budget was barely touched. A pair refusal now keeps retrying inside
+  // that budget.
+  test('131056 four times, then accepted: still delivered (the pair penalty outlasted three tries)', async () => {
+    global.fetch
+      .mockResolvedValueOnce(refused(131056)).mockResolvedValueOnce(refused(131056))
+      .mockResolvedValueOnce(refused(131056)).mockResolvedValueOnce(refused(131056))
+      .mockResolvedValueOnce(ok('wamid.LATE'));
+
+    await expect(WhatsAppService.sendMessage(PHONE_A, 'next question')).resolves.toBe(true);
+
+    expect(global.fetch).toHaveBeenCalledTimes(5);
+    const events = eventsNamed('whatsapp.rate_limited');
+    expect(events.map((e) => e[2])).toEqual(['warn', 'warn', 'warn', 'warn']);
+    expect(events.some((e) => e[1].gaveUp)).toBe(false);
+  });
+
+  test('131056 retries stop once the next backoff would pass WA_PAIR_MAX_WAIT_MS', async () => {
+    // base 20 ms: backoffs ≈ 20, 40, 80 (+ up to 10 ms jitter) — the third retry would end past 100 ms.
+    process.env.WA_PAIR_MAX_WAIT_MS = '100';
+    global.fetch.mockResolvedValue(refused(131056));
+
+    await expect(WhatsAppService.sendMessage(PHONE_A, 'hi')).resolves.toBe(false);
+
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    const last = eventsNamed('whatsapp.rate_limited').pop();
+    expect(last[2]).toBe('error');
+    expect(last[1]).toMatchObject({ code: 131056, attempt: 3, gaveUp: true });
+  });
+
+  test('131056 that never clears is still bounded by a hard attempt cap', async () => {
+    global.fetch.mockResolvedValue(refused(131056));
+
+    await expect(WhatsAppService.sendMessage(PHONE_A, 'hi')).resolves.toBe(false);
+
+    expect(global.fetch).toHaveBeenCalledTimes(8);
+    expect(eventsNamed('whatsapp.rate_limited').pop()[1]).toMatchObject({ attempt: 8, gaveUp: true });
   });
 
   test('backoff grows between attempts', async () => {
