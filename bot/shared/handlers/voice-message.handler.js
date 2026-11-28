@@ -1387,12 +1387,14 @@ async function handleVoiceMessage(message, from, user = null) {
     // ASKS by voice about the lesson she was just sent; the reply must know
     // what that lesson says. Soft-fail: null keeps today's behaviour.
     let featureContext = null;
+    const lpOut = {}; // bd-zrdvmi.77.3.3: chat cut to "since the plan landed" for plan follow-ups
     if (user?.id) {
       featureContext = await injectLpContext({
         userId: user.id,
         message: transcription,
         intent,
         existingContext: null,
+        out: lpOut,
       });
     }
 
@@ -1402,7 +1404,8 @@ async function handleVoiceMessage(message, from, user = null) {
       'voice', // outputFormat: voice response
       detectedLanguage, // outputLanguage: mirror user's language
       firstName, // firstName: for personalization
-      featureContext // bd-njn7u: what she was recently given, tier-gated
+      featureContext, // bd-njn7u: what she was recently given, tier-gated
+      { historySince: lpOut.historySince }
     );
     logToFile('AI response generated (format-aware)', {
       response: aiResponse,

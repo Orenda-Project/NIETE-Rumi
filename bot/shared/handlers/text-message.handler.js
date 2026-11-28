@@ -3267,6 +3267,8 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
 
   // Phase 2: Conditional Feature Context Injection
   let featureContext = null;
+  // bd-zrdvmi.77.3.3: set by injectLpContext when she clearly means the plan just sent.
+  const lpOut = {};
   // A child has no lesson plans, no coaching sessions and no past work of the
   // kind this context describes — and the block below would hand a teacher's
   // material to a pupil. Skipped, not filtered.
@@ -3290,6 +3292,7 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
       existingContext: featureContext,
       // Built once above for the classifier hint (bd-wpupy) — reuse it.
       prebuiltCtx: prebuiltLpCtx,
+      out: lpOut,
     });
   }
 
@@ -3305,7 +3308,7 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
     featureContext, // Phase 2: Feature context for past work references
     isStudent
       ? { persona: 'student', studentClass: studentVerdict.studentClass || null }
-      : {}
+      : { historySince: lpOut.historySince }
   );
   logToFile('AI response generated (format-aware)', {
     response: aiResponse, language: replyLanguage, firstName: isStudent ? null : firstName,

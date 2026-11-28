@@ -726,6 +726,11 @@ function ambiguityLine(lessonIds) {
     + 'never answer about one of them as if she had chosen it.';
 }
 
+// bd-zrdvmi.77.3.3: decisions sure enough to cut the chat to "since the plan landed". The
+// margin keeps her own request for the plan, sent moments before it arrived.
+const HISTORY_CUT_REASONS = new Set(['explicit-reference', 'deictic-follow-up']);
+const HISTORY_CUT_MARGIN_MS = 30 * 1000;
+
 // Injectable for unit tests only — production always uses the real builder.
 let _buildLpContext = buildLpContext;
 function __setBuildLpContextForTests(fn) { _buildLpContext = fn || buildLpContext; }
@@ -743,7 +748,7 @@ function __setBuildLpContextForTests(fn) { _buildLpContext = fn || buildLpContex
  * @param {{userId:string, message:string, intent?:{lp_reference?:boolean}, existingContext?:string|null}} args
  * @returns {Promise<string|null>} the featureContext to pass on
  */
-async function injectLpContext({ userId, message, intent, existingContext = null, prebuiltCtx }) {
+async function injectLpContext({ userId, message, intent, existingContext = null, prebuiltCtx, out = null }) {
   try {
     // The handler already builds this to construct the classifier's delivery
     // hint. Reusing it keeps this one DB read per message, not two.
@@ -760,6 +765,20 @@ async function injectLpContext({ userId, message, intent, existingContext = null
     } else {
       const legacy = !!(intent && intent.lp_reference) || messageReferencesLp(message, ctx.referenceTerms);
       decision = { tier: legacy ? 'B' : 'A', ask: false, lessonIds: ctx.lessonIds, why: 'legacy' };
+    }
+
+    // bd-zrdvmi.77.3.3: when the resolver is sure she means the plan she was just given, the
+    // chat from before that plan landed is left out of the model's view. Staging, 28 Nov: a
+    // science topic typed 3 min earlier beat the maths plan she then opened, even with the
+    // plan right before her turn ("give me this lesson plan in text form" -> a promised
+    // science plan that never came). bd-wpupy measured the same block answering right with
+    // no history. Behind the same switch: legacy decisions carry why='legacy'.
+    if (out && decision.tier === 'B' && !decision.ask && HISTORY_CUT_REASONS.has(decision.why)) {
+      const landed = (ctx.entries || [])
+        .filter((e) => e && e.delivered_at && (decision.lessonIds || []).includes(e.lesson_id))
+        .map((e) => new Date(e.delivered_at).getTime())
+        .filter(Number.isFinite);
+      if (landed.length) out.historySince = new Date(Math.max(...landed) - HISTORY_CUT_MARGIN_MS).toISOString();
     }
 
     let lpBlock = decision.tier === 'B' ? `${ctx.identityLine}\n\n${ctx.fullBlock}` : ctx.identityLine;
