@@ -1,0 +1,2 @@
+{"ts":"2026-11-28T14:58:10Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test spec_sync=true","sha":"08f72b96aa8b","branch":"bd-zrdvmi.77.3-76933","user":""}
+{"ts":"2026-11-28T14:58:16Z","hook":"commit-e2e","event":"spec-stale","switch":"","detail":"not driven: registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test owe their Gherkin","sha":"08f72b96aa8b","branch":"bd-zrdvmi.77.3-76933","user":""}
