@@ -2340,3 +2340,13 @@ Feature: Web child quiz page on the portal
     When the child taps "Practise for your test" again
     Then a short message says there are no rounds left today and the card stays
     And the last round's result does not offer "Practise again"
+
+  # bd-j1pje0 (queue #417): a FINISHED quiz reopened after its 7-day session pass ran out keeps its result card;
+  # "more videos" must still start a lesson (21-28 Nov on NIETE main every tap said "oops": more_start_401).
+  @WQ291
+  Scenario: A child reopening a quiz finished more than 7 days ago can still start a lesson from "more videos"
+    Given a child finished a class quiz and the phone kept the result
+    And the result's session pass is more than 7 days old
+    When the link is opened again and the child taps a lesson under "more videos"
+    Then the lesson's page opens with no "oops" message
+    And the lesson's quiz starts for the same child with no name to pick

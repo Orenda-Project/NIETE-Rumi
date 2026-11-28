@@ -1333,8 +1333,9 @@ async function startSessionTimed(body = {}, mark = () => {}, { device = null } =
     }
   } else if (body.from_st) {
     // "Watch another video": the session token of the quiz the child just played says who they
-    // are. Accepted only for a session on a code of the same teacher.
-    const tok = T.verify(body.from_st, 's');
+    // are. Accepted only for a session on a code of the same teacher; genuine but past its 7-day life is fine, the
+    // same child reopening a quiz finished weeks ago (bd-j1pje0).
+    const tok = T.verify(body.from_st, 's', { allowExpired: true });
     if (!tok || !tok.sid) fail(401, 'bad_token');
     const { data: prev } = await dbRead('startSessionTimed:quiz_sessions:2', (db) => db.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle());
     if (!prev || !prev.student_id || prev.user_id) fail(401, 'bad_token');

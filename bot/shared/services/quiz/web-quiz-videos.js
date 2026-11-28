@@ -504,7 +504,9 @@ async function start(body = {}, hooks = {}) {
     return { code: c.code, k: T.chipId(c.id, who.studentId) };
   }
   const ctx = await WebQuiz.resolveCode(body.code);
-  const tok = T.verify(body.st, 's');
+  // A genuine token of this class code, even past its 7-day life (bd-j1pje0): a child reopening a quiz they finished
+  // weeks ago still sees "more videos" and must be able to start one. The signature and the class are still required.
+  const tok = T.verify(body.st, 's', { allowExpired: true });
   if (!tok || tok.sc !== ctx.shareCodeId) fail(401, 'bad_token');
   if (!VID_RX.test(vid)) fail(400, 'bad_request');
   const { video, vq, lang } = await lessonOf(vid, fail);
