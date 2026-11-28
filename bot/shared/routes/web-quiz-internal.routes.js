@@ -50,6 +50,7 @@ const WebQuizArt = require('../services/quiz/web-quiz-art');
 const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 // The ranked next thing on a result (web_quiz_next_offer), required on use.
 const NextOffer = () => require('../services/quiz/web-quiz-next-offer-result');
+const PracticeDoor = () => require('../services/quiz/test-practice/door');
 const AfterVideo = () => require('../services/quiz/web-quiz-next-offer-video');
 // a scored read's coarse feedback band on every result body, and the menu's read_feedback (web_quiz_read_feedback)
 const ReadFeedback = () => require('../services/quiz/web-quiz-read-feedback');
@@ -157,7 +158,9 @@ router.post('/finish', handle(async (req) => {
   // The finish card (web_quiz_card_v3): {card_v3: true} with the switch on, else nothing added.
   const card = Object.assign(out, await CardImage.field());
   // The ranked next thing (web_quiz_next_offer; off -> {} and the card is today's).
-  return { ...card, ...(await NextOffer().finishField(req.body || {}, card, { device: req.get('x-wq-device') || null })) };
+  const next = await NextOffer().finishField(req.body || {}, card, { device: req.get('x-wq-device') || null });
+  // The practice door (ab_quiz_practice_door; off -> {} after one switch read, and the body is today's).
+  return { ...card, ...next, ...(await PracticeDoor().field(req.body || {}, card)) };
 }));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
@@ -432,6 +435,8 @@ router.post('/teacher/queue/link-codes', handle((req) => JoinQueue().linkClassCo
 // ── standing class link (web_quiz_class_link; off → every /cl answer is 404 not_found) ──
 router.use('/cl', require('./web-quiz-class-link.routes'));
 // ── end standing class link ──
+// ── practice door (ab_quiz_practice_door; off -> every /practice answer is 404 not_found) ──
+router.use('/practice', require('./web-quiz-practice.routes'));
 // ── GET /edge: the page switches a fresh portal process would learn from its first payload (web-quiz-edge-learn.js;
 // web_quiz_edge_learn, off -> {learn:false}, else {learn:true, fast, brand, rt, ui?, one_face?}) ──
 router.get('/edge', handle(() => EdgeLearn().answer()));

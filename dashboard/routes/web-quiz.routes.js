@@ -205,6 +205,9 @@ const API_ROUTES = [
   // a child joins on their own (quiz_student_join; the bot answers {off:true} with it off): the grade tap, the one write
   { method: 'post', path: '/api/wq/join/grade', limiter: 'read' },
   { method: 'post', path: '/api/wq/join', limiter: 'session' },
+  // the practice door (ab_quiz_practice_door; the bot answers 404 while it is off): topics, a round, its result
+  { method: 'post', path: '/api/wq/practice/start', limiter: 'session' },
+  { method: 'post', path: '/api/wq/practice/finish', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -235,7 +238,7 @@ function hasWords(payload) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js', 'wq-practice.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
