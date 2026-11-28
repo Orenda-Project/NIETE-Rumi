@@ -198,6 +198,8 @@ export function RequestPage() {
   } else if (seen?.status === 'failed') {
     title = C.notMadeTitle;
     const busy = retrying.has(requestId);
+    // Busy: the same choices will work in a minute, so no Change choices (bd-nr8mrm.10).
+    const hint = (seen.errorCode && C.failureHints[seen.errorCode]) || '';
     body = (
       <div className="flex flex-col items-center gap-4 pt-4">
         <span className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#fee4e2] text-[#c8331f]">
@@ -207,7 +209,10 @@ export function RequestPage() {
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fee4e2] text-[#c8331f]">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </span>
-          <span className="flex-1 text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
+          <span className="flex flex-1 flex-col">
+            <span className="text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
+            {hint && <span className="text-[15px] text-[#4b5563]">{hint}</span>}
+          </span>
           {fde && <Chip>{patternChip}</Chip>}
         </div>
         <div className="w-full">{card}</div>
@@ -228,7 +233,7 @@ export function RequestPage() {
           {busy ? <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" /> : <RotateCcw className="h-5 w-5" aria-hidden="true" />}
           {C.tryAgain}
         </button>
-        {spec && (
+        {spec && !hint && (
           <button
             type="button"
             onClick={() => { setPicks(fromSpec(spec, name || null)); navigate(newPaperPath('check')); }}
