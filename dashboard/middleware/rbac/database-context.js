@@ -13,7 +13,7 @@
  * 1. Get user ID from session (req.session.userId)
  * 2. Get database client from pool
  * 3. For a signed-in admin, req.dbClient runs every statement in its own transaction under
- *    SET LOCAL ROLE portal_app_user + set_config('app.portal_user_id', userId, true)
+ *    set_config('app.portal_user_id', userId, true)
  * 4. Release the client after the response via res.on('finish')
  *
  * bd-sex15q.50: prod's portal is on the 6543 TRANSACTION pooler, where consecutive statements of one client can run on
@@ -21,6 +21,9 @@
  * stayed on whichever backend took them: another request's statements (a coach's, COACHIP's own pool.query) could run
  * as portal_app_user with this admin's id, and this admin's next statement could run on a backend with neither.
  * Transaction-local settings end with their transaction, so nothing is left on a pooled backend.
+ * No role switch: on prod, portal_app_user's only policies on coaching_sessions, conversations and lesson_plans are
+ * auth.role() = 'service_role' (false on a direct connection), so as that role the admin read 0 rows. It scoped nothing
+ * per user; scope is enforced in application code.
  *
  * Bead: - Fix portal database connection pool leak
  */
@@ -47,9 +50,9 @@ const CLOSES = /^(COMMIT|END|ROLLBACK|ABORT)\b(?!\s+TO\b)/;
 
 /**
  * bd-sex15q.50: the query surface req.dbClient gets for a signed-in admin. Each statement runs as
- *   BEGIN; SET LOCAL ROLE portal_app_user; set_config('app.portal_user_id', userId, true); <statement>; COMMIT
+ *   BEGIN; set_config('app.portal_user_id', userId, true); <statement>; COMMIT
  * so it keeps today's autocommit semantics (a failed statement does not poison the next) and holds a pooled backend only
- * while it runs. A handler's own BEGIN … COMMIT gets the role and id once, at its BEGIN. Statements are queued, so a
+ * while it runs. A handler's own BEGIN … COMMIT gets the id once, at its BEGIN. Statements are queued, so a
  * Promise.all on req.dbClient cannot interleave one statement's BEGIN with another's COMMIT.
  */
 function scopedClient(client, userId) {
@@ -57,7 +60,6 @@ function scopedClient(client, userId) {
   let pending = 0;
   let ownTransaction = false;
   const scope = async () => {
-    await client.query('SET LOCAL ROLE portal_app_user');
     await client.query("SELECT set_config('app.portal_user_id', $1::uuid::text, true)", [userId]);
   };
   const run = async (args) => {
@@ -97,7 +99,7 @@ function scopedClient(client, userId) {
 
 /**
  * Database Context Middleware
- * Applies portal_app_user role and sets user context for RLS
+ * Sets the signed-in admin's user context (app.portal_user_id), transaction-local
  */
 async function setDatabaseContext(req, res, next) {
   // bd-sex15q.49: a hashed static chunk needs no RLS. Checking a client out for it held a pooler slot for the whole
@@ -148,7 +150,7 @@ async function setDatabaseContext(req, res, next) {
 
     const isAuthenticated = req.session && req.session.userId;
 
-    // Apply RLS context for authenticated users, one transaction per statement (bd-sex15q.50)
+    // The admin's user context, one transaction per statement (bd-sex15q.50)
     scoped = isAuthenticated ? scopedClient(client, req.session.userId) : null;
     req.dbClient = scoped || client;
 
