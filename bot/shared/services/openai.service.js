@@ -70,7 +70,10 @@ class OpenAIService {
       for (const msg of dbHistory) {
         history.push({
           role: msg.role,
-          content: msg.content
+          content: msg.content,
+          // bd-zrdvmi.77.3.3: when it was said, so a plan follow-up can read only the chat
+          // since that plan landed. Stripped before anything reaches the model.
+          at: msg.created_at || null
         });
       }
 
@@ -555,6 +558,16 @@ ${WHATSAPP_TEXT_SHAPE}`;
       const existingHistory = (await this.getConversationHistory(userId))
         .filter((m) => m.role !== 'system');
 
+      // bd-zrdvmi.77.3.3: a follow-up about the plan she was just given reads only the chat
+      // since that plan landed (opts.historySince, set by injectLpContext). Older turns — a
+      // different topic she typed minutes before — outranked the plan on staging. Turns with
+      // no time are left out under the cut. Storage below still keeps the whole history.
+      const sinceMs = opts && opts.historySince ? new Date(opts.historySince).getTime() : NaN;
+      const shownHistory = (Number.isFinite(sinceMs)
+        ? existingHistory.filter((m) => m.at && new Date(m.at).getTime() >= sinceMs)
+        : existingHistory
+      ).map((m) => ({ role: m.role, content: m.content }));
+
       // A child's reply language is decided by the caller for this turn and
       // stated right before the child's message: a rule in the system prompt,
       // ~10 turns away, lost to the language of the chat's earlier replies.
@@ -565,7 +578,7 @@ ${WHATSAPP_TEXT_SHAPE}`;
       // Build new history with format-specific system prompt
       const messages = [
         { role: 'system', content: systemPrompt },
-        ...existingHistory,
+        ...shownHistory,
         ...(adjacentContext ? [{ role: 'system', content: adjacentContext }] : []),
         ...(studentLanguageNote ? [{ role: 'system', content: studentLanguageNote }] : []),
         { role: 'user', content: userMessage }
@@ -600,8 +613,8 @@ ${WHATSAPP_TEXT_SHAPE}`;
       // system prompt is composed fresh per request; history is turns only.
       const newHistory = [
         ...existingHistory,
-        { role: 'user', content: userMessage },
-        { role: 'assistant', content: aiResponse }
+        { role: 'user', content: userMessage, at: new Date().toISOString() },
+        { role: 'assistant', content: aiResponse, at: new Date().toISOString() }
       ];
 
       // Keep only last N messages to manage memory

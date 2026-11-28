@@ -1356,3 +1356,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the lesson-plan menu opens, as before
     # @no-mock-driver: the mock lane does not render or deliver plans, so there is no delivered plan to refer to.
     # Unit: tests/lp-v8/bd-zrdvmi77-sheet-rows.test.js, bd-wpupy-followup-context.test.js, bd-wpupy-context-position.test.js.
+
+  # ADDED 2026-11-28 (bd-zrdvmi.77.3.3, staging phone check of rows 936, 937, 942, 951).
+  @e2e @L156 @no-mock-driver @config-gated @P1
+  Scenario: A topic typed earlier does not outrank the plan I have just opened
+    Given "LP_CONTEXT_V2_ENABLED" is on
+    And I typed "Grade 5 Science, topic: transparent, translucent and opaque objects" a few minutes ago
+    And I have just opened the Grade 5 Mathematics chapter 3 day 1 plan in the teacher app
+    When I type "give me this lesson plan in text form"
+    Then the reply writes out the Grade 5 Mathematics chapter 3 day 1 plan
+    And it does not promise a science plan, or say "give me a moment" with nothing after it
+    When I type "improve the lp"
+    Then the reply improves that maths plan and keeps its steps, not a new general plan
+    # @no-mock-driver: the mock lane does not open plans in the app, so there is no plan to refer to.
+    # Unit: tests/lp-v8/bd-zrdvmi77-3-3-history-since.test.js.
