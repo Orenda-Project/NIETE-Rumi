@@ -156,6 +156,28 @@ on('WQ166', 'off', async (page, ctx) => {
   } finally { await L.setFlag(ctx, page, 'web_quiz_library', 'true'); }
 });
 
+// bd-j1pje0 (queue #417): a FINISHED sitting reopened after its 7-day session pass ran out. The pass is signed by this
+// run's bot with its clock 10 days back (genuine, expired). The demo seed has no lesson bank (BANK), so the lesson tap
+// is proved at its two server gates: videos/start gets past the pass check (an unknown lesson is 404, never 401), and
+// the lesson's session (from_st) knows the same child with no name to pick. A forged pass is still 401.
+on('WQ291', 'off', async (page, ctx) => {
+  await L.setMode(ctx, page, 'off');
+  const done = await apiFinish(page, ctx, CODES.OPEN, 'Old291', -1);
+  const T = L.tokens(ctx);
+  const p = JSON.parse(Buffer.from(String(done.st).split('.')[0], 'base64url').toString());
+  const real = Date.now; Date.now = () => real() - 10 * 86400000;
+  let old; try { old = T.signSession({ sessionId: p.sid, deviceRef: p.d, shareCodeId: p.sc }); } finally { Date.now = real; }
+  expect(T.verify(old, 's') === null, 'the 10-day-old pass is not expired');
+  const vid = '00000000-0000-4000-8000-000000000291';
+  const start = await api(page, ctx, 'POST', 'videos/start', { code: CODES.OPEN, st: old, vid });
+  expect(start.status !== 401, 'videos/start refused the genuine expired pass (401)');
+  const forged = await api(page, ctx, 'POST', 'videos/start', { code: CODES.OPEN, st: old.slice(0, -2) + 'xx', vid });
+  expect(forged.status === 401, 'a forged pass answered ' + forged.status + ', not 401');
+  const s = await api(page, ctx, 'POST', 'session', { code: CODES.OPEN, from_st: old });
+  expect(s.status === 200 && s.json && s.json.child && /Old291/.test(s.json.child.first || s.json.child.name || ''), 'the lesson session did not know the child: ' + s.status);
+  return { videosStart: start.status, forged: forged.status, session: s.status };
+});
+
 for (const [id, why] of [
   ['WQ174', 'the WhatsApp composer\'s own preview render cannot be driven from this lane (no WhatsApp); the og tags and the picture it would fetch are proved in WQ139/WQ141/WQ183'],
   ['WQ161', BANK], ['WQ162', BANK], ['WQ163', BANK], ['WQ164', BANK], ['WQ165', BANK], ['WQ167', BANK], ['WQ168', BANK], ['WQ169', BANK],

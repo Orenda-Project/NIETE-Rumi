@@ -310,6 +310,7 @@ const TABLE = [
   { id: 'WQ288', title: 'With the switch on, a quiz that is not a grades 1-5 English lesson quiz shows no door' },
   { id: 'WQ289', title: 'In arm B a child plays a practice round in English or Urdu and sees the lesson\'s worked answers' },
   { id: 'WQ290', title: 'A child in arm B gets at most 3 practice rounds a day' },
+  { id: 'WQ291', title: 'A child reopening a quiz finished more than 7 days ago can still start a lesson from \'more videos\'' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
