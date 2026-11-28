@@ -13,8 +13,8 @@
  * WHAT IT DELIBERATELY DOES NOT CARRY. Grade, chapter and segment only — no
  * chapter title, no topic, no lesson content. A marker naming
  * "Ch 1 Green Guardians of Earth" hands the model a title to elaborate from
- * when it lacks the body, which is the grounding-drift pattern (bd-1581 on the
- * sibling bot) in miniature. The marker's job is to ANCHOR a pronoun, not to
+ * when it lacks the body, which is the grounding-drift pattern seen on the
+ * sibling bot, in miniature. The marker's job is to ANCHOR a pronoun, not to
  * inform an answer; the answer comes from lp-context's <lesson_reference>.
  *
  * DEDUPED. The same lesson is routinely delivered several times in a couple of
