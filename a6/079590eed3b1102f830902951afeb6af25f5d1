@@ -1,3 +1,4 @@
 {"ts":"2026-11-28T15:14:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"a6079590eed3","branch":"bd-zrdvmi.77.3.1-78023","user":""}
 {"ts":"2026-11-28T15:14:37Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"a6079590eed3","branch":"bd-zrdvmi.77.3.1-78023","user":""}
 {"ts":"2026-11-28T15:14:37Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (lesson-plan)","sha":"a6079590eed3","branch":"bd-zrdvmi.77.3.1-78023","user":""}
+{"ts":"2026-11-28T15:14:39Z","hook":"pre-push","event":"pushed-undriven","switch":"","detail":"bd-zrdvmi-77-3-1-sandbox: E-DUPID:lesson-plan","sha":"a6079590eed3","branch":"bd-zrdvmi.77.3.1-78023","user":""}
