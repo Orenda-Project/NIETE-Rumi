@@ -76,6 +76,9 @@ const getOpenRouter = () => {
   const client = _getOpenRouterRaw();
   if (!_wrapped) {
     _wrapped = true;
+    // bd-9xnyql: the backup key goes innermost, so spend recording sees the answer that won.
+    require('../../llm-backup-key').withBackupKey(client, (apiKey) =>
+      new OpenAI({ apiKey, baseURL: 'https://openrouter.ai/api/v1', maxRetries: 0 }));
     require('../../llm-client').withSpendRecording(client);
   }
   return client;
