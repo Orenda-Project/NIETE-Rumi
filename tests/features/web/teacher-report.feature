@@ -8,7 +8,7 @@ Feature: Teacher's web quiz report on the portal
     Given a teacher with a sent quiz "Parts of a plant" for class 5-A of 4 children
     And 2 children of 5-A have finished it
 
-  @T340
+  @TR01 @T340
   Scenario: The report shows who has not played, greyed, with a one-tap reminder
     When the teacher opens the report link
     Then the page shows "2 of 4 played", the average and the hardest question
@@ -16,14 +16,14 @@ Feature: Teacher's web quiz report on the portal
     And "Remind the class" and "Copy message" are shown under the list
     And the page carries no script and is never cached or indexed
 
-  @T341
+  @TR02 @T341
   Scenario: Remind the class opens WhatsApp with a message that names nobody
     When the teacher taps "Remind the class"
     Then WhatsApp opens its share sheet with the reminder in the quiz's language
     And the reminder carries the same children's link the class already has
     And the reminder names no child
 
-  @T342
+  @TR03 @T342
   Scenario: A teacher with two classes of that grade is asked which one it was for
     Given the teacher has class lists 5-A and 5-B and the quiz is bound to neither
     When the teacher opens the report link
@@ -32,42 +32,42 @@ Feature: Teacher's web quiz report on the portal
     When the teacher taps 5-B
     Then the hand-out is bound to 5-B for the children too, and the report shows who in 5-B has not played
 
-  @T343
+  @TR04 @T343
   Scenario: A teacher with no class list is told how to add one
     Given the teacher has no class list
     When the teacher opens the report link
     Then the page says to send /roster on WhatsApp to see who has not played
     And the children who played are still listed with their scores
 
-  @T344
+  @TR05 @T344
   Scenario: Export PDF is the same report, printed
     When the teacher taps "Export PDF"
     Then a PDF named "quiz-report-<date>.pdf" downloads
     And it shows the same tiles, lists and questions without any buttons
     And the reminder is printed as text with the children's link
 
-  @T345
+  @TR06 @T345
   Scenario: The report reads right to left in Urdu
     Given the quiz was made in Urdu
     When the teacher opens the report link
     Then the page is right to left in Nastaliq with numbers, scores and dates left to right
     And the "English" link at the top re-opens the same report in English
 
-  @T346
+  @TR07 @T346
   Scenario: All my classes lists every recent quiz with its own report link
     When the teacher taps "All my classes"
     Then the page shows each class and subject with quizzes, children played and the average
     And a week-by-week bar chart of children who played
     And each quiz opens its own report
 
-  @T347
+  @TR08 @T347
   Scenario: A link that cannot open a report says so and shows nothing
     When an expired report link is opened
     Then the page says "This link has expired. Send /quiz on WhatsApp for a fresh one." in English and Urdu with status 410
     When a genuine report link of one teacher is pointed at another teacher's quiz
     Then the page says the report could not be found, with status 404, and shows nothing of that quiz
 
-  @T348
+  @TR09 @T348
   Scenario: A child who typed a name not on the list is reconciled by the teacher
     Given a child typed the name "Alee", who is not on 5-A's list, and finished the quiz
     When the teacher opens the report link
@@ -75,12 +75,12 @@ Feature: Teacher's web quiz report on the portal
     And "Add to 5-A" adds the child to the class list
     And "This is…" lets the teacher pick the child from the names who have not played, moving the score onto that child
 
-  @T349
+  @TR10 @T349
   Scenario: The training link on the same portal still logs the teacher into training
     When the teacher opens a training link "/t/<token>"
     Then the training page opens as before, untouched by the report pages at "/r/<token>"
 
-  @T841
+  @TR11 @T841
   Scenario: The Jugnu tab shows the class's month, sorted by first name, behind its switch
     Given the Jugnu tab switch and its parent switches are on
     And class 5-A has 8 children, two of them named "Zara" with different fathers
@@ -90,7 +90,7 @@ Feature: Teacher's web quiz report on the portal
     And each row shows the four stops done this month, "Stopped early" or "Waiting for a microphone" as words, stickers, lamps by rung name, the week's day dots and "Saved on WhatsApp ✓"
     And a stop only served or abandoned shows nothing, and no surname or phone appears anywhere
 
-  @T842
+  @TR12 @T842
   Scenario: Forward to the class group carries the week's story and no number or name
     Given the Jugnu tab switch and the class link switch are on, the class has a live class link and a story released this week
     When the teacher taps "Forward to the class group"
@@ -98,7 +98,7 @@ Feature: Teacher's web quiz report on the portal
     And the text carries no digit in any script and no child's name
     And with no class link, the class link switch off, or no story this week the button is not shown
 
-  @T843
+  @TR13 @T843
   Scenario: The teacher-confirm queue asks one question per pair and passes the tap on
     Given every switch of the Jugnu tab and of the confirm queue is on
     And a child who typed "Ayesha" may be the listed Ayesha of 5-A, and only the listed one has a father's name
@@ -108,14 +108,14 @@ Feature: Teacher's web quiz report on the portal
     And "Same child", "Different" and "Not sure" each save with one tap and come back to the tab
     And a pair the teacher said was the same child shows "Undo"
 
-  @T844
+  @TR14 @T844
   Scenario: With the Jugnu switch off the report is exactly as before
     Given the Jugnu tab switch, or one of its parents, is off
     When the teacher opens the report link, with or without "tab=jugnu"
     Then the quiz tab and the class tab are byte-for-byte today's pages, with no Jugnu link
     And the forward link and the queue answer "not found"
 
-  @T845
+  @TR15 @T845
   Scenario: The class week card shows only for a drawn class inside its week window
     Given the class week switch and its parent switches are on
     And class 5-A is in this term's class draw with a week window that is open now and has a live class link
@@ -125,7 +125,7 @@ Feature: Teacher's web quiz report on the portal
     And before the window opens, from the moment it closes, for a class not in the draw or a draw of another term, the card is not shown
     And with no live class link or no class week line in the copy deck the card is not shown
 
-  @T846
+  @TR16 @T846
   Scenario: Forwarding the week sends one fixed line and the class link, with no number or name
     Given the class week card is shown for 5-A
     When the teacher taps the card's forward button
@@ -133,7 +133,7 @@ Feature: Teacher's web quiz report on the portal
     And outside the link's code the text carries no digit in any script, no child's name, no count and no word that marks a child out
     And the first tap of the window writes "class_week_forwarded" with the keyed class and the term only
 
-  @T847
+  @TR17 @T847
   Scenario: The class week forward is counted once per class per window and is invisible while switched off
     Given the class week card is shown for 5-A
     When the teacher taps the card's forward button twice in the same window
