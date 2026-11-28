@@ -1259,7 +1259,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # ── The report template with a "Make a quiz" button (ADDED 2026-11-22, bd-pdwwk4.2) ──
   # With the window closed the report goes as the approved share template. Behind app_settings
   # "quiz_offer_closed_window".report_template it goes as that template's quiz sibling instead: the same header
-  # and body, plus one quick-reply button. training.feature T1240–T1243 cover the tap and the quiz.
+  # and body, plus one quick-reply button. training.feature T979–T982 (were T1240–T1243) cover the tap and the quiz.
   # @no-mock-driver: the mock lane cannot age the teacher's last message past 24 hours, and the sibling template is
   # not approved on any WABA yet. Executed with Meta mocked in tests/qfix-offers/closed-window-offer.test.js.
   @e2e @wip @draft @config-gated @no-mock-driver @P1 @COA140
