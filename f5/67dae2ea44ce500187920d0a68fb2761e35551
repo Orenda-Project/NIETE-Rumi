@@ -4,3 +4,4 @@
 {"ts":"2026-11-27T01:57:58Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"f567dae2ea44","branch":"bd-zrdvmi.71-staging3","user":""}
 {"ts":"2026-11-27T01:57:59Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"f567dae2ea44","branch":"bd-zrdvmi.71-staging3","user":""}
 {"ts":"2026-11-27T13:17:32Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-f567dae2ea44","sha":"f567dae2ea44","branch":"bd-zrdvmi.71-staging3","user":""}
+{"ts":"2026-11-28T00:44:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.7.0","sha":"f567dae2ea44","branch":"bd-zrdvmi.71-staging3","user":""}
