@@ -5,3 +5,4 @@
 {"ts":"2026-11-27T01:57:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
 {"ts":"2026-11-27T01:57:55Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
 {"ts":"2026-11-27T01:57:56Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
+{"ts":"2026-11-28T00:44:00Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.7.0","sha":"368cdd0c20a9","branch":"bd-zrdvmi.70-30144","user":""}
