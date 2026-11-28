@@ -5,3 +5,4 @@
 {"ts":"2026-11-27T10:07:20Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (assessment paper-serving change behind app setting assessment_paper_fixed_set, default off; no training screen or message changes)","sha":"85a4e12c9add","branch":"bd-l30sfz-fixedset-staging","user":""}
 {"ts":"2026-11-27T10:07:21Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"0846db48-1d90-4ca0-9195-c73927a0098a","sha":"85a4e12c9add","branch":"bd-l30sfz-fixedset-staging","user":""}
 {"ts":"2026-11-27T11:53:27Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.6.0","sha":"85a4e12c9add","branch":"bd-l30sfz-fixedset-staging","user":""}
+{"ts":"2026-11-28T00:43:32Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.7.0","sha":"85a4e12c9add","branch":"bd-l30sfz-fixedset-staging","user":""}
