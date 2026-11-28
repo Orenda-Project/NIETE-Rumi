@@ -2243,6 +2243,14 @@ Feature: Web child quiz page on the portal
     Then the card says "7 questions" / «۷ سوال», the number the child will play, and the link preview says the same
     But a teacher's own quiz counts all its questions as before
 
+  @WQ286
+  Scenario: A quiz reopened after its saved place has expired starts fresh instead of pretending to save
+    Given a child answered 3 of 5 questions and the phone kept the place
+    And the saved place's session pass is more than 7 days old
+    When the link is opened again
+    Then the page does not offer "Go on: question 4 of 5"
+    And the child is on the landing with no answers sent under the expired pass
+
   # Practice for the child's test (A/B test ict-quiz-practice-door, arm B; app_settings ab_quiz_practice_door, OFF by
   # default). Only a G1-5 English lesson-plan quiz from a teacher's link can offer it; no WhatsApp, nothing shared.
   @WQ287
