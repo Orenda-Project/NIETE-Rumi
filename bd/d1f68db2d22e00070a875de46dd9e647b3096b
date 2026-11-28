@@ -3,3 +3,4 @@
 {"ts":"2026-11-27T11:51:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (cherry-pick of #6175: only bot/shared/services/assessment/paper-fixed-set.js and its unit test change; no training code or teacher-facing training copy is touched)","sha":"bdd1f68db2d2","branch":"bd-l30sfz.6-staging","user":""}
 {"ts":"2026-11-27T11:51:15Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-bdd1f68db2d2","sha":"bdd1f68db2d2","branch":"bd-l30sfz.6-staging","user":""}
 {"ts":"2026-11-27T11:53:28Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.6.0","sha":"bdd1f68db2d2","branch":"bd-l30sfz.6-staging","user":""}
+{"ts":"2026-11-28T00:43:33Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks engine=2.7.0","sha":"bdd1f68db2d2","branch":"bd-l30sfz.6-staging","user":""}
