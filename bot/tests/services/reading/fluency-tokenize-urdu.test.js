@@ -1,5 +1,5 @@
 /**
- * bd-r0rmm — port of the main bot's bd-1935 fix. Urdu punctuation (، ۔ ؟ ؛) sits inside
+ * Port of the main bot's Urdu tokenizer fix. Urdu punctuation (، ۔ ؟ ؛) sits inside
  * U+0600–06FF, so the keep-filter left it glued to the word and every correctly read
  * Urdu word before a mark became a phantom substitution error.
  */

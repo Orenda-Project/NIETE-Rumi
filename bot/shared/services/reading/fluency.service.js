@@ -240,7 +240,7 @@ class FluencyService {
 
     return text
       .toLowerCase()
-      // bd-r0rmm (port of the main bot's bd-1935): strip Arabic-block punctuation FIRST. These marks
+      // Port of the main bot's Urdu tokenizer fix: strip Arabic-block punctuation FIRST. These marks
       // sit INSIDE U+0600\u201306FF, so the keep-filter below would leave them glued to the word and turn
       // every correctly read Urdu word into a phantom error. A space, so "\u06A9\u0644\u0627\u0633\u060C\u0628\u0686\u06C1" still splits.
       .replace(/[\u060C\u060D\u061B\u061E\u061F\u066A\u066B\u066C\u066D\u06D4\u06DD]/g, ' ')
