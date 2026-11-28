@@ -1,0 +1,2 @@
+{"ts":"2026-11-28T18:41:52Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test spec_sync=true","sha":"685f6ec49921","branch":"bd-zrdvmi.77.3.3-89859","user":""}
+{"ts":"2026-11-28T18:42:09Z","hook":"commit-e2e","event":"driver-missing","switch":"","detail":"not driven: a new scenario has no driver (registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test)","sha":"685f6ec49921","branch":"bd-zrdvmi.77.3.3-89859","user":""}
