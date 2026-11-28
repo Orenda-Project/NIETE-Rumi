@@ -1421,6 +1421,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # @no-mock-driver: the page count comes from real Chrome layout, which the mock lane does not run.
     # Unit: tests/lp612/over-cap-homework-reference.test.js.
 
+  # ADDED 2026-11-28 (bd-xkkw9.5): the page check measures the real page, and a draft that fits is kept.
+  @e2e @content-driven @no-mock-driver @P2 @L155
+  Scenario: A Grades 6-12 plan that fit its teaching pages while it was being written arrives within them
+    Given the NIETE bot chat is open
+    And I take an English Grades 6-12 lesson whose chapter pages carry textbook pictures
+    When the lesson-plan PDF is delivered to the chat
+    Then the textbook pictures are printed in the plan
+    And the teaching part is no longer than the length the page check measured while the plan was written
+    And a draft the page check found within the teaching pages is never swapped for a later, longer draft
+    # niete-logs prod 19-28 Nov: 5 of 24 over-cap plans passed the check at 4 teaching pages and shipped at 5
+    # (the check ran without the book pictures); 4 more held a draft that fit and kept a longer one.
+    # @no-mock-driver: a fresh plan needs a live model call and real Chrome layout.
+    # Unit: tests/lp612/gate-stages-figures.test.js, tests/lp612/ladder-keeps-page-fit.test.js.
+
   # ADDED 2026-11-22 (bd-zrdvmi.51): the cycle picture type.
   @e2e @content-driven @no-mock-driver @P2 @L151
   Scenario: A Grades 6-12 lesson on a cycle draws the cycle as a closed ring, not a line
