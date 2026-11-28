@@ -5,3 +5,4 @@
 {"ts":"2026-11-27T01:57:56Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"d65683d6c4ad","branch":"bd-zrdvmi.71-main","user":""}
 {"ts":"2026-11-27T01:57:57Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.4.0","sha":"d65683d6c4ad","branch":"bd-zrdvmi.71-main","user":""}
 {"ts":"2026-11-27T13:17:31Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-d65683d6c4ad","sha":"d65683d6c4ad","branch":"bd-zrdvmi.71-main","user":""}
+{"ts":"2026-11-28T00:44:01Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.7.0","sha":"d65683d6c4ad","branch":"bd-zrdvmi.71-main","user":""}
