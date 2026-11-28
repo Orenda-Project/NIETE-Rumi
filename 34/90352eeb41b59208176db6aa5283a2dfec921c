@@ -4,3 +4,4 @@
 {"ts":"2026-11-27T01:57:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"3490352eeb41","branch":"bd-t74k6s-86601","user":""}
 {"ts":"2026-11-27T01:57:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"3490352eeb41","branch":"bd-t74k6s-86601","user":""}
 {"ts":"2026-11-27T01:57:37Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.4.0","sha":"3490352eeb41","branch":"bd-t74k6s-86601","user":""}
+{"ts":"2026-11-28T00:43:53Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,ci-copy engine=2.7.0","sha":"3490352eeb41","branch":"bd-t74k6s-86601","user":""}
