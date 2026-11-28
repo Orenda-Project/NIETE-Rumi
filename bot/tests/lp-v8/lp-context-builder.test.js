@@ -295,12 +295,15 @@ describe('degradation', () => {
     await expect(buildLpContext('user-1')).resolves.toBeNull();
   });
 
-  test('the whole block stays inside the 4 KB budget even with a runaway script', async () => {
+  test('the lesson body stays inside the 4 KB budget even with a runaway script', async () => {
     const entry = shelfEntry();
     mockShelf = [entry];
     mockScripts[entry.r2_key] = 'بہت لمبا سبق ہے۔ '.repeat(2000);   // ~36 KB of script
     mockMoveLists[`${entry.lesson_id}:${entry.content_hash}`] = MOVES;
     const ctx = await buildLpContext('user-1');
-    expect(ctx.fullBlock.length).toBeLessThanOrEqual(4096);
+    // bd-91r48 (ported with bd-wpupy, bd-zrdvmi.77.3): the budget bounds the BODY; FRAMING is fixed overhead.
+    const { FRAMING, BLOCK_BUDGET_CHARS } = require('../../shared/services/lp-context.service').__consts;
+    expect(ctx.fullBlock.length).toBeLessThanOrEqual(FRAMING.length + 2 + BLOCK_BUDGET_CHARS);
+    expect(ctx.fullBlock.slice(ctx.fullBlock.indexOf('### ')).length).toBeLessThanOrEqual(BLOCK_BUDGET_CHARS);
   });
 });

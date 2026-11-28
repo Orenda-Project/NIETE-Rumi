@@ -1320,7 +1320,18 @@ async function handleVoiceMessage(message, from, user = null) {
     // bd-xw56ed — the same live-menu choices as the text path.
     const { liveMenuChoices } = require('../services/menu-match.service');
     const menuChoices = user ? await liveMenuChoices(user) : [];
-    const intent = await OpenAIService.detectIntent(transcription, '', menuChoices);
+    // bd-wpupy (ported to staging, bd-zrdvmi.77.3): the same delivery hint as the text path, so a
+    // voice note "change this lesson plan" right after a delivery is about that plan.
+    let intentHint = '';
+    let lpCtx;
+    try {
+      if (user?.id && process.env.LP_CONTEXT_V2_ENABLED === 'true') {
+        const { buildLpContext, deliveryHint } = require('../services/lp-context.service');
+        lpCtx = await buildLpContext(user.id);
+        intentHint = deliveryHint((lpCtx && lpCtx.entries) || []);
+      }
+    } catch (_) { /* never break classification on the hint */ }
+    const intent = await OpenAIService.detectIntent(transcription, intentHint, menuChoices);
     logToFile('Intent detected', { intent: intent.type, ...(intent.rowId ? { rowId: intent.rowId } : {}) });
 
     // bd-xw56ed — a voice note that asks for one of her menu rows opens it, exactly as typed words
@@ -1384,6 +1395,7 @@ async function handleVoiceMessage(message, from, user = null) {
         message: transcription,
         intent,
         existingContext: null,
+        prebuiltCtx: lpCtx,
       });
     }
 
