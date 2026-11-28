@@ -50,7 +50,7 @@ jest.mock('../../bot/shared/services/lp-shelf.service', () => ({
 }));
 jest.mock('../../bot/shared/services/lp-delivery-marker.service', () => ({
   recordDeliveryMarker: jest.fn().mockResolvedValue(true),
-}), { virtual: true });
+}));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn(), rpc: jest.fn() }));
