@@ -7,6 +7,7 @@
  *                                        Digital Coach report's "Create Quick Quiz" opens the page for that one lesson)
  *                                        and ?lesson (a lesson plan's `lsn_` key: the same page for that one plan)
  *   GET  /quiz/teacher/:token/send       a library code's send (?c, ?o, ?lang): the bot marks it sent, 302 → wa.me
+ *   GET  /quiz/teacher/:token/cl         "Share with your class" (?class, ?lang): the bot logs the forward, 302 → wa.me
  *   GET  /quiz/teacher/:token/fwd        the one tap from a WhatsApp message (a 'qf' token, no query): the bot logs the
  *                                        tap, 302 → wa.me with the class message
  *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot); ?book (a story
@@ -51,7 +52,9 @@ const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: L
 // the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
 const SEND_QUERY = { c: (v) => UUID_RX.test(v), o: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), lang: LANG };
-const PAGE_KEYS = { '': { lang: LANG, session: (v) => UUID_RX.test(v), lesson: (v) => /^lsn_[A-Za-z0-9_:.-]{1,200}$/.test(v) }, '/stories': PAGE_QUERY, '/send': SEND_QUERY, '/fwd': {} };
+// "Share with your class" (bd-pdwwk4.6.20): the class whose standing link the teacher sends, and the page language.
+const CL_QUERY = { class: (v) => UUID_RX.test(v), lang: LANG };
+const PAGE_KEYS = { '': { lang: LANG, session: (v) => UUID_RX.test(v), lesson: (v) => /^lsn_[A-Za-z0-9_:.-]{1,200}$/.test(v) }, '/stories': PAGE_QUERY, '/send': SEND_QUERY, '/fwd': {}, '/cl': CL_QUERY };
 function forwardQuery(q, keys = QUERY) {
   const out = Object.keys(keys).filter((k) => typeof q[k] === 'string' && keys[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
   return out.length ? `?${out.join('&')}` : '';
@@ -219,6 +222,7 @@ function createQuizTeacherRouter(opts = {}) {
   router.get('/quiz/teacher/:token/stories', limiter, forwardPage('/stories'));
   router.get('/quiz/teacher/:token/send', limiter, forwardPage('/send'));
   router.get('/quiz/teacher/:token/fwd', limiter, forwardPage('/fwd'));
+  router.get('/quiz/teacher/:token/cl', limiter, forwardPage('/cl'));
   router.get('/api/th/home', limiter, forwardGetJson('/api/th/home'));
   router.get('/api/th/library', limiter, forwardGetJson('/api/th/library'));
   router.get('/api/th/quiz/:id', limiter, forwardGetJson('/api/th/quiz'));

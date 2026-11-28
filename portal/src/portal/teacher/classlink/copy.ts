@@ -27,6 +27,9 @@ export const CLASS_LINK_COPY = {
   sendAgain: 'Send again',
   ready: (lesson: string) => `Tonight's class quiz is ready, from today's lesson: ${lesson}. It is on your class link: nothing to send.`,
   readyNoLesson: "Tonight's class quiz is ready, from today's lesson. It is on your class link: nothing to send.",
+  // bd-pdwwk4.6.20: the same news while the class link has not gone out this term (children cannot reach the quiz yet)
+  readyUnsent: (lesson: string) => `Tonight's class quiz is ready, from today's lesson: ${lesson}. Send your class link once so the children can play it.`,
+  readyUnsentNoLesson: "Tonight's class quiz is ready, from today's lesson. Send your class link once so the children can play it.",
   played: (n: number) => `${n} ${n === 1 ? 'child' : 'children'} played tonight's quiz`,
   seeRounds: 'See evening rounds',
 };
@@ -44,6 +47,8 @@ export const CLASS_LINK_COPY_UR = {
   sendAgain: 'دوبارہ بھیجیں',
   ready: (lesson: string) => `آج شام کا کلاس کوئز تیار ہے، آج کے سبق سے: ${FSI}${lesson}${PDI}۔ یہ آپ کے کلاس لنک پر ہے، کچھ بھیجنا نہیں۔`,
   readyNoLesson: 'آج شام کا کلاس کوئز آج کے سبق سے تیار ہے۔ یہ آپ کے کلاس لنک پر ہے، کچھ بھیجنا نہیں۔',
+  readyUnsent: (lesson: string) => `آج شام کا کلاس کوئز تیار ہے، آج کے سبق سے: ${FSI}${lesson}${PDI}۔ بچے اسے کھیل سکیں، اس کے لیے کلاس لنک ایک بار بھیج دیں۔`,
+  readyUnsentNoLesson: 'آج شام کا کلاس کوئز آج کے سبق سے تیار ہے۔ بچے اسے کھیل سکیں، اس کے لیے کلاس لنک ایک بار بھیج دیں۔',
   played: (n: number) => `${LRI}${n}${PDI} ${n === 1 ? 'بچے' : 'بچوں'} نے آج شام کا کوئز کھیلا`,
   seeRounds: 'شام کے راؤنڈ دیکھیں',
 };
@@ -55,5 +60,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Home (class link)',
   module: CLASS_LINK as Bilingual<unknown>,
   // The card's sentences, as the brief words them (the body, and tonight's ready line with and without a lesson title).
-  longOk: ['body', 'ready', 'readyNoLesson', 'played'],
+  longOk: ['body', 'ready', 'readyNoLesson', 'readyUnsent', 'readyUnsentNoLesson', 'played'],
 };

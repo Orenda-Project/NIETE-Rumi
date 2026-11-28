@@ -204,6 +204,8 @@ export function LookHome({ tiles, data, order, onGo, role, school, extraTile }: 
       {holding ? null : (
         <>
           {school ? <div data-testid="home-my-school" className={REVEAL}>{school}</div> : null}
+          {/* bd-pdwwk4.6.20 — the class link card above the tiles while a link is unsent (web_quiz_class_link_share). */}
+          <ClassLinkCard slot="top" />
           {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
           <FeatureTiles tiles={tiles} order={order} className={REVEAL} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} extra={extraTile} />
           {/* The evening reminder (portal_push_remind): last, as in the card build. */}

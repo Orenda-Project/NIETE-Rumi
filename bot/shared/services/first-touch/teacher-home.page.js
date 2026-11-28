@@ -484,7 +484,9 @@ const ONE_IDS = Object.freeze(['th.one.say']);
 const FORWARD_IDS = Object.freeze(['th.share.more']);
 // the "Quiz reports" section's: the script fills the row words; its heading and rounds line are the shell's own
 const REPORT_IDS = Object.freeze(['th.rp.of', 'th.rp.n', 'th.rp.late', 'th.rp.pending']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', 'th.rp.head', 'th.rp.rounds', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS, ...REPORT_IDS].includes(id)));
+// "Share with your class" (bd-pdwwk4.6.20): only on a page that carries its section (teacher-home.classlink.js CL_IDS)
+const CL_IDS = Object.freeze(['th.cl.head', 'th.cl.sub', 'th.cl.send', 'th.cl.sent', 'th.cl.again']);
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', 'th.one.all', 'th.rp.head', 'th.rp.rounds', ...NAMED_IDS, ...COUNTS_IDS, ...ONE_IDS, ...FORWARD_IDS, ...REPORT_IDS, ...CL_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
@@ -493,9 +495,10 @@ const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.s
  * script and its own hash; `portal` (only a real true) adds "Open my portal" to the foot and its script part; `one`
  * (a coaching session id, a UUID; anything else is ignored) builds the one-lesson page (ONE_SWAPS) for that lesson;
  * `reports` (only a real true; never on the one-lesson page) adds the "Quiz reports" section, its styles and its script part.
+ * `classLink` (only a real true; never on the one-lesson page) adds "Share with your class" (teacher-home.classlink.js).
  * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, lessonTitle = null, forward = false, reports = false }) {
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false, one = null, lesson = null, lessonTitle = null, forward = false, reports = false, classLink = false }) {
   const sessionId = typeof one === 'string' && UUID_RX.test(one) ? one : null;
   const lessonKey = !sessionId && typeof lesson === 'string' && LESSON_KEY_RX.test(lesson) ? lesson : null;
   const oneId = sessionId || lessonKey;
@@ -509,7 +512,11 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
     : (fwd ? { text: ONE_SCRIPT_FWD, hash: ONE_SCRIPT_FWD_HASH } : { text: ONE_SCRIPT, hash: ONE_SCRIPT_HASH });
   const key = `${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}|${fwd}`;
   const rp = reports === true && !oneId;
-  const { text: script, hash: scriptHash } = oneId ? oneScript : (rp ? reportsScript(key, SCRIPTS.get(key)) : SCRIPTS.get(key));
+  const chosen = oneId ? oneScript : (rp ? reportsScript(key, SCRIPTS.get(key)) : SCRIPTS.get(key));
+  // bd-pdwwk4.6.20 "Share with your class" (web_quiz_class_link_share): never on the one-lesson page; off, today's script
+  const cl = classLink === true && !oneId;
+  const ClassLink = cl ? require('./teacher-home.classlink') : null;
+  const { text: script, hash: scriptHash } = cl ? ClassLink.swap(chosen.text, swapped) : chosen;
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}${rp ? REPORTS_CSS : ''}`;
   const styleHash = sha(style);
@@ -521,6 +528,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
   if (counts === true) COUNTS_IDS.forEach((id) => { s[id] = str(id, l); });
   if (oneId) ONE_IDS.forEach((id) => { s[id] = str(id, l); });
   if (rp) REPORT_IDS.forEach((id) => { s[id] = str(id, l); });
+  if (cl) ['th.cl.sent', 'th.cl.send', 'th.cl.again'].forEach((id) => { s[id] = str(id, l); });
   const sw = switchTo
     ? `<a class="th-sw" lang="${switchTo}" href="/quiz/teacher/${enc}?lang=${switchTo}${sessionId ? `&amp;session=${sessionId}` : lessonKey ? `&amp;lesson=${encodeURIComponent(lessonKey)}` : ''}" data-tap="lang">${esc(str('th.lang.switch', l))}</a>`
     : '';
@@ -533,7 +541,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <main class="th" id="th-main" data-screen="${oneId ? 'teacher_home_one' : 'teacher_home'}" data-home>
 <header class="th-top"><h1 id="th-h">${esc(str('th.hello.noname', l))}</h1>${sw}</header>
 <p class="th-err" id="th-err" role="alert" hidden>${esc(str('th.error', l))}</p>${paged || wait === true ? `\n<button class="th-go2" id="th-retry" type="button" hidden>${esc(str('th.retry', l))}</button>` : ''}${chat ? `\n<a class="th-go2" id="th-err-go" href="${esc(chat)}" hidden>${esc(str('th.open.wa', l))}</a>` : ''}
-<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>
+<section class="th-card th-main" id="th-top" aria-live="polite"><div class="th-sk"></div><div class="th-sk"></div><div class="th-sk th-sk-b"></div></section>${cl ? ClassLink.section(l, esc, str) : ''}
 <ul class="th-rows" id="th-confirm" hidden></ul>
 <a class="th-link" id="th-children" data-tap="children" hidden>${esc(str('th.children', l))}</a>${rp ? `
 <section id="th-rp" hidden>

@@ -28,7 +28,7 @@ const { DEMO, expect, asRole, watch, mock } = require('../lib.cjs');
 const e164 = (p) => '92' + p.slice(1);
 const q = (s) => (s === null || s === undefined ? 'null' : "'" + String(s).replace(/'/g, "''") + "'");
 const MIGRATION = path.join(__dirname, '..', '..', '..', '..', 'bot', 'database', 'migrations', 'web_quiz_class_link.sql');
-const KEYS = ['web_quiz_class_link', 'web_quiz_challenge_v2', 'web_quiz_challenge', 'web_quiz_class_link_canary', 'web_quiz_evening_round'];
+const KEYS = ['web_quiz_class_link', 'web_quiz_challenge_v2', 'web_quiz_challenge', 'web_quiz_class_link_canary', 'web_quiz_evening_round', 'web_quiz_class_link_share', 'quiz_teacher_home'];
 const SWITCH_WAIT_MS = 45000; // the bot's 30 s caches, plus a margin
 const LESSON = 'Adding two-digit numbers';
 const ISO = /[⁦-⁩]/g; // the copy's bidi isolates
@@ -88,7 +88,7 @@ async function setKey(ctx, key, json) {
  * body gets { t: teacher id, c3: Class 3 A's id, c5: Class 5's id, kids3: Class 3 A's children, other: another teacher's class }.
  */
 async function withClassLink(ctx, opts, body) {
-  const o = { on: true, canary: '{"all":true}', evening: false, lang: 'en', ...opts };
+  const o = { on: true, canary: '{"all":true}', evening: false, share: false, quizHome: false, lang: 'en', ...opts };
   const schemaPatched = await ensureSchema(ctx);
   const [t, prevLang] = (await ctx.sql('select id, preferred_language from users where phone_number = ' + q(e164(DEMO.teacher)))).split('|');
   expect(t, 'no demo teacher ' + DEMO.teacher);
@@ -114,6 +114,8 @@ async function withClassLink(ctx, opts, body) {
     await setKey(ctx, 'web_quiz_challenge', 'true');
     await setKey(ctx, 'web_quiz_class_link_canary', typeof o.canary === 'function' ? o.canary({ c3, c5 }) : o.canary);
     await setKey(ctx, 'web_quiz_evening_round', o.evening ? 'true' : 'false');
+    await setKey(ctx, 'web_quiz_class_link_share', o.share ? 'true' : 'false');
+    if (o.quizHome) await setKey(ctx, 'quiz_teacher_home', 'true');
     await ctx.sql('update users set preferred_language = ' + q(o.lang) + ' where id = ' + q(t));
     return await body({ t, c3, c5, kids3, other, schemaPatched });
   } finally {
@@ -217,6 +219,111 @@ function reportToken(ctx, teacherId) {
     if (saved.k === undefined) delete process.env.INTERNAL_API_KEY; else process.env.INTERNAL_API_KEY = saved.k;
     if (saved.s !== undefined) process.env.WEB_QUIZ_TOKEN_SECRET = saved.s;
   }
+}
+
+// The teacher's quiz home (/quiz/teacher/<token>), with a home token the run's bot would sign.
+function homeToken(ctx, uid) {
+  const saved = { k: process.env.INTERNAL_API_KEY, s: process.env.WEB_QUIZ_TOKEN_SECRET };
+  try {
+    process.env.INTERNAL_API_KEY = ctx.internalKey; delete process.env.WEB_QUIZ_TOKEN_SECRET;
+    return require(path.join(ctx.runDir, 'src', 'bot', 'shared', 'services', 'first-touch', 'teacher-home.token.js')).signTeacherHome({ uid, lang: 'en', via: 'portal' });
+  } finally {
+    if (saved.k === undefined) delete process.env.INTERNAL_API_KEY; else process.env.INTERNAL_API_KEY = saved.k;
+    if (saved.s !== undefined) process.env.WEB_QUIZ_TOKEN_SECRET = saved.s;
+  }
+}
+const before = (page, a, b) => page.evaluate(([x, y]) => {
+  const p = document.querySelector(x); const n = document.querySelector(y);
+  return p && n ? !!(p.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING) : null;
+}, [a, b]);
+
+// ── TH24 (bd-pdwwk4.6.20) ────────────────────────────────────────────────────────────────────────────────────────
+async function th24(page, ctx) {
+  return withClassLink(ctx, { share: true, evening: true }, async ({ t, c3, c5, schemaPatched }) => {
+    await signIn(page, ctx);
+    await seedRound(ctx, { t, classId: c3, topic: LESSON });
+    await until(page, ctx, (s, b) => s === 200 && b.top === true && cls(b, c3) && !cls(b, c3).sent && cls(b, c3).round, 'top:true, Class 3 A unsent with a round');
+    let asks = 0;
+    page.on('request', (r) => { if (/\/api\/portal\/class-link$/.test(r.url()) && r.method() === 'GET') asks += 1; });
+    const w = await homeCard(page, ctx);
+    expect((await card(page).count()) === 1, 'one class link card on Home, got ' + (await card(page).count()));
+    expect((await before(page, '[data-testid="class-link-card"]', '[data-testid="feature-tiles"]')) === true, 'the card should come before the feature tiles');
+    expect(asks === 1, 'Home should ask for the class link once, asked ' + asks);
+    const line = strip(await block(page, 'Class 3 A').getByTestId('class-link-round').locator('p').first().innerText());
+    const want = `Tonight's class quiz is ready, from today's lesson: ${LESSON}. Send your class link once so the children can play it.`;
+    expect(line === want, 'the unsent ready line, got ' + line);
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), block(page, 'Class 3 A').getByTestId('class-link-send').click()]);
+    await tab.close();
+    await block(page, 'Class 3 A').getByTestId('class-link-sent').waitFor({ timeout: 5000 });
+    expect((await before(page, '[data-testid="class-link-card"]', '[data-testid="feature-tiles"]')) === true, 'after Send the card stays above the tiles');
+    // every link sent: back after the tiles
+    redis(ctx, 'set', sentKey(c5), JSON.stringify({ at: Date.now() }));
+    await until(page, ctx, (s, b) => cls(b, c3) && cls(b, c3).sent && cls(b, c5) && cls(b, c5).sent, 'both sent');
+    await homeCard(page, ctx);
+    expect((await before(page, '[data-testid="feature-tiles"]', '[data-testid="class-link-card"]')) === true, 'every link sent: the card is after the tiles');
+    // the switch off: after the tiles, as before
+    await setKey(ctx, 'web_quiz_class_link_share', 'false');
+    redis(ctx, 'del', sentKey(c3), sentKey(c5));
+    await until(page, ctx, (s, b) => s === 200 && b.top === undefined && cls(b, c3) && !cls(b, c3).sent, 'share off');
+    await homeCard(page, ctx);
+    expect((await before(page, '[data-testid="feature-tiles"]', '[data-testid="class-link-card"]')) === true, 'share off: the card is after the tiles');
+    expect(!w.errors.length && !w.fivexx.length, 'no page error or 5xx: ' + JSON.stringify(w));
+    return { schemaPatched, line };
+  });
+}
+
+// ── TH25 (bd-pdwwk4.6.20) ────────────────────────────────────────────────────────────────────────────────────────
+async function th25(page, ctx) {
+  return withClassLink(ctx, { share: true, quizHome: true }, async ({ t, c3, c5, other, schemaPatched }) => {
+    await signIn(page, ctx);
+    const ans = await until(page, ctx, (s, b) => s === 200 && b.top === true && has(b, c3) && has(b, c5), 'both classes, share on');
+    const tok = homeToken(ctx, t);
+    expect(tok, 'no quiz home token could be signed');
+    const w = watch(page);
+    w.errors.length = 0; w.fivexx.length = 0;
+    const open = async () => {
+      await page.goto(ctx.baseUrl + '/quiz/teacher/' + encodeURIComponent(tok), { waitUntil: 'domcontentloaded' });
+      await page.locator('#th-main[data-ready]').waitFor({ timeout: 30000 });
+    };
+    await open();
+    const sec = page.locator('#th-cl');
+    await sec.waitFor({ state: 'visible', timeout: 15000 });
+    expect((await before(page, '#th-top', '#th-cl')) === true && (await before(page, '#th-cl', '#th-confirm')) === true, 'the section sits right under the top card');
+    expect(strip(await sec.locator('h2').innerText()) === 'Share with your class', 'headed "Share with your class"');
+    const rows = sec.locator('[data-row="class_link"]');
+    const labels = (await rows.locator('.th-row-n').allInnerTexts()).map(strip);
+    expect(JSON.stringify(labels) === '["Class 3 A","Class 5"]', 'Class 3 A then Class 5, got ' + JSON.stringify(labels));
+    const shown = strip(await rows.first().locator('.th-row-k').first().innerText());
+    expect(shown === cls(ans.body, c3).url.replace(/^https:\/\//, ''), 'the link without https://, got ' + shown);
+    const go = rows.first().locator('[data-tap="class_link"]');
+    const box = await go.boundingBox();
+    expect(box && box.height >= 48, '"Send to class group" at least 48 px tall, is ' + (box && box.height));
+    const logAt = botLog(ctx).length;
+    const [resp] = await Promise.all([page.waitForResponse((r) => /\/cl\?class=/.test(r.url())), go.click({ noWaitAfter: true })]);
+    const loc = resp.headers().location || '';
+    expect(resp.status() === 302 && /^https:\/\/wa\.me\//.test(loc), 'the tap answers 302 to wa.me, got ' + resp.status() + ' ' + loc);
+    expect(new URL(loc).searchParams.get('text') === cls(ans.body, c3).url + '?f=1', 'the class link alone with ?f=1');
+    await page.waitForTimeout(1500);
+    expect(tapsSince(ctx, logAt).length === 1, 'the tap is logged once as the class link forward');
+    await open();
+    await sec.waitFor({ state: 'visible', timeout: 15000 });
+    expect(/Class link sent/.test(await rows.first().innerText()), 'Class 3 A shows "Class link sent" on the next open');
+    const app = await until(page, ctx, (s, b) => cls(b, c3) && cls(b, c3).sent, 'the app card folds Class 3 A');
+    // another teacher's class: the error page, nothing logged
+    if (other) {
+      const at2 = botLog(ctx).length;
+      const r = await page.request.get(ctx.baseUrl + '/quiz/teacher/' + encodeURIComponent(tok) + '/cl?class=' + other, { maxRedirects: 0 });
+      expect(r.status() === 404, 'another teacher\'s class answers 404, got ' + r.status());
+      expect(!tapsSince(ctx, at2).length, 'nothing logged for another teacher\'s class');
+    }
+    // off: no section
+    await setKey(ctx, 'web_quiz_class_link_share', 'false');
+    await page.waitForTimeout(SWITCH_WAIT_MS);
+    await open();
+    expect(!(await page.locator('#th-cl').count()), 'share off: the quiz home has no class link section');
+    expect(!w.errors.length && !w.fivexx.length, 'no page error or 5xx: ' + JSON.stringify({ errors: w.errors, fivexx: w.fivexx }));
+    return { schemaPatched, labels, appFolded: !!app };
+  });
 }
 
 // ── TH19 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -479,4 +586,8 @@ const scenarios = [
   { id: "TH23", title: "Teacher app v2: the class link card reads in Urdu for a teacher whose language is Urdu", run: th23 },
 ];
 
+scenarios.push(
+  { id: 'TH24', title: 'Teacher app v2: with "Share with your class" on, the class link card sits above the tiles while a link is unsent', run: th24 },
+  { id: 'TH25', title: 'Quiz home: with "Share with your class" on, the teacher\'s quiz home shows each class\'s link with one tap to the class group', run: th25 },
+);
 module.exports = scenarios;
