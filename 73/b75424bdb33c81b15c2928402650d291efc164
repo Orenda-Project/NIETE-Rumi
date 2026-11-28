@@ -4,3 +4,4 @@
 {"ts":"2026-11-27T05:52:47Z","hook":"pre-push","event":"ci-copy-behind","switch":"","detail":"ci-copy: .github/qa-impact/ differs from engine 2.5.0 in: impact.py hook_notes.py select_e2e.py spec_sync.py stale_text.py data_writes.py tenants_lite.py check-scenario-coverage.py","sha":"73b75424bdb3","branch":"bd-g2baes.3-main","user":""}
 {"ts":"2026-11-27T09:17:30Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.6.0","sha":"73b75424bdb3","branch":"bd-g2baes.3-main","user":""}
 {"ts":"2026-11-27T13:17:26Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"git-73b75424bdb3","sha":"73b75424bdb3","branch":"bd-g2baes.3-main","user":""}
+{"ts":"2026-11-28T00:43:29Z","hook":"e2e-doctor","event":"doctor","switch":"","detail":"verdict=run fail=- warn=engine-current,session-hooks,ci-copy engine=2.7.0","sha":"73b75424bdb3","branch":"bd-g2baes.3-main","user":""}
